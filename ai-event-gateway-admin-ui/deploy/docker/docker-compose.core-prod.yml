@@ -1,0 +1,10 @@
+services:
+  ai-event-gateway-core:
+    image: ${AI_EVENT_GATEWAY_CORE_IMAGE:-ai-event-gateway-core:latest}
+    container_name: ai-event-gateway-core-prod
+    env_file:
+      - ../env/.env.core-common.example
+      - ../env/.env.core-prod.example
+    ports:
+      - "18080:18080"
+    restart: unless-stopped

@@ -1,0 +1,38 @@
+version: "3.9"
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:18-alpine}
+    environment:
+      POSTGRES_DB: ai_event_gateway
+      POSTGRES_USER: ai_event
+      POSTGRES_PASSWORD: ai_event
+    ports: ["15432:5432"]
+  redis:
+    image: ${REDIS_IMAGE:-redis:8-alpine}
+    ports: ["16379:6379"]
+  core:
+    image: ${CORE_IMAGE:-ai-event-gateway-core:local}
+    depends_on: [postgres, redis]
+    ports: ["18080:18080"]
+    env_file: [../env/.env.i7-local-integrated.example]
+    environment:
+      SPRING_PROFILES_ACTIVE: local,postgres,redis
+      SERVER_PORT: 18080
+  netty:
+    image: ${NETTY_IMAGE:-ai-event-gateway-netty:local}
+    depends_on: [core]
+    ports: ["18081:18081", "19090:19090"]
+    env_file: [../env/.env.i7-local-integrated.example]
+    environment:
+      SERVER_PORT: 18081
+      GATEWAY_NODE_ID: gateway-node-001
+      GATEWAY_TCP_PORT: 19090
+      GATEWAY_CORE_DIRECTORY_SYNC_BASE_URL: http://core:18080
+      GATEWAY_CORE_TASK_CALLBACK_RELAY_BASE_URL: http://core:18080
+  mock-agent:
+    image: python:3.13-alpine
+    depends_on: [netty]
+    volumes:
+      - ../../scripts/e2e:/e2e:ro
+    command: ["python", "/e2e/mock_task_agent.py", "--gateway-host", "netty", "--gateway-tcp-port", "19090", "--gateway-node-id", "gateway-node-001", "--agent-id", "agent-i7-001"]
+    env_file: [../env/.env.i7-local-integrated.example]
