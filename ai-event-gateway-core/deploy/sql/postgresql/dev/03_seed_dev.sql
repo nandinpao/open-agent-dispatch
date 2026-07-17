@@ -1,0 +1,3 @@
+-- Dev-only seed data placeholder.
+-- Keep this file idempotent. Do not put production secrets or customer-specific rows here.
+-- Current core schema does not require default rows.

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.6</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.opensocket</groupId>
+    <artifactId>netty-gateway-parent</artifactId>
+    <version>1.2.5-p9-p6.5.1-multisite-transport-topology-compile-fix</version>
+    <name>netty-gateway-parent</name>
+    <description>AI Event Gateway Netty transport gateway multi-module reactor.</description>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>gateway-model</module>
+        <module>protocol</module>
+        <module>security</module>
+        <module>boot-starter</module>
+        <module>gateway-core</module>
+        <module>audit-core</module>
+        <module>audit-file</module>
+        <module>transport-server</module>
+        <module>admin-api</module>
+        <module>gateway-app</module>
+    </modules>
+
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <maven.compiler.enablePreview>false</maven.compiler.enablePreview>
+        <netty.version>4.1.118.Final</netty.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>gateway-model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>protocol</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>gateway-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>audit-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>audit-file</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>transport-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>admin-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.14.1</version>
+                    <configuration>
+                        <release>${maven.compiler.release}</release>
+                        <enablePreview>${maven.compiler.enablePreview}</enablePreview>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <!--
+                            The reactor contains a parent POM and library modules. When developers run
+                            `mvn -pl gateway-app -am spring-boot:run`, Maven still invokes
+                            the CLI goal for the upstream reactor projects. Those projects do not have a
+                            Spring Boot main class, so the plugin must be skipped by default and explicitly
+                            enabled only in gateway-app.
+                        -->
+                        <skip>true</skip>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.6.2</version>
+                    <executions>
+                        <execution>
+                            <id>enforce-jdk25-and-maven</id>
+                            <goals>
+                                <goal>enforce</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <requireJavaVersion>
+                                        <version>[25,)</version>
+                                        <message>JDK 25+ is required for ai-event-gateway-netty.</message>
+                                    </requireJavaVersion>
+                                    <requireMavenVersion>
+                                        <version>[3.9.0,)</version>
+                                        <message>Maven 3.9.0+ is required.</message>
+                                    </requireMavenVersion>
+                                </rules>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <id>enforce-observability-dependency-policy</id>
+                            <goals>
+                                <goal>enforce</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <bannedDependencies>
+                                        <searchTransitive>true</searchTransitive>
+                                        <excludes>
+                                            <!-- Spring Cloud Sleuth is not supported in the Boot 4 baseline. -->
+                                            <exclude>org.springframework.cloud:spring-cloud-starter-sleuth</exclude>
+                                            <exclude>org.springframework.cloud:spring-cloud-sleuth-*</exclude>
+                                            <!-- Zipkin exporters/starters must not be introduced during the OTLP migration. -->
+                                            <exclude>org.springframework.boot:spring-boot-starter-zipkin</exclude>
+                                            <exclude>io.opentelemetry:opentelemetry-exporter-zipkin</exclude>
+                                            <!-- P1-A completed: the Brave bridge and its Zipkin reporter are globally forbidden. -->
+                                            <exclude>io.micrometer:micrometer-tracing-bridge-brave</exclude>
+                                            <exclude>io.zipkin.reporter2:zipkin-reporter-brave</exclude>
+                                        </excludes>
+                                        <message>OpenDispatch P1-A observability policy violation: Sleuth, Brave, Zipkin reporters/exporters, and mixed tracing bridges are forbidden. Executable applications must use Spring Boot's OpenTelemetry starter.</message>
+                                    </bannedDependencies>
+                                </rules>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

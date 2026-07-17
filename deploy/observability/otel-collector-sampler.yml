@@ -1,0 +1,223 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  bearertokenauth/internal:
+    filename: /run/secrets/otel/internal.token
+  bearertokenauth/backend_traces:
+    filename: /run/secrets/otel/backend-traces.token
+  bearertokenauth/backend_metrics:
+    filename: /run/secrets/otel/backend-metrics.token
+  bearertokenauth/backend_logs:
+    filename: /run/secrets/otel/backend-logs.token
+  file_storage/sampler:
+    directory: /var/lib/otelcol/storage
+    create_directory: true
+    directory_permissions: "0750"
+    fsync: true
+    max_size: 8589934592
+    recreate: true
+    compaction:
+      on_start: true
+      on_rebound: true
+      directory: /var/lib/otelcol/compaction
+      cleanup_on_start: true
+      rebound_needed_threshold_mib: 1024
+      rebound_trigger_threshold_mib: 128
+      check_interval: 5s
+
+receivers:
+  otlp/internal:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        tls:
+          cert_file: /run/secrets/otel/sampler-server.crt
+          key_file: /run/secrets/otel/sampler-server.key
+          client_ca_file: /run/secrets/otel/ca.crt
+          min_version: "1.2"
+        auth:
+          authenticator: bearertokenauth/internal
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1536
+    spike_limit_mib: 384
+  redaction/defense_in_depth:
+    allow_all_keys: true
+    redact_all_types: true
+    blocked_key_patterns:
+      - '(?i).*authorization.*'
+      - '(?i).*cookie.*'
+      - '(?i).*password.*'
+      - '(?i).*passwd.*'
+      - '(?i).*secret.*'
+      - '(?i).*token.*'
+      - '(?i).*api[_-]?key.*'
+      - '(?i).*private[_-]?key.*'
+      - '(?i).*client[_-]?secret.*'
+    blocked_values:
+      - '(?i)Bearer\s+[A-Za-z0-9._~+\-/]+=*'
+      - '(?i)(password|passwd|secret|token|api[_-]?key|client[_-]?secret)=([^&\s]+)'
+      - '\b(?:\d[ -]*?){13,19}\b'
+    summary: silent
+    url_sanitizer:
+      enabled: true
+      attributes: ["http.url", "url", "url.full"]
+      sanitize_span_name: true
+    db_sanitizer:
+      sanitize_span_name: true
+      sql:
+        enabled: true
+        attributes: ["db.statement", "db.query.text"]
+      redis:
+        enabled: true
+        attributes: ["db.statement", "db.operation.name"]
+  tail_sampling:
+    decision_wait: 15s
+    decision_wait_after_root_received: 2s
+    num_traces: 100000
+    expected_new_traces_per_sec: 2000
+    maximum_trace_size_bytes: 8388608
+    decision_cache:
+      sampled_cache_size: 300000
+      non_sampled_cache_size: 1000000
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow-traces
+        type: latency
+        latency:
+          threshold_ms: 2000
+      - name: dispatch-blocked-or-manual
+        type: string_attribute
+        string_attribute:
+          key: dispatch.result
+          values: [blocked, error, manual_review]
+      - name: authentication-and-security
+        type: string_attribute
+        string_attribute:
+          key: http.route
+          values: ["/api/auth/.*", "/internal/agents/security-events"]
+          enabled_regex_matching: true
+          cache_max_size: 1000
+      - name: baseline-probabilistic
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+          hash_salt: opendispatch-production-v1
+  resource/sampler:
+    attributes:
+      - key: collector.role
+        value: tail-sampler
+        action: upsert
+      - key: collector.cluster
+        value: opendispatch-production
+        action: upsert
+  batch/traces:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+  batch/metrics:
+    timeout: 5s
+    send_batch_size: 2048
+    send_batch_max_size: 4096
+  batch/logs:
+    timeout: 2s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+exporters:
+  otlp/traces:
+    endpoint: ${env:OTEL_BACKEND_TRACES_ENDPOINT}
+    tls:
+      ca_file: /run/secrets/otel/backend-ca.crt
+      cert_file: /run/secrets/otel/backend-client.crt
+      key_file: /run/secrets/otel/backend-client.key
+      min_version: "1.2"
+    auth:
+      authenticator: bearertokenauth/backend_traces
+    compression: gzip
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0s
+    sending_queue:
+      enabled: true
+      num_consumers: 8
+      queue_size: 50000
+      storage: file_storage/sampler
+  prometheusremotewrite/metrics:
+    endpoint: ${env:OTEL_BACKEND_METRICS_ENDPOINT}
+    tls:
+      ca_file: /run/secrets/otel/backend-ca.crt
+      cert_file: /run/secrets/otel/backend-client.crt
+      key_file: /run/secrets/otel/backend-client.key
+      min_version: "1.2"
+    auth:
+      authenticator: bearertokenauth/backend_metrics
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0s
+    sending_queue:
+      enabled: true
+      num_consumers: 8
+      queue_size: 50000
+      storage: file_storage/sampler
+    resource_to_telemetry_conversion:
+      enabled: true
+  otlp/logs:
+    endpoint: ${env:OTEL_BACKEND_LOGS_ENDPOINT}
+    tls:
+      ca_file: /run/secrets/otel/backend-ca.crt
+      cert_file: /run/secrets/otel/backend-client.crt
+      key_file: /run/secrets/otel/backend-client.key
+      min_version: "1.2"
+    auth:
+      authenticator: bearertokenauth/backend_logs
+    compression: gzip
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0s
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 25000
+      storage: file_storage/sampler
+
+service:
+  extensions:
+    - health_check
+    - bearertokenauth/internal
+    - bearertokenauth/backend_traces
+    - bearertokenauth/backend_metrics
+    - bearertokenauth/backend_logs
+    - file_storage/sampler
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed
+  pipelines:
+    traces:
+      receivers: [otlp/internal]
+      processors: [memory_limiter, redaction/defense_in_depth, tail_sampling, resource/sampler, batch/traces]
+      exporters: [otlp/traces]
+    metrics:
+      receivers: [otlp/internal]
+      processors: [memory_limiter, redaction/defense_in_depth, resource/sampler, batch/metrics]
+      exporters: [prometheusremotewrite/metrics]
+    logs:
+      receivers: [otlp/internal]
+      processors: [memory_limiter, redaction/defense_in_depth, resource/sampler, batch/logs]
+      exporters: [otlp/logs]

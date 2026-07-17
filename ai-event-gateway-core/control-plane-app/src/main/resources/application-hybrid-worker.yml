@@ -1,0 +1,13 @@
+spring:
+  config:
+    activate:
+      on-profile: hybrid-worker
+adapter-executor:
+  mode: external
+  enabled: false
+core:
+  deployment:
+    mode: HYBRID_ADAPTER_WORKER
+  integration-events:
+    projection-enabled: true
+    store: MYBATIS

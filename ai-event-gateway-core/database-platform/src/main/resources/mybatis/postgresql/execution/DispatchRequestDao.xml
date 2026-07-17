@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.execution.dao.DispatchRequestDao">
+    <resultMap id="DispatchRequestPoMap" type="com.opensocket.aievent.database.persistence.execution.po.DispatchRequestPo">
+        <id property="dispatchRequestId" column="dispatch_request_id"/>
+        <result property="assignmentId" column="assignment_id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="incidentId" column="incident_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="ownerGatewayNodeId" column="owner_gateway_node_id"/>
+        <result property="agentSessionId" column="agent_session_id"/>
+        <result property="siteId" column="site_id"/>
+        <result property="status" column="status"/>
+        <result property="reviewMode" column="review_mode"/>
+        <result property="eligibilityStatus" column="eligibility_status"/>
+        <result property="dispatchMethod" column="dispatch_method"/>
+        <result property="gatewayDispatchPath" column="gateway_dispatch_path"/>
+        <result property="dispatchToken" column="dispatch_token"/>
+        <result property="reason" column="reason"/>
+        <result property="commandJson" column="command_json"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="approvedAt" column="approved_at"/>
+        <result property="dispatchedAt" column="dispatched_at"/>
+        <result property="failedAt" column="failed_at"/>
+        <result property="attemptCount" column="attempt_count"/>
+        <result property="lastError" column="last_error"/>
+        <result property="lastCallbackId" column="last_callback_id"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="timedOutAt" column="timed_out_at"/>
+        <result property="retryWaitingAt" column="retry_waiting_at"/>
+        <result property="nextRetryAt" column="next_retry_at"/>
+        <result property="deadLetterAt" column="dead_letter_at"/>
+        <result property="claimedBy" column="claimed_by"/>
+        <result property="claimStartedAt" column="claim_started_at"/>
+        <result property="claimUntil" column="claim_until"/>
+    </resultMap>
+
+    <sql id="DispatchColumns">
+        dispatch_request_id, assignment_id, task_id, incident_id, agent_id,
+        owner_gateway_node_id, agent_session_id, site_id, status, review_mode,
+        eligibility_status, dispatch_method, gateway_dispatch_path, dispatch_token,
+        reason, command_json, created_at, updated_at, approved_at, dispatched_at,
+        failed_at, attempt_count, last_error, last_callback_id, completed_at,
+        timed_out_at, retry_waiting_at, next_retry_at, dead_letter_at,
+        claimed_by, claim_started_at, claim_until
+    </sql>
+
+    <insert id="upsert">
+        insert into dispatch_requests (<include refid="DispatchColumns"/>) values (
+            #{request.dispatchRequestId}, #{request.assignmentId}, #{request.taskId}, #{request.incidentId}, #{request.agentId},
+            #{request.ownerGatewayNodeId}, #{request.agentSessionId}, #{request.siteId}, #{request.status}, #{request.reviewMode},
+            #{request.eligibilityStatus}, #{request.dispatchMethod}, #{request.gatewayDispatchPath}, #{request.dispatchToken},
+            #{request.reason}, coalesce(cast(#{request.commandJson} as jsonb), '{}'::jsonb), #{request.createdAt}, #{request.updatedAt}, #{request.approvedAt},
+            #{request.dispatchedAt}, #{request.failedAt}, #{request.attemptCount}, #{request.lastError}, #{request.lastCallbackId},
+            #{request.completedAt}, #{request.timedOutAt}, #{request.retryWaitingAt}, #{request.nextRetryAt}, #{request.deadLetterAt},
+            #{request.claimedBy}, #{request.claimStartedAt}, #{request.claimUntil}
+        ) on conflict (dispatch_request_id) do update set
+            agent_id = excluded.agent_id,
+            owner_gateway_node_id = excluded.owner_gateway_node_id,
+            agent_session_id = excluded.agent_session_id,
+            site_id = excluded.site_id,
+            status = excluded.status,
+            review_mode = excluded.review_mode,
+            eligibility_status = excluded.eligibility_status,
+            dispatch_method = excluded.dispatch_method,
+            gateway_dispatch_path = excluded.gateway_dispatch_path,
+            dispatch_token = excluded.dispatch_token,
+            reason = excluded.reason,
+            command_json = excluded.command_json,
+            updated_at = excluded.updated_at,
+            approved_at = excluded.approved_at,
+            dispatched_at = excluded.dispatched_at,
+            failed_at = excluded.failed_at,
+            attempt_count = excluded.attempt_count,
+            last_error = excluded.last_error,
+            last_callback_id = excluded.last_callback_id,
+            completed_at = excluded.completed_at,
+            timed_out_at = excluded.timed_out_at,
+            retry_waiting_at = excluded.retry_waiting_at,
+            next_retry_at = excluded.next_retry_at,
+            dead_letter_at = excluded.dead_letter_at,
+            claimed_by = excluded.claimed_by,
+            claim_started_at = excluded.claim_started_at,
+            claim_until = excluded.claim_until
+    </insert>
+
+    <select id="findById" resultMap="DispatchRequestPoMap">
+        select <include refid="DispatchColumns"/>
+        from dispatch_requests
+        where dispatch_request_id = #{dispatchRequestId}
+    </select>
+
+    <select id="findOpenByAssignmentId" resultMap="DispatchRequestPoMap">
+        select <include refid="DispatchColumns"/>
+        from dispatch_requests
+        where assignment_id = #{assignmentId}
+          and status in ('PENDING_REVIEW','APPROVED','RETRY_WAITING','DISPATCHING','DISPATCHED','ACKED','RUNNING')
+        order by created_at desc
+        limit 1
+    </select>
+
+    <select id="findByTaskId" resultMap="DispatchRequestPoMap">
+        select <include refid="DispatchColumns"/>
+        from dispatch_requests
+        where task_id = #{taskId}
+        order by created_at desc
+        limit #{limit}
+    </select>
+
+    <select id="findByStatus" resultMap="DispatchRequestPoMap">
+        select <include refid="DispatchColumns"/>
+        from dispatch_requests
+        where status = #{status}
+        order by created_at desc
+        limit #{limit}
+    </select>
+
+    <select id="claimById" resultMap="DispatchRequestPoMap">
+        with candidate as (
+            select dispatch_request_id
+            from dispatch_requests
+            where dispatch_request_id = #{dispatchRequestId}
+              and (
+                   status = 'APPROVED'
+                   or (status = 'RETRY_WAITING' and (next_retry_at is null or next_retry_at &lt;= #{now}))
+                   or (status = 'DISPATCHING' and (claim_until is null or claim_until &lt;= #{now}))
+              )
+            for update skip locked
+        )
+        update dispatch_requests request
+        set status = 'DISPATCHING',
+            claimed_by = #{workerId},
+            claim_started_at = #{now},
+            claim_until = #{claimUntil},
+            attempt_count = request.attempt_count + 1,
+            command_json = jsonb_set(coalesce(request.command_json, '{}'::jsonb), '{attemptNo}', to_jsonb(request.attempt_count + 1), true),
+            retry_waiting_at = null,
+            next_retry_at = null,
+            updated_at = #{now}
+        from candidate
+        where request.dispatch_request_id = candidate.dispatch_request_id
+        returning request.*
+    </select>
+
+    <select id="claimExecutable" resultMap="DispatchRequestPoMap">
+        with candidates as (
+            select dispatch_request_id
+            from dispatch_requests
+            where status = 'APPROVED'
+               or (status = 'RETRY_WAITING' and (next_retry_at is null or next_retry_at &lt;= #{now}))
+               or (status = 'DISPATCHING' and (claim_until is null or claim_until &lt;= #{now}))
+            order by updated_at asc nulls first, created_at asc
+            for update skip locked
+            limit #{limit}
+        )
+        update dispatch_requests request
+        set status = 'DISPATCHING',
+            claimed_by = #{workerId},
+            claim_started_at = #{now},
+            claim_until = #{claimUntil},
+            attempt_count = request.attempt_count + 1,
+            command_json = jsonb_set(coalesce(request.command_json, '{}'::jsonb), '{attemptNo}', to_jsonb(request.attempt_count + 1), true),
+            retry_waiting_at = null,
+            next_retry_at = null,
+            updated_at = #{now}
+        from candidates
+        where request.dispatch_request_id = candidates.dispatch_request_id
+        returning request.*
+    </select>
+
+    <update id="saveClaimed">
+        update dispatch_requests set
+            agent_id = #{request.agentId},
+            owner_gateway_node_id = #{request.ownerGatewayNodeId},
+            agent_session_id = #{request.agentSessionId},
+            site_id = #{request.siteId},
+            status = #{request.status},
+            review_mode = #{request.reviewMode},
+            eligibility_status = #{request.eligibilityStatus},
+            dispatch_method = #{request.dispatchMethod},
+            gateway_dispatch_path = #{request.gatewayDispatchPath},
+            dispatch_token = #{request.dispatchToken},
+            reason = #{request.reason},
+            command_json = coalesce(cast(#{request.commandJson} as jsonb), '{}'::jsonb),
+            updated_at = #{request.updatedAt},
+            approved_at = #{request.approvedAt},
+            dispatched_at = #{request.dispatchedAt},
+            failed_at = #{request.failedAt},
+            attempt_count = #{request.attemptCount},
+            last_error = #{request.lastError},
+            last_callback_id = #{request.lastCallbackId},
+            completed_at = #{request.completedAt},
+            timed_out_at = #{request.timedOutAt},
+            retry_waiting_at = #{request.retryWaitingAt},
+            next_retry_at = #{request.nextRetryAt},
+            dead_letter_at = #{request.deadLetterAt},
+            claimed_by = null,
+            claim_started_at = null,
+            claim_until = null
+        where dispatch_request_id = #{request.dispatchRequestId}
+          and status = 'DISPATCHING'
+          and claimed_by = #{workerId}
+          and claim_until = #{expectedClaimUntil}
+    </update>
+
+
+    <update id="transitionStatus">
+        update dispatch_requests set
+            status = #{newStatus},
+            reason = #{reason},
+            last_error = #{lastError},
+            last_callback_id = #{lastCallbackId},
+            completed_at = #{completedAt},
+            failed_at = #{failedAt},
+            timed_out_at = #{timedOutAt},
+            retry_waiting_at = #{retryWaitingAt},
+            next_retry_at = #{nextRetryAt},
+            updated_at = #{updatedAt}
+            <if test="clearClaim">
+                , claimed_by = null,
+                  claim_started_at = null,
+                  claim_until = null
+            </if>
+        where dispatch_request_id = #{dispatchRequestId}
+          and status in
+          <foreach item="status" collection="allowedStatuses" open="(" separator="," close=")">
+              #{status}
+          </foreach>
+          <if test="expectedAttemptNo != null">
+              and attempt_count = #{expectedAttemptNo}
+          </if>
+          <if test="expectedDispatchToken != null and expectedDispatchToken != ''">
+              and dispatch_token = #{expectedDispatchToken}
+          </if>
+    </update>
+
+    <select id="recent" resultMap="DispatchRequestPoMap">
+        select <include refid="DispatchColumns"/>
+        from dispatch_requests
+        order by created_at desc
+        limit #{limit}
+    </select>
+</mapper>

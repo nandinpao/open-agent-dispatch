@@ -1,0 +1,208 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  bearertokenauth/ingest:
+    filename: /run/secrets/otel/ingest.tokens
+  bearertokenauth/internal:
+    filename: /run/secrets/otel/internal.token
+  file_storage/gateway:
+    directory: /var/lib/otelcol/storage
+    create_directory: true
+    directory_permissions: "0750"
+    fsync: true
+    max_size: 4294967296
+    recreate: true
+    compaction:
+      on_start: true
+      on_rebound: true
+      directory: /var/lib/otelcol/compaction
+      cleanup_on_start: true
+      rebound_needed_threshold_mib: 512
+      rebound_trigger_threshold_mib: 64
+      check_interval: 5s
+
+receivers:
+  otlp/secure:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        tls:
+          cert_file: /run/secrets/otel/ingest-server.crt
+          key_file: /run/secrets/otel/ingest-server.key
+          client_ca_file: /run/secrets/otel/ca.crt
+          min_version: "1.2"
+        auth:
+          authenticator: bearertokenauth/ingest
+      http:
+        endpoint: 0.0.0.0:4318
+        tls:
+          cert_file: /run/secrets/otel/ingest-server.crt
+          key_file: /run/secrets/otel/ingest-server.key
+          client_ca_file: /run/secrets/otel/ca.crt
+          min_version: "1.2"
+        auth:
+          authenticator: bearertokenauth/ingest
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 768
+    spike_limit_mib: 192
+  redaction/defense_in_depth:
+    allow_all_keys: true
+    redact_all_types: true
+    blocked_key_patterns:
+      - '(?i).*authorization.*'
+      - '(?i).*cookie.*'
+      - '(?i).*password.*'
+      - '(?i).*passwd.*'
+      - '(?i).*secret.*'
+      - '(?i).*token.*'
+      - '(?i).*api[_-]?key.*'
+      - '(?i).*private[_-]?key.*'
+      - '(?i).*client[_-]?secret.*'
+    blocked_values:
+      - '(?i)Bearer\s+[A-Za-z0-9._~+\-/]+=*'
+      - '(?i)(password|passwd|secret|token|api[_-]?key|client[_-]?secret)=([^&\s]+)'
+      - '\b(?:\d[ -]*?){13,19}\b'
+    summary: silent
+    url_sanitizer:
+      enabled: true
+      attributes: ["http.url", "url", "url.full"]
+      sanitize_span_name: true
+    db_sanitizer:
+      sanitize_span_name: true
+      sql:
+        enabled: true
+        attributes: ["db.statement", "db.query.text"]
+      redis:
+        enabled: true
+        attributes: ["db.statement", "db.operation.name"]
+  resource/gateway:
+    attributes:
+      - key: collector.role
+        value: secure-gateway
+        action: upsert
+      - key: collector.cluster
+        value: opendispatch-production
+        action: upsert
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+exporters:
+  load_balancing/traces:
+    routing_key: traceID
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0s
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 20000
+      storage: file_storage/gateway
+    protocol:
+      otlp:
+        timeout: 5s
+        tls:
+          ca_file: /run/secrets/otel/ca.crt
+          cert_file: /run/secrets/otel/gateway-client.crt
+          key_file: /run/secrets/otel/gateway-client.key
+          min_version: "1.2"
+        auth:
+          authenticator: bearertokenauth/internal
+        sending_queue:
+          enabled: true
+          queue_size: 2000
+    resolver:
+      static:
+        hostnames:
+          - otel-sampler-a:4317
+          - otel-sampler-b:4317
+  load_balancing/metrics:
+    routing_key: service
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0s
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 10000
+      storage: file_storage/gateway
+    protocol:
+      otlp:
+        timeout: 5s
+        tls:
+          ca_file: /run/secrets/otel/ca.crt
+          cert_file: /run/secrets/otel/gateway-client.crt
+          key_file: /run/secrets/otel/gateway-client.key
+          min_version: "1.2"
+        auth:
+          authenticator: bearertokenauth/internal
+        sending_queue:
+          enabled: true
+          queue_size: 1000
+    resolver:
+      static:
+        hostnames:
+          - otel-sampler-a:4317
+          - otel-sampler-b:4317
+  load_balancing/logs:
+    routing_key: service
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 0s
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 10000
+      storage: file_storage/gateway
+    protocol:
+      otlp:
+        timeout: 5s
+        tls:
+          ca_file: /run/secrets/otel/ca.crt
+          cert_file: /run/secrets/otel/gateway-client.crt
+          key_file: /run/secrets/otel/gateway-client.key
+          min_version: "1.2"
+        auth:
+          authenticator: bearertokenauth/internal
+        sending_queue:
+          enabled: true
+          queue_size: 1000
+    resolver:
+      static:
+        hostnames:
+          - otel-sampler-a:4317
+          - otel-sampler-b:4317
+
+service:
+  extensions: [health_check, bearertokenauth/ingest, bearertokenauth/internal, file_storage/gateway]
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed
+  pipelines:
+    traces:
+      receivers: [otlp/secure]
+      processors: [memory_limiter, redaction/defense_in_depth, resource/gateway, batch]
+      exporters: [load_balancing/traces]
+    metrics:
+      receivers: [otlp/secure]
+      processors: [memory_limiter, redaction/defense_in_depth, resource/gateway, batch]
+      exporters: [load_balancing/metrics]
+    logs:
+      receivers: [otlp/secure]
+      processors: [memory_limiter, redaction/defense_in_depth, resource/gateway, batch]
+      exporters: [load_balancing/logs]

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.opensocket</groupId>
+        <artifactId>control-plane-parent</artifactId>
+        <version>1.0.0-p25.7.4-p5-callback-transition-governance-fix</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>data-model</artifactId>
+    <name>data-model</name>
+    <description>Canonical Core DAO, PO, DTO, domain contract, repository-port, service-port, and extension-contract model module.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>kernel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis</artifactId>
+        </dependency>
+    </dependencies>
+</project>

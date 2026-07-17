@@ -1,0 +1,2 @@
+com.opensocket.aievent.database.config.DatabasePlatformAutoConfiguration
+com.opensocket.aievent.database.config.DatabasePersistenceAutoConfiguration

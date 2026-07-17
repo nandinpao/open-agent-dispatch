@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.task.dao.TaskExecutionAttemptDao">
+  <resultMap id="ExecutionAttemptRowMap" type="com.opensocket.aievent.database.persistence.task.po.TaskExecutionAttemptPo">
+    <id property="executionAttemptId" column="execution_attempt_id"/>
+    <result property="taskId" column="task_id"/><result property="assignmentId" column="assignment_id"/><result property="dispatchAttemptId" column="dispatch_attempt_id"/>
+    <result property="agentId" column="agent_id"/><result property="agentSessionId" column="agent_session_id"/><result property="leaseId" column="lease_id"/><result property="fencingToken" column="fencing_token"/><result property="attemptNo" column="attempt_no"/>
+    <result property="status" column="status"/><result property="resultCode" column="result_code"/><result property="errorCode" column="error_code"/><result property="errorMessage" column="error_message"/><result property="callbackId" column="callback_id"/>
+    <result property="createdAt" column="created_at"/><result property="startedAt" column="started_at"/><result property="completedAt" column="completed_at"/><result property="updatedAt" column="updated_at"/>
+  </resultMap>
+  <sql id="Columns">execution_attempt_id,task_id,assignment_id,dispatch_attempt_id,agent_id,agent_session_id,lease_id,fencing_token,attempt_no,status,result_code,error_code,error_message,callback_id,created_at,started_at,completed_at,updated_at</sql>
+  <insert id="upsert">insert into task_execution_attempts(<include refid="Columns"/>) values(#{attempt.executionAttemptId},#{attempt.taskId},#{attempt.assignmentId},#{attempt.dispatchAttemptId},#{attempt.agentId},#{attempt.agentSessionId},#{attempt.leaseId},#{attempt.fencingToken},#{attempt.attemptNo},#{attempt.status},#{attempt.resultCode},#{attempt.errorCode},#{attempt.errorMessage},#{attempt.callbackId},#{attempt.createdAt},#{attempt.startedAt},#{attempt.completedAt},#{attempt.updatedAt}) on conflict(execution_attempt_id) do update set status=excluded.status,result_code=excluded.result_code,error_code=excluded.error_code,error_message=excluded.error_message,callback_id=excluded.callback_id,fencing_token=excluded.fencing_token,started_at=excluded.started_at,completed_at=excluded.completed_at,updated_at=excluded.updated_at</insert>
+  <select id="findById" resultMap="ExecutionAttemptRowMap">select <include refid="Columns"/> from task_execution_attempts where execution_attempt_id=#{executionAttemptId}</select>
+  <select id="findCurrentByAssignmentId" resultMap="ExecutionAttemptRowMap">select <include refid="Columns"/> from task_execution_attempts where assignment_id=#{assignmentId} and status in('CREATED','RUNNING') order by created_at desc limit 1</select>
+  <select id="findByTaskId" resultMap="ExecutionAttemptRowMap">select <include refid="Columns"/> from task_execution_attempts where task_id=#{taskId} order by created_at desc limit #{limit}</select>
+  <select id="countByTaskId" resultType="int">select count(*) from task_execution_attempts where task_id=#{taskId}</select>
+</mapper>

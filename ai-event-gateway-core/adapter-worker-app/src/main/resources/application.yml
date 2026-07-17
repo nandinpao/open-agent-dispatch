@@ -1,0 +1,90 @@
+server:
+  port: ${ADAPTER_WORKER_PORT:18090}
+spring:
+  application:
+    name: ai-event-gateway-adapter-worker
+  task:
+    execution:
+      propagate-context: true
+      thread-name-prefix: adapter-worker-async-
+      pool:
+        core-size: ${ADAPTER_WORKER_ASYNC_CORE_SIZE:4}
+        max-size: ${ADAPTER_WORKER_ASYNC_MAX_SIZE:16}
+        queue-capacity: ${ADAPTER_WORKER_ASYNC_QUEUE_CAPACITY:200}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+    scheduling:
+      thread-name-prefix: adapter-worker-scheduler-
+      pool:
+        size: ${ADAPTER_WORKER_SCHEDULER_POOL_SIZE:2}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+  jackson:
+    # Transitional compatibility only: the runtime mapper is Jackson 3.
+    use-jackson2-defaults: ${SPRING_JACKSON_USE_JACKSON2_DEFAULTS:true}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      service: ai-event-gateway-adapter-worker
+  tracing:
+    enabled: ${MANAGEMENT_TRACING_ENABLED:true}
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+    export:
+      otlp:
+        # Export stays opt-in for standalone runs; local/CI Compose enables it explicitly.
+        enabled: ${MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED:false}
+    propagation:
+      # Accept legacy B3 during migration, but emit only vendor-neutral W3C Trace Context.
+      consume: ${MANAGEMENT_TRACING_PROPAGATION_CONSUME:w3c,b3}
+      produce: ${MANAGEMENT_TRACING_PROPAGATION_PRODUCE:w3c}
+  opentelemetry:
+    resource-attributes:
+      service.name: ${spring.application.name}
+      service.namespace: ${OTEL_SERVICE_NAMESPACE:opendispatch}
+      service.version: ${OTEL_SERVICE_VERSION:dev}
+      deployment.environment: ${DEPLOYMENT_ENVIRONMENT:local}
+      deployment.environment.name: ${DEPLOYMENT_ENVIRONMENT:local}
+    tracing:
+      export:
+        schedule-delay: ${OTEL_TRACES_SCHEDULE_DELAY:5s}
+        timeout: ${OTEL_TRACES_EXPORT_TIMEOUT:30s}
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+          compression: ${OTEL_TRACES_COMPRESSION:none}
+          connect-timeout: ${OTEL_TRACES_CONNECT_TIMEOUT:10s}
+          timeout: ${OTEL_TRACES_TIMEOUT:10s}
+          transport: ${OTEL_TRACES_TRANSPORT:http}
+          headers:
+            Authorization: ${OTEL_EXPORTER_OTLP_AUTHORIZATION:}
+  otlp:
+    metrics:
+      export:
+        enabled: ${MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED:false}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+        step: ${OTEL_METRICS_EXPORT_STEP:1m}
+        connect-timeout: ${OTEL_METRICS_CONNECT_TIMEOUT:1s}
+        read-timeout: ${OTEL_METRICS_READ_TIMEOUT:10s}
+        compression-mode: ${OTEL_METRICS_COMPRESSION:none}
+        headers:
+          Authorization: ${OTEL_EXPORTER_OTLP_AUTHORIZATION:}
+adapter-worker:
+  enabled: ${ADAPTER_WORKER_ENABLED:true}
+  core-base-url: ${ADAPTER_WORKER_CORE_BASE_URL:http://localhost:18080}
+  worker-id: ${ADAPTER_WORKER_ID:adapter-worker-001}
+  adapter-types: ${ADAPTER_WORKER_TYPES:MCP,ISSUE_TRACKING}
+  lease-seconds: ${ADAPTER_WORKER_LEASE_SECONDS:120}
+  poll-interval-ms: ${ADAPTER_WORKER_POLL_INTERVAL_MS:2000}
+  request-timeout: ${ADAPTER_WORKER_REQUEST_TIMEOUT:15s}
+  token-header: ${ADAPTER_WORKER_TOKEN_HEADER:X-Internal-Token}
+  token: ${ADAPTER_WORKER_TOKEN:}
+  mcp-endpoint-url: ${ADAPTER_WORKER_MCP_ENDPOINT_URL:}
+  issue-endpoint-url: ${ADAPTER_WORKER_ISSUE_ENDPOINT_URL:}
+  mock-success-enabled: ${ADAPTER_WORKER_MOCK_SUCCESS_ENABLED:false}

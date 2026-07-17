@@ -1,0 +1,17 @@
+{
+  "tenantId": "tenant-p6-empty-db",
+  "flowCase": {
+    "sourceSystem": "MES",
+    "eventStage": "EXTERNAL",
+    "objectType": "LOT",
+    "eventType": "LOT_HOLD_REQUIRED",
+    "errorCode": "QA_HOLD",
+    "requestedSkill": "MES_LOT_HOLD_TRIAGE",
+    "agents": []
+  },
+  "expectedDryRun": {
+    "ready": false,
+    "dispatchable": false,
+    "firstBlockingCode": "FLOW_AGENT_ASSIGNMENT"
+  }
+}

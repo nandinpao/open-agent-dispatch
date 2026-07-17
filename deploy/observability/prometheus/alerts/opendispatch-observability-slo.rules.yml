@@ -1,0 +1,84 @@
+groups:
+  - name: opendispatch-observability-collector
+    rules:
+      - alert: OpenDispatchCollectorExporterFailures
+        expr: increase(otelcol_exporter_send_failed_spans_total[5m]) > 0 or increase(otelcol_exporter_send_failed_metric_points_total[5m]) > 0 or increase(otelcol_exporter_send_failed_log_records_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: opendispatch-observability
+        annotations:
+          summary: OpenTelemetry Collector cannot export telemetry
+          description: One or more Collector exporters have continuously failed to send telemetry for five minutes.
+      - alert: OpenDispatchCollectorPersistentQueuePressure
+        expr: (otelcol_exporter_queue_size / clamp_min(otelcol_exporter_queue_capacity, 1)) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+          service: opendispatch-observability
+        annotations:
+          summary: OpenTelemetry persistent queue exceeds 80 percent
+          description: Investigate backend availability, disk capacity, network latency, and exporter retry activity.
+      - alert: OpenDispatchCollectorPersistentQueueCritical
+        expr: (otelcol_exporter_queue_size / clamp_min(otelcol_exporter_queue_capacity, 1)) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          service: opendispatch-observability
+        annotations:
+          summary: OpenTelemetry persistent queue exceeds 95 percent
+          description: Telemetry loss is imminent if the backend remains unavailable.
+      - alert: OpenDispatchCollectorEnqueueFailure
+        expr: increase(otelcol_exporter_enqueue_failed_spans_total[5m]) > 0 or increase(otelcol_exporter_enqueue_failed_metric_points_total[5m]) > 0 or increase(otelcol_exporter_enqueue_failed_log_records_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: opendispatch-observability
+        annotations:
+          summary: OpenTelemetry Collector rejected telemetry before export
+          description: Persistent storage may be full, unavailable, or the queue is saturated.
+      - alert: OpenDispatchCollectorReceiverRefusal
+        expr: increase(otelcol_receiver_refused_spans_total[5m]) > 0 or increase(otelcol_receiver_refused_metric_points_total[5m]) > 0 or increase(otelcol_receiver_refused_log_records_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: opendispatch-observability
+        annotations:
+          summary: OpenTelemetry receiver is refusing telemetry
+          description: Check memory limiter pressure, malformed requests, authentication failures, and capacity.
+      - alert: OpenDispatchTailSamplingBufferPressure
+        expr: increase(otelcol_processor_tail_sampling_sampling_trace_dropped_too_early_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: opendispatch-observability
+        annotations:
+          summary: Tail sampler is dropping traces before a decision
+          description: Increase num_traces or capacity, reduce decision_wait, or add sampler replicas with trace-ID routing.
+      - alert: OpenDispatchTailSamplingDecisionSlow
+        expr: histogram_quantile(0.99, sum by (le, service_instance_id) (rate(otelcol_processor_tail_sampling_sampling_decision_timer_latency_bucket[5m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: opendispatch-observability
+        annotations:
+          summary: Tail sampling decisions are slow
+          description: P99 tail-sampling decision processing exceeds one second.
+      - alert: OpenDispatchCollectorLoadBalancerBackendLoss
+        expr: otelcol_loadbalancer_num_backends < 2
+        for: 2m
+        labels:
+          severity: critical
+          service: opendispatch-observability
+        annotations:
+          summary: Collector load-balancing ring has fewer than two sampler backends
+          description: Tail-sampling high availability is degraded.
+      - alert: OpenDispatchCollectorMemoryPressure
+        expr: otelcol_process_memory_rss / 1024 / 1024 > 1400
+        for: 10m
+        labels:
+          severity: warning
+          service: opendispatch-observability
+        annotations:
+          summary: Collector RSS memory is high
+          description: Collector memory usage exceeds the production warning threshold.

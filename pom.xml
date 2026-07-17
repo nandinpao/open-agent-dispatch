@@ -1,0 +1,69 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.opensocket</groupId>
+    <artifactId>opendispatch</artifactId>
+    <version>0.8.2-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>OpenDispatch</name>
+    <description>Enterprise self-hosted AI Event Gateway / Agent Dispatch platform aggregator.</description>
+
+    <!--
+        This repository snapshot contains two Maven reactors and one standalone Next.js app.
+        Keep the root Maven aggregator aligned with directories that actually exist.
+        Admin UI is built by npm / Docker / Makefile, not as a Maven module.
+    -->
+    <modules>
+        <module>ai-event-gateway-core</module>
+        <module>ai-event-gateway-netty</module>
+    </modules>
+
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.release>25</maven.compiler.release>
+        <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>enforce-java-and-maven</id>
+                            <goals>
+                                <goal>enforce</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <requireJavaVersion>
+                                        <version>[25,26)</version>
+                                        <message>JDK 25 is required for this OpenDispatch snapshot.</message>
+                                    </requireJavaVersion>
+                                    <requireMavenVersion>
+                                        <version>[3.9,)</version>
+                                        <message>Maven 3.9+ is required.</message>
+                                    </requireMavenVersion>
+                                </rules>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

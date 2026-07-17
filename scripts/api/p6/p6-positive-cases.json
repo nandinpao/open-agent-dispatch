@@ -1,0 +1,58 @@
+{
+  "tenantId": "tenant-p6-empty-db",
+  "agentId": "agent-p6-flow-rule-001",
+  "positiveCases": [
+    {
+      "sourceSystem": "ERP",
+      "eventStage": "EXTERNAL",
+      "objectType": "VENDOR",
+      "eventType": "VENDOR_MASTER_BANK_ACCOUNT_CHANGED",
+      "errorCode": "VENDOR_BANK_ACCOUNT_CHANGE",
+      "requestedSkill": "ERP_VENDOR_MASTER_RISK_TRIAGE",
+      "expected": {
+        "routingPath": "FLOW_RULE",
+        "assignmentCreated": true,
+        "dispatchRequestCreated": true
+      }
+    },
+    {
+      "sourceSystem": "ERP",
+      "eventStage": "EXTERNAL",
+      "objectType": "PAYMENT",
+      "eventType": "PAYMENT_BLOCKED_BY_RISK_RULE",
+      "errorCode": "PAYMENT_RISK_BLOCKED",
+      "requestedSkill": "ERP_PAYMENT_RISK_TRIAGE",
+      "expected": {
+        "routingPath": "FLOW_RULE",
+        "assignmentCreated": true,
+        "dispatchRequestCreated": true
+      }
+    },
+    {
+      "sourceSystem": "MES",
+      "eventStage": "EXTERNAL",
+      "objectType": "EQUIPMENT",
+      "eventType": "EQUIPMENT_ALARM",
+      "errorCode": "TEMP_HIGH",
+      "requestedSkill": "MES_EQUIPMENT_ALARM_TRIAGE",
+      "expected": {
+        "routingPath": "FLOW_RULE",
+        "assignmentCreated": true,
+        "dispatchRequestCreated": true
+      }
+    },
+    {
+      "sourceSystem": "CMS",
+      "eventStage": "EXTERNAL",
+      "objectType": "CONTENT",
+      "eventType": "CONTENT_PUBLISH_FAILED",
+      "errorCode": "PUBLISH_VALIDATION_FAILED",
+      "requestedSkill": "CMS_CONTENT_REVIEW",
+      "expected": {
+        "routingPath": "FLOW_RULE",
+        "assignmentCreated": true,
+        "dispatchRequestCreated": true
+      }
+    }
+  ]
+}

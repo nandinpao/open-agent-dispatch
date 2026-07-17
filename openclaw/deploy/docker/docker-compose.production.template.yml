@@ -1,0 +1,33 @@
+name: opensocket-openclaw-plugin-production
+
+services:
+  openclaw:
+    image: ${OPENCLAW_IMAGE_WITH_OPENSOCKET:?Set OPENCLAW_IMAGE_WITH_OPENSOCKET to an immutable image digest or version}
+    restart: unless-stopped
+    env_file:
+      - ../env/opensocket.production.env
+    environment:
+      OPENSOCKET_STRICT_CONFIG: "true"
+      OPENSOCKET_AUTO_START: "true"
+    command: ["openclaw", "gateway", "start"]
+    volumes:
+      - opensocket-state:/var/lib/openclaw/opensocket-state
+      - opensocket-artifacts:/var/lib/openclaw/opensocket-artifacts
+      - opensocket-observability:/var/lib/openclaw/opensocket-observability
+      - ${OPENSOCKET_AGENT_CREDENTIAL_HOST_FILE:?Set protected JWT file path}:/var/run/secrets/opensocket/agent.jwt:ro
+    depends_on:
+      ai-event-gateway-netty:
+        condition: service_started
+
+  # Netty is the JWT authentication authority. Configure its issuer/JWKS,
+  # audience and Agent identity validation through the Netty deployment.
+  ai-event-gateway-netty:
+    image: ${AI_EVENT_GATEWAY_NETTY_IMAGE:?Set AI_EVENT_GATEWAY_NETTY_IMAGE}
+    restart: unless-stopped
+    ports:
+      - "18080:18080"
+
+volumes:
+  opensocket-state:
+  opensocket-artifacts:
+  opensocket-observability:

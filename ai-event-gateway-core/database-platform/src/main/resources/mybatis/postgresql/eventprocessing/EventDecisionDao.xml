@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.eventprocessing.dao.EventDecisionDao">
+  <resultMap id="EventDecisionPoMap" type="com.opensocket.aievent.database.persistence.eventprocessing.po.EventDecisionPo">
+    <id property="eventId" column="event_id"/><result property="fingerprint" column="fingerprint"/><result property="incidentId" column="incident_id"/>
+    <result property="decisionType" column="decision_type"/><result property="duplicate" column="duplicate"/><result property="occurrenceCount" column="occurrence_count"/>
+    <result property="actionsJson" column="actions_json"/><result property="reason" column="reason"/><result property="decidedAt" column="decided_at"/>
+  </resultMap>
+  <insert id="upsert">insert into event_decisions(event_id,fingerprint,incident_id,decision_type,duplicate,occurrence_count,actions_json,reason,decided_at) values(#{decision.eventId},#{decision.fingerprint},#{decision.incidentId},#{decision.decisionType},#{decision.duplicate},#{decision.occurrenceCount},coalesce(cast(#{decision.actionsJson} as jsonb), '[]'::jsonb),#{decision.reason},#{decision.decidedAt}) on conflict(event_id) do update set fingerprint=excluded.fingerprint,incident_id=excluded.incident_id,decision_type=excluded.decision_type,duplicate=excluded.duplicate,occurrence_count=excluded.occurrence_count,actions_json=excluded.actions_json,reason=excluded.reason,decided_at=excluded.decided_at</insert>
+  <select id="findRecent" resultMap="EventDecisionPoMap">select event_id,fingerprint,incident_id,decision_type,duplicate,occurrence_count,actions_json,reason,decided_at from event_decisions order by decided_at desc limit #{limit}</select>
+</mapper>

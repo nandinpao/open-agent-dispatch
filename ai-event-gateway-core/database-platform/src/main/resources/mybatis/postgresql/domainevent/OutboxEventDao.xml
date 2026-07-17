@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.domainevent.dao.OutboxEventDao">
+  <resultMap id="OutboxEventPoMap" type="com.opensocket.aievent.database.persistence.domainevent.po.OutboxEventPo">
+    <id property="outboxId" column="outbox_id"/><result property="eventId" column="event_id"/><result property="eventType" column="event_type"/>
+    <result property="aggregateType" column="aggregate_type"/><result property="aggregateId" column="aggregate_id"/><result property="payloadJson" column="payload_json"/>
+    <result property="status" column="status"/><result property="attemptCount" column="attempt_count"/><result property="nextAttemptAt" column="next_attempt_at"/>
+    <result property="lastError" column="last_error"/><result property="claimedBy" column="claimed_by"/><result property="claimUntil" column="claim_until"/>
+    <result property="createdAt" column="created_at"/><result property="publishedAt" column="published_at"/><result property="updatedAt" column="updated_at"/>
+  </resultMap>
+  <sql id="Columns">outbox_id,event_id,event_type,aggregate_type,aggregate_id,payload_json,status,attempt_count,next_attempt_at,last_error,claimed_by,claim_until,created_at,published_at,updated_at</sql>
+  <insert id="insertIgnore">insert into module_outbox_events(<include refid="Columns"/>) values(#{event.outboxId},#{event.eventId},#{event.eventType},#{event.aggregateType},#{event.aggregateId},coalesce(cast(#{event.payloadJson} as jsonb), '{}'::jsonb),#{event.status},#{event.attemptCount},#{event.nextAttemptAt},#{event.lastError},#{event.claimedBy},#{event.claimUntil},#{event.createdAt},#{event.publishedAt},#{event.updatedAt}) on conflict(event_id) do nothing</insert>
+  <select id="findById" resultMap="OutboxEventPoMap">select <include refid="Columns"/> from module_outbox_events where outbox_id=#{outboxId}</select>
+  <select id="findByEventId" resultMap="OutboxEventPoMap">select <include refid="Columns"/> from module_outbox_events where event_id=#{eventId}</select>
+  <select id="claimDispatchable" resultMap="OutboxEventPoMap">
+    with candidates as (
+      select outbox_id from module_outbox_events
+      where status='PENDING'
+         or (status='RETRY_WAITING' and (next_attempt_at is null or next_attempt_at &lt;= #{now}))
+         or (status='DISPATCHING' and (claim_until is null or claim_until &lt;= #{now}))
+      order by created_at asc for update skip locked limit #{limit}
+    )
+    update module_outbox_events e set status='DISPATCHING',claimed_by=#{workerId},claim_until=#{claimUntil},updated_at=#{now}
+    from candidates c where e.outbox_id=c.outbox_id returning e.*
+  </select>
+  <update id="markPublished">update module_outbox_events set status='PUBLISHED',published_at=#{publishedAt},updated_at=#{publishedAt},last_error=null,next_attempt_at=null,claimed_by=null,claim_until=null where outbox_id=#{outboxId} and status='DISPATCHING' and claimed_by=#{workerId} and claim_until=#{claimUntil}</update>
+  <update id="markRetry">update module_outbox_events set status='RETRY_WAITING',attempt_count=#{attemptCount},next_attempt_at=#{nextAttemptAt},last_error=#{error},claimed_by=null,claim_until=null,updated_at=#{updatedAt} where outbox_id=#{outboxId} and status='DISPATCHING' and claimed_by=#{workerId} and claim_until=#{claimUntil}</update>
+  <update id="markDeadLetter">update module_outbox_events set status='DEAD_LETTER',attempt_count=#{attemptCount},last_error=#{error},next_attempt_at=null,claimed_by=null,claim_until=null,updated_at=#{updatedAt} where outbox_id=#{outboxId} and status='DISPATCHING' and claimed_by=#{workerId} and claim_until=#{claimUntil}</update>
+  <select id="recent" resultMap="OutboxEventPoMap">select <include refid="Columns"/> from module_outbox_events order by created_at desc limit #{limit}</select>
+</mapper>

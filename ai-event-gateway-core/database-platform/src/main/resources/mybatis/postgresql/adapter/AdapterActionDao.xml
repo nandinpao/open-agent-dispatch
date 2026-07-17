@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.adapter.dao.AdapterActionDao">
+    <resultMap id="AdapterActionPoMap" type="com.opensocket.aievent.database.persistence.adapter.po.AdapterActionPo">
+        <id property="actionId" column="action_id"/><result property="idempotencyKey" column="idempotency_key"/><result property="incidentId" column="incident_id"/><result property="taskId" column="task_id"/>
+        <result property="dispatchRequestId" column="dispatch_request_id"/><result property="assignmentId" column="assignment_id"/><result property="agentId" column="agent_id"/><result property="adapterName" column="adapter_name"/>
+        <result property="adapterType" column="adapter_type"/><result property="actionType" column="action_type"/><result property="status" column="status"/><result property="reason" column="reason"/>
+        <result property="requestHash" column="request_hash"/><result property="responseRef" column="response_ref"/><result property="payloadJson" column="payload_json"/>
+        <result property="createdAt" column="created_at"/><result property="updatedAt" column="updated_at"/><result property="executingAt" column="executing_at"/><result property="completedAt" column="completed_at"/>
+        <result property="failedAt" column="failed_at"/><result property="nextAttemptAt" column="next_attempt_at"/><result property="retryWaitingAt" column="retry_waiting_at"/><result property="executorUnavailableAt" column="executor_unavailable_at"/>
+        <result property="claimedBy" column="claimed_by"/><result property="claimedAt" column="claimed_at"/><result property="leaseExpiresAt" column="lease_expires_at"/><result property="workerHeartbeatAt" column="worker_heartbeat_at"/>
+        <result property="attemptCount" column="attempt_count"/><result property="maxAttempts" column="max_attempts"/><result property="executorName" column="executor_name"/><result property="lastError" column="last_error"/>
+    </resultMap>
+    <sql id="ActionColumns">action_id, idempotency_key, incident_id, task_id, dispatch_request_id, assignment_id, agent_id, adapter_name, adapter_type, action_type, status, reason, request_hash, response_ref, payload_json, created_at, updated_at, executing_at, completed_at, failed_at, next_attempt_at, retry_waiting_at, executor_unavailable_at, claimed_by, claimed_at, lease_expires_at, worker_heartbeat_at, attempt_count, max_attempts, executor_name, last_error</sql>
+    <insert id="upsert">
+        insert into adapter_actions (<include refid="ActionColumns"/>) values (
+            #{action.actionId}, #{action.idempotencyKey}, #{action.incidentId}, #{action.taskId}, #{action.dispatchRequestId}, #{action.assignmentId}, #{action.agentId}, #{action.adapterName}, #{action.adapterType}, #{action.actionType}, #{action.status}, #{action.reason}, #{action.requestHash}, #{action.responseRef}, coalesce(coalesce(cast(#{action.payloadJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{action.createdAt}, #{action.updatedAt}, #{action.executingAt}, #{action.completedAt}, #{action.failedAt}, #{action.nextAttemptAt}, #{action.retryWaitingAt}, #{action.executorUnavailableAt}, #{action.claimedBy}, #{action.claimedAt}, #{action.leaseExpiresAt}, #{action.workerHeartbeatAt}, #{action.attemptCount}, #{action.maxAttempts}, #{action.executorName}, #{action.lastError}
+        ) on conflict (action_id) do update set
+            status = excluded.status, reason = excluded.reason, response_ref = excluded.response_ref, payload_json = excluded.payload_json, updated_at = excluded.updated_at,
+            executing_at = excluded.executing_at, completed_at = excluded.completed_at, failed_at = excluded.failed_at, next_attempt_at = excluded.next_attempt_at,
+            retry_waiting_at = excluded.retry_waiting_at, executor_unavailable_at = excluded.executor_unavailable_at, attempt_count = excluded.attempt_count,
+            max_attempts = excluded.max_attempts, executor_name = excluded.executor_name, claimed_by = excluded.claimed_by, claimed_at = excluded.claimed_at,
+            lease_expires_at = excluded.lease_expires_at, worker_heartbeat_at = excluded.worker_heartbeat_at, last_error = excluded.last_error
+    </insert>
+    <insert id="insert">
+        insert into adapter_actions (<include refid="ActionColumns"/>) values (
+            #{action.actionId}, #{action.idempotencyKey}, #{action.incidentId}, #{action.taskId}, #{action.dispatchRequestId}, #{action.assignmentId}, #{action.agentId}, #{action.adapterName}, #{action.adapterType}, #{action.actionType}, #{action.status}, #{action.reason}, #{action.requestHash}, #{action.responseRef}, coalesce(coalesce(cast(#{action.payloadJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{action.createdAt}, #{action.updatedAt}, #{action.executingAt}, #{action.completedAt}, #{action.failedAt}, #{action.nextAttemptAt}, #{action.retryWaitingAt}, #{action.executorUnavailableAt}, #{action.claimedBy}, #{action.claimedAt}, #{action.leaseExpiresAt}, #{action.workerHeartbeatAt}, #{action.attemptCount}, #{action.maxAttempts}, #{action.executorName}, #{action.lastError}
+        )
+    </insert>
+    <select id="findById" resultMap="AdapterActionPoMap">select * from adapter_actions where action_id = #{actionId}</select>
+    <select id="findByIdempotencyKey" resultMap="AdapterActionPoMap">select * from adapter_actions where idempotency_key = #{idempotencyKey} order by created_at desc limit 1</select>
+    <select id="findByIncidentId" resultMap="AdapterActionPoMap">select * from adapter_actions where incident_id = #{incidentId} order by created_at desc limit #{limit}</select>
+    <select id="findByTaskId" resultMap="AdapterActionPoMap">select * from adapter_actions where task_id = #{taskId} order by created_at desc limit #{limit}</select>
+    <select id="findByStatus" resultMap="AdapterActionPoMap">select * from adapter_actions where status = #{status} order by created_at desc limit #{limit}</select>
+    <select id="findExecutablePending" resultMap="AdapterActionPoMap">
+        select * from adapter_actions where status in ('PENDING','RETRY_WAITING','EXECUTOR_UNAVAILABLE') and (next_attempt_at is null or next_attempt_at &lt;= #{now}) order by created_at asc limit #{limit}
+    </select>
+    <select id="claimNext" resultMap="AdapterActionPoMap">
+        with candidate as (
+            select action_id from adapter_actions where adapter_type = #{adapterType} and (next_attempt_at is null or next_attempt_at &lt;= #{now})
+              and (status in ('PENDING','RETRY_WAITING','EXECUTOR_UNAVAILABLE') or (status = 'CLAIMED' and lease_expires_at is not null and lease_expires_at &lt;= #{now}))
+            order by created_at asc limit 1 for update skip locked
+        )
+        update adapter_actions a set status = 'CLAIMED', claimed_by = #{workerId}, claimed_at = #{now}, lease_expires_at = #{leaseExpiresAt}, worker_heartbeat_at = #{now}, updated_at = #{now}
+        from candidate where a.action_id = candidate.action_id returning a.*
+    </select>
+    <select id="extendLease" resultMap="AdapterActionPoMap">
+        update adapter_actions set lease_expires_at = #{leaseExpiresAt}, worker_heartbeat_at = #{now}, updated_at = #{now}
+        where action_id = #{actionId}
+          and status = 'CLAIMED'
+          and claimed_by = #{workerId}
+          and lease_expires_at = #{expectedLeaseExpiresAt}
+          and lease_expires_at &gt;= #{now}
+        returning *
+    </select>
+    <update id="saveClaimed">
+        update adapter_actions set
+            status = #{action.status}, reason = #{action.reason}, response_ref = #{action.responseRef}, payload_json = coalesce(coalesce(cast(#{action.payloadJson} as jsonb), '{}'::jsonb), '{}'::jsonb),
+            updated_at = #{action.updatedAt}, executing_at = #{action.executingAt}, completed_at = #{action.completedAt}, failed_at = #{action.failedAt},
+            next_attempt_at = #{action.nextAttemptAt}, retry_waiting_at = #{action.retryWaitingAt}, executor_unavailable_at = #{action.executorUnavailableAt},
+            claimed_by = null, claimed_at = null, lease_expires_at = null, worker_heartbeat_at = null,
+            attempt_count = #{action.attemptCount}, max_attempts = #{action.maxAttempts}, executor_name = #{action.executorName}, last_error = #{action.lastError}
+        where action_id = #{action.actionId}
+          and status = 'CLAIMED'
+          and claimed_by = #{workerId}
+          and lease_expires_at = #{expectedLeaseExpiresAt}
+          and lease_expires_at &gt;= #{now}
+    </update>
+    <update id="recoverExpiredClaim">
+        update adapter_actions set
+            status = #{action.status}, reason = #{action.reason}, response_ref = #{action.responseRef}, payload_json = coalesce(coalesce(cast(#{action.payloadJson} as jsonb), '{}'::jsonb), '{}'::jsonb),
+            updated_at = #{action.updatedAt}, executing_at = #{action.executingAt}, completed_at = #{action.completedAt}, failed_at = #{action.failedAt},
+            next_attempt_at = #{action.nextAttemptAt}, retry_waiting_at = #{action.retryWaitingAt}, executor_unavailable_at = #{action.executorUnavailableAt},
+            claimed_by = null, claimed_at = null, lease_expires_at = null, worker_heartbeat_at = null,
+            attempt_count = #{action.attemptCount}, max_attempts = #{action.maxAttempts}, executor_name = #{action.executorName}, last_error = #{action.lastError}
+        where action_id = #{action.actionId}
+          and status = 'CLAIMED'
+          and claimed_by = #{workerId}
+          and lease_expires_at = #{expectedLeaseExpiresAt}
+          and lease_expires_at &lt;= #{observedAt}
+    </update>
+    <select id="recent" resultMap="AdapterActionPoMap">select * from adapter_actions order by created_at desc limit #{limit}</select>
+</mapper>

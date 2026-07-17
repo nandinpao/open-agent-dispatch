@@ -1,0 +1,644 @@
+# Common configuration for ai-event-gateway-core.
+# Runtime-specific overrides are intentionally limited to:
+#   - application-local.yml
+#   - application-dev.yml
+#   - application-prod.yml
+#
+# Default profile is local so a developer can run the service without setting
+# SPRING_PROFILES_ACTIVE. Production deployments must set SPRING_PROFILES_ACTIVE=prod.
+spring:
+  application:
+    name: ai-event-gateway-core
+  session:
+    timeout: ${CORE_ADMIN_SESSION_TIMEOUT:30m}
+    data:
+      redis:
+        namespace: ${CORE_ADMIN_SESSION_REDIS_NAMESPACE:opendispatch:core:admin:sessions}
+        # Admin session inventory/revocation requires principal-name lookup support.
+        repository-type: indexed
+  task:
+    execution:
+      propagate-context: true
+      thread-name-prefix: core-async-
+      pool:
+        core-size: ${CORE_ASYNC_CORE_SIZE:8}
+        max-size: ${CORE_ASYNC_MAX_SIZE:32}
+        queue-capacity: ${CORE_ASYNC_QUEUE_CAPACITY:500}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+    scheduling:
+      thread-name-prefix: core-scheduler-
+      pool:
+        size: ${CORE_SCHEDULER_POOL_SIZE:4}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+  data:
+    jpa:
+      repositories:
+        enabled: false
+  autoconfigure:
+    exclude:
+      # Core uses SharedUtility PostgreSQL + MyBatis. Do not let incidental Hibernate/JPA
+      # classes from shared dependencies trigger Spring Boot JPA / repository auto-configuration.
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+  profiles:
+    default: local
+  jackson:
+    # Transitional compatibility only: the runtime mapper is Jackson 3.
+    # Set SPRING_JACKSON_USE_JACKSON2_DEFAULTS=false after stored payloads and consumers are verified.
+    use-jackson2-defaults: ${SPRING_JACKSON_USE_JACKSON2_DEFAULTS:true}
+
+aeg:
+  database-platform:
+    enabled: ${DATABASE_PLATFORM_ENABLED:true}
+    health-enabled: ${DATABASE_PLATFORM_HEALTH_ENABLED:true}
+    validate-on-startup: ${DATABASE_PLATFORM_VALIDATE_ON_STARTUP:false}
+    require-data-source: ${DATABASE_PLATFORM_REQUIRE_DATASOURCE:true}
+    require-sql-session-factory: ${DATABASE_PLATFORM_REQUIRE_SQL_SESSION_FACTORY:true}
+    require-flyway: ${DATABASE_PLATFORM_REQUIRE_FLYWAY:true}
+    validation-timeout: ${DATABASE_PLATFORM_VALIDATION_TIMEOUT:2s}
+
+server:
+  port: ${SERVER_PORT:18080}
+  servlet:
+    session:
+      cookie:
+        name: ${CORE_ADMIN_SESSION_COOKIE_NAME:OPENDISPATCH_ADMIN_SESSION}
+        http-only: true
+        secure: ${CORE_ADMIN_SESSION_COOKIE_SECURE:false}
+        same-site: ${CORE_ADMIN_SESSION_COOKIE_SAME_SITE:lax}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS:health,info,metrics,prometheus}
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:when_authorized}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      service: ai-event-gateway-core
+  tracing:
+    enabled: ${MANAGEMENT_TRACING_ENABLED:true}
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+    export:
+      otlp:
+        # Export stays opt-in for standalone runs; local/CI Compose enables it explicitly.
+        enabled: ${MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED:false}
+    propagation:
+      # Accept legacy B3 during migration, but emit only vendor-neutral W3C Trace Context.
+      consume: ${MANAGEMENT_TRACING_PROPAGATION_CONSUME:w3c,b3}
+      produce: ${MANAGEMENT_TRACING_PROPAGATION_PRODUCE:w3c}
+  opentelemetry:
+    resource-attributes:
+      service.name: ${spring.application.name}
+      service.namespace: ${OTEL_SERVICE_NAMESPACE:opendispatch}
+      service.version: ${OTEL_SERVICE_VERSION:dev}
+      deployment.environment: ${DEPLOYMENT_ENVIRONMENT:local}
+      deployment.environment.name: ${DEPLOYMENT_ENVIRONMENT:local}
+    tracing:
+      export:
+        schedule-delay: ${OTEL_TRACES_SCHEDULE_DELAY:5s}
+        timeout: ${OTEL_TRACES_EXPORT_TIMEOUT:30s}
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+          compression: ${OTEL_TRACES_COMPRESSION:none}
+          connect-timeout: ${OTEL_TRACES_CONNECT_TIMEOUT:10s}
+          timeout: ${OTEL_TRACES_TIMEOUT:10s}
+          transport: ${OTEL_TRACES_TRANSPORT:http}
+          headers:
+            Authorization: ${OTEL_EXPORTER_OTLP_AUTHORIZATION:}
+  otlp:
+    metrics:
+      export:
+        enabled: ${MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED:false}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+        step: ${OTEL_METRICS_EXPORT_STEP:1m}
+        connect-timeout: ${OTEL_METRICS_CONNECT_TIMEOUT:1s}
+        read-timeout: ${OTEL_METRICS_READ_TIMEOUT:10s}
+        compression-mode: ${OTEL_METRICS_COMPRESSION:none}
+        headers:
+          Authorization: ${OTEL_EXPORTER_OTLP_AUTHORIZATION:}
+
+
+core:
+  deployment:
+    mode: ${CORE_DEPLOYMENT_MODE:MODULAR_MONOLITH}
+
+  runtime-enforcement:
+    disconnect:
+      # P1.7: Core-enforced runtime disconnect after blocking governance transitions.
+      enabled: ${CORE_RUNTIME_DISCONNECT_ENABLED:true}
+      default-gateway-base-url: ${CORE_RUNTIME_DISCONNECT_DEFAULT_GATEWAY_BASE_URL:${DISPATCH_DEFAULT_GATEWAY_BASE_URL:http://localhost:18081}}
+      admin-token-header: ${CORE_RUNTIME_DISCONNECT_TOKEN_HEADER:Authorization}
+      authorization-scheme: ${CORE_RUNTIME_DISCONNECT_AUTHORIZATION_SCHEME:Bearer}
+      admin-token: ${CORE_RUNTIME_DISCONNECT_ADMIN_TOKEN:${NETTY_MACHINE_ADMIN_TOKEN:${NETTY_ADMIN_TOKEN:dev-netty-machine-token-change-me}}}
+      request-timeout: ${CORE_RUNTIME_DISCONNECT_REQUEST_TIMEOUT:3s}
+      gateway-registry-enabled: ${CORE_RUNTIME_DISCONNECT_GATEWAY_REGISTRY_ENABLED:false}
+      gateway-registry-url: ${CORE_RUNTIME_DISCONNECT_GATEWAY_REGISTRY_URL:}
+      # P1.8: owner-node aware disconnect. The Netty disconnect endpoint is node-local,
+      # so Core must call the Netty node that owns the Agent channel. These defaults cover
+      # local / two-node dev layouts; production should override with real service URLs.
+      gateway-base-urls:
+        gateway-node-001: ${CORE_RUNTIME_DISCONNECT_GATEWAY_NODE_001_BASE_URL:${CORE_RUNTIME_DISCONNECT_DEFAULT_GATEWAY_BASE_URL:${DISPATCH_DEFAULT_GATEWAY_BASE_URL:http://localhost:18081}}}
+        gateway-node-002: ${CORE_RUNTIME_DISCONNECT_GATEWAY_NODE_002_BASE_URL:http://localhost:18082}
+        gateway-node-003: ${CORE_RUNTIME_DISCONNECT_GATEWAY_NODE_003_BASE_URL:http://localhost:18083}
+
+  security:
+    internal:
+      # I5 security baseline. Keep disabled for local migration; enable in integrated/dev/prod deployments.
+      enabled: ${CORE_INTERNAL_SECURITY_ENABLED:false}
+      token-header-name: ${CORE_INTERNAL_TOKEN_HEADER:X-Cluster-Token}
+      legacy-token-header-name: ${CORE_INTERNAL_LEGACY_TOKEN_HEADER:X-Internal-Token}
+      allow-legacy-token-header: ${CORE_INTERNAL_ALLOW_LEGACY_TOKEN_HEADER:true}
+      protect-api-mutations: ${CORE_INTERNAL_PROTECT_API_MUTATIONS:false}
+      permit-actuator-health-info: ${CORE_INTERNAL_PERMIT_ACTUATOR_HEALTH_INFO:true}
+      audit-log-enabled: ${CORE_INTERNAL_SECURITY_AUDIT_LOG_ENABLED:true}
+      gateway-token: ${CORE_GATEWAY_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
+      adapter-worker-token: ${CORE_ADAPTER_WORKER_INTERNAL_TOKEN:${ADAPTER_WORKER_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
+      event-intake-token: ${CORE_EVENT_INTAKE_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
+      operator-token: ${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
+      recovery-operator-token: ${CORE_RECOVERY_OPERATOR_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
+      recovery-admin-token: ${CORE_RECOVERY_ADMIN_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
+      recovery-approver-token: ${CORE_RECOVERY_APPROVER_INTERNAL_TOKEN:${CORE_RECOVERY_ADMIN_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}}
+      actuator-token: ${CORE_ACTUATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
+    admin:
+      # P4-A Core-owned human authentication. Disabled by default until credentials are explicitly configured.
+      enabled: ${CORE_ADMIN_AUTH_ENABLED:false}
+      session-timeout: ${CORE_ADMIN_SESSION_TIMEOUT:30m}
+      session-cookie-name: ${CORE_ADMIN_SESSION_COOKIE_NAME:OPENDISPATCH_ADMIN_SESSION}
+      session-redis-namespace: ${CORE_ADMIN_SESSION_REDIS_NAMESPACE:opendispatch:core:admin:sessions}
+      cookie-secure: ${CORE_ADMIN_SESSION_COOKIE_SECURE:false}
+      cookie-same-site: ${CORE_ADMIN_SESSION_COOKIE_SAME_SITE:lax}
+      bootstrap:
+        user-id: ${CORE_ADMIN_BOOTSTRAP_USER_ID:admin}
+        username: ${CORE_ADMIN_BOOTSTRAP_USERNAME:admin}
+        display-name: ${CORE_ADMIN_BOOTSTRAP_DISPLAY_NAME:OpenDispatch Administrator}
+        password-hash: ${CORE_ADMIN_BOOTSTRAP_PASSWORD_HASH:}
+        plaintext-password: ${CORE_ADMIN_BOOTSTRAP_PASSWORD:}
+        allow-plaintext-password: ${CORE_ADMIN_BOOTSTRAP_ALLOW_PLAINTEXT_PASSWORD:false}
+        roles: ${CORE_ADMIN_BOOTSTRAP_ROLES:ADMIN}
+        allowed-tenant-ids: ${CORE_ADMIN_BOOTSTRAP_ALLOWED_TENANTS:}
+        default-tenant-id: ${CORE_ADMIN_BOOTSTRAP_DEFAULT_TENANT:}
+        enabled: ${CORE_ADMIN_BOOTSTRAP_ENABLED:true}
+      accounts:
+        - user-id: ${CORE_ADMIN_E2E_ADMIN_USER_ID:admin-e2e}
+          username: ${CORE_ADMIN_E2E_ADMIN_USERNAME:admin-e2e}
+          display-name: ${CORE_ADMIN_E2E_ADMIN_DISPLAY_NAME:Admin E2E}
+          password-hash: ${CORE_ADMIN_E2E_ADMIN_PASSWORD_HASH:}
+          plaintext-password: ${CORE_ADMIN_E2E_ADMIN_PASSWORD:}
+          allow-plaintext-password: ${CORE_ADMIN_E2E_ADMIN_ALLOW_PLAINTEXT:false}
+          roles: ${CORE_ADMIN_E2E_ADMIN_ROLES:ADMIN}
+          allowed-tenant-ids: ${CORE_ADMIN_E2E_ADMIN_TENANTS:}
+          default-tenant-id: ${CORE_ADMIN_E2E_ADMIN_DEFAULT_TENANT:}
+          enabled: ${CORE_ADMIN_E2E_ADMIN_ENABLED:false}
+        - user-id: ${CORE_ADMIN_E2E_OPERATOR_USER_ID:operator-e2e}
+          username: ${CORE_ADMIN_E2E_OPERATOR_USERNAME:operator-e2e}
+          display-name: ${CORE_ADMIN_E2E_OPERATOR_DISPLAY_NAME:Operator E2E}
+          password-hash: ${CORE_ADMIN_E2E_OPERATOR_PASSWORD_HASH:}
+          plaintext-password: ${CORE_ADMIN_E2E_OPERATOR_PASSWORD:}
+          allow-plaintext-password: ${CORE_ADMIN_E2E_OPERATOR_ALLOW_PLAINTEXT:false}
+          roles: ${CORE_ADMIN_E2E_OPERATOR_ROLES:OPERATOR}
+          allowed-tenant-ids: ${CORE_ADMIN_E2E_OPERATOR_TENANTS:}
+          default-tenant-id: ${CORE_ADMIN_E2E_OPERATOR_DEFAULT_TENANT:}
+          enabled: ${CORE_ADMIN_E2E_OPERATOR_ENABLED:false}
+        - user-id: ${CORE_ADMIN_E2E_VIEWER_USER_ID:viewer-e2e}
+          username: ${CORE_ADMIN_E2E_VIEWER_USERNAME:viewer-e2e}
+          display-name: ${CORE_ADMIN_E2E_VIEWER_DISPLAY_NAME:Viewer E2E}
+          password-hash: ${CORE_ADMIN_E2E_VIEWER_PASSWORD_HASH:}
+          plaintext-password: ${CORE_ADMIN_E2E_VIEWER_PASSWORD:}
+          allow-plaintext-password: ${CORE_ADMIN_E2E_VIEWER_ALLOW_PLAINTEXT:false}
+          roles: ${CORE_ADMIN_E2E_VIEWER_ROLES:VIEWER}
+          allowed-tenant-ids: ${CORE_ADMIN_E2E_VIEWER_TENANTS:}
+          default-tenant-id: ${CORE_ADMIN_E2E_VIEWER_DEFAULT_TENANT:}
+          enabled: ${CORE_ADMIN_E2E_VIEWER_ENABLED:false}
+  recovery:
+    governance:
+      enabled: ${CORE_RECOVERY_GOVERNANCE_ENABLED:true}
+      require-reason: ${CORE_RECOVERY_GOVERNANCE_REQUIRE_REASON:true}
+      min-reason-length: ${CORE_RECOVERY_GOVERNANCE_MIN_REASON_LENGTH:12}
+      require-confirmation: ${CORE_RECOVERY_GOVERNANCE_REQUIRE_CONFIRMATION:true}
+      moderate-confirmation-phrase: ${CORE_RECOVERY_GOVERNANCE_MODERATE_CONFIRMATION:CONFIRM_RECOVERY_ACTION}
+      high-risk-confirmation-phrase: ${CORE_RECOVERY_GOVERNANCE_HIGH_RISK_CONFIRMATION:CONFIRM_HIGH_RISK_RECOVERY}
+      allow-body-operator-id-override: ${CORE_RECOVERY_GOVERNANCE_ALLOW_BODY_OPERATOR_ID_OVERRIDE:false}
+      require-dual-control-for-high-risk: ${CORE_RECOVERY_GOVERNANCE_REQUIRE_DUAL_CONTROL_FOR_HIGH_RISK:true}
+      forbid-self-approval: ${CORE_RECOVERY_GOVERNANCE_FORBID_SELF_APPROVAL:true}
+      approval-ttl: ${CORE_RECOVERY_GOVERNANCE_APPROVAL_TTL:4h}
+      approval-confirmation-phrase: ${CORE_RECOVERY_GOVERNANCE_APPROVAL_CONFIRMATION:CONFIRM_DUAL_CONTROL_APPROVAL}
+    approval:
+      store: ${CORE_RECOVERY_APPROVAL_STORE:${DISPATCH_REQUEST_STORE:MYBATIS}}
+
+  decision:
+    dedup-window: ${CORE_DEDUP_WINDOW:5m}
+    dedup-ttl: ${CORE_DEDUP_TTL:2h}
+    incident-ttl: ${CORE_INCIDENT_TTL:12h}
+    task-creation-enabled: ${CORE_TASK_CREATION_ENABLED:false}
+    task-escalation-enabled: ${CORE_TASK_ESCALATION_ENABLED:true}
+    task-min-occurrences: ${CORE_TASK_MIN_OCCURRENCES:30}
+    immediate-task-severities: ${CORE_IMMEDIATE_TASK_SEVERITIES:CRITICAL}
+    default-routing-policy: ${CORE_DEFAULT_ROUTING_POLICY:MANUAL_REVIEW}
+    default-task-capabilities: ${CORE_DEFAULT_TASK_CAPABILITIES:}
+    mcp-action-enabled: ${CORE_MCP_ACTION_ENABLED:false}
+    issue-action-enabled: ${CORE_ISSUE_ACTION_ENABLED:false}
+  fingerprint:
+    enabled: ${CORE_FINGERPRINT_ENABLED:true}
+    policy-version: ${CORE_FINGERPRINT_POLICY_VERSION:v2}
+    # Default keeps legacy dimensions but uses maskedMessage instead of raw normalizedMessage.
+    # This prevents order IDs, timestamps, UUIDs, IPs, batch numbers, and long counters from creating excessive incidents.
+    default-fields:
+      - tenantId
+      - sourceSystem
+      - siteId
+      - plantId
+      - objectType
+      - objectId
+      - eventType
+      - errorCode
+      - maskedMessage
+    masking:
+      enabled: ${CORE_FINGERPRINT_MASKING_ENABLED:true}
+      replacement-token: "<var>"
+      rules:
+        - name: uuid
+          regex: "\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b"
+          replacement: "<uuid>"
+        - name: iso-date-time
+          regex: "\\b\\d{4}-\\d{2}-\\d{2}[t\\s]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:z|[+-]\\d{2}:?\\d{2})?\\b"
+          replacement: "<datetime>"
+        - name: date
+          regex: "\\b\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}\\b"
+          replacement: "<date>"
+        - name: time
+          regex: "\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b"
+          replacement: "<time>"
+        - name: ip-address
+          regex: "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b"
+          replacement: "<ip>"
+        - name: hex-hash
+          regex: "\\b[0-9a-f]{16,}\\b"
+          replacement: "<hex>"
+        - name: erp-order-like-id
+          regex: "\\b[a-z]{2,}-?\\d{4,}\\b"
+          replacement: "<id>"
+        - name: long-number
+          regex: "\\b\\d{4,}\\b"
+          replacement: "<num>"
+    policies:
+      - name: mes-equipment-error-code
+        source-systems: [MES]
+        object-types: [EQUIPMENT]
+        fields: [tenantId, sourceSystem, siteId, plantId, objectType, objectId, eventType, errorCode, maskedMessage]
+      - name: erp-module-error-code
+        source-systems: [ERP, T100]
+        fields: [tenantId, sourceSystem, siteId, eventType, errorCode, attr:module, maskedMessage]
+      - name: bpm-process-step-error-code
+        source-systems: [BPM]
+        fields: [tenantId, sourceSystem, siteId, eventType, errorCode, attr:processCode, attr:stepCode, maskedMessage]
+      - name: server-exception-template
+        source-systems: [SERVER, APP, LOG]
+        fields: [tenantId, sourceSystem, siteId, attr:serviceName, attr:exceptionClass, eventType, errorCode, maskedMessage]
+
+  outbox:
+    store: ${CORE_OUTBOX_STORE:MYBATIS}
+    dispatcher-enabled: ${CORE_OUTBOX_DISPATCHER_ENABLED:true}
+    worker-id: ${CORE_OUTBOX_WORKER_ID:core-outbox}
+    claim-lease: ${CORE_OUTBOX_CLAIM_LEASE:30s}
+    scan-interval-ms: ${CORE_OUTBOX_SCAN_INTERVAL_MS:1000}
+    batch-size: ${CORE_OUTBOX_BATCH_SIZE:100}
+    max-attempts: ${CORE_OUTBOX_MAX_ATTEMPTS:8}
+    initial-backoff: ${CORE_OUTBOX_INITIAL_BACKOFF:2s}
+    max-backoff: ${CORE_OUTBOX_MAX_BACKOFF:5m}
+
+  integration-events:
+    projection-enabled: ${CORE_INTEGRATION_EVENTS_PROJECTION_ENABLED:false}
+    delivery-enabled: ${CORE_INTEGRATION_EVENTS_DELIVERY_ENABLED:false}
+    store: ${CORE_INTEGRATION_EVENTS_STORE:MYBATIS}
+    source: ${CORE_INTEGRATION_EVENTS_SOURCE:ai-event-gateway-core}
+    worker-id: ${CORE_INTEGRATION_EVENTS_WORKER_ID:core-integration-events}
+    claim-lease: ${CORE_INTEGRATION_EVENTS_CLAIM_LEASE:30s}
+    scan-interval-ms: ${CORE_INTEGRATION_EVENTS_SCAN_INTERVAL_MS:1000}
+    batch-size: ${CORE_INTEGRATION_EVENTS_BATCH_SIZE:100}
+    max-attempts: ${CORE_INTEGRATION_EVENTS_MAX_ATTEMPTS:8}
+    initial-backoff: ${CORE_INTEGRATION_EVENTS_INITIAL_BACKOFF:2s}
+    max-backoff: ${CORE_INTEGRATION_EVENTS_MAX_BACKOFF:5m}
+    sink: ${CORE_INTEGRATION_EVENTS_SINK:NONE}
+    endpoint-url: ${CORE_INTEGRATION_EVENTS_ENDPOINT_URL:}
+    token-header: ${CORE_INTEGRATION_EVENTS_TOKEN_HEADER:X-Internal-Token}
+    token: ${CORE_INTEGRATION_EVENTS_TOKEN:}
+    request-timeout: ${CORE_INTEGRATION_EVENTS_REQUEST_TIMEOUT:10s}
+    exported-event-types: ${CORE_INTEGRATION_EVENTS_EXPORTED_TYPES:incident.escalated.v1,task.terminal.v1,adapter-action.requested.v1,dispatch.dead-lettered.v1}
+
+  observability:
+    enabled: ${CORE_OBSERVABILITY_ENABLED:true}
+    business-metrics-enabled: ${CORE_OBSERVABILITY_BUSINESS_METRICS_ENABLED:true}
+    repository-summary-enabled: ${CORE_OBSERVABILITY_REPOSITORY_SUMMARY_ENABLED:true}
+    health-indicator-enabled: ${CORE_OBSERVABILITY_HEALTH_INDICATOR_ENABLED:true}
+    include-tenant-tag: ${CORE_OBSERVABILITY_INCLUDE_TENANT_TAG:false}
+    include-site-tag: ${CORE_OBSERVABILITY_INCLUDE_SITE_TAG:true}
+    summary-sample-limit: ${CORE_OBSERVABILITY_SUMMARY_SAMPLE_LIMIT:500}
+    slow-intake-threshold: ${CORE_OBSERVABILITY_SLOW_INTAKE_THRESHOLD:3s}
+    recovery-metrics:
+      enabled: ${CORE_RECOVERY_METRICS_ENABLED:true}
+      window: ${CORE_RECOVERY_METRICS_WINDOW:15m}
+      history-limit: ${CORE_RECOVERY_METRICS_HISTORY_LIMIT:2000}
+      runtime-failure-warning-threshold: ${CORE_RECOVERY_ALERT_RUNTIME_FAILURE_WARNING:5}
+      runtime-failure-critical-threshold: ${CORE_RECOVERY_ALERT_RUNTIME_FAILURE_CRITICAL:20}
+      delayed-requeue-warning-threshold: ${CORE_RECOVERY_ALERT_DELAYED_REQUEUE_WARNING:10}
+      delayed-requeue-critical-threshold: ${CORE_RECOVERY_ALERT_DELAYED_REQUEUE_CRITICAL:50}
+      dead-letter-warning-threshold: ${CORE_RECOVERY_ALERT_DEAD_LETTER_WARNING:1}
+      dead-letter-critical-threshold: ${CORE_RECOVERY_ALERT_DEAD_LETTER_CRITICAL:5}
+      scanner-failure-warning-threshold: ${CORE_RECOVERY_ALERT_SCANNER_FAILURE_WARNING:1}
+      scanner-failure-critical-threshold: ${CORE_RECOVERY_ALERT_SCANNER_FAILURE_CRITICAL:5}
+      recovery-exhausted-warning-threshold: ${CORE_RECOVERY_ALERT_EXHAUSTED_WARNING:1}
+      recovery-exhausted-critical-threshold: ${CORE_RECOVERY_ALERT_EXHAUSTED_CRITICAL:3}
+    remediation-workflow-metrics:
+      enabled: ${CORE_REMEDIATION_WORKFLOW_METRICS_ENABLED:true}
+      stale-lease-alert-window: ${CORE_REMEDIATION_STALE_LEASE_ALERT_WINDOW:10m}
+      approval-latency-warning: ${CORE_REMEDIATION_APPROVAL_LATENCY_WARNING:30m}
+      approval-latency-critical: ${CORE_REMEDIATION_APPROVAL_LATENCY_CRITICAL:2h}
+      action-failure-ratio-warning: ${CORE_REMEDIATION_ACTION_FAILURE_RATIO_WARNING:0.20}
+      action-failure-ratio-critical: ${CORE_REMEDIATION_ACTION_FAILURE_RATIO_CRITICAL:0.50}
+    common-tags:
+      component: core
+
+  lifecycle:
+    incident:
+      auto-resolve-enabled: ${INCIDENT_LIFECYCLE_AUTO_RESOLVE_ENABLED:true}
+      scan-interval-ms: ${INCIDENT_LIFECYCLE_SCAN_INTERVAL_MS:60000}
+      inactive-threshold: ${INCIDENT_LIFECYCLE_INACTIVE_THRESHOLD:12h}
+      max-batch-size: ${INCIDENT_LIFECYCLE_MAX_BATCH_SIZE:100}
+      reopen-policy: ${INCIDENT_LIFECYCLE_REOPEN_POLICY:REOPEN_RECENT}
+      reopen-window: ${INCIDENT_LIFECYCLE_REOPEN_WINDOW:24h}
+    task:
+      timeout-enabled: ${TASK_LIFECYCLE_TIMEOUT_ENABLED:true}
+      auto-reassign-enabled: ${TASK_LIFECYCLE_AUTO_REASSIGN_ENABLED:true}
+      scan-interval-ms: ${TASK_LIFECYCLE_SCAN_INTERVAL_MS:30000}
+      created-timeout: ${TASK_LIFECYCLE_CREATED_TIMEOUT:10m}
+      assigned-timeout: ${TASK_LIFECYCLE_ASSIGNED_TIMEOUT:10m}
+      dispatched-timeout: ${TASK_LIFECYCLE_DISPATCHED_TIMEOUT:10m}
+      running-timeout: ${TASK_LIFECYCLE_RUNNING_TIMEOUT:30m}
+      max-reassignments: ${TASK_LIFECYCLE_MAX_REASSIGNMENTS:2}
+      max-batch-size: ${TASK_LIFECYCLE_MAX_BATCH_SIZE:100}
+
+incident:
+  store: ${INCIDENT_STORE:MYBATIS}
+  summary:
+    store: ${INCIDENT_SUMMARY_STORE:MYBATIS}
+    window: ${INCIDENT_SUMMARY_WINDOW:5m}
+
+event:
+  decisions:
+    store: ${EVENT_DECISION_STORE:MYBATIS}
+  dedup:
+    store: ${EVENT_DEDUP_STORE:MYBATIS}
+    snapshot-store: ${EVENT_DEDUP_SNAPSHOT_STORE:MYBATIS}
+    cache-store: ${EVENT_DEDUP_CACHE_STORE:REDISSON}
+    redis:
+      key-prefix: ${EVENT_DEDUP_REDIS_KEY_PREFIX:aeg}
+      lock-wait-seconds: ${EVENT_DEDUP_REDIS_LOCK_WAIT_SECONDS:5}
+      lock-lease-seconds: ${EVENT_DEDUP_REDIS_LOCK_LEASE_SECONDS:30}
+
+task:
+  store: ${TASK_STORE:MYBATIS}
+
+
+  dispatch-recovery:
+    enabled: ${TASK_DISPATCH_RECOVERY_ENABLED:true}
+    scanner-enabled: ${TASK_DISPATCH_RECOVERY_SCANNER_ENABLED:true}
+    interval-ms: ${TASK_DISPATCH_RECOVERY_INTERVAL_MS:5000}
+    max-batch-size: ${TASK_DISPATCH_RECOVERY_MAX_BATCH_SIZE:50}
+    max-attempts: ${TASK_DISPATCH_RECOVERY_MAX_ATTEMPTS:0}
+    initial-delay: ${TASK_DISPATCH_RECOVERY_INITIAL_DELAY:30s}
+    max-delay: ${TASK_DISPATCH_RECOVERY_MAX_DELAY:10m}
+    claim-lease: ${TASK_DISPATCH_RECOVERY_CLAIM_LEASE:30s}
+    worker-id: ${TASK_DISPATCH_RECOVERY_WORKER_ID:core-task-dispatch-recovery}
+  decision:
+    mode: ${TASK_DECISION_MODE:RULE_BASED}
+  callback:
+    store: ${TASK_CALLBACK_STORE:MYBATIS}
+    idempotency-enabled: ${TASK_CALLBACK_IDEMPOTENCY_ENABLED:true}
+    replay-protection-enabled: ${TASK_CALLBACK_REPLAY_PROTECTION_ENABLED:true}
+    reject-callback-id-replay-mismatch: ${TASK_CALLBACK_REJECT_REPLAY_MISMATCH:true}
+    require-dispatch-token: ${TASK_CALLBACK_REQUIRE_DISPATCH_TOKEN:true}
+    allow-missing-dispatch-request-id: ${TASK_CALLBACK_ALLOW_MISSING_DISPATCH_REQUEST_ID:false}
+    enforce-state-transition: ${TASK_CALLBACK_ENFORCE_STATE_TRANSITION:true}
+    reject-old-attempt-callbacks: ${TASK_CALLBACK_REJECT_OLD_ATTEMPT_CALLBACKS:true}
+    require-attempt-no: ${TASK_CALLBACK_REQUIRE_ATTEMPT_NO:true}
+    enforce-gateway-and-agent-identity: ${TASK_CALLBACK_ENFORCE_GATEWAY_AGENT_IDENTITY:true}
+    allow-terminal-callback-override: ${TASK_CALLBACK_ALLOW_TERMINAL_CALLBACK_OVERRIDE:false}
+    max-recent: ${TASK_CALLBACK_MAX_RECENT:1000}
+    recovery:
+      timeout-enabled: ${DISPATCH_RECOVERY_TIMEOUT_ENABLED:true}
+      scan-interval-ms: ${DISPATCH_RECOVERY_SCAN_INTERVAL_MS:30000}
+      dispatch-timeout: ${DISPATCH_RECOVERY_DISPATCH_TIMEOUT:10m}
+      auto-fail-timed-out: ${DISPATCH_RECOVERY_AUTO_FAIL_TIMED_OUT:true}
+      retry-enabled: ${DISPATCH_RECOVERY_RETRY_ENABLED:true}
+      max-attempts: ${DISPATCH_RECOVERY_MAX_ATTEMPTS:3}
+      initial-backoff: ${DISPATCH_RECOVERY_INITIAL_BACKOFF:30s}
+      jitter-percent: ${DISPATCH_RECOVERY_JITTER_PERCENT:20}
+      max-backoff: ${DISPATCH_RECOVERY_MAX_BACKOFF:5m}
+      max-batch-size: ${DISPATCH_RECOVERY_MAX_BATCH_SIZE:100}
+
+gateway-nodes:
+  store: ${GATEWAY_NODE_STORE:MYBATIS}
+  lease-reaper:
+    fixed-delay: ${GATEWAY_NODE_LEASE_REAPER_DELAY:10000}
+
+agent-directory:
+  store: ${AGENT_DIRECTORY_STORE:MYBATIS}
+  lease-reaper:
+    fixed-delay: ${AGENT_DIRECTORY_LEASE_REAPER_DELAY:10000}
+
+agent-governance:
+  store: ${AGENT_GOVERNANCE_STORE:MYBATIS}
+
+agent-assignment:
+  store: ${AGENT_ASSIGNMENT_STORE:MYBATIS}
+
+agent-certification:
+  store: ${AGENT_CERTIFICATION_STORE:MYBATIS}
+
+assignment:
+  store: ${ASSIGNMENT_STORE:MYBATIS}
+
+routing:
+  assignment-enabled: ${ROUTING_ASSIGNMENT_ENABLED:false}
+  decision-store: ${ROUTING_DECISION_STORE:MYBATIS}
+  minimum-score: ${ROUTING_MINIMUM_SCORE:50}
+  max-candidates: ${ROUTING_MAX_CANDIDATES:20}
+  update-task-status-on-assignment: ${ROUTING_UPDATE_TASK_STATUS_ON_ASSIGNMENT:true}
+  assignment-lease-ttl: ${ROUTING_ASSIGNMENT_LEASE_TTL:5m}
+
+  poison-agent-exclusion-enabled: ${ROUTING_POISON_AGENT_EXCLUSION_ENABLED:true}
+  poison-agent-failure-threshold: ${ROUTING_POISON_AGENT_FAILURE_THRESHOLD:${DISPATCH_POISON_AGENT_FAILURE_THRESHOLD:5}}
+  runtime-failure-penalty-enabled: ${ROUTING_RUNTIME_FAILURE_PENALTY_ENABLED:true}
+  load-aware-scoring-enabled: ${ROUTING_LOAD_AWARE_SCORING_ENABLED:true}
+  zero-special-case-runtime-enabled: ${ROUTING_ZERO_SPECIAL_CASE_RUNTIME_ENABLED:true}
+  generic-authoritative-enabled: ${ROUTING_GENERIC_AUTHORITATIVE_ENABLED:true}
+  generic-authoritative-default-mode: ${ROUTING_GENERIC_AUTHORITATIVE_DEFAULT_MODE:AUTHORITATIVE}
+  generic-authoritative-default-canary-percentage: ${ROUTING_GENERIC_AUTHORITATIVE_DEFAULT_CANARY_PERCENTAGE:100}
+  generic-authoritative-minimum-sample-size: ${ROUTING_GENERIC_AUTHORITATIVE_MINIMUM_SAMPLE_SIZE:50}
+  generic-authoritative-maximum-requirement-blocked-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_REQUIREMENT_BLOCKED_RATE:0.05}
+  generic-authoritative-maximum-no-candidate-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_NO_CANDIDATE_RATE:0.10}
+  generic-authoritative-maximum-selection-difference-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_SELECTION_DIFFERENCE_RATE:0.20}
+  generic-authoritative-auto-rollback-enabled: ${ROUTING_GENERIC_AUTHORITATIVE_AUTO_ROLLBACK_ENABLED:true}
+  persisted-legacy-evidence-recovery-enabled: ${ROUTING_PERSISTED_LEGACY_EVIDENCE_RECOVERY_ENABLED:false}
+  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:true}
+  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:true}
+  require-v2-score-breakdown-in-enforce: ${ROUTING_REQUIRE_V2_SCORE_BREAKDOWN_IN_ENFORCE:true}
+  legacy-profile-eligibility-disabled-in-enforce: ${ROUTING_LEGACY_PROFILE_ELIGIBILITY_DISABLED_IN_ENFORCE:true}
+  eligibility-engine-mode: ${ROUTING_ELIGIBILITY_ENGINE_MODE:SHADOW}
+  flow-rule-routing-enabled: ${ROUTING_FLOW_RULE_ENABLED:true}
+  flow-rule-legacy-fallback-enabled: ${ROUTING_FLOW_RULE_LEGACY_FALLBACK_ENABLED:false}
+  formal-success-requires-flow-rule: ${ROUTING_FORMAL_SUCCESS_REQUIRES_FLOW_RULE:true}
+  standalone-dispatch-policy-writes-enabled: ${ROUTING_STANDALONE_DISPATCH_POLICY_WRITES_ENABLED:false}
+  effectful-action-runtime:
+    enabled: ${ROUTING_EFFECTFUL_ACTION_RUNTIME_ENABLED:true}
+    callback-projection-enabled: ${ROUTING_EFFECTFUL_ACTION_CALLBACK_PROJECTION_ENABLED:true}
+    scheduled-recovery-enabled: ${ROUTING_EFFECTFUL_ACTION_SCHEDULED_RECOVERY_ENABLED:true}
+    default-timeout-seconds: ${ROUTING_EFFECTFUL_ACTION_DEFAULT_TIMEOUT_SECONDS:900}
+    default-expiration-seconds: ${ROUTING_EFFECTFUL_ACTION_DEFAULT_EXPIRATION_SECONDS:3600}
+    recovery-interval-ms: ${ROUTING_EFFECTFUL_ACTION_RECOVERY_INTERVAL_MS:5000}
+    recovery-batch-size: ${ROUTING_EFFECTFUL_ACTION_RECOVERY_BATCH_SIZE:100}
+    warning-timeout-rate: ${ROUTING_EFFECTFUL_ACTION_WARNING_TIMEOUT_RATE:0.05}
+    critical-timeout-rate: ${ROUTING_EFFECTFUL_ACTION_CRITICAL_TIMEOUT_RATE:0.15}
+
+dispatch:
+  request-creation-enabled: ${DISPATCH_REQUEST_CREATION_ENABLED:true}
+  review-mode: ${DISPATCH_REVIEW_MODE:NOT_REQUIRED}
+  request-store: ${DISPATCH_REQUEST_STORE:MYBATIS}
+  attempt-history-store: ${DISPATCH_ATTEMPT_HISTORY_STORE:${DISPATCH_REQUEST_STORE:MYBATIS}}
+  source-node-id: ${DISPATCH_SOURCE_NODE_ID:ai-event-gateway-core}
+  gateway-dispatch-path: ${DISPATCH_GATEWAY_DISPATCH_PATH:/internal/delivery/agents/{agentId}/commands}
+  require-assignable-agent: ${DISPATCH_REQUIRE_ASSIGNABLE_AGENT:true}
+  worker-id: ${DISPATCH_WORKER_ID:core-dispatch}
+  claim-lease: ${DISPATCH_CLAIM_LEASE:30s}
+  execution-policy: ${DISPATCH_EXECUTION_POLICY:AUTO_AFTER_ASSIGNMENT}
+  retry:
+    enabled: ${DISPATCH_RETRY_ENABLED:true}
+    max-attempts: ${DISPATCH_RETRY_MAX_ATTEMPTS:3}
+    initial-backoff: ${DISPATCH_RETRY_INITIAL_BACKOFF:30s}
+    jitter-percent: ${DISPATCH_RETRY_JITTER_PERCENT:20}
+    max-backoff: ${DISPATCH_RETRY_MAX_BACKOFF:5m}
+  failure-requeue:
+    enabled: ${DISPATCH_FAILURE_REQUEUE_ENABLED:true}
+    max-reassignments: ${DISPATCH_FAILURE_REQUEUE_MAX_REASSIGNMENTS:3}
+    runtime-initial-backoff: ${DISPATCH_RUNTIME_BACKOFF_INITIAL:30s}
+    runtime-jitter-percent: ${DISPATCH_RUNTIME_BACKOFF_JITTER_PERCENT:20}
+    poison-agent-failure-threshold: ${DISPATCH_POISON_AGENT_FAILURE_THRESHOLD:5}
+    runtime-max-backoff: ${DISPATCH_RUNTIME_BACKOFF_MAX:5m}
+  client:
+    enabled: ${DISPATCH_CLIENT_ENABLED:true}
+    auto-execute-approved: ${DISPATCH_CLIENT_AUTO_EXECUTE_APPROVED:true}
+    auto-execute-interval-ms: ${DISPATCH_CLIENT_AUTO_EXECUTE_INTERVAL_MS:5000}
+    default-gateway-base-url: ${DISPATCH_DEFAULT_GATEWAY_BASE_URL:http://localhost:18081}
+    internal-token-header: ${DISPATCH_INTERNAL_TOKEN_HEADER:X-Cluster-Token}
+    internal-token: ${DISPATCH_INTERNAL_TOKEN:}
+    connect-timeout: ${DISPATCH_CLIENT_CONNECT_TIMEOUT:3s}
+    request-timeout: ${DISPATCH_CLIENT_REQUEST_TIMEOUT:10s}
+    max-batch-size: ${DISPATCH_CLIENT_MAX_BATCH_SIZE:100}
+    gateway-base-urls: {}
+
+adapter-actions:
+  store: ${ADAPTER_ACTION_STORE:MYBATIS}
+  create-suppressed-records: ${ADAPTER_ACTION_CREATE_SUPPRESSED_RECORDS:true}
+  mcp:
+    enabled: ${MCP_ACTION_ENABLED:false}
+    run-on-completed-task: ${MCP_ACTION_RUN_ON_COMPLETED_TASK:true}
+    run-on-failed-task: ${MCP_ACTION_RUN_ON_FAILED_TASK:false}
+    one-per-task: ${MCP_ACTION_ONE_PER_TASK:true}
+    adapter-name: ${MCP_ADAPTER_NAME:mcp-default}
+  issue:
+    enabled: ${ISSUE_ACTION_ENABLED:false}
+    create-on-completed-task: ${ISSUE_ACTION_CREATE_ON_COMPLETED_TASK:false}
+    create-on-failed-task: ${ISSUE_ACTION_CREATE_ON_FAILED_TASK:true}
+    update-existing-issue-comment: ${ISSUE_ACTION_UPDATE_EXISTING_ISSUE_COMMENT:true}
+    one-create-per-incident: ${ISSUE_ACTION_ONE_CREATE_PER_INCIDENT:true}
+    one-update-per-task: ${ISSUE_ACTION_ONE_UPDATE_PER_TASK:true}
+    adapter-name: ${ISSUE_ADAPTER_NAME:issue-default}
+  worker:
+    retry-enabled: ${ADAPTER_WORKER_RETRY_ENABLED:true}
+    max-attempts: ${ADAPTER_WORKER_MAX_ATTEMPTS:3}
+    initial-backoff: ${ADAPTER_WORKER_INITIAL_BACKOFF:30s}
+    max-backoff: ${ADAPTER_WORKER_MAX_BACKOFF:10m}
+    expired-lease-scan-batch-size: ${ADAPTER_WORKER_EXPIRED_LEASE_SCAN_BATCH_SIZE:100}
+    expired-lease-scan-interval-ms: ${ADAPTER_WORKER_EXPIRED_LEASE_SCAN_INTERVAL_MS:30000}
+
+adapter-executor:
+  mode: ${ADAPTER_EXECUTOR_MODE:disabled}
+  enabled: ${ADAPTER_EXECUTOR_ENABLED:false}
+  auto-execute-pending: ${ADAPTER_EXECUTOR_AUTO_EXECUTE_PENDING:false}
+  auto-execute-interval: ${ADAPTER_EXECUTOR_AUTO_EXECUTE_INTERVAL:10s}
+  auto-execute-interval-ms: ${ADAPTER_EXECUTOR_AUTO_EXECUTE_INTERVAL_MS:10000}
+  batch-size: ${ADAPTER_EXECUTOR_BATCH_SIZE:50}
+  max-attempts: ${ADAPTER_EXECUTOR_MAX_ATTEMPTS:3}
+  initial-backoff: ${ADAPTER_EXECUTOR_INITIAL_BACKOFF:30s}
+  max-backoff: ${ADAPTER_EXECUTOR_MAX_BACKOFF:10m}
+  execution-timeout: ${ADAPTER_EXECUTOR_EXECUTION_TIMEOUT:30s}
+  mark-unavailable-when-no-executor: ${ADAPTER_EXECUTOR_MARK_UNAVAILABLE_WHEN_NO_EXECUTOR:true}
+  circuit-breaker:
+    enabled: ${ADAPTER_EXECUTOR_CIRCUIT_BREAKER_ENABLED:true}
+    failure-threshold: ${ADAPTER_EXECUTOR_CIRCUIT_BREAKER_FAILURE_THRESHOLD:5}
+    open-duration: ${ADAPTER_EXECUTOR_CIRCUIT_BREAKER_OPEN_DURATION:1m}
+  mock:
+    enabled: ${ADAPTER_EXECUTOR_MOCK_ENABLED:false}
+    force-failure: ${ADAPTER_EXECUTOR_MOCK_FORCE_FAILURE:false}
+    mcp-executor-name: ${ADAPTER_EXECUTOR_MCP_NAME:mock-mcp-executor}
+    issue-executor-name: ${ADAPTER_EXECUTOR_ISSUE_NAME:mock-issue-executor}
+    legacy-issue-enabled: ${ADAPTER_EXECUTOR_LEGACY_ISSUE_ENABLED:false}
+  mcp:
+    http-enabled: ${MCP_EXECUTOR_HTTP_ENABLED:false}
+    executor-name: ${MCP_EXECUTOR_NAME:mcp-http-executor}
+    endpoint-url: ${MCP_EXECUTOR_ENDPOINT_URL:}
+    bearer-token: ${MCP_EXECUTOR_BEARER_TOKEN:}
+    timeout: ${MCP_EXECUTOR_TIMEOUT:30s}
+    mock-compatible: ${MCP_EXECUTOR_MOCK_COMPATIBLE:false}
+  issue:
+    default-vendor: ${ISSUE_EXECUTOR_DEFAULT_VENDOR:}
+    jira-mock-enabled: ${JIRA_EXECUTOR_MOCK_ENABLED:false}
+    redmine-mock-enabled: ${REDMINE_EXECUTOR_MOCK_ENABLED:false}
+    gitlab-mock-enabled: ${GITLAB_EXECUTOR_MOCK_ENABLED:false}
+    jira-executor-name: ${JIRA_EXECUTOR_NAME:jira-issue-executor}
+    redmine-executor-name: ${REDMINE_EXECUTOR_NAME:redmine-issue-executor}
+    gitlab-executor-name: ${GITLAB_EXECUTOR_NAME:gitlab-issue-executor}
+    redmine:
+      enabled: ${REDMINE_EXECUTOR_ENABLED:false}
+      base-url: ${REDMINE_EXECUTOR_BASE_URL:}
+      api-key: ${REDMINE_EXECUTOR_API_KEY:}
+      project-id: ${REDMINE_EXECUTOR_PROJECT_ID:}
+      tracker-id: ${REDMINE_EXECUTOR_TRACKER_ID:}
+      issue-url-template: ${REDMINE_EXECUTOR_ISSUE_URL_TEMPLATE:}
+      priority-critical: ${REDMINE_EXECUTOR_PRIORITY_CRITICAL:CRITICAL}
+      priority-high: ${REDMINE_EXECUTOR_PRIORITY_HIGH:HIGH}
+      priority-medium: ${REDMINE_EXECUTOR_PRIORITY_MEDIUM:MIDDLE}
+      priority-low: ${REDMINE_EXECUTOR_PRIORITY_LOW:LOW}
+    gitlab:
+      enabled: ${GITLAB_EXECUTOR_ENABLED:false}
+      base-url: ${GITLAB_EXECUTOR_BASE_URL:}
+      private-token: ${GITLAB_EXECUTOR_PRIVATE_TOKEN:}
+      project-id: ${GITLAB_EXECUTOR_PROJECT_ID:}
+      issue-url-template: ${GITLAB_EXECUTOR_ISSUE_URL_TEMPLATE:}
+  audit:
+    store: ${ADAPTER_EXECUTOR_AUDIT_STORE:MYBATIS}
+    payload-snapshot-enabled: ${ADAPTER_EXECUTOR_AUDIT_PAYLOAD_SNAPSHOT_ENABLED:true}
+
+agent-remediation:
+  workflow:
+    store: ${AGENT_REMEDIATION_WORKFLOW_STORE:MYBATIS}
+    stale-lease-reaper:
+      enabled: ${AGENT_REMEDIATION_STALE_LEASE_REAPER_ENABLED:true}
+      fixed-delay-ms: ${AGENT_REMEDIATION_STALE_LEASE_REAPER_FIXED_DELAY_MS:60000}
+      initial-delay-ms: ${AGENT_REMEDIATION_STALE_LEASE_REAPER_INITIAL_DELAY_MS:30000}
+      limit: ${AGENT_REMEDIATION_STALE_LEASE_REAPER_LIMIT:100}
+
+task-issue-links:
+  store: ${TASK_ISSUE_LINK_STORE:${ADAPTER_ACTION_STORE:MYBATIS}}
+

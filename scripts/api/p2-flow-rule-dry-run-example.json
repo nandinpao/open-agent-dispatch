@@ -1,0 +1,14 @@
+{
+  "tenantId": "tenant-a",
+  "sourceSystem": "ERP",
+  "eventStage": "EXTERNAL",
+  "objectType": "VENDOR",
+  "eventType": "VENDOR_MASTER_BANK_ACCOUNT_CHANGED",
+  "errorCode": "VENDOR_BANK_ACCOUNT_CHANGE",
+  "requestedSkill": "ERP_VENDOR_MASTER_RISK_TRIAGE",
+  "agentId": "agent-cluster-node-001-003",
+  "severity": "CRITICAL",
+  "attributes": {
+    "p2FlowRuleDryRun": true
+  }
+}

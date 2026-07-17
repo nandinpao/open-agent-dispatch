@@ -1,0 +1,69 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Collector Export Failures",
+      "targets": [
+        {"expr": "sum(rate(otelcol_exporter_send_failed_spans_total[5m]))", "legendFormat": "spans"},
+        {"expr": "sum(rate(otelcol_exporter_send_failed_metric_points_total[5m]))", "legendFormat": "metric points"},
+        {"expr": "sum(rate(otelcol_exporter_send_failed_log_records_total[5m]))", "legendFormat": "log records"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Persistent Queue Utilization",
+      "targets": [
+        {"expr": "100 * otelcol_exporter_queue_size / clamp_min(otelcol_exporter_queue_capacity, 1)", "legendFormat": "{{service_instance_id}} {{exporter}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Receiver Refused Telemetry",
+      "targets": [
+        {"expr": "sum(rate(otelcol_receiver_refused_spans_total[5m]))", "legendFormat": "spans"},
+        {"expr": "sum(rate(otelcol_receiver_refused_metric_points_total[5m]))", "legendFormat": "metric points"},
+        {"expr": "sum(rate(otelcol_receiver_refused_log_records_total[5m]))", "legendFormat": "log records"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Tail Sampling Decisions",
+      "targets": [
+        {"expr": "sum by (sampled) (rate(otelcol_processor_tail_sampling_count_traces_sampled_total[5m]))", "legendFormat": "sampled={{sampled}}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Collector Memory RSS",
+      "targets": [
+        {"expr": "otelcol_process_memory_rss", "legendFormat": "{{service_instance_id}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+    },
+    {
+      "type": "stat",
+      "title": "Tail Sampler Backends",
+      "targets": [
+        {"expr": "min(otelcol_loadbalancer_num_backends)", "legendFormat": "backends"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["opendispatch", "opentelemetry", "collector", "slo"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "OpenDispatch Production Observability",
+  "uid": "opendispatch-observability",
+  "version": 1
+}

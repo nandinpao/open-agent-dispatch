@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.agent.skill.dao.AgentSkillRegistryDao">
+    <resultMap id="SkillDefinitionMap" type="com.opensocket.aievent.database.persistence.agent.skill.po.AgentSkillDefinitionPo">
+        <id property="skillCode" column="skill_code"/>
+        <result property="displayName" column="display_name"/>
+        <result property="domain" column="domain"/>
+        <result property="description" column="description"/>
+        <result property="taxonomyVersion" column="taxonomy_version"/>
+        <result property="taskDefinitionId" column="task_definition_id"/>
+        <result property="sourceSystem" column="source_system"/>
+        <result property="taskType" column="task_type"/>
+        <result property="providersJson" column="providers_json"/>
+        <result property="taskTypesJson" column="task_types_json"/>
+        <result property="operationsJson" column="operations_json"/>
+        <result property="toolPoliciesJson" column="tool_policies_json"/>
+        <result property="resourceScopesJson" column="resource_scopes_json"/>
+        <result property="dataClassesJson" column="data_classes_json"/>
+        <result property="riskLevel" column="risk_level"/>
+        <result property="requiresHumanApproval" column="requires_human_approval"/>
+        <result property="maskingRequired" column="masking_required"/>
+        <result property="enabled" column="enabled"/>
+        <result property="metadataJson" column="metadata_json"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+
+
+    <resultMap id="ApprovedSkillMap" type="com.opensocket.aievent.database.persistence.agent.skill.po.AgentApprovedSkillPo">
+        <id property="agentId" column="agent_id"/>
+        <id property="skillCode" column="skill_code"/>
+        <result property="policyVersion" column="policy_version"/>
+        <result property="enabled" column="enabled"/>
+        <result property="approvedBy" column="approved_by"/>
+        <result property="approvedAt" column="approved_at"/>
+        <result property="metadataJson" column="metadata_json"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+
+
+    <resultMap id="SkillVersionMap" type="com.opensocket.aievent.database.persistence.agent.skill.po.AgentSkillVersionPo">
+        <id property="skillCode" column="skill_code"/>
+        <id property="version" column="version"/>
+        <result property="status" column="status"/>
+        <result property="definitionJson" column="definition_json"/>
+        <result property="submittedBy" column="submitted_by"/>
+        <result property="submittedAt" column="submitted_at"/>
+        <result property="reviewedBy" column="reviewed_by"/>
+        <result property="reviewedAt" column="reviewed_at"/>
+        <result property="reviewComment" column="review_comment"/>
+        <result property="publishedBy" column="published_by"/>
+        <result property="publishedAt" column="published_at"/>
+        <result property="supersedesVersion" column="supersedes_version"/>
+        <result property="rollbackOfVersion" column="rollback_of_version"/>
+        <result property="metadataJson" column="metadata_json"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="SkillAuditEntryMap" type="com.opensocket.aievent.database.persistence.agent.skill.po.AgentSkillAuditEntryPo">
+        <id property="auditId" column="audit_id"/>
+        <result property="skillCode" column="skill_code"/>
+        <result property="version" column="version"/>
+        <result property="action" column="action"/>
+        <result property="operatorId" column="operator_id"/>
+        <result property="reason" column="reason"/>
+        <result property="fromStatus" column="from_status"/>
+        <result property="toStatus" column="to_status"/>
+        <result property="metadataJson" column="metadata_json"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <resultMap id="SkillDeprecationPlanMap" type="com.opensocket.aievent.database.persistence.agent.skill.po.AgentSkillDeprecationPlanPo">
+        <id property="skillCode" column="skill_code"/>
+        <result property="status" column="status"/>
+        <result property="replacementSkillCodesJson" column="replacement_skill_codes_json"/>
+        <result property="migrationDeadline" column="migration_deadline"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="metadataJson" column="metadata_json"/>
+    </resultMap>
+
+    <resultMap id="SkillApprovalPolicyMap" type="com.opensocket.aievent.database.persistence.agent.skill.po.AgentSkillApprovalPolicyPo">
+        <id property="skillCode" column="skill_code"/>
+        <result property="enabled" column="enabled"/>
+        <result property="submitRolesJson" column="submit_roles_json"/>
+        <result property="approveRolesJson" column="approve_roles_json"/>
+        <result property="publishRolesJson" column="publish_roles_json"/>
+        <result property="rollbackRolesJson" column="rollback_roles_json"/>
+        <result property="separationOfDuties" column="separation_of_duties"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="metadataJson" column="metadata_json"/>
+    </resultMap>
+
+
+
+    <resultMap id="SkillDependencyEdgeMap" type="com.opensocket.aievent.database.persistence.agent.skill.po.AgentSkillDependencyEdgePo">
+        <id property="edgeId" column="edge_id"/>
+        <result property="sourceSkillCode" column="source_skill_code"/>
+        <result property="targetSkillCode" column="target_skill_code"/>
+        <result property="relationType" column="relation_type"/>
+        <result property="required" column="required"/>
+        <result property="enabled" column="enabled"/>
+        <result property="confidence" column="confidence"/>
+        <result property="description" column="description"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="metadataJson" column="metadata_json"/>
+    </resultMap>
+
+    <sql id="SkillVersionColumns">
+        skill_code, version, status, definition_json, submitted_by, submitted_at, reviewed_by, reviewed_at, review_comment,
+        published_by, published_at, supersedes_version, rollback_of_version, metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="SkillAuditEntryColumns">
+        audit_id, skill_code, version, action, operator_id, reason, from_status, to_status, metadata_json, created_at
+    </sql>
+
+    <sql id="ApprovedSkillColumns">
+        agent_id, skill_code, policy_version, enabled, approved_by, approved_at, metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="SkillDeprecationPlanColumns">
+        skill_code, status, replacement_skill_codes_json, migration_deadline, created_by, created_at, updated_by, updated_at, metadata_json
+    </sql>
+
+    <sql id="SkillApprovalPolicyColumns">
+        skill_code, enabled, submit_roles_json, approve_roles_json, publish_roles_json, rollback_roles_json,
+        separation_of_duties, updated_by, updated_at, metadata_json
+    </sql>
+
+
+
+    <sql id="SkillDependencyEdgeColumns">
+        edge_id, source_skill_code, target_skill_code, relation_type, required, enabled, confidence, description,
+        created_by, created_at, updated_by, updated_at, metadata_json
+    </sql>
+
+    <sql id="SkillColumns">
+        skill_code, display_name, domain, description, taxonomy_version,
+        task_definition_id, source_system, task_type,
+        providers_json, task_types_json, operations_json, tool_policies_json,
+        resource_scopes_json, data_classes_json, risk_level,
+        requires_human_approval, masking_required, enabled,
+        metadata_json, created_at, updated_at
+    </sql>
+
+    <select id="search" resultMap="SkillDefinitionMap">
+        select <include refid="SkillColumns"/>
+        from agent_skill_definitions
+        where (#{domain} is null or #{domain} = '' or domain = #{domain})
+          and (#{enabledOnly} = false or enabled = true)
+        order by domain, skill_code
+    </select>
+
+    <select id="findByCode" resultMap="SkillDefinitionMap">
+        select <include refid="SkillColumns"/>
+        from agent_skill_definitions
+        where skill_code = #{skillCode}
+    </select>
+
+    <insert id="upsert">
+        insert into agent_skill_definitions (
+            skill_code, display_name, domain, description, taxonomy_version,
+            task_definition_id, source_system, task_type,
+            providers_json, task_types_json, operations_json, tool_policies_json,
+            resource_scopes_json, data_classes_json, risk_level,
+            requires_human_approval, masking_required, enabled,
+            metadata_json, created_at, updated_at
+        ) values (
+            #{skill.skillCode}, #{skill.displayName}, #{skill.domain}, #{skill.description}, #{skill.taxonomyVersion},
+            #{skill.taskDefinitionId}, #{skill.sourceSystem}, #{skill.taskType},
+            coalesce(cast(#{skill.providersJson} as jsonb), '[]'::jsonb), coalesce(cast(#{skill.taskTypesJson} as jsonb), '[]'::jsonb), coalesce(cast(#{skill.operationsJson} as jsonb), '[]'::jsonb), coalesce(cast(#{skill.toolPoliciesJson} as jsonb), '[]'::jsonb),
+            coalesce(cast(#{skill.resourceScopesJson} as jsonb), '[]'::jsonb), coalesce(cast(#{skill.dataClassesJson} as jsonb), '[]'::jsonb), #{skill.riskLevel},
+            #{skill.requiresHumanApproval}, #{skill.maskingRequired}, #{skill.enabled},
+            coalesce(coalesce(cast(#{skill.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{skill.createdAt}, now()), coalesce(#{skill.updatedAt}, now())
+        )
+        on conflict (skill_code) do update set
+            display_name = excluded.display_name,
+            domain = excluded.domain,
+            description = excluded.description,
+            taxonomy_version = excluded.taxonomy_version,
+            task_definition_id = excluded.task_definition_id,
+            source_system = excluded.source_system,
+            task_type = excluded.task_type,
+            providers_json = excluded.providers_json,
+            task_types_json = excluded.task_types_json,
+            operations_json = excluded.operations_json,
+            tool_policies_json = excluded.tool_policies_json,
+            resource_scopes_json = excluded.resource_scopes_json,
+            data_classes_json = excluded.data_classes_json,
+            risk_level = excluded.risk_level,
+            requires_human_approval = excluded.requires_human_approval,
+            masking_required = excluded.masking_required,
+            enabled = excluded.enabled,
+            metadata_json = excluded.metadata_json,
+            updated_at = excluded.updated_at
+    </insert>
+
+    <delete id="delete">
+        delete from agent_skill_definitions where skill_code = #{skillCode}
+    </delete>
+
+    <select id="findApprovedSkills" resultMap="ApprovedSkillMap">
+        select <include refid="ApprovedSkillColumns"/>
+        from agent_profile_approved_skills
+        where agent_id = #{agentId}
+          and (#{enabledOnly} = false or enabled = true)
+        order by skill_code
+    </select>
+
+    <select id="findApprovedSkillsBySkillCode" resultMap="ApprovedSkillMap">
+        select <include refid="ApprovedSkillColumns"/>
+        from agent_profile_approved_skills
+        where skill_code = #{skillCode}
+          and (#{enabledOnly} = false or enabled = true)
+        order by agent_id
+    </select>
+
+    <delete id="deleteApprovedSkills">
+        delete from agent_profile_approved_skills where agent_id = #{agentId}
+    </delete>
+
+    <insert id="upsertApprovedSkill">
+        insert into agent_profile_approved_skills (
+            agent_id, skill_code, policy_version, enabled, approved_by, approved_at, metadata_json, created_at, updated_at
+        ) values (
+            #{skill.agentId}, #{skill.skillCode}, #{skill.policyVersion}, #{skill.enabled}, #{skill.approvedBy}, coalesce(#{skill.approvedAt}, now()),
+            coalesce(coalesce(cast(#{skill.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{skill.createdAt}, now()), coalesce(#{skill.updatedAt}, now())
+        )
+        on conflict (agent_id, skill_code) do update set
+            policy_version = excluded.policy_version,
+            enabled = excluded.enabled,
+            approved_by = excluded.approved_by,
+            approved_at = excluded.approved_at,
+            metadata_json = excluded.metadata_json,
+            updated_at = excluded.updated_at
+    </insert>
+
+
+    <select id="listVersions" resultMap="SkillVersionMap">
+        select <include refid="SkillVersionColumns"/>
+        from agent_skill_versions
+        where skill_code = #{skillCode}
+        order by version desc
+    </select>
+
+    <select id="findVersion" resultMap="SkillVersionMap">
+        select <include refid="SkillVersionColumns"/>
+        from agent_skill_versions
+        where skill_code = #{skillCode}
+          and version = #{version}
+    </select>
+
+    <select id="maxVersion" resultType="int">
+        select coalesce(max(version), 0)
+        from agent_skill_versions
+        where skill_code = #{skillCode}
+    </select>
+
+    <insert id="upsertVersion">
+        insert into agent_skill_versions (
+            skill_code, version, status, definition_json, submitted_by, submitted_at, reviewed_by, reviewed_at, review_comment,
+            published_by, published_at, supersedes_version, rollback_of_version, metadata_json, created_at, updated_at
+        ) values (
+            #{version.skillCode}, #{version.version}, #{version.status}, coalesce(cast(#{version.definitionJson} as jsonb), '{}'::jsonb),
+            #{version.submittedBy}, #{version.submittedAt}, #{version.reviewedBy}, #{version.reviewedAt}, #{version.reviewComment},
+            #{version.publishedBy}, #{version.publishedAt}, #{version.supersedesVersion}, #{version.rollbackOfVersion},
+            coalesce(cast(#{version.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{version.createdAt}, now()), coalesce(#{version.updatedAt}, now())
+        )
+        on conflict (skill_code, version) do update set
+            status = excluded.status,
+            definition_json = excluded.definition_json,
+            submitted_by = excluded.submitted_by,
+            submitted_at = excluded.submitted_at,
+            reviewed_by = excluded.reviewed_by,
+            reviewed_at = excluded.reviewed_at,
+            review_comment = excluded.review_comment,
+            published_by = excluded.published_by,
+            published_at = excluded.published_at,
+            supersedes_version = excluded.supersedes_version,
+            rollback_of_version = excluded.rollback_of_version,
+            metadata_json = excluded.metadata_json,
+            updated_at = excluded.updated_at
+    </insert>
+
+    <select id="listAuditEntries" resultMap="SkillAuditEntryMap">
+        select <include refid="SkillAuditEntryColumns"/>
+        from agent_skill_audit_entries
+        where skill_code = #{skillCode}
+        order by created_at desc
+        limit #{limit}
+    </select>
+
+    <insert id="insertAuditEntry">
+        insert into agent_skill_audit_entries (
+            audit_id, skill_code, version, action, operator_id, reason, from_status, to_status, metadata_json, created_at
+        ) values (
+            #{entry.auditId}, #{entry.skillCode}, #{entry.version}, #{entry.action}, #{entry.operatorId}, #{entry.reason},
+            #{entry.fromStatus}, #{entry.toStatus}, coalesce(cast(#{entry.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{entry.createdAt}, now())
+        )
+    </insert>
+
+
+    <select id="findApprovalPolicy" resultMap="SkillApprovalPolicyMap">
+        select <include refid="SkillApprovalPolicyColumns"/>
+        from agent_skill_approval_policies
+        where skill_code = #{skillCode}
+    </select>
+
+    <insert id="upsertApprovalPolicy">
+        insert into agent_skill_approval_policies (
+            skill_code, enabled, submit_roles_json, approve_roles_json, publish_roles_json, rollback_roles_json,
+            separation_of_duties, updated_by, updated_at, metadata_json
+        ) values (
+            #{policy.skillCode}, #{policy.enabled}, coalesce(cast(#{policy.submitRolesJson} as jsonb), '[]'::jsonb), coalesce(cast(#{policy.approveRolesJson} as jsonb), '[]'::jsonb),
+            coalesce(cast(#{policy.publishRolesJson} as jsonb), '[]'::jsonb), coalesce(cast(#{policy.rollbackRolesJson} as jsonb), '[]'::jsonb),
+            #{policy.separationOfDuties}, #{policy.updatedBy}, coalesce(#{policy.updatedAt}, now()), coalesce(cast(#{policy.metadataJson} as jsonb), '{}'::jsonb)
+        )
+        on conflict (skill_code) do update set
+            enabled = excluded.enabled,
+            submit_roles_json = excluded.submit_roles_json,
+            approve_roles_json = excluded.approve_roles_json,
+            publish_roles_json = excluded.publish_roles_json,
+            rollback_roles_json = excluded.rollback_roles_json,
+            separation_of_duties = excluded.separation_of_duties,
+            updated_by = excluded.updated_by,
+            updated_at = excluded.updated_at,
+            metadata_json = excluded.metadata_json
+    </insert>
+
+    <select id="findDeprecationPlan" resultMap="SkillDeprecationPlanMap">
+        select <include refid="SkillDeprecationPlanColumns"/>
+        from agent_skill_deprecation_plans
+        where skill_code = #{skillCode}
+    </select>
+
+    <select id="listDeprecationPlans" resultMap="SkillDeprecationPlanMap">
+        select <include refid="SkillDeprecationPlanColumns"/>
+        from agent_skill_deprecation_plans
+        where (#{status} is null or #{status} = '' or status = #{status})
+        order by updated_at desc, skill_code
+    </select>
+
+    <insert id="upsertDeprecationPlan">
+        insert into agent_skill_deprecation_plans (
+            skill_code, status, replacement_skill_codes_json, migration_deadline, created_by, created_at, updated_by, updated_at, metadata_json
+        ) values (
+            #{plan.skillCode}, #{plan.status}, coalesce(cast(#{plan.replacementSkillCodesJson} as jsonb), '[]'::jsonb), #{plan.migrationDeadline},
+            #{plan.createdBy}, coalesce(#{plan.createdAt}, now()), #{plan.updatedBy}, coalesce(#{plan.updatedAt}, now()), coalesce(cast(#{plan.metadataJson} as jsonb), '{}'::jsonb)
+        )
+        on conflict (skill_code) do update set
+            status = excluded.status,
+            replacement_skill_codes_json = excluded.replacement_skill_codes_json,
+            migration_deadline = excluded.migration_deadline,
+            updated_by = excluded.updated_by,
+            updated_at = excluded.updated_at,
+            metadata_json = excluded.metadata_json
+    </insert>
+
+
+    <select id="findDependencyEdges" resultMap="SkillDependencyEdgeMap">
+        with recursive dependency_edges as (
+            select <include refid="SkillDependencyEdgeColumns"/>, 1 as depth_level
+            from agent_skill_dependency_edges
+            where source_skill_code = #{skillCode}
+              and enabled = true
+            union all
+            select e.edge_id, e.source_skill_code, e.target_skill_code, e.relation_type, e.required, e.enabled, e.confidence, e.description,
+                   e.created_by, e.created_at, e.updated_by, e.updated_at, e.metadata_json, d.depth_level + 1 as depth_level
+            from agent_skill_dependency_edges e
+            join dependency_edges d on e.source_skill_code = d.target_skill_code
+            where e.enabled = true
+              and d.depth_level &lt; #{depth}
+        )
+        select <include refid="SkillDependencyEdgeColumns"/>
+        from dependency_edges
+        order by source_skill_code, relation_type, target_skill_code
+    </select>
+
+    <select id="findAllDependencyEdges" resultMap="SkillDependencyEdgeMap">
+        select <include refid="SkillDependencyEdgeColumns"/>
+        from agent_skill_dependency_edges
+        where enabled = true
+        order by source_skill_code, relation_type, target_skill_code
+    </select>
+
+    <delete id="deleteDependencyEdges">
+        delete from agent_skill_dependency_edges where source_skill_code = #{skillCode}
+    </delete>
+
+    <insert id="upsertDependencyEdge">
+        insert into agent_skill_dependency_edges (
+            edge_id, source_skill_code, target_skill_code, relation_type, required, enabled, confidence, description,
+            created_by, created_at, updated_by, updated_at, metadata_json
+        ) values (
+            #{edge.edgeId}, #{edge.sourceSkillCode}, #{edge.targetSkillCode}, #{edge.relationType}, #{edge.required}, #{edge.enabled}, #{edge.confidence}, #{edge.description},
+            #{edge.createdBy}, coalesce(#{edge.createdAt}, now()), #{edge.updatedBy}, coalesce(#{edge.updatedAt}, now()), coalesce(cast(#{edge.metadataJson} as jsonb), '{}'::jsonb)
+        )
+        on conflict (edge_id) do update set
+            source_skill_code = excluded.source_skill_code,
+            target_skill_code = excluded.target_skill_code,
+            relation_type = excluded.relation_type,
+            required = excluded.required,
+            enabled = excluded.enabled,
+            confidence = excluded.confidence,
+            description = excluded.description,
+            updated_by = excluded.updated_by,
+            updated_at = excluded.updated_at,
+            metadata_json = excluded.metadata_json
+    </insert>
+
+</mapper>

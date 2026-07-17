@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.incident.dao.IncidentDao">
+    <resultMap id="IncidentPoMap" type="com.opensocket.aievent.database.persistence.incident.po.IncidentPo">
+        <id property="incidentId" column="incident_id"/>
+        <result property="fingerprint" column="fingerprint"/><result property="tenantId" column="tenant_id"/><result property="sourceSystem" column="source_system"/>
+        <result property="siteId" column="site_id"/><result property="plantId" column="plant_id"/><result property="objectType" column="object_type"/><result property="objectId" column="object_id"/>
+        <result property="eventType" column="event_type"/><result property="errorCode" column="error_code"/><result property="severity" column="severity"/><result property="status" column="status"/>
+        <result property="firstSeenAt" column="first_seen_at"/><result property="lastSeenAt" column="last_seen_at"/><result property="occurrenceCount" column="occurrence_count"/>
+        <result property="lastMessage" column="last_message"/><result property="linkedTaskId" column="linked_task_id"/><result property="linkedIssueId" column="linked_issue_id"/>
+        <result property="resolvedAt" column="resolved_at"/><result property="reopenedAt" column="reopened_at"/><result property="reopenCount" column="reopen_count"/><result property="lifecycleReason" column="lifecycle_reason"/>
+    </resultMap>
+    <sql id="IncidentColumns">incident_id, fingerprint, tenant_id, source_system, site_id, plant_id, object_type, object_id, event_type, error_code, severity, status, first_seen_at, last_seen_at, occurrence_count, last_message, linked_task_id, linked_issue_id, resolved_at, reopened_at, reopen_count, lifecycle_reason</sql>
+    <insert id="upsert">
+        insert into incidents (<include refid="IncidentColumns"/>) values (
+            #{incident.incidentId}, #{incident.fingerprint}, #{incident.tenantId}, #{incident.sourceSystem}, #{incident.siteId}, #{incident.plantId}, #{incident.objectType}, #{incident.objectId}, #{incident.eventType}, #{incident.errorCode}, #{incident.severity}, #{incident.status}, #{incident.firstSeenAt}, #{incident.lastSeenAt}, #{incident.occurrenceCount}, #{incident.lastMessage}, #{incident.linkedTaskId}, #{incident.linkedIssueId}, #{incident.resolvedAt}, #{incident.reopenedAt}, #{incident.reopenCount}, #{incident.lifecycleReason}
+        ) on conflict (incident_id) do update set
+            fingerprint = excluded.fingerprint, tenant_id = excluded.tenant_id, source_system = excluded.source_system, site_id = excluded.site_id, plant_id = excluded.plant_id,
+            object_type = excluded.object_type, object_id = excluded.object_id, event_type = excluded.event_type, error_code = excluded.error_code,
+            severity = excluded.severity, status = excluded.status, first_seen_at = excluded.first_seen_at, last_seen_at = excluded.last_seen_at,
+            occurrence_count = excluded.occurrence_count, last_message = excluded.last_message, linked_task_id = excluded.linked_task_id,
+            linked_issue_id = excluded.linked_issue_id, resolved_at = excluded.resolved_at, reopened_at = excluded.reopened_at,
+            reopen_count = excluded.reopen_count, lifecycle_reason = excluded.lifecycle_reason, updated_at = now()
+    </insert>
+    <insert id="insert">
+        insert into incidents (<include refid="IncidentColumns"/>) values (
+            #{incident.incidentId}, #{incident.fingerprint}, #{incident.tenantId}, #{incident.sourceSystem}, #{incident.siteId}, #{incident.plantId}, #{incident.objectType}, #{incident.objectId}, #{incident.eventType}, #{incident.errorCode}, #{incident.severity}, #{incident.status}, #{incident.firstSeenAt}, #{incident.lastSeenAt}, #{incident.occurrenceCount}, #{incident.lastMessage}, #{incident.linkedTaskId}, #{incident.linkedIssueId}, #{incident.resolvedAt}, #{incident.reopenedAt}, #{incident.reopenCount}, #{incident.lifecycleReason}
+        )
+    </insert>
+    <select id="findById" resultMap="IncidentPoMap">select * from incidents where incident_id = #{incidentId}</select>
+    <select id="findActiveByFingerprint" resultMap="IncidentPoMap">
+        select * from incidents where fingerprint = #{fingerprint} and status in ('ACTIVE','ESCALATED') order by last_seen_at desc limit 1
+    </select>
+    <select id="findLatestByFingerprint" resultMap="IncidentPoMap">
+        select * from incidents where fingerprint = #{fingerprint} order by last_seen_at desc limit 1
+    </select>
+    <select id="findActiveLastSeenBefore" resultMap="IncidentPoMap">
+        select * from incidents
+        where status in ('ACTIVE','ESCALATED') and last_seen_at &lt; #{cutoff}
+        order by last_seen_at asc limit #{limit}
+    </select>
+    <select id="findAll" resultMap="IncidentPoMap">select * from incidents order by last_seen_at desc limit 1000</select>
+    <select id="search" resultMap="IncidentPoMap">
+        select * from incidents
+        <where>
+            <if test="tenantId != null and tenantId != ''">and tenant_id = #{tenantId}</if><if test="sourceSystem != null and sourceSystem != ''">and source_system = #{sourceSystem}</if>
+            <if test="siteId != null and siteId != ''">and site_id = #{siteId}</if><if test="plantId != null and plantId != ''">and plant_id = #{plantId}</if>
+            <if test="objectType != null and objectType != ''">and object_type = #{objectType}</if><if test="objectId != null and objectId != ''">and object_id = #{objectId}</if>
+            <if test="eventType != null and eventType != ''">and event_type = #{eventType}</if><if test="errorCode != null and errorCode != ''">and error_code = #{errorCode}</if>
+            <if test="severity != null">and severity = #{severity}</if><if test="status != null">and status = #{status}</if>
+        </where>
+        order by last_seen_at desc limit #{limit}
+    </select>
+</mapper>

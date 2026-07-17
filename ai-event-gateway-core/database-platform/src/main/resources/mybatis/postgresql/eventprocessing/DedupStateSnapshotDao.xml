@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.eventprocessing.dao.DedupStateSnapshotDao">
+  <resultMap id="DedupStateSnapshotResultMap" type="com.opensocket.aievent.database.persistence.eventprocessing.po.DedupStateSnapshotPo">
+    <id property="fingerprint" column="fingerprint" />
+    <result property="activeIncidentId" column="active_incident_id" />
+    <result property="tenantId" column="tenant_id" />
+    <result property="sourceSystem" column="source_system" />
+    <result property="siteId" column="site_id" />
+    <result property="plantId" column="plant_id" />
+    <result property="objectType" column="object_type" />
+    <result property="objectId" column="object_id" />
+    <result property="eventType" column="event_type" />
+    <result property="errorCode" column="error_code" />
+    <result property="firstSeenAt" column="first_seen_at" />
+    <result property="lastSeenAt" column="last_seen_at" />
+    <result property="occurrenceCount" column="occurrence_count" />
+    <result property="maxSeverity" column="max_severity" />
+    <result property="lastEventId" column="last_event_id" />
+    <result property="lastMessage" column="last_message" />
+    <result property="expiresAt" column="expires_at" />
+  </resultMap>
+
+  <sql id="DedupStateColumns">
+    fingerprint,active_incident_id,tenant_id,source_system,site_id,plant_id,object_type,object_id,event_type,error_code,first_seen_at,last_seen_at,occurrence_count,max_severity,last_event_id,last_message,expires_at
+  </sql>
+
+  <insert id="upsert">
+    insert into event_dedup_state(fingerprint,active_incident_id,tenant_id,source_system,site_id,plant_id,object_type,object_id,event_type,error_code,first_seen_at,last_seen_at,occurrence_count,max_severity,last_event_id,last_message,expires_at)
+    values(#{snapshot.fingerprint},#{snapshot.activeIncidentId},#{snapshot.tenantId},#{snapshot.sourceSystem},#{snapshot.siteId},#{snapshot.plantId},#{snapshot.objectType},#{snapshot.objectId},#{snapshot.eventType},#{snapshot.errorCode},#{snapshot.firstSeenAt},#{snapshot.lastSeenAt},#{snapshot.occurrenceCount},#{snapshot.maxSeverity},#{snapshot.lastEventId},#{snapshot.lastMessage},#{snapshot.expiresAt})
+    on conflict(fingerprint) do update set active_incident_id=excluded.active_incident_id,tenant_id=excluded.tenant_id,source_system=excluded.source_system,site_id=excluded.site_id,plant_id=excluded.plant_id,object_type=excluded.object_type,object_id=excluded.object_id,event_type=excluded.event_type,error_code=excluded.error_code,first_seen_at=excluded.first_seen_at,last_seen_at=excluded.last_seen_at,occurrence_count=excluded.occurrence_count,max_severity=excluded.max_severity,last_event_id=excluded.last_event_id,last_message=excluded.last_message,expires_at=excluded.expires_at,updated_at=now()
+  </insert>
+
+  <insert id="insertIfAbsent">
+    insert into event_dedup_state(fingerprint,active_incident_id,tenant_id,source_system,site_id,plant_id,object_type,object_id,event_type,error_code,first_seen_at,last_seen_at,occurrence_count,max_severity,last_event_id,last_message,expires_at)
+    values(#{snapshot.fingerprint},#{snapshot.activeIncidentId},#{snapshot.tenantId},#{snapshot.sourceSystem},#{snapshot.siteId},#{snapshot.plantId},#{snapshot.objectType},#{snapshot.objectId},#{snapshot.eventType},#{snapshot.errorCode},#{snapshot.firstSeenAt},#{snapshot.lastSeenAt},#{snapshot.occurrenceCount},#{snapshot.maxSeverity},#{snapshot.lastEventId},#{snapshot.lastMessage},#{snapshot.expiresAt})
+    on conflict(fingerprint) do nothing
+  </insert>
+
+  <select id="findForUpdate" resultMap="DedupStateSnapshotResultMap">
+    select <include refid="DedupStateColumns" />
+    from event_dedup_state
+    where fingerprint = #{fingerprint}
+    for update
+  </select>
+
+  <select id="findActiveByFingerprint" resultMap="DedupStateSnapshotResultMap">
+    select <include refid="DedupStateColumns" />
+    from event_dedup_state
+    where fingerprint = #{fingerprint}
+      and (expires_at is null or expires_at &gt; now())
+  </select>
+
+  <update id="updateState">
+    update event_dedup_state
+    set active_incident_id=#{snapshot.activeIncidentId},
+        tenant_id=#{snapshot.tenantId},
+        source_system=#{snapshot.sourceSystem},
+        site_id=#{snapshot.siteId},
+        plant_id=#{snapshot.plantId},
+        object_type=#{snapshot.objectType},
+        object_id=#{snapshot.objectId},
+        event_type=#{snapshot.eventType},
+        error_code=#{snapshot.errorCode},
+        first_seen_at=#{snapshot.firstSeenAt},
+        last_seen_at=#{snapshot.lastSeenAt},
+        occurrence_count=#{snapshot.occurrenceCount},
+        max_severity=#{snapshot.maxSeverity},
+        last_event_id=#{snapshot.lastEventId},
+        last_message=#{snapshot.lastMessage},
+        expires_at=#{snapshot.expiresAt},
+        updated_at=now()
+    where fingerprint=#{snapshot.fingerprint}
+  </update>
+
+  <update id="attachIncident">
+    update event_dedup_state
+    set active_incident_id=#{activeIncidentId},
+        expires_at=#{expiresAt},
+        updated_at=now()
+    where fingerprint=#{fingerprint}
+  </update>
+</mapper>

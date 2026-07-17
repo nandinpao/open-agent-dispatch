@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.execution.dao.DispatchAttemptHistoryDao">
+    <resultMap id="DispatchAttemptHistoryPoMap" type="com.opensocket.aievent.database.persistence.execution.po.DispatchAttemptHistoryPo">
+        <id property="historyId" column="history_id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="incidentId" column="incident_id"/>
+        <result property="assignmentId" column="assignment_id"/>
+        <result property="dispatchRequestId" column="dispatch_request_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="ownerGatewayNodeId" column="owner_gateway_node_id"/>
+        <result property="agentSessionId" column="agent_session_id"/>
+        <result property="siteId" column="site_id"/>
+        <result property="routingDecisionId" column="routing_decision_id"/>
+        <result property="eventType" column="event_type"/>
+        <result property="status" column="status"/>
+        <result property="attemptNo" column="attempt_no"/>
+        <result property="taskDispatchAttemptNo" column="task_dispatch_attempt_no"/>
+        <result property="reason" column="reason"/>
+        <result property="errorCode" column="error_code"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="nextAttemptAt" column="next_attempt_at"/>
+        <result property="runtimeBackoffUntil" column="runtime_backoff_until"/>
+        <result property="workerId" column="worker_id"/>
+        <result property="claimUntil" column="claim_until"/>
+        <result property="payloadJson" column="payload_json"/>
+        <result property="occurredAt" column="occurred_at"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <sql id="DispatchAttemptHistoryColumns">
+        history_id, task_id, incident_id, assignment_id, dispatch_request_id,
+        agent_id, owner_gateway_node_id, agent_session_id, site_id, routing_decision_id,
+        event_type, status, attempt_no, task_dispatch_attempt_no, reason, error_code,
+        error_message, next_attempt_at, runtime_backoff_until, worker_id, claim_until,
+        payload_json, occurred_at, created_at
+    </sql>
+
+    <insert id="insert">
+        insert into dispatch_attempt_history (<include refid="DispatchAttemptHistoryColumns"/>) values (
+            #{record.historyId}, #{record.taskId}, #{record.incidentId}, #{record.assignmentId}, #{record.dispatchRequestId},
+            #{record.agentId}, #{record.ownerGatewayNodeId}, #{record.agentSessionId}, #{record.siteId}, #{record.routingDecisionId},
+            #{record.eventType}, #{record.status}, #{record.attemptNo}, #{record.taskDispatchAttemptNo}, #{record.reason}, #{record.errorCode},
+            #{record.errorMessage}, #{record.nextAttemptAt}, #{record.runtimeBackoffUntil}, #{record.workerId}, #{record.claimUntil},
+            coalesce(cast(#{record.payloadJson} as jsonb), '{}'::jsonb), #{record.occurredAt}, #{record.createdAt}
+        )
+    </insert>
+
+    <select id="findByTaskId" resultMap="DispatchAttemptHistoryPoMap">
+        select <include refid="DispatchAttemptHistoryColumns"/>
+        from dispatch_attempt_history
+        where task_id = #{taskId}
+        order by occurred_at desc, created_at desc
+        limit #{limit}
+    </select>
+
+    <select id="findByDispatchRequestId" resultMap="DispatchAttemptHistoryPoMap">
+        select <include refid="DispatchAttemptHistoryColumns"/>
+        from dispatch_attempt_history
+        where dispatch_request_id = #{dispatchRequestId}
+        order by occurred_at desc, created_at desc
+        limit #{limit}
+    </select>
+
+    <select id="recent" resultMap="DispatchAttemptHistoryPoMap">
+        select <include refid="DispatchAttemptHistoryColumns"/>
+        from dispatch_attempt_history
+        order by occurred_at desc, created_at desc
+        limit #{limit}
+    </select>
+
+
+    <select id="findSince" resultMap="DispatchAttemptHistoryPoMap">
+        select <include refid="DispatchAttemptHistoryColumns"/>
+        from dispatch_attempt_history
+        where occurred_at &gt;= #{since}
+        order by occurred_at desc, created_at desc
+        limit #{limit}
+    </select>
+
+</mapper>

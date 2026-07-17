@@ -1,0 +1,136 @@
+# I6 reference compose for Core + Netty + PostgreSQL + Redis + Mock Agent.
+# It assumes CORE_IMAGE and NETTY_IMAGE already exist. The purpose of I6 is E2E
+# contract verification, not Docker image build orchestration.
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: aeg_core
+      POSTGRES_USER: aeg
+      POSTGRES_PASSWORD: aeg
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aeg -d aeg_core"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  core:
+    image: ${CORE_IMAGE:-ai-event-gateway-core:local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Asia/Taipei}
+      SERVER_PORT: 18080
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aeg_core
+      SPRING_DATASOURCE_USERNAME: aeg
+      SPRING_DATASOURCE_PASSWORD: aeg
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      CLUSTER_INTERNAL_TOKEN: ${CLUSTER_INTERNAL_TOKEN:-local-i6-internal-token-change-me}
+      CORE_INTERNAL_SECURITY_ENABLED: ${CORE_INTERNAL_SECURITY_ENABLED:-true}
+      CORE_INTERNAL_PROTECT_API_MUTATIONS: ${CORE_INTERNAL_PROTECT_API_MUTATIONS:-false}
+      CORE_INTERNAL_PERMIT_ACTUATOR_HEALTH_INFO: ${CORE_INTERNAL_PERMIT_ACTUATOR_HEALTH_INFO:-true}
+      CORE_GATEWAY_INTERNAL_TOKEN: ${CORE_GATEWAY_INTERNAL_TOKEN:-local-i6-internal-token-change-me}
+      CORE_OPERATOR_INTERNAL_TOKEN: ${CORE_OPERATOR_INTERNAL_TOKEN:-local-i6-internal-token-change-me}
+      CORE_ACTUATOR_INTERNAL_TOKEN: ${CORE_ACTUATOR_INTERNAL_TOKEN:-local-i6-internal-token-change-me}
+      INCIDENT_STORE: ${INCIDENT_STORE:-MYBATIS}
+      INCIDENT_SUMMARY_STORE: ${INCIDENT_SUMMARY_STORE:-MYBATIS}
+      EVENT_DECISION_STORE: ${EVENT_DECISION_STORE:-MYBATIS}
+      TASK_STORE: ${TASK_STORE:-MYBATIS}
+      TASK_CALLBACK_STORE: ${TASK_CALLBACK_STORE:-MYBATIS}
+      DISPATCH_REQUEST_STORE: ${DISPATCH_REQUEST_STORE:-MYBATIS}
+      AGENT_DIRECTORY_STORE: ${AGENT_DIRECTORY_STORE:-MYBATIS}
+      CORE_TASK_CREATION_ENABLED: ${CORE_TASK_CREATION_ENABLED:-true}
+      CORE_TASK_MIN_OCCURRENCES: ${CORE_TASK_MIN_OCCURRENCES:-1}
+      CORE_IMMEDIATE_TASK_SEVERITIES: ${CORE_IMMEDIATE_TASK_SEVERITIES:-CRITICAL,HIGH}
+      CORE_DEFAULT_ROUTING_POLICY: ${CORE_DEFAULT_ROUTING_POLICY:-LOCAL_FIRST}
+      CORE_DEFAULT_TASK_CAPABILITIES: ${CORE_DEFAULT_TASK_CAPABILITIES:-}
+      DISPATCH_REQUEST_CREATION_ENABLED: ${DISPATCH_REQUEST_CREATION_ENABLED:-true}
+      DISPATCH_REVIEW_MODE: ${DISPATCH_REVIEW_MODE:-AUTO_APPROVE}
+      DISPATCH_CLIENT_ENABLED: ${DISPATCH_CLIENT_ENABLED:-true}
+      DISPATCH_CLIENT_AUTO_EXECUTE_APPROVED: ${DISPATCH_CLIENT_AUTO_EXECUTE_APPROVED:-true}
+      DISPATCH_EXECUTION_POLICY: ${DISPATCH_EXECUTION_POLICY:-AUTO_AFTER_ASSIGNMENT}
+      DISPATCH_DEFAULT_GATEWAY_BASE_URL: ${DISPATCH_DEFAULT_GATEWAY_BASE_URL:-http://netty:18080}
+      DISPATCH_INTERNAL_TOKEN: ${DISPATCH_INTERNAL_TOKEN:-local-i6-internal-token-change-me}
+    ports:
+      - "${CORE_PORT:-18080}:18080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:18080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  netty:
+    image: ${NETTY_IMAGE:-ai-event-gateway-netty:local}
+    depends_on:
+      core:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Asia/Taipei}
+      SERVER_PORT: 18080
+      GATEWAY_NODE_ID: ${GATEWAY_NODE_ID:-gateway-node-001}
+      GATEWAY_SITE_ID: ${GATEWAY_SITE_ID:-LOCAL}
+      GATEWAY_REGION: ${GATEWAY_REGION:-local}
+      GATEWAY_ZONE: ${GATEWAY_ZONE:-local-zone-a}
+      GATEWAY_TCP_PORT: 19090
+      GATEWAY_WS_PORT: 19091
+      CLUSTER_INTERNAL_TOKEN: ${CLUSTER_INTERNAL_TOKEN:-local-i6-internal-token-change-me}
+      GATEWAY_CORE_OUTBOUND_ENABLED: ${GATEWAY_CORE_OUTBOUND_ENABLED:-true}
+      GATEWAY_CORE_OUTBOUND_WORKER_THREADS: ${GATEWAY_CORE_OUTBOUND_WORKER_THREADS:-2}
+      GATEWAY_CORE_OUTBOUND_QUEUE_CAPACITY: ${GATEWAY_CORE_OUTBOUND_QUEUE_CAPACITY:-1000}
+      GATEWAY_CORE_DIRECTORY_SYNC_ENABLED: ${GATEWAY_CORE_DIRECTORY_SYNC_ENABLED:-true}
+      GATEWAY_CORE_DIRECTORY_SYNC_BASE_URL: ${GATEWAY_CORE_DIRECTORY_SYNC_BASE_URL:-http://core:18080}
+      GATEWAY_CORE_DIRECTORY_SYNC_AUTH_TOKEN: ${GATEWAY_CORE_DIRECTORY_SYNC_AUTH_TOKEN:-local-i6-internal-token-change-me}
+      GATEWAY_CORE_DIRECTORY_SYNC_GATEWAY_HEARTBEAT_INTERVAL_MS: ${GATEWAY_CORE_DIRECTORY_SYNC_GATEWAY_HEARTBEAT_INTERVAL_MS:-5000}
+      GATEWAY_CORE_DIRECTORY_SYNC_SNAPSHOT_INTERVAL_MS: ${GATEWAY_CORE_DIRECTORY_SYNC_SNAPSHOT_INTERVAL_MS:-10000}
+      GATEWAY_CORE_TASK_CALLBACK_RELAY_ENABLED: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_ENABLED:-true}
+      GATEWAY_CORE_TASK_CALLBACK_RELAY_BASE_URL: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_BASE_URL:-http://core:18080}
+      GATEWAY_CORE_TASK_CALLBACK_RELAY_AUTH_TOKEN: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_AUTH_TOKEN:-local-i6-internal-token-change-me}
+      GATEWAY_CORE_TASK_CALLBACK_RELAY_REQUIRE_DISPATCH_CONTEXT: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_REQUIRE_DISPATCH_CONTEXT:-true}
+      GATEWAY_CORE_FORWARD_ENABLED: ${GATEWAY_CORE_FORWARD_ENABLED:-false}
+      AGENT_AUTH_ENABLED: ${AGENT_AUTH_ENABLED:-false}
+      ADMIN_AUTH_ENABLED: ${ADMIN_AUTH_ENABLED:-false}
+    ports:
+      - "${NETTY_ADMIN_PORT:-18081}:18080"
+      - "${NETTY_TCP_PORT:-19090}:19090"
+      - "${NETTY_WS_PORT:-19091}:19091"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:18080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  mock-agent:
+    image: python:3.13-alpine
+    depends_on:
+      netty:
+        condition: service_healthy
+    environment:
+      I6_GATEWAY_TCP_HOST: netty
+      I6_GATEWAY_TCP_PORT: 19090
+      I6_GATEWAY_NODE_ID: ${GATEWAY_NODE_ID:-gateway-node-001}
+      I6_AGENT_ID: ${I6_AGENT_ID:-agent-i6-001}
+      I6_AGENT_CAPABILITIES: ${I6_AGENT_CAPABILITIES:-incident-analysis}
+      I6_AGENT_EXIT_AFTER_DISPATCH: 1
+    volumes:
+      - ../../scripts/e2e:/e2e:ro
+    command: ["python", "/e2e/mock_task_agent.py"]
+    profiles: ["agent"]

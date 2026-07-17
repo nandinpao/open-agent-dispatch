@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.task.dao.TaskDao">
+    <resultMap id="TaskPoMap" type="com.opensocket.aievent.database.persistence.task.po.TaskPo">
+        <id property="taskId" column="task_id"/><result property="incidentId" column="incident_id"/><result property="sourceEventId" column="source_event_id"/><result property="sourceSystem" column="source_system"/>
+        <result property="eventStage" column="event_stage"/><result property="originSourceSystem" column="origin_source_system"/><result property="targetSystem" column="target_system"/>
+        <result property="taskType" column="task_type"/><result property="taskTypeCode" column="task_type_code"/><result property="status" column="status"/><result property="priority" column="priority"/>
+        <result property="tenantId" column="tenant_id"/><result property="siteId" column="site_id"/><result property="plantId" column="plant_id"/>
+        <result property="objectType" column="object_type"/><result property="objectId" column="object_id"/><result property="eventType" column="event_type"/><result property="errorCode" column="error_code"/>
+        <result property="requestedSkill" column="requested_skill"/><result property="handoffMode" column="handoff_mode"/><result property="correlationId" column="correlation_id"/><result property="parentTaskId" column="parent_task_id"/><result property="matchedFlowId" column="matched_flow_id"/><result property="matchedRuleId" column="matched_rule_id"/>
+        <result property="assignedPoolId" column="assigned_pool_id"/><result property="targetPoolId" column="target_pool_id"/><result property="classificationStatus" column="classification_status"/><result property="classificationResultJson" column="classification_result_json"/><result property="routingPath" column="routing_path"/>
+        <result property="routingPolicy" column="routing_policy"/><result property="requiredCapabilitiesJson" column="required_capabilities_json"/>
+        <result property="createdReason" column="created_reason"/><result property="occurrenceCountAtCreation" column="occurrence_count_at_creation"/>
+        <result property="createdAt" column="created_at"/><result property="updatedAt" column="updated_at"/>
+        <result property="timeoutAt" column="timeout_at"/><result property="terminalAt" column="terminal_at"/><result property="reassignmentCount" column="reassignment_count"/>
+        <result property="nextDispatchAttemptAt" column="next_dispatch_attempt_at"/><result property="dispatchAttemptCount" column="dispatch_attempt_count"/>
+        <result property="dispatchRetryReason" column="dispatch_retry_reason"/><result property="dispatchRecoveryClaimedBy" column="dispatch_recovery_claimed_by"/><result property="dispatchRecoveryClaimUntil" column="dispatch_recovery_claim_until"/>
+        <result property="lifecycleReason" column="lifecycle_reason"/><result property="externalExecutionKey" column="external_execution_key"/>
+    </resultMap>
+    <sql id="TaskColumns">task_id, incident_id, source_event_id, source_system, event_stage, origin_source_system, target_system, task_type, task_type_code, status, priority, tenant_id, site_id, plant_id, object_type, object_id, event_type, error_code, requested_skill, handoff_mode, correlation_id, parent_task_id, matched_flow_id, matched_rule_id, assigned_pool_id, target_pool_id, classification_status, classification_result_json, routing_path, routing_policy, required_capabilities_json, created_reason, occurrence_count_at_creation, created_at, updated_at, timeout_at, terminal_at, reassignment_count, next_dispatch_attempt_at, dispatch_attempt_count, dispatch_retry_reason, dispatch_recovery_claimed_by, dispatch_recovery_claim_until, lifecycle_reason, external_execution_key</sql>
+    <insert id="upsert">
+        insert into tasks (<include refid="TaskColumns"/>) values (
+            #{task.taskId}, #{task.incidentId}, #{task.sourceEventId}, #{task.sourceSystem}, #{task.eventStage}, #{task.originSourceSystem}, #{task.targetSystem}, #{task.taskType}, #{task.taskTypeCode}, #{task.status}, #{task.priority}, #{task.tenantId}, #{task.siteId}, #{task.plantId}, #{task.objectType}, #{task.objectId}, #{task.eventType}, #{task.errorCode}, #{task.requestedSkill}, #{task.handoffMode}, #{task.correlationId}, #{task.parentTaskId}, #{task.matchedFlowId}, #{task.matchedRuleId}, #{task.assignedPoolId}, #{task.targetPoolId}, #{task.classificationStatus}, coalesce(coalesce(cast(#{task.classificationResultJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{task.routingPath}, #{task.routingPolicy}, coalesce(coalesce(cast(#{task.requiredCapabilitiesJson} as jsonb), '[]'::jsonb), '[]'::jsonb), #{task.createdReason}, #{task.occurrenceCountAtCreation}, #{task.createdAt}, #{task.updatedAt}, #{task.timeoutAt}, #{task.terminalAt}, #{task.reassignmentCount}, #{task.nextDispatchAttemptAt}, #{task.dispatchAttemptCount}, #{task.dispatchRetryReason}, #{task.dispatchRecoveryClaimedBy}, #{task.dispatchRecoveryClaimUntil}, #{task.lifecycleReason}, #{task.externalExecutionKey}
+        ) on conflict (task_id) do update set
+            incident_id = excluded.incident_id, source_event_id = excluded.source_event_id, source_system = excluded.source_system, event_stage = excluded.event_stage, origin_source_system = excluded.origin_source_system, target_system = excluded.target_system, task_type = excluded.task_type, task_type_code = excluded.task_type_code, status = excluded.status,
+            priority = excluded.priority, tenant_id = excluded.tenant_id, site_id = excluded.site_id, plant_id = excluded.plant_id,
+            object_type = excluded.object_type, object_id = excluded.object_id, event_type = excluded.event_type, error_code = excluded.error_code, requested_skill = excluded.requested_skill, handoff_mode = excluded.handoff_mode, correlation_id = excluded.correlation_id, parent_task_id = excluded.parent_task_id, matched_flow_id = excluded.matched_flow_id, matched_rule_id = excluded.matched_rule_id, assigned_pool_id = excluded.assigned_pool_id, target_pool_id = excluded.target_pool_id, classification_status = excluded.classification_status, classification_result_json = excluded.classification_result_json, routing_path = excluded.routing_path,
+            routing_policy = excluded.routing_policy, required_capabilities_json = excluded.required_capabilities_json, created_reason = excluded.created_reason,
+            occurrence_count_at_creation = excluded.occurrence_count_at_creation, timeout_at = excluded.timeout_at, terminal_at = excluded.terminal_at,
+            reassignment_count = excluded.reassignment_count, next_dispatch_attempt_at = excluded.next_dispatch_attempt_at,
+            dispatch_attempt_count = excluded.dispatch_attempt_count, dispatch_retry_reason = excluded.dispatch_retry_reason,
+            dispatch_recovery_claimed_by = excluded.dispatch_recovery_claimed_by, dispatch_recovery_claim_until = excluded.dispatch_recovery_claim_until,
+            lifecycle_reason = excluded.lifecycle_reason, external_execution_key = excluded.external_execution_key, updated_at = excluded.updated_at
+    </insert>
+    <insert id="insert">
+        insert into tasks (<include refid="TaskColumns"/>) values (
+            #{task.taskId}, #{task.incidentId}, #{task.sourceEventId}, #{task.sourceSystem}, #{task.eventStage}, #{task.originSourceSystem}, #{task.targetSystem}, #{task.taskType}, #{task.taskTypeCode}, #{task.status}, #{task.priority}, #{task.tenantId}, #{task.siteId}, #{task.plantId}, #{task.objectType}, #{task.objectId}, #{task.eventType}, #{task.errorCode}, #{task.requestedSkill}, #{task.handoffMode}, #{task.correlationId}, #{task.parentTaskId}, #{task.matchedFlowId}, #{task.matchedRuleId}, #{task.assignedPoolId}, #{task.targetPoolId}, #{task.classificationStatus}, coalesce(coalesce(cast(#{task.classificationResultJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{task.routingPath}, #{task.routingPolicy}, coalesce(coalesce(cast(#{task.requiredCapabilitiesJson} as jsonb), '[]'::jsonb), '[]'::jsonb), #{task.createdReason}, #{task.occurrenceCountAtCreation}, #{task.createdAt}, #{task.updatedAt}, #{task.timeoutAt}, #{task.terminalAt}, #{task.reassignmentCount}, #{task.nextDispatchAttemptAt}, #{task.dispatchAttemptCount}, #{task.dispatchRetryReason}, #{task.dispatchRecoveryClaimedBy}, #{task.dispatchRecoveryClaimUntil}, #{task.lifecycleReason}, #{task.externalExecutionKey}
+        )
+        on conflict (incident_id, task_type)
+        where status not in ('SUCCEEDED','FAILED','ESCALATED','DEAD_LETTER','SUPPRESSED','COMPLETED','TIMED_OUT','CANCELLED')
+        do nothing
+    </insert>
+    <select id="findById" resultMap="TaskPoMap">select * from tasks where task_id = #{taskId}</select>
+    <select id="findOpenByIncidentAndType" resultMap="TaskPoMap">
+        select * from tasks where incident_id = #{incidentId} and task_type = #{taskType} and status not in ('SUCCEEDED','FAILED','ESCALATED','DEAD_LETTER','SUPPRESSED','COMPLETED','TIMED_OUT','CANCELLED') order by created_at desc limit 1
+    </select>
+    <select id="findByIncidentId" resultMap="TaskPoMap">select * from tasks where incident_id = #{incidentId} order by created_at desc limit #{limit}</select>
+    <select id="findOpenUpdatedBefore" resultMap="TaskPoMap">
+        select * from tasks
+        where status not in ('SUCCEEDED','FAILED','ESCALATED','DEAD_LETTER','SUPPRESSED','COMPLETED','TIMED_OUT','CANCELLED') and updated_at &lt; #{cutoff}
+        order by updated_at asc limit #{limit}
+    </select>
+    <select id="findByStatusUpdatedBefore" resultMap="TaskPoMap">
+        select * from tasks
+        where status = #{status} and updated_at &lt; #{cutoff}
+        order by updated_at asc limit #{limit}
+    </select>
+
+    <select id="claimDispatchRecoveryDue" resultMap="TaskPoMap">
+        with candidates as (
+            select t.task_id,
+                   case
+                       when t.next_dispatch_attempt_at is not null then t.next_dispatch_attempt_at
+                       else t.updated_at
+                   end as recovery_sort_at
+            from tasks t
+            where t.status in ('QUEUED','CREATED','RETRY_WAIT')
+              and (t.dispatch_recovery_claim_until is null or t.dispatch_recovery_claim_until &lt;= #{now})
+              and not exists (
+                  select 1 from task_assignments a
+                  where a.task_id = t.task_id
+                    and upper(coalesce(a.status, '')) in ('ASSIGNED','DISPATCHED','RUNNING')
+              )
+              and t.next_dispatch_attempt_at is not null
+              and t.next_dispatch_attempt_at &lt;= #{now}
+            order by recovery_sort_at asc nulls first, t.updated_at asc
+            limit #{limit}
+            for update skip locked
+        )
+        update tasks t set
+            dispatch_recovery_claimed_by = #{workerId},
+            dispatch_recovery_claim_until = #{claimUntil},
+            updated_at = #{now},
+            lifecycle_reason = t.lifecycle_reason
+        from candidates
+        where t.task_id = candidates.task_id
+        returning t.*
+    </select>
+
+    <update id="suspendDispatchUntilConfigurationChange">
+        update tasks set
+            status = 'RETRY_WAIT',
+            next_dispatch_attempt_at = null,
+            dispatch_retry_reason = concat('WAITING_CONFIGURATION:', #{blockerCode}, ':', coalesce(#{reason}, '')),
+            dispatch_recovery_claimed_by = null,
+            dispatch_recovery_claim_until = null,
+            updated_at = #{now},
+            lifecycle_reason = concat('Waiting for dispatch configuration change: ', #{blockerCode})
+        where task_id = #{taskId}
+    </update>
+
+    <update id="wakeConfigurationBlockedTasks">
+        update tasks set
+            status = 'QUEUED',
+            next_dispatch_attempt_at = #{now},
+            dispatch_retry_reason = #{reason},
+            dispatch_recovery_claimed_by = null,
+            dispatch_recovery_claim_until = null,
+            updated_at = #{now},
+            lifecycle_reason = #{reason}
+        where upper(tenant_id) = upper(#{tenantId})
+          <if test="sourceSystem != null and sourceSystem.trim() != ''">
+            and upper(source_system) = upper(#{sourceSystem})
+          </if>
+          and dispatch_retry_reason like 'WAITING_CONFIGURATION:%'
+          and status in ('QUEUED','CREATED','RETRY_WAIT')
+    </update>
+
+    <update id="clearDispatchRecoveryClaim">
+        update tasks set
+            dispatch_recovery_claimed_by = null,
+            dispatch_recovery_claim_until = null,
+            updated_at = #{now}
+        where task_id = #{taskId}
+          and dispatch_recovery_claimed_by = #{workerId}
+          and dispatch_recovery_claim_until = #{claimUntil}
+    </update>
+
+    <update id="transitionExecutionState">
+        update tasks set
+            status = #{newStatus},
+            timeout_at = #{timeoutAt},
+            terminal_at = #{terminalAt},
+            updated_at = #{updatedAt},
+            lifecycle_reason = #{lifecycleReason}
+        where task_id = #{taskId}
+          and status in
+          <foreach item="status" collection="allowedStatuses" open="(" separator="," close=")">
+              #{status}
+          </foreach>
+    </update>
+
+    <select id="search" resultMap="TaskPoMap">
+        select * from tasks
+        <where>
+            <if test="incidentId != null and incidentId != ''">and incident_id = #{incidentId}</if><if test="tenantId != null and tenantId != ''">and tenant_id = #{tenantId}</if>
+            <if test="siteId != null and siteId != ''">and site_id = #{siteId}</if><if test="plantId != null and plantId != ''">and plant_id = #{plantId}</if>
+            <if test="taskType != null">and task_type = #{taskType}</if><if test="status != null">and status = #{status}</if>
+        </where>
+        order by created_at desc limit #{limit}
+    </select>
+</mapper>

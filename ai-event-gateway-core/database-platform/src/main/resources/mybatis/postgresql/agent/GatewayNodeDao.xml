@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.agent.dao.GatewayNodeDao">
+
+    <resultMap id="GatewayNodePoMap" type="com.opensocket.aievent.database.persistence.agent.po.GatewayNodePo">
+        <id property="gatewayNodeId" column="gateway_node_id"/>
+        <result property="nodeName" column="node_name"/>
+        <result property="hostName" column="host_name"/>
+        <result property="advertiseHost" column="advertise_host"/>
+        <result property="httpPort" column="http_port"/>
+        <result property="wsPort" column="ws_port"/>
+        <result property="region" column="region"/>
+        <result property="zone" column="zone"/>
+        <result property="siteId" column="site_id"/>
+        <result property="status" column="status"/>
+        <result property="version" column="version"/>
+        <result property="metadataJson" column="metadata_json"/>
+        <result property="registeredAt" column="registered_at"/>
+        <result property="lastHeartbeatAt" column="last_heartbeat_at"/>
+        <result property="leaseExpiresAt" column="lease_expires_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="upsert">
+        insert into gateway_nodes (
+            gateway_node_id, node_name, host_name, advertise_host, http_port, ws_port,
+            region, zone, site_id, status, version, metadata_json,
+            registered_at, last_heartbeat_at, lease_expires_at, updated_at
+        ) values (
+            #{node.gatewayNodeId}, #{node.nodeName}, #{node.hostName}, #{node.advertiseHost}, #{node.httpPort}, #{node.wsPort},
+            #{node.region}, #{node.zone}, #{node.siteId}, coalesce(#{node.status}, 'ONLINE'), coalesce(#{node.version}, 'unknown'), coalesce(cast(#{node.metadataJson} as jsonb), '{}'::jsonb),
+            #{node.registeredAt}, #{node.lastHeartbeatAt}, #{node.leaseExpiresAt}, #{node.updatedAt}
+        )
+        on conflict (gateway_node_id) do update set
+            node_name = excluded.node_name,
+            host_name = excluded.host_name,
+            advertise_host = excluded.advertise_host,
+            http_port = excluded.http_port,
+            ws_port = excluded.ws_port,
+            region = excluded.region,
+            zone = excluded.zone,
+            site_id = excluded.site_id,
+            status = excluded.status,
+            version = coalesce(excluded.version, gateway_nodes.version, 'unknown'),
+            metadata_json = excluded.metadata_json,
+            last_heartbeat_at = excluded.last_heartbeat_at,
+            lease_expires_at = excluded.lease_expires_at,
+            updated_at = excluded.updated_at
+    </insert>
+
+    <select id="findById" resultMap="GatewayNodePoMap">
+        select * from gateway_nodes where gateway_node_id = #{gatewayNodeId}
+    </select>
+
+    <select id="search" resultMap="GatewayNodePoMap">
+        select * from gateway_nodes
+        <where>
+            <if test="siteId != null and siteId != ''">and site_id = #{siteId}</if>
+            <if test="region != null and region != ''">and region = #{region}</if>
+            <if test="zone != null and zone != ''">and zone = #{zone}</if>
+            <if test="status != null">and status = #{status}</if>
+        </where>
+        order by last_heartbeat_at desc nulls last
+        limit #{limit}
+    </select>
+
+    <update id="expireLeases">
+        update gateway_nodes
+        set status = 'EXPIRED', updated_at = #{now}
+        where lease_expires_at &lt; #{now}
+          and status not in ('EXPIRED', 'OFFLINE')
+    </update>
+</mapper>

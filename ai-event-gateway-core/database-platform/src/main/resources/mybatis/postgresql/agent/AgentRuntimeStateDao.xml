@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.agent.dao.AgentRuntimeStateDao">
+    <resultMap id="CapabilityProfileMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentRuntimeCapabilityProfilePo">
+        <id property="agentId" column="agent_id"/>
+        <result property="agentType" column="agent_type"/>
+        <result property="ownerGatewayNodeId" column="owner_gateway_node_id"/>
+        <result property="agentSessionId" column="agent_session_id"/>
+        <result property="pluginName" column="plugin_name"/>
+        <result property="pluginVersion" column="plugin_version"/>
+        <result property="capabilityRevision" column="capability_revision"/>
+        <result property="executorMode" column="executor_mode"/>
+        <result property="placementPool" column="placement_pool"/>
+        <result property="placementRegion" column="placement_region"/>
+        <result property="placementZone" column="placement_zone"/>
+        <result property="maxConcurrentTasks" column="max_concurrent_tasks"/>
+        <result property="capabilityProfileJson" column="capability_profile_json"/>
+        <result property="firstSeenAt" column="first_seen_at"/>
+        <result property="lastSeenAt" column="last_seen_at"/>
+    </resultMap>
+
+    <resultMap id="CapabilityItemMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentRuntimeCapabilityItemPo">
+        <id property="agentId" column="agent_id"/>
+        <id property="capabilityKind" column="capability_kind"/>
+        <id property="capabilityValue" column="capability_value"/>
+        <result property="capabilityRevision" column="capability_revision"/>
+        <result property="source" column="source"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="RuntimeLoadMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentRuntimeLoadSnapshotPo">
+        <id property="agentId" column="agent_id"/>
+        <result property="ownerGatewayNodeId" column="owner_gateway_node_id"/>
+        <result property="agentSessionId" column="agent_session_id"/>
+        <result property="status" column="status"/>
+        <result property="activeTasks" column="active_tasks"/>
+        <result property="maxConcurrentTasks" column="max_concurrent_tasks"/>
+        <result property="availableSlots" column="available_slots"/>
+        <result property="capacityUtilization" column="capacity_utilization"/>
+        <result property="outboxPending" column="outbox_pending"/>
+        <result property="outboxInFlight" column="outbox_in_flight"/>
+        <result property="recoveryPendingAssignments" column="recovery_pending_assignments"/>
+        <result property="draining" column="draining"/>
+        <result property="heartbeatSequence" column="heartbeat_sequence"/>
+        <result property="runtimeLoadJson" column="runtime_load_json"/>
+        <result property="heartbeatAt" column="heartbeat_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+
+    <resultMap id="RuntimeDescriptorMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentRuntimeDescriptorPo">
+        <id property="agentId" column="agent_id"/>
+        <result property="agentType" column="agent_type"/>
+        <result property="pluginName" column="plugin_name"/>
+        <result property="pluginVersion" column="plugin_version"/>
+        <result property="protocolVersion" column="protocol_version"/>
+        <result property="connectionType" column="connection_type"/>
+        <result property="ownerGatewayNodeId" column="owner_gateway_node_id"/>
+        <result property="agentSessionId" column="agent_session_id"/>
+        <result property="siteId" column="site_id"/>
+        <result property="region" column="region"/>
+        <result property="zone" column="zone"/>
+        <result property="status" column="status"/>
+        <result property="runtimeFeaturesJson" column="runtime_features_json"/>
+        <result property="activeTasks" column="active_tasks"/>
+        <result property="maxConcurrentTasks" column="max_concurrent_tasks"/>
+        <result property="availableSlots" column="available_slots"/>
+        <result property="capacityUtilization" column="capacity_utilization"/>
+        <result property="draining" column="draining"/>
+        <result property="heartbeatSequence" column="heartbeat_sequence"/>
+        <result property="connectedAt" column="connected_at"/>
+        <result property="lastHeartbeatAt" column="last_heartbeat_at"/>
+        <result property="lastSeenAt" column="last_seen_at"/>
+        <result property="rawPayloadJson" column="raw_payload_json"/>
+        <result property="firstSeenAt" column="first_seen_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="upsertCapabilityProfile">
+        insert into agent_runtime_capability_profiles (
+            agent_id, agent_type, owner_gateway_node_id, agent_session_id,
+            plugin_name, plugin_version, capability_revision, executor_mode,
+            placement_pool, placement_region, placement_zone, max_concurrent_tasks,
+            capability_profile_json, first_seen_at, last_seen_at
+        ) values (
+            #{profile.agentId}, #{profile.agentType}, #{profile.ownerGatewayNodeId}, #{profile.agentSessionId},
+            #{profile.pluginName}, #{profile.pluginVersion}, #{profile.capabilityRevision}, #{profile.executorMode},
+            #{profile.placementPool}, #{profile.placementRegion}, #{profile.placementZone}, #{profile.maxConcurrentTasks},
+            coalesce(cast(#{profile.capabilityProfileJson} as jsonb), '{}'::jsonb), coalesce(#{profile.firstSeenAt}, now()), coalesce(#{profile.lastSeenAt}, now())
+        )
+        on conflict (agent_id) do update set
+            agent_type = excluded.agent_type,
+            owner_gateway_node_id = excluded.owner_gateway_node_id,
+            agent_session_id = excluded.agent_session_id,
+            plugin_name = excluded.plugin_name,
+            plugin_version = excluded.plugin_version,
+            capability_revision = excluded.capability_revision,
+            executor_mode = excluded.executor_mode,
+            placement_pool = excluded.placement_pool,
+            placement_region = excluded.placement_region,
+            placement_zone = excluded.placement_zone,
+            max_concurrent_tasks = excluded.max_concurrent_tasks,
+            capability_profile_json = excluded.capability_profile_json,
+            last_seen_at = excluded.last_seen_at
+    </insert>
+
+
+    <insert id="upsertRuntimeDescriptor">
+        insert into agent_runtime_descriptors (
+            agent_id, agent_type, plugin_name, plugin_version, protocol_version, connection_type,
+            owner_gateway_node_id, agent_session_id, site_id, region, zone, status,
+            runtime_features_json, active_tasks, max_concurrent_tasks, available_slots, capacity_utilization,
+            draining, heartbeat_sequence, connected_at, last_heartbeat_at, last_seen_at, raw_payload_json,
+            first_seen_at, updated_at
+        ) values (
+            #{descriptor.agentId}, #{descriptor.agentType}, #{descriptor.pluginName}, #{descriptor.pluginVersion}, #{descriptor.protocolVersion}, #{descriptor.connectionType},
+            #{descriptor.ownerGatewayNodeId}, #{descriptor.agentSessionId}, #{descriptor.siteId}, #{descriptor.region}, #{descriptor.zone}, #{descriptor.status},
+            coalesce(cast(#{descriptor.runtimeFeaturesJson} as jsonb), '{}'::jsonb), #{descriptor.activeTasks}, #{descriptor.maxConcurrentTasks}, #{descriptor.availableSlots}, #{descriptor.capacityUtilization},
+            #{descriptor.draining}, #{descriptor.heartbeatSequence}, #{descriptor.connectedAt}, coalesce(#{descriptor.lastHeartbeatAt}, now()), coalesce(#{descriptor.lastSeenAt}, now()), coalesce(cast(#{descriptor.rawPayloadJson} as jsonb), '{}'::jsonb),
+            coalesce(#{descriptor.firstSeenAt}, now()), coalesce(#{descriptor.updatedAt}, now())
+        )
+        on conflict (agent_id) do update set
+            agent_type = excluded.agent_type,
+            plugin_name = excluded.plugin_name,
+            plugin_version = excluded.plugin_version,
+            protocol_version = excluded.protocol_version,
+            connection_type = excluded.connection_type,
+            owner_gateway_node_id = excluded.owner_gateway_node_id,
+            agent_session_id = excluded.agent_session_id,
+            site_id = excluded.site_id,
+            region = excluded.region,
+            zone = excluded.zone,
+            status = excluded.status,
+            runtime_features_json = excluded.runtime_features_json,
+            active_tasks = excluded.active_tasks,
+            max_concurrent_tasks = excluded.max_concurrent_tasks,
+            available_slots = excluded.available_slots,
+            capacity_utilization = excluded.capacity_utilization,
+            draining = excluded.draining,
+            heartbeat_sequence = excluded.heartbeat_sequence,
+            connected_at = coalesce(excluded.connected_at, agent_runtime_descriptors.connected_at),
+            last_heartbeat_at = excluded.last_heartbeat_at,
+            last_seen_at = excluded.last_seen_at,
+            raw_payload_json = excluded.raw_payload_json,
+            updated_at = excluded.updated_at
+    </insert>
+
+    <delete id="deleteCapabilityItems">
+        delete from agent_runtime_capability_items where agent_id = #{agentId}
+    </delete>
+
+    <insert id="insertCapabilityItems">
+        <if test="items != null and items.size() > 0">
+            insert into agent_runtime_capability_items (
+                agent_id, capability_kind, capability_value, capability_revision, source, updated_at
+            ) values
+            <foreach collection="items" item="item" separator=",">
+                (#{item.agentId}, #{item.capabilityKind}, #{item.capabilityValue}, #{item.capabilityRevision}, #{item.source}, coalesce(#{item.updatedAt}, now()))
+            </foreach>
+            on conflict (agent_id, capability_kind, capability_value) do update set
+                capability_revision = excluded.capability_revision,
+                source = excluded.source,
+                updated_at = excluded.updated_at
+        </if>
+    </insert>
+
+    <insert id="upsertLoadSnapshot">
+        insert into agent_runtime_load_snapshots (
+            agent_id, owner_gateway_node_id, agent_session_id, status,
+            active_tasks, max_concurrent_tasks, available_slots, capacity_utilization,
+            outbox_pending, outbox_in_flight, recovery_pending_assignments, draining,
+            heartbeat_sequence, runtime_load_json, heartbeat_at, updated_at
+        ) values (
+            #{load.agentId}, #{load.ownerGatewayNodeId}, #{load.agentSessionId}, #{load.status},
+            #{load.activeTasks}, #{load.maxConcurrentTasks}, #{load.availableSlots}, #{load.capacityUtilization},
+            #{load.outboxPending}, #{load.outboxInFlight}, #{load.recoveryPendingAssignments}, #{load.draining},
+            #{load.heartbeatSequence}, cast(#{load.runtimeLoadJson} as jsonb), coalesce(#{load.heartbeatAt}, now()), coalesce(#{load.updatedAt}, now())
+        )
+        on conflict (agent_id) do update set
+            owner_gateway_node_id = excluded.owner_gateway_node_id,
+            agent_session_id = excluded.agent_session_id,
+            status = excluded.status,
+            active_tasks = excluded.active_tasks,
+            max_concurrent_tasks = excluded.max_concurrent_tasks,
+            available_slots = excluded.available_slots,
+            capacity_utilization = excluded.capacity_utilization,
+            outbox_pending = excluded.outbox_pending,
+            outbox_in_flight = excluded.outbox_in_flight,
+            recovery_pending_assignments = excluded.recovery_pending_assignments,
+            draining = excluded.draining,
+            heartbeat_sequence = excluded.heartbeat_sequence,
+            runtime_load_json = excluded.runtime_load_json,
+            heartbeat_at = excluded.heartbeat_at,
+            updated_at = excluded.updated_at
+    </insert>
+
+    <select id="findRuntimeDescriptor" resultMap="RuntimeDescriptorMap">
+        select * from agent_runtime_descriptors where agent_id = #{agentId}
+    </select>
+
+    <select id="findCapabilityProfile" resultMap="CapabilityProfileMap">
+        select * from agent_runtime_capability_profiles where agent_id = #{agentId}
+    </select>
+
+    <select id="findCapabilityItems" resultMap="CapabilityItemMap">
+        select * from agent_runtime_capability_items where agent_id = #{agentId}
+        order by capability_kind, capability_value
+    </select>
+
+    <select id="findLoadSnapshot" resultMap="RuntimeLoadMap">
+        select * from agent_runtime_load_snapshots where agent_id = #{agentId}
+    </select>
+</mapper>

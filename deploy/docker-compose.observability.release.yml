@@ -1,0 +1,188 @@
+services:
+  otel-lb:
+    image: ${OTEL_HAPROXY_IMAGE:-haproxy:3.2-alpine}
+    restart: unless-stopped
+    depends_on:
+      otel-gateway-a:
+        condition: service_healthy
+      otel-gateway-b:
+        condition: service_healthy
+    volumes:
+      - ./observability/haproxy/otel-lb.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT:-14317}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT:-14318}:4318"
+      - "${OTEL_HAPROXY_STATS_PORT:-18404}:8404"
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  otel-gateway-a:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.156.0}
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      GOMEMLIMIT: 900MiB
+    volumes:
+      - ./observability/otel-collector-gateway.yml:/etc/otelcol-contrib/config.yaml:ro
+      - ${OTEL_SECRET_DIR:?OTEL_SECRET_DIR is required}:/run/secrets/otel:ro
+      - opendispatch-otel-gateway-a-storage:/var/lib/otelcol
+    ports:
+      - "${OTEL_GATEWAY_METRICS_A_PORT:-18888}:8888"
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol-contrib/config.yaml"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+
+  otel-gateway-b:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.156.0}
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      GOMEMLIMIT: 900MiB
+    volumes:
+      - ./observability/otel-collector-gateway.yml:/etc/otelcol-contrib/config.yaml:ro
+      - ${OTEL_SECRET_DIR:?OTEL_SECRET_DIR is required}:/run/secrets/otel:ro
+      - opendispatch-otel-gateway-b-storage:/var/lib/otelcol
+    ports:
+      - "${OTEL_GATEWAY_METRICS_B_PORT:-18889}:8888"
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol-contrib/config.yaml"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+
+  otel-sampler-a:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.156.0}
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      GOMEMLIMIT: 1800MiB
+      OTEL_BACKEND_TRACES_ENDPOINT: ${OTEL_BACKEND_TRACES_ENDPOINT:?OTEL_BACKEND_TRACES_ENDPOINT is required}
+      OTEL_BACKEND_METRICS_ENDPOINT: ${OTEL_BACKEND_METRICS_ENDPOINT:?OTEL_BACKEND_METRICS_ENDPOINT is required}
+      OTEL_BACKEND_LOGS_ENDPOINT: ${OTEL_BACKEND_LOGS_ENDPOINT:?OTEL_BACKEND_LOGS_ENDPOINT is required}
+    volumes:
+      - ./observability/otel-collector-sampler.yml:/etc/otelcol-contrib/config.yaml:ro
+      - ${OTEL_SECRET_DIR:?OTEL_SECRET_DIR is required}:/run/secrets/otel:ro
+      - opendispatch-otel-sampler-a-storage:/var/lib/otelcol
+    ports:
+      - "${OTEL_SAMPLER_METRICS_A_PORT:-18890}:8888"
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol-contrib/config.yaml"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+
+  otel-sampler-b:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.156.0}
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      GOMEMLIMIT: 1800MiB
+      OTEL_BACKEND_TRACES_ENDPOINT: ${OTEL_BACKEND_TRACES_ENDPOINT:?OTEL_BACKEND_TRACES_ENDPOINT is required}
+      OTEL_BACKEND_METRICS_ENDPOINT: ${OTEL_BACKEND_METRICS_ENDPOINT:?OTEL_BACKEND_METRICS_ENDPOINT is required}
+      OTEL_BACKEND_LOGS_ENDPOINT: ${OTEL_BACKEND_LOGS_ENDPOINT:?OTEL_BACKEND_LOGS_ENDPOINT is required}
+    volumes:
+      - ./observability/otel-collector-sampler.yml:/etc/otelcol-contrib/config.yaml:ro
+      - ${OTEL_SECRET_DIR:?OTEL_SECRET_DIR is required}:/run/secrets/otel:ro
+      - opendispatch-otel-sampler-b-storage:/var/lib/otelcol
+    ports:
+      - "${OTEL_SAMPLER_METRICS_B_PORT:-18891}:8888"
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol-contrib/config.yaml"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+
+  core:
+    depends_on:
+      otel-lb:
+        condition: service_healthy
+    volumes:
+      - ${OTEL_SECRET_DIR:?OTEL_SECRET_DIR is required}:/run/secrets/otel:ro
+    environment:
+      MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
+      MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: "true"
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${OTEL_TRACES_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: https://otel-lb:4318/v1/traces
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: https://otel-lb:4318/v1/metrics
+      OTEL_EXPORTER_OTLP_AUTHORIZATION: Bearer ${OTEL_INGEST_TOKEN:?OTEL_INGEST_TOKEN is required}
+      OTEL_TRACES_COMPRESSION: gzip
+      OTEL_METRICS_COMPRESSION: gzip
+      OTEL_SERVICE_NAMESPACE: ${OTEL_SERVICE_NAMESPACE:-opendispatch}
+      OTEL_SERVICE_VERSION: ${OTEL_SERVICE_VERSION:-release}
+      DEPLOYMENT_ENVIRONMENT: production
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_SSL_BUNDLE: otel-client
+      MANAGEMENT_OTLP_METRICS_EXPORT_SSL_BUNDLE: otel-client
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_KEYSTORE_CERTIFICATE: file:/run/secrets/otel/core-client.crt
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_KEYSTORE_PRIVATE_KEY: file:/run/secrets/otel/core-client.key
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_TRUSTSTORE_CERTIFICATE: file:/run/secrets/otel/ca.crt
+
+  netty:
+    depends_on:
+      otel-lb:
+        condition: service_healthy
+    volumes:
+      - ${OTEL_SECRET_DIR:?OTEL_SECRET_DIR is required}:/run/secrets/otel:ro
+    environment:
+      MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
+      MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: "true"
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${OTEL_TRACES_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: https://otel-lb:4318/v1/traces
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: https://otel-lb:4318/v1/metrics
+      OTEL_EXPORTER_OTLP_AUTHORIZATION: Bearer ${OTEL_INGEST_TOKEN:?OTEL_INGEST_TOKEN is required}
+      OTEL_TRACES_COMPRESSION: gzip
+      OTEL_METRICS_COMPRESSION: gzip
+      OTEL_SERVICE_NAMESPACE: ${OTEL_SERVICE_NAMESPACE:-opendispatch}
+      OTEL_SERVICE_VERSION: ${OTEL_SERVICE_VERSION:-release}
+      DEPLOYMENT_ENVIRONMENT: production
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_SSL_BUNDLE: otel-client
+      MANAGEMENT_OTLP_METRICS_EXPORT_SSL_BUNDLE: otel-client
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_KEYSTORE_CERTIFICATE: file:/run/secrets/otel/netty-client.crt
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_KEYSTORE_PRIVATE_KEY: file:/run/secrets/otel/netty-client.key
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_TRUSTSTORE_CERTIFICATE: file:/run/secrets/otel/ca.crt
+
+  adapter-worker:
+    profiles: ["adapter-worker"]
+    image: ${JAVA25_RUNTIME_IMAGE:-eclipse-temurin:25-jre}
+    restart: unless-stopped
+    depends_on:
+      core:
+        condition: service_started
+      otel-lb:
+        condition: service_healthy
+    working_dir: /app
+    command: ["java", "-jar", "/app/ai-event-gateway-adapter-worker.jar"]
+    volumes:
+      - ../runtime/adapter-worker/ai-event-gateway-adapter-worker.jar:/app/ai-event-gateway-adapter-worker.jar:ro
+      - ${OTEL_SECRET_DIR:?OTEL_SECRET_DIR is required}:/run/secrets/otel:ro
+      - ${OPENDISPATCH_LOG_ROOT:-../runtime/logs}/adapter-worker:/logs
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      ADAPTER_WORKER_CORE_BASE_URL: http://core:18080
+      ADAPTER_WORKER_TOKEN: ${CORE_ADAPTER_WORKER_INTERNAL_TOKEN:?CORE_ADAPTER_WORKER_INTERNAL_TOKEN is required}
+      MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED: "true"
+      MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: "true"
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: ${OTEL_TRACES_SAMPLING_PROBABILITY:-1.0}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: https://otel-lb:4318/v1/traces
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: https://otel-lb:4318/v1/metrics
+      OTEL_EXPORTER_OTLP_AUTHORIZATION: Bearer ${OTEL_INGEST_TOKEN:?OTEL_INGEST_TOKEN is required}
+      OTEL_TRACES_COMPRESSION: gzip
+      OTEL_METRICS_COMPRESSION: gzip
+      OTEL_SERVICE_NAMESPACE: ${OTEL_SERVICE_NAMESPACE:-opendispatch}
+      OTEL_SERVICE_VERSION: ${OTEL_SERVICE_VERSION:-release}
+      DEPLOYMENT_ENVIRONMENT: production
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_SSL_BUNDLE: otel-client
+      MANAGEMENT_OTLP_METRICS_EXPORT_SSL_BUNDLE: otel-client
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_KEYSTORE_CERTIFICATE: file:/run/secrets/otel/adapter-worker-client.crt
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_KEYSTORE_PRIVATE_KEY: file:/run/secrets/otel/adapter-worker-client.key
+      SPRING_SSL_BUNDLE_PEM_OTEL_CLIENT_TRUSTSTORE_CERTIFICATE: file:/run/secrets/otel/ca.crt
+
+volumes:
+  opendispatch-otel-gateway-a-storage:
+  opendispatch-otel-gateway-b-storage:
+  opendispatch-otel-sampler-a-storage:
+  opendispatch-otel-sampler-b-storage:

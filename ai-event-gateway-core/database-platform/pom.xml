@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.opensocket</groupId>
+        <artifactId>control-plane-parent</artifactId>
+        <version>1.0.0-p25.7.4-p5-callback-transition-governance-fix</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>database-platform</artifactId>
+    <name>database-platform</name>
+    <description>Unified SharedUtility database platform owning MyBatis DAO/PO/XML, Flyway migrations, type handlers, and database health.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>kernel</artifactId></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>data-model</artifactId></dependency>
+
+        <!-- P4: optional compile-time contracts used by persistence adapters; not re-exported. -->
+        <dependency><groupId>com.opensocket</groupId><artifactId>contracts</artifactId>
+            <optional>true</optional></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>domain-events</artifactId>
+            <optional>true</optional></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>integration-events</artifactId>
+            <optional>true</optional></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>incident</artifactId>
+            <optional>true</optional></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>event-processing</artifactId>
+            <optional>true</optional></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>agent-control</artifactId>
+            <optional>true</optional></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>task-orchestration</artifactId>
+            <optional>true</optional></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>execution-control</artifactId>
+            <optional>true</optional></dependency>
+
+        <!-- Explicit platform ownership of SharedUtility database integration. -->
+        <dependency>
+            <groupId>com.agitg</groupId>
+            <artifactId>database</artifactId>
+            <version>${shared.utility.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-json</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

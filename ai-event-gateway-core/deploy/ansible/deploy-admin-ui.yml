@@ -1,0 +1,38 @@
+---
+- name: Deploy ai-event-gateway-admin-ui by Docker Compose
+  hosts: admin_ui
+  become: true
+  vars:
+    app_dir: /opt/ai-event-gateway-admin-ui
+  tasks:
+    - name: Ensure app directory exists
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: deploy
+        group: deploy
+        mode: "0755"
+
+    - name: Copy compose files
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ app_dir }}/{{ item | basename }}"
+        owner: deploy
+        group: deploy
+        mode: "0644"
+      loop:
+        - ../../docker-compose.prod.yml
+        - ../../.env.production
+
+    - name: Copy nginx deploy folder
+      ansible.builtin.copy:
+        src: ../nginx
+        dest: "{{ app_dir }}/deploy/"
+        owner: deploy
+        group: deploy
+        mode: "0644"
+
+    - name: Deploy containers
+      ansible.builtin.command:
+        cmd: docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+        chdir: "{{ app_dir }}"

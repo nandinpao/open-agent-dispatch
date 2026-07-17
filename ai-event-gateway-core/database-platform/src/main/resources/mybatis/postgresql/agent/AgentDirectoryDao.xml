@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.agent.dao.AgentDirectoryDao">
+    <resultMap id="AgentSnapshotPoMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentSnapshotPo">
+        <id property="agentId" column="agent_id"/><result property="agentType" column="agent_type"/><result property="ownerGatewayNodeId" column="owner_gateway_node_id"/>
+        <result property="agentSessionId" column="agent_session_id"/><result property="siteId" column="site_id"/><result property="siteName" column="site_name"/>
+        <result property="region" column="region"/><result property="zone" column="zone"/><result property="status" column="status"/>
+        <result property="capabilitiesJson" column="capabilities_json"/><result property="currentTaskCount" column="current_task_count"/><result property="reservedTaskCount" column="reserved_task_count"/><result property="maxConcurrentTasks" column="max_concurrent_tasks"/>
+        <result property="healthScore" column="health_score"/><result property="capabilityProfileJson" column="capability_profile_json"/><result property="runtimeLoadJson" column="runtime_load_json"/>
+        <result property="pluginName" column="plugin_name"/><result property="pluginVersion" column="plugin_version"/><result property="capabilityRevision" column="capability_revision"/>
+        <result property="availableSlots" column="available_slots"/><result property="capacityUtilization" column="capacity_utilization"/><result property="outboxPending" column="outbox_pending"/>
+        <result property="outboxInFlight" column="outbox_in_flight"/><result property="recoveryPendingAssignments" column="recovery_pending_assignments"/><result property="draining" column="draining"/>
+        <result property="connectedAt" column="connected_at"/><result property="lastHeartbeatAt" column="last_heartbeat_at"/>
+        <result property="disconnectedAt" column="disconnected_at"/><result property="leaseExpiresAt" column="lease_expires_at"/>
+        <result property="runtimeBackoffUntil" column="runtime_backoff_until"/><result property="runtimeBackoffReason" column="runtime_backoff_reason"/><result property="runtimeFailureCount" column="runtime_failure_count"/>
+    </resultMap>
+    <insert id="upsert">
+        insert into agents (agent_id, agent_type, owner_gateway_node_id, agent_session_id, site_id, site_name, region, zone, status, capabilities_json, current_task_count, reserved_task_count, max_concurrent_tasks, health_score, capability_profile_json, runtime_load_json, plugin_name, plugin_version, capability_revision, available_slots, capacity_utilization, outbox_pending, outbox_in_flight, recovery_pending_assignments, draining, connected_at, last_heartbeat_at, disconnected_at, lease_expires_at, runtime_backoff_until, runtime_backoff_reason, runtime_failure_count, updated_at)
+        values (#{agent.agentId}, #{agent.agentType}, #{agent.ownerGatewayNodeId}, #{agent.agentSessionId}, #{agent.siteId}, #{agent.siteName}, #{agent.region}, #{agent.zone}, #{agent.status}, coalesce(cast(#{agent.capabilitiesJson} as jsonb), '[]'::jsonb), #{agent.currentTaskCount}, #{agent.reservedTaskCount}, #{agent.maxConcurrentTasks}, #{agent.healthScore}, coalesce(cast(#{agent.capabilityProfileJson} as jsonb), '{}'::jsonb), coalesce(cast(#{agent.runtimeLoadJson} as jsonb), '{}'::jsonb), #{agent.pluginName}, #{agent.pluginVersion}, #{agent.capabilityRevision}, #{agent.availableSlots}, #{agent.capacityUtilization}, #{agent.outboxPending}, #{agent.outboxInFlight}, #{agent.recoveryPendingAssignments}, #{agent.draining}, #{agent.connectedAt}, #{agent.lastHeartbeatAt}, #{agent.disconnectedAt}, #{agent.leaseExpiresAt}, #{agent.runtimeBackoffUntil}, #{agent.runtimeBackoffReason}, #{agent.runtimeFailureCount}, now())
+        on conflict (agent_id) do update set
+            agent_type = excluded.agent_type, owner_gateway_node_id = excluded.owner_gateway_node_id, agent_session_id = excluded.agent_session_id,
+            site_id = excluded.site_id, site_name = excluded.site_name, region = excluded.region, zone = excluded.zone, status = excluded.status,
+            capabilities_json = excluded.capabilities_json, current_task_count = excluded.current_task_count, reserved_task_count = agents.reserved_task_count, max_concurrent_tasks = excluded.max_concurrent_tasks,
+            health_score = excluded.health_score, capability_profile_json = excluded.capability_profile_json, runtime_load_json = excluded.runtime_load_json,
+            plugin_name = excluded.plugin_name, plugin_version = excluded.plugin_version, capability_revision = excluded.capability_revision,
+            available_slots = excluded.available_slots, capacity_utilization = excluded.capacity_utilization, outbox_pending = excluded.outbox_pending,
+            outbox_in_flight = excluded.outbox_in_flight, recovery_pending_assignments = excluded.recovery_pending_assignments, draining = excluded.draining,
+            connected_at = excluded.connected_at, last_heartbeat_at = excluded.last_heartbeat_at,
+            disconnected_at = excluded.disconnected_at, lease_expires_at = excluded.lease_expires_at, runtime_backoff_until = excluded.runtime_backoff_until, runtime_backoff_reason = excluded.runtime_backoff_reason, runtime_failure_count = excluded.runtime_failure_count, updated_at = now()
+    </insert>
+    <select id="findById" resultMap="AgentSnapshotPoMap">select * from agents where agent_id = #{agentId}</select>
+    <select id="search" resultMap="AgentSnapshotPoMap">
+        select * from agents
+        <where>
+            <if test="siteId != null and siteId != ''">and site_id = #{siteId}</if>
+            <if test="ownerGatewayNodeId != null and ownerGatewayNodeId != ''">and owner_gateway_node_id = #{ownerGatewayNodeId}</if>
+            <if test="status != null">and status = #{status}</if>
+            <if test="assignableOnly">and status in ('CONNECTED','IDLE','BUSY_ACCEPTING','BUSY') and coalesce(draining,false) = false and (runtime_backoff_until is null or runtime_backoff_until &lt;= now()) and (available_slots &gt; 0 or current_task_count + reserved_task_count &lt; max_concurrent_tasks)</if>
+            <foreach collection="requiredCapabilities" item="capability">
+                and (
+                    capabilities_json @&gt; jsonb_build_array(#{capability})
+                    or exists (
+                        select 1
+                        from agent_runtime_capability_items rci
+                        where rci.agent_id = agents.agent_id
+                          and rci.capability_value = #{capability}
+                    )
+                    or capability_profile_json @&gt; jsonb_build_object('supportedCapabilities', jsonb_build_array(#{capability}))
+                    or capability_profile_json @&gt; jsonb_build_object('runtimeCapabilities', jsonb_build_array(#{capability}))
+                    or capability_profile_json @&gt; jsonb_build_object('supportedTaskTypes', jsonb_build_array(#{capability}))
+                    or capability_profile_json @&gt; jsonb_build_object('supportedIssueProviders', jsonb_build_array(#{capability}))
+                    or capability_profile_json @&gt; jsonb_build_object('toolPolicies', jsonb_build_array(#{capability}))
+                    or capability_profile_json @&gt; jsonb_build_object('executorMode', #{capability})
+                )
+            </foreach>
+        </where>
+        order by last_heartbeat_at desc nulls last limit #{limit}
+    </select>
+    <update id="updateStatus">update agents set status = #{status}, last_heartbeat_at = now(), updated_at = now() where agent_id = #{agentId}</update>
+    <update id="reserveCapacity">
+        update agents
+        set reserved_task_count = reserved_task_count + 1,
+            status = case when current_task_count + reserved_task_count + 1 &gt;= max_concurrent_tasks then 'BUSY' else 'BUSY_ACCEPTING' end,
+            updated_at = now()
+        where agent_id = #{agentId}
+          and status in ('CONNECTED','IDLE','BUSY_ACCEPTING','BUSY')
+          and coalesce(draining,false) = false
+          and (runtime_backoff_until is null or runtime_backoff_until &lt;= now())
+          and (available_slots &gt; 0 or current_task_count + reserved_task_count &lt; max_concurrent_tasks)
+    </update>
+    <update id="releaseCapacity">
+        update agents
+        set reserved_task_count = greatest(0, reserved_task_count - 1),
+            status = case
+                when status in ('OFFLINE','EXPIRED','ERROR','DRAINING') then status
+                when current_task_count + greatest(0, reserved_task_count - 1) &lt;= 0 then 'IDLE'
+                when current_task_count + greatest(0, reserved_task_count - 1) &lt; max_concurrent_tasks then 'BUSY_ACCEPTING'
+                else 'BUSY'
+            end,
+            updated_at = now()
+        where agent_id = #{agentId} and reserved_task_count &gt; 0
+    </update>
+    <update id="markByGatewayNodeId">
+        update agents set status = #{status}, disconnected_at = #{disconnectedAt}, last_heartbeat_at = #{disconnectedAt}, updated_at = now()
+        where owner_gateway_node_id = #{gatewayNodeId} and status not in ('OFFLINE','EXPIRED')
+    </update>
+    <update id="expireLeases">
+        update agents set status = 'EXPIRED', disconnected_at = #{now}, last_heartbeat_at = #{now}, updated_at = now()
+        where lease_expires_at is not null and lease_expires_at &lt; #{now} and status not in ('OFFLINE','EXPIRED')
+    </update>
+</mapper>

@@ -1,0 +1,276 @@
+# Configuration notes: values here are safe defaults. Production and Docker deployments
+# should override ports, node identifiers, discovery mode, and security-related options by .env.
+spring:
+  application:
+    name: ai-event-gateway-netty
+  task:
+    execution:
+      propagate-context: true
+      thread-name-prefix: netty-async-
+      pool:
+        core-size: ${NETTY_ASYNC_CORE_SIZE:4}
+        max-size: ${NETTY_ASYNC_MAX_SIZE:16}
+        queue-capacity: ${NETTY_ASYNC_QUEUE_CAPACITY:200}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+    scheduling:
+      thread-name-prefix: netty-scheduler-
+      pool:
+        size: ${NETTY_SCHEDULER_POOL_SIZE:4}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+
+server:
+  port: ${SERVER_PORT:18081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  info:
+    env:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      service: ai-event-gateway-netty
+  tracing:
+    enabled: ${MANAGEMENT_TRACING_ENABLED:true}
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+    export:
+      otlp:
+        # Export stays opt-in for standalone runs; local/CI Compose enables it explicitly.
+        enabled: ${MANAGEMENT_TRACING_EXPORT_OTLP_ENABLED:false}
+    propagation:
+      # Accept legacy B3 during migration, but emit only vendor-neutral W3C Trace Context.
+      consume: ${MANAGEMENT_TRACING_PROPAGATION_CONSUME:w3c,b3}
+      produce: ${MANAGEMENT_TRACING_PROPAGATION_PRODUCE:w3c}
+  opentelemetry:
+    resource-attributes:
+      service.name: ${spring.application.name}
+      service.namespace: ${OTEL_SERVICE_NAMESPACE:opendispatch}
+      service.version: ${OTEL_SERVICE_VERSION:dev}
+      deployment.environment: ${DEPLOYMENT_ENVIRONMENT:local}
+      deployment.environment.name: ${DEPLOYMENT_ENVIRONMENT:local}
+    tracing:
+      export:
+        schedule-delay: ${OTEL_TRACES_SCHEDULE_DELAY:5s}
+        timeout: ${OTEL_TRACES_EXPORT_TIMEOUT:30s}
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+          compression: ${OTEL_TRACES_COMPRESSION:none}
+          connect-timeout: ${OTEL_TRACES_CONNECT_TIMEOUT:10s}
+          timeout: ${OTEL_TRACES_TIMEOUT:10s}
+          transport: ${OTEL_TRACES_TRANSPORT:http}
+          headers:
+            Authorization: ${OTEL_EXPORTER_OTLP_AUTHORIZATION:}
+  otlp:
+    metrics:
+      export:
+        enabled: ${MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED:false}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+        step: ${OTEL_METRICS_EXPORT_STEP:1m}
+        connect-timeout: ${OTEL_METRICS_CONNECT_TIMEOUT:1s}
+        read-timeout: ${OTEL_METRICS_READ_TIMEOUT:10s}
+        compression-mode: ${OTEL_METRICS_COMPRESSION:none}
+        headers:
+          Authorization: ${OTEL_EXPORTER_OTLP_AUTHORIZATION:}
+
+info:
+  app:
+    name: ai-event-gateway-netty
+    version: ${GATEWAY_VERSION:1.2.5-p9-p6.5.1-multisite-transport-topology-compile-fix}
+    phase: P9
+
+gateway:
+  node-id: ${GATEWAY_NODE_ID:gateway-node-001}
+  environment: ${GATEWAY_ENVIRONMENT:local}
+  version: ${GATEWAY_VERSION:1.2.5-p9-p6.5.1-multisite-transport-topology-compile-fix}
+  description: AI Event Gateway Netty P9 Modular JDK25 Mainline
+  site-id: ${GATEWAY_SITE_ID:LOCAL}
+  site-name: ${GATEWAY_SITE_NAME:Local Site}
+  region: ${GATEWAY_REGION:local}
+  zone: ${GATEWAY_ZONE:local-zone}
+
+
+  task-assignment:
+    # Production integrated mode: ai-event-gateway-core is the sole assignment authority.
+    # Allowed values: core-only, disabled. No runtime standalone assignment mode is available in production code.
+    mode: ${GATEWAY_TASK_ASSIGNMENT_MODE:core-only}
+    reject-external-task-dispatch: ${GATEWAY_TASK_ASSIGNMENT_REJECT_EXTERNAL_TASK_DISPATCH:true}
+
+
+  agent-authorization:
+    enabled: ${GATEWAY_AGENT_AUTHORIZATION_ENABLED:true}
+    base-url: ${GATEWAY_AGENT_AUTHORIZATION_BASE_URL:${GATEWAY_CORE_FORWARD_BASE_URL:http://localhost:18080}}
+    authorize-path: ${GATEWAY_AGENT_AUTHORIZATION_AUTHORIZE_PATH:/internal/agents/authorize-connection}
+    security-event-path: ${GATEWAY_AGENT_AUTHORIZATION_SECURITY_EVENT_PATH:/internal/agents/security-events}
+    timeout-ms: ${GATEWAY_AGENT_AUTHORIZATION_TIMEOUT_MS:3000}
+    auth-token: ${GATEWAY_AGENT_AUTHORIZATION_AUTH_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
+    auth-header-name: ${GATEWAY_AGENT_AUTHORIZATION_AUTH_HEADER_NAME:X-Cluster-Token}
+    fail-closed: ${GATEWAY_AGENT_AUTHORIZATION_FAIL_CLOSED:true}
+    allow-when-disabled: ${GATEWAY_AGENT_AUTHORIZATION_ALLOW_WHEN_DISABLED:false}
+    rejected-history-limit: ${GATEWAY_AGENT_AUTHORIZATION_REJECTED_HISTORY_LIMIT:500}
+
+  core-outbound:
+    enabled: ${GATEWAY_CORE_OUTBOUND_ENABLED:true}
+    worker-threads: ${GATEWAY_CORE_OUTBOUND_WORKER_THREADS:4}
+    queue-capacity: ${GATEWAY_CORE_OUTBOUND_QUEUE_CAPACITY:10000}
+    connect-timeout: ${GATEWAY_CORE_OUTBOUND_CONNECT_TIMEOUT:3s}
+    request-timeout: ${GATEWAY_CORE_OUTBOUND_REQUEST_TIMEOUT:3s}
+    shutdown-wait-ms: ${GATEWAY_CORE_OUTBOUND_SHUTDOWN_WAIT_MS:5000}
+    log-response-body-limit: ${GATEWAY_CORE_OUTBOUND_LOG_RESPONSE_BODY_LIMIT:500}
+
+  core-forward:
+    enabled: ${GATEWAY_CORE_FORWARD_ENABLED:false}
+    base-url: ${GATEWAY_CORE_FORWARD_BASE_URL:http://localhost:18080}
+    inbound-path: ${GATEWAY_CORE_FORWARD_INBOUND_PATH:/internal/core/inbound-events}
+    timeout-ms: ${GATEWAY_CORE_FORWARD_TIMEOUT_MS:3000}
+    auth-token: ${GATEWAY_CORE_FORWARD_AUTH_TOKEN:}
+    history-limit: ${GATEWAY_INBOUND_HISTORY_LIMIT:500}
+    record-business-events: ${GATEWAY_INBOUND_RECORD_BUSINESS_EVENTS:true}
+    record-task-lifecycle-events: ${GATEWAY_INBOUND_RECORD_TASK_LIFECYCLE_EVENTS:true}
+    record-transport-signals: ${GATEWAY_INBOUND_RECORD_TRANSPORT_SIGNALS:false}
+    record-heartbeat-signals: ${GATEWAY_INBOUND_RECORD_HEARTBEAT_SIGNALS:false}
+    record-system-signals: ${GATEWAY_INBOUND_RECORD_SYSTEM_SIGNALS:false}
+    forward-business-events: ${GATEWAY_CORE_FORWARD_BUSINESS_EVENTS:true}
+    forward-task-lifecycle-events: ${GATEWAY_CORE_FORWARD_TASK_LIFECYCLE_EVENTS:true}
+    forward-transport-signals: ${GATEWAY_CORE_FORWARD_TRANSPORT_SIGNALS:false}
+    forward-heartbeat-signals: ${GATEWAY_CORE_FORWARD_HEARTBEAT_SIGNALS:false}
+    forward-system-signals: ${GATEWAY_CORE_FORWARD_SYSTEM_SIGNALS:false}
+
+
+  core-task-callback-relay:
+    enabled: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_ENABLED:false}
+    base-url: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_BASE_URL:${GATEWAY_CORE_FORWARD_BASE_URL:http://localhost:18080}}
+    timeout-ms: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_TIMEOUT_MS:3000}
+    auth-token: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_AUTH_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
+    auth-header-name: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_AUTH_HEADER_NAME:X-Cluster-Token}
+    ack-path: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_ACK_PATH:/internal/control-plane/tasks/{taskId}/ack}
+    progress-path: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_PROGRESS_PATH:/internal/control-plane/tasks/{taskId}/progress}
+    result-path: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_RESULT_PATH:/internal/control-plane/tasks/{taskId}/result}
+    error-path: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_ERROR_PATH:/internal/control-plane/tasks/{taskId}/error}
+    enrich-gateway-identity: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_ENRICH_GATEWAY_IDENTITY:true}
+    fill-missing-agent-session-id: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_FILL_MISSING_AGENT_SESSION_ID:true}
+    require-dispatch-context: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_REQUIRE_DISPATCH_CONTEXT:false}
+    require-assignment-id: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_REQUIRE_ASSIGNMENT_ID:false}
+    synchronous-terminal-callbacks: ${GATEWAY_CORE_TASK_CALLBACK_RELAY_SYNCHRONOUS_TERMINAL_CALLBACKS:true}
+
+  core-directory-sync:
+    enabled: ${GATEWAY_CORE_DIRECTORY_SYNC_ENABLED:true}
+    base-url: ${GATEWAY_CORE_DIRECTORY_SYNC_BASE_URL:${GATEWAY_CORE_FORWARD_BASE_URL:http://localhost:18080}}
+    timeout-ms: ${GATEWAY_CORE_DIRECTORY_SYNC_TIMEOUT_MS:3000}
+    auth-token: ${GATEWAY_CORE_DIRECTORY_SYNC_AUTH_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
+    auth-header-name: ${GATEWAY_CORE_DIRECTORY_SYNC_AUTH_HEADER_NAME:X-Cluster-Token}
+    register-on-startup: ${GATEWAY_CORE_DIRECTORY_SYNC_REGISTER_ON_STARTUP:true}
+    gateway-heartbeat-interval-ms: ${GATEWAY_CORE_DIRECTORY_SYNC_GATEWAY_HEARTBEAT_INTERVAL_MS:15000}
+    snapshot-interval-ms: ${GATEWAY_CORE_DIRECTORY_SYNC_SNAPSHOT_INTERVAL_MS:60000}
+    gateway-lease-ttl-seconds: ${GATEWAY_CORE_DIRECTORY_SYNC_GATEWAY_LEASE_TTL_SECONDS:45}
+    agent-lease-ttl-seconds: ${GATEWAY_CORE_DIRECTORY_SYNC_AGENT_LEASE_TTL_SECONDS:45}
+    default-agent-max-concurrent-tasks: ${GATEWAY_CORE_DIRECTORY_SYNC_DEFAULT_AGENT_MAX_CONCURRENT_TASKS:1}
+    default-agent-health-score: ${GATEWAY_CORE_DIRECTORY_SYNC_DEFAULT_AGENT_HEALTH_SCORE:100}
+
+netty:
+  tcp:
+    enabled: ${GATEWAY_TCP_ENABLED:true}
+    host: ${GATEWAY_TCP_HOST:0.0.0.0}
+    port: ${GATEWAY_TCP_PORT:19090}
+    boss-threads: ${GATEWAY_TCP_BOSS_THREADS:1}
+    worker-threads: ${GATEWAY_TCP_WORKER_THREADS:0}
+    so-backlog: ${GATEWAY_TCP_SO_BACKLOG:128}
+    so-keepalive: ${GATEWAY_TCP_SO_KEEPALIVE:true}
+    max-frame-length-bytes: ${GATEWAY_TCP_MAX_FRAME_LENGTH_BYTES:1048576}
+    shutdown-quiet-period-ms: ${GATEWAY_TCP_SHUTDOWN_QUIET_PERIOD_MS:100}
+    shutdown-timeout-ms: ${GATEWAY_TCP_SHUTDOWN_TIMEOUT_MS:2000}
+    closed-connection-cleanup-enabled: ${GATEWAY_TCP_CLOSED_CONNECTION_CLEANUP_ENABLED:true}
+    closed-connection-cleanup-interval-ms: ${GATEWAY_TCP_CLOSED_CONNECTION_CLEANUP_INTERVAL_MS:60000}
+    closed-connection-cleanup-initial-delay-ms: ${GATEWAY_TCP_CLOSED_CONNECTION_CLEANUP_INITIAL_DELAY_MS:60000}
+    closed-connection-history-ttl-ms: ${GATEWAY_TCP_CLOSED_CONNECTION_HISTORY_TTL_MS:600000}
+    max-closed-connection-history: ${GATEWAY_TCP_MAX_CLOSED_CONNECTION_HISTORY:2000}
+  websocket:
+    enabled: ${GATEWAY_WS_ENABLED:true}
+    host: ${GATEWAY_WS_HOST:0.0.0.0}
+    port: ${GATEWAY_WS_PORT:19091}
+    boss-threads: ${GATEWAY_WS_BOSS_THREADS:1}
+    worker-threads: ${GATEWAY_WS_WORKER_THREADS:0}
+    so-backlog: ${GATEWAY_WS_SO_BACKLOG:128}
+    so-keepalive: ${GATEWAY_WS_SO_KEEPALIVE:true}
+    max-content-length-bytes: ${GATEWAY_WS_MAX_CONTENT_LENGTH_BYTES:1048576}
+    allow-extensions: ${GATEWAY_WS_ALLOW_EXTENSIONS:true}
+    shutdown-quiet-period-ms: ${GATEWAY_WS_SHUTDOWN_QUIET_PERIOD_MS:100}
+    shutdown-timeout-ms: ${GATEWAY_WS_SHUTDOWN_TIMEOUT_MS:2000}
+  cluster:
+    enabled: ${GATEWAY_CLUSTER_ENABLED:false}
+    discovery-mode: ${GATEWAY_CLUSTER_DISCOVERY_MODE:UDP_BROADCAST}
+    static-peers: "${GATEWAY_CLUSTER_STATIC_PEERS:}"
+    udp-host: ${GATEWAY_CLUSTER_UDP_HOST:0.0.0.0}
+    udp-port: ${GATEWAY_CLUSTER_UDP_PORT:19100}
+    broadcast-host: ${GATEWAY_CLUSTER_BROADCAST_HOST:255.255.255.255}
+    broadcast-port: ${GATEWAY_CLUSTER_BROADCAST_PORT:${GATEWAY_CLUSTER_UDP_PORT:19100}}
+    announce-host: ${GATEWAY_CLUSTER_ANNOUNCE_HOST:127.0.0.1}
+    heartbeat-interval-ms: ${GATEWAY_CLUSTER_HEARTBEAT_INTERVAL_MS:3000}
+    suspect-timeout-ms: ${GATEWAY_CLUSTER_SUSPECT_TIMEOUT_MS:10000}
+    offline-timeout-ms: ${GATEWAY_CLUSTER_OFFLINE_TIMEOUT_MS:30000}
+    internal-token: ${CLUSTER_INTERNAL_TOKEN:}
+
+agent:
+  heartbeat-timeout-seconds: ${AGENT_HEARTBEAT_TIMEOUT_SECONDS:30}
+  timeout-scan-interval-ms: ${AGENT_TIMEOUT_SCAN_INTERVAL_MS:5000}
+  auth-enabled: ${AGENT_AUTH_ENABLED:false}
+  onboarding-token: ${AGENT_ONBOARDING_TOKEN:}
+  additional-onboarding-tokens: ${AGENT_ADDITIONAL_ONBOARDING_TOKENS:}
+  web-socket-handshake-auth-enabled: ${AGENT_WS_HANDSHAKE_AUTH_ENABLED:false}
+
+admin:
+  recent-event-limit: ${ADMIN_RECENT_EVENT_LIMIT:200}
+  cors-allowed-origins: ${ADMIN_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  cors-allowed-origin-patterns: ${ADMIN_CORS_ALLOWED_ORIGIN_PATTERNS:}
+  cors-allow-credentials: ${ADMIN_CORS_ALLOW_CREDENTIALS:false}
+  cors-max-age-seconds: ${ADMIN_CORS_MAX_AGE_SECONDS:3600}
+  metrics-push-enabled: ${ADMIN_METRICS_PUSH_ENABLED:true}
+  metrics-push-interval-ms: ${ADMIN_METRICS_PUSH_INTERVAL_MS:5000}
+  metrics-push-initial-delay-ms: ${ADMIN_METRICS_PUSH_INITIAL_DELAY_MS:5000}
+  machine-auth-enabled: ${NETTY_MACHINE_AUTH_ENABLED:false}
+  machine-token: ${NETTY_MACHINE_ADMIN_TOKEN:}
+  internal-token: ${CLUSTER_INTERNAL_TOKEN:}
+  machine-web-socket-handshake-auth-enabled: ${NETTY_MACHINE_WS_HANDSHAKE_AUTH_ENABLED:true}
+
+
+audit:
+  persistence-enabled: ${AUDIT_PERSISTENCE_ENABLED:false}
+  sink: ${AUDIT_SINK:NOOP}
+  spool-directory: ${AUDIT_SPOOL_DIRECTORY:./data/audit-events}
+
+connection-protection:
+  enabled: ${CONNECTION_PROTECTION_ENABLED:false}
+  max-tcp-connections: ${CONNECTION_MAX_TCP_CONNECTIONS:10000}
+  max-tcp-connections-per-remote-address: ${CONNECTION_MAX_TCP_CONNECTIONS_PER_REMOTE:200}
+  max-web-socket-sessions: ${CONNECTION_MAX_WS_SESSIONS:10000}
+  max-web-socket-sessions-per-remote-address: ${CONNECTION_MAX_WS_SESSIONS_PER_REMOTE:200}
+  max-tcp-messages-per-minute-per-remote-address: ${CONNECTION_MAX_TCP_MESSAGES_PER_MINUTE_PER_REMOTE:1200}
+  max-web-socket-messages-per-minute-per-remote-address: ${CONNECTION_MAX_WS_MESSAGES_PER_MINUTE_PER_REMOTE:1200}
+  close-on-rate-limit: ${CONNECTION_CLOSE_ON_RATE_LIMIT:true}
+
+cluster:
+  sync:
+    enabled: ${GATEWAY_CLUSTER_SYNC_ENABLED:false}
+    interval-ms: ${GATEWAY_CLUSTER_SYNC_INTERVAL_MS:5000}
+    request-timeout-ms: ${GATEWAY_CLUSTER_SYNC_REQUEST_TIMEOUT_MS:2000}
+    remote-state-ttl-ms: ${GATEWAY_CLUSTER_REMOTE_STATE_TTL_MS:15000}
+    max-agents-per-node: ${GATEWAY_CLUSTER_SYNC_MAX_AGENTS_PER_NODE:50}
+    max-events-per-node: ${GATEWAY_CLUSTER_SYNC_MAX_EVENTS_PER_NODE:50}
+  delivery-router:
+    enabled: ${GATEWAY_CLUSTER_DELIVERY_ROUTER_ENABLED:true}
+    prefer-local: ${GATEWAY_CLUSTER_DELIVERY_ROUTER_PREFER_LOCAL:true}
+    reject-duplicate-agents: ${GATEWAY_CLUSTER_DELIVERY_ROUTER_REJECT_DUPLICATE_AGENTS:true}
+    require-synced-remote-state: ${GATEWAY_CLUSTER_DELIVERY_ROUTER_REQUIRE_SYNCED_REMOTE_STATE:true}
+    request-timeout-ms: ${GATEWAY_CLUSTER_DELIVERY_ROUTER_REQUEST_TIMEOUT_MS:3000}

@@ -1,0 +1,256 @@
+# Local profile: same runtime topology as dev, but with local-friendly defaults.
+# Local is no longer MEMORY/H2. It uses SharedUtility database and redisson-client:
+#   - pg.single for PostgreSQL single DataSource and MyBatis XML mapper scan
+#   - redis.* for SharedUtility RedissonAccess
+# Docker local overrides the JDBC/Redis addresses to postgres/redis service names through .env.core-local.example.
+spring:
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: ${FLYWAY_LOCATIONS:classpath:db/migration}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:1}
+    validate-on-migrate: ${FLYWAY_VALIDATE_ON_MIGRATE:true}
+    out-of-order: ${FLYWAY_OUT_OF_ORDER:false}
+
+pg:
+  enabled: ${PG_ENABLED:true}
+  single:
+    name: ${PG_SINGLE_NAME:single}
+    url: ${PG_SINGLE_URL:jdbc:postgresql://127.0.0.1:5432/aeg_core}
+    username: ${PG_SINGLE_USERNAME:admin}
+    password: ${PG_SINGLE_PASSWORD:123456}
+    isDefault: ${PG_SINGLE_IS_DEFAULT:true}
+    driver-class-name: ${PG_SINGLE_DRIVER_CLASS_NAME:org.postgresql.Driver}
+    hikari:
+      minimum-idle: ${PG_SINGLE_HIKARI_MINIMUM_IDLE:2}
+      maximum-pool-size: ${PG_SINGLE_HIKARI_MAXIMUM_POOL_SIZE:10}
+      connection-timeout: ${PG_SINGLE_HIKARI_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${PG_SINGLE_HIKARI_IDLE_TIMEOUT:30000}
+      max-lifetime: ${PG_SINGLE_HIKARI_MAX_LIFETIME:1800000}
+      pool-name: ${PG_SINGLE_HIKARI_POOL_NAME:AegCoreLocalSinglePool}
+  mybatis:
+    enabled: ${PG_MYBATIS_ENABLED:true}
+    # Required by SharedUtility DatabaseClusterConfig -> MapperScanRegistrar.
+    base-packages:
+      - com.opensocket.aievent.database.persistence
+    # Required by SharedUtility MybatisConfig -> MapperScannerConfigurer.
+    mapper-scan-packages:
+      - com.opensocket.aievent.database.persistence
+    configuration:
+      map-underscore-to-camel-case: true
+      default-statement-timeout: ${PG_MYBATIS_STATEMENT_TIMEOUT:10}
+      cache-enabled: false
+      log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    type-aliases-package:
+      - com.opensocket.aievent.database.persistence
+    mapper-locations:
+      - classpath*:mybatis/postgresql/**/*.xml
+
+redis:
+  enabled: ${REDIS_ENABLED:true}
+  database: ${REDIS_DATABASE:0}
+  password: ${REDIS_PASSWORD:123456}
+  timeout: ${REDIS_TIMEOUT:30000}
+  mode: ${REDIS_MODE:single}
+  pool:
+    max-idle: ${REDIS_POOL_MAX_IDLE:16}
+    maxIdle: ${REDIS_POOL_MAX_IDLE:16}
+    min-idle: ${REDIS_POOL_MIN_IDLE:8}
+    minIdle: ${REDIS_POOL_MIN_IDLE:8}
+    max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+    maxActive: ${REDIS_POOL_MAX_ACTIVE:8}
+    max-wait: ${REDIS_POOL_MAX_WAIT:3000}
+    maxWait: ${REDIS_POOL_MAX_WAIT:3000}
+    conn-timeout: ${REDIS_POOL_CONN_TIMEOUT:3000}
+    connTimeout: ${REDIS_POOL_CONN_TIMEOUT:3000}
+    so-timeout: ${REDIS_POOL_SO_TIMEOUT:3000}
+    soTimeout: ${REDIS_POOL_SO_TIMEOUT:3000}
+    size: ${REDIS_POOL_SIZE:10}
+  single:
+    address: ${REDIS_SINGLE_ADDRESS:127.0.0.1:6379}
+  cluster:
+    scan-interval: ${REDIS_CLUSTER_SCAN_INTERVAL:1000}
+    scanInterval: ${REDIS_CLUSTER_SCAN_INTERVAL:1000}
+    nodes:
+      - ${REDIS_CLUSTER_NODE_0:127.0.0.1:7001}
+      - ${REDIS_CLUSTER_NODE_1:127.0.0.1:7002}
+      - ${REDIS_CLUSTER_NODE_2:127.0.0.1:7003}
+      - ${REDIS_CLUSTER_NODE_3:127.0.0.1:7004}
+      - ${REDIS_CLUSTER_NODE_4:127.0.0.1:7005}
+      - ${REDIS_CLUSTER_NODE_5:127.0.0.1:7006}
+    read-mode: ${REDIS_CLUSTER_READ_MODE:SLAVE}
+    readMode: ${REDIS_CLUSTER_READ_MODE:SLAVE}
+    retry-attempts: ${REDIS_CLUSTER_RETRY_ATTEMPTS:3}
+    retryAttempts: ${REDIS_CLUSTER_RETRY_ATTEMPTS:3}
+    failed-attempts: ${REDIS_CLUSTER_FAILED_ATTEMPTS:3}
+    failedAttempts: ${REDIS_CLUSTER_FAILED_ATTEMPTS:3}
+    slave-connection-pool-size: ${REDIS_CLUSTER_SLAVE_CONNECTION_POOL_SIZE:64}
+    slaveConnection-pool-size: ${REDIS_CLUSTER_SLAVE_CONNECTION_POOL_SIZE:64}
+    slaveConnectionPoolSize: ${REDIS_CLUSTER_SLAVE_CONNECTION_POOL_SIZE:64}
+    master-connection-pool-size: ${REDIS_CLUSTER_MASTER_CONNECTION_POOL_SIZE:64}
+    masterConnection-pool-size: ${REDIS_CLUSTER_MASTER_CONNECTION_POOL_SIZE:64}
+    masterConnectionPoolSize: ${REDIS_CLUSTER_MASTER_CONNECTION_POOL_SIZE:64}
+    retry-interval: ${REDIS_CLUSTER_RETRY_INTERVAL:1500}
+    retryInterval: ${REDIS_CLUSTER_RETRY_INTERVAL:1500}
+  stream:
+    autoclaim:
+      defaults:
+        enabled: ${REDIS_STREAM_AUTOCLAIM_ENABLED:true}
+        idle: ${REDIS_STREAM_AUTOCLAIM_IDLE:60s}
+        interval: ${REDIS_STREAM_AUTOCLAIM_INTERVAL:5s}
+        batch: ${REDIS_STREAM_AUTOCLAIM_BATCH:100}
+        max-rounds: ${REDIS_STREAM_AUTOCLAIM_MAX_ROUNDS:5}
+
+core:
+  outbox:
+    store: ${CORE_OUTBOX_STORE:MYBATIS}
+    dispatcher-enabled: ${CORE_OUTBOX_DISPATCHER_ENABLED:true}
+    worker-id: ${CORE_OUTBOX_WORKER_ID:core-outbox}
+  integration-events:
+    store: ${CORE_INTEGRATION_EVENTS_STORE:MYBATIS}
+  recovery:
+    governance:
+      enabled: ${CORE_RECOVERY_GOVERNANCE_ENABLED:true}
+      require-reason: ${CORE_RECOVERY_GOVERNANCE_REQUIRE_REASON:true}
+      min-reason-length: ${CORE_RECOVERY_GOVERNANCE_MIN_REASON_LENGTH:12}
+      require-confirmation: ${CORE_RECOVERY_GOVERNANCE_REQUIRE_CONFIRMATION:true}
+      moderate-confirmation-phrase: ${CORE_RECOVERY_GOVERNANCE_MODERATE_CONFIRMATION:CONFIRM_RECOVERY_ACTION}
+      high-risk-confirmation-phrase: ${CORE_RECOVERY_GOVERNANCE_HIGH_RISK_CONFIRMATION:CONFIRM_HIGH_RISK_RECOVERY}
+      allow-body-operator-id-override: ${CORE_RECOVERY_GOVERNANCE_ALLOW_BODY_OPERATOR_ID_OVERRIDE:false}
+      require-dual-control-for-high-risk: ${CORE_RECOVERY_GOVERNANCE_REQUIRE_DUAL_CONTROL_FOR_HIGH_RISK:true}
+      forbid-self-approval: ${CORE_RECOVERY_GOVERNANCE_FORBID_SELF_APPROVAL:true}
+      approval-ttl: ${CORE_RECOVERY_GOVERNANCE_APPROVAL_TTL:4h}
+      approval-confirmation-phrase: ${CORE_RECOVERY_GOVERNANCE_APPROVAL_CONFIRMATION:CONFIRM_DUAL_CONTROL_APPROVAL}
+    approval:
+      store: ${CORE_RECOVERY_APPROVAL_STORE:${DISPATCH_REQUEST_STORE:MYBATIS}}
+
+  decision:
+    task-creation-enabled: ${CORE_TASK_CREATION_ENABLED:true}
+    task-min-occurrences: ${CORE_TASK_MIN_OCCURRENCES:1}
+    immediate-task-severities: ${CORE_IMMEDIATE_TASK_SEVERITIES:CRITICAL,HIGH}
+    default-routing-policy: ${CORE_DEFAULT_ROUTING_POLICY:MANUAL_REVIEW}
+
+event:
+  decisions:
+    store: ${EVENT_DECISION_STORE:MYBATIS}
+  dedup:
+    store: ${EVENT_DEDUP_STORE:MYBATIS}
+    snapshot-store: ${EVENT_DEDUP_SNAPSHOT_STORE:MYBATIS}
+    cache-store: ${EVENT_DEDUP_CACHE_STORE:REDISSON}
+
+incident:
+  store: ${INCIDENT_STORE:MYBATIS}
+  summary:
+    store: ${INCIDENT_SUMMARY_STORE:MYBATIS}
+
+task:
+  store: ${TASK_STORE:MYBATIS}
+
+
+  dispatch-recovery:
+    enabled: ${TASK_DISPATCH_RECOVERY_ENABLED:true}
+    scanner-enabled: ${TASK_DISPATCH_RECOVERY_SCANNER_ENABLED:true}
+    interval-ms: ${TASK_DISPATCH_RECOVERY_INTERVAL_MS:5000}
+    max-batch-size: ${TASK_DISPATCH_RECOVERY_MAX_BATCH_SIZE:50}
+    max-attempts: ${TASK_DISPATCH_RECOVERY_MAX_ATTEMPTS:0}
+    initial-delay: ${TASK_DISPATCH_RECOVERY_INITIAL_DELAY:30s}
+    max-delay: ${TASK_DISPATCH_RECOVERY_MAX_DELAY:10m}
+    claim-lease: ${TASK_DISPATCH_RECOVERY_CLAIM_LEASE:30s}
+    worker-id: ${TASK_DISPATCH_RECOVERY_WORKER_ID:core-task-dispatch-recovery}
+  callback:
+    store: ${TASK_CALLBACK_STORE:MYBATIS}
+    require-dispatch-token: ${TASK_CALLBACK_REQUIRE_DISPATCH_TOKEN:true}
+    allow-missing-dispatch-request-id: ${TASK_CALLBACK_ALLOW_MISSING_DISPATCH_REQUEST_ID:false}
+    require-attempt-no: ${TASK_CALLBACK_REQUIRE_ATTEMPT_NO:true}
+    enforce-gateway-and-agent-identity: ${TASK_CALLBACK_ENFORCE_GATEWAY_AGENT_IDENTITY:true}
+    recovery:
+      timeout-enabled: ${DISPATCH_RECOVERY_TIMEOUT_ENABLED:true}
+      retry-enabled: ${DISPATCH_RECOVERY_RETRY_ENABLED:true}
+
+gateway-nodes:
+  store: ${GATEWAY_NODE_STORE:MYBATIS}
+
+agent-directory:
+  store: ${AGENT_DIRECTORY_STORE:MYBATIS}
+
+agent-assignment:
+  store: ${AGENT_ASSIGNMENT_STORE:MYBATIS}
+
+agent-certification:
+  store: ${AGENT_CERTIFICATION_STORE:MYBATIS}
+
+assignment:
+  store: ${ASSIGNMENT_STORE:MYBATIS}
+
+routing:
+  assignment-enabled: ${ROUTING_ASSIGNMENT_ENABLED:true}
+  decision-store: ${ROUTING_DECISION_STORE:MYBATIS}
+  assignment-lease-ttl: ${ROUTING_ASSIGNMENT_LEASE_TTL:5m}
+
+  poison-agent-exclusion-enabled: ${ROUTING_POISON_AGENT_EXCLUSION_ENABLED:true}
+  poison-agent-failure-threshold: ${ROUTING_POISON_AGENT_FAILURE_THRESHOLD:${DISPATCH_POISON_AGENT_FAILURE_THRESHOLD:5}}
+  runtime-failure-penalty-enabled: ${ROUTING_RUNTIME_FAILURE_PENALTY_ENABLED:true}
+  load-aware-scoring-enabled: ${ROUTING_LOAD_AWARE_SCORING_ENABLED:true}
+  zero-special-case-runtime-enabled: ${ROUTING_ZERO_SPECIAL_CASE_RUNTIME_ENABLED:true}
+  generic-authoritative-enabled: ${ROUTING_GENERIC_AUTHORITATIVE_ENABLED:true}
+  generic-authoritative-default-mode: ${ROUTING_GENERIC_AUTHORITATIVE_DEFAULT_MODE:AUTHORITATIVE}
+  generic-authoritative-default-canary-percentage: ${ROUTING_GENERIC_AUTHORITATIVE_DEFAULT_CANARY_PERCENTAGE:100}
+  generic-authoritative-minimum-sample-size: ${ROUTING_GENERIC_AUTHORITATIVE_MINIMUM_SAMPLE_SIZE:50}
+  generic-authoritative-maximum-requirement-blocked-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_REQUIREMENT_BLOCKED_RATE:0.05}
+  generic-authoritative-maximum-no-candidate-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_NO_CANDIDATE_RATE:0.10}
+  generic-authoritative-maximum-selection-difference-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_SELECTION_DIFFERENCE_RATE:0.20}
+  generic-authoritative-auto-rollback-enabled: ${ROUTING_GENERIC_AUTHORITATIVE_AUTO_ROLLBACK_ENABLED:true}
+  persisted-legacy-evidence-recovery-enabled: ${ROUTING_PERSISTED_LEGACY_EVIDENCE_RECOVERY_ENABLED:false}
+  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:true}
+  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:true}
+  require-v2-score-breakdown-in-enforce: ${ROUTING_REQUIRE_V2_SCORE_BREAKDOWN_IN_ENFORCE:true}
+  legacy-profile-eligibility-disabled-in-enforce: ${ROUTING_LEGACY_PROFILE_ELIGIBILITY_DISABLED_IN_ENFORCE:true}
+  eligibility-engine-mode: ${ROUTING_ELIGIBILITY_ENGINE_MODE:SHADOW}
+  flow-rule-routing-enabled: ${ROUTING_FLOW_RULE_ENABLED:true}
+  flow-rule-legacy-fallback-enabled: ${ROUTING_FLOW_RULE_LEGACY_FALLBACK_ENABLED:false}
+  formal-success-requires-flow-rule: ${ROUTING_FORMAL_SUCCESS_REQUIRES_FLOW_RULE:true}
+  standalone-dispatch-policy-writes-enabled: ${ROUTING_STANDALONE_DISPATCH_POLICY_WRITES_ENABLED:false}
+
+dispatch:
+  request-creation-enabled: ${DISPATCH_REQUEST_CREATION_ENABLED:true}
+  review-mode: ${DISPATCH_REVIEW_MODE:NOT_REQUIRED}
+  execution-policy: ${DISPATCH_EXECUTION_POLICY:AUTO_AFTER_ASSIGNMENT}
+  request-store: ${DISPATCH_REQUEST_STORE:MYBATIS}
+  attempt-history-store: ${DISPATCH_ATTEMPT_HISTORY_STORE:${DISPATCH_REQUEST_STORE:MYBATIS}}
+  failure-requeue:
+    enabled: ${DISPATCH_FAILURE_REQUEUE_ENABLED:true}
+    max-reassignments: ${DISPATCH_FAILURE_REQUEUE_MAX_REASSIGNMENTS:3}
+    runtime-initial-backoff: ${DISPATCH_RUNTIME_BACKOFF_INITIAL:30s}
+    runtime-max-backoff: ${DISPATCH_RUNTIME_BACKOFF_MAX:5m}
+    poison-agent-failure-threshold: ${DISPATCH_POISON_AGENT_FAILURE_THRESHOLD:5}
+  client:
+    enabled: ${DISPATCH_CLIENT_ENABLED:true}
+    auto-execute-approved: ${DISPATCH_CLIENT_AUTO_EXECUTE_APPROVED:true}
+    default-gateway-base-url: ${DISPATCH_DEFAULT_GATEWAY_BASE_URL:http://localhost:18081}
+    internal-token: ${DISPATCH_INTERNAL_TOKEN:local-internal-token-change-me}
+    gateway-base-urls:
+      gateway-tpe-001: ${DISPATCH_GATEWAY_TPE_001_BASE_URL:http://localhost:18081}
+      gateway-tyn-001: ${DISPATCH_GATEWAY_TYN_001_BASE_URL:http://localhost:18082}
+      gateway-tnn-001: ${DISPATCH_GATEWAY_TNN_001_BASE_URL:http://localhost:18083}
+
+adapter-actions:
+  store: ${ADAPTER_ACTION_STORE:MYBATIS}
+
+adapter-executor:
+  mode: ${ADAPTER_EXECUTOR_MODE:embedded}
+  enabled: ${ADAPTER_EXECUTOR_ENABLED:true}
+  auto-execute-pending: ${ADAPTER_EXECUTOR_AUTO_EXECUTE_PENDING:false}
+  mock:
+    enabled: ${ADAPTER_EXECUTOR_MOCK_ENABLED:true}
+  mcp:
+    mock-compatible: ${MCP_EXECUTOR_MOCK_COMPATIBLE:true}
+  issue:
+    default-vendor: ${ISSUE_EXECUTOR_DEFAULT_VENDOR:MOCK}
+    jira-mock-enabled: ${JIRA_EXECUTOR_MOCK_ENABLED:true}
+    redmine-mock-enabled: ${REDMINE_EXECUTOR_MOCK_ENABLED:true}
+    gitlab-mock-enabled: ${GITLAB_EXECUTOR_MOCK_ENABLED:true}
+  audit:
+    store: ${ADAPTER_EXECUTOR_AUDIT_STORE:MYBATIS}
+
+task-issue-links:
+  store: ${TASK_ISSUE_LINK_STORE:${ADAPTER_ACTION_STORE:MYBATIS}}

@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.agent.dao.AgentGovernanceDao">
+    <resultMap id="AgentEnrollmentRequestPoMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentEnrollmentRequestPo">
+        <id property="enrollmentId" column="enrollment_id"/>
+        <result property="claimedAgentId" column="claimed_agent_id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="agentName" column="agent_name"/>
+        <result property="agentType" column="agent_type"/>
+        <result property="submittedMetadataJson" column="submitted_metadata_json"/>
+        <result property="evidenceJson" column="evidence_json"/>
+        <result property="fingerprint" column="fingerprint"/>
+        <result property="remoteAddress" column="remote_address"/>
+        <result property="status" column="status"/>
+        <result property="submittedAt" column="submitted_at"/>
+        <result property="reviewedBy" column="reviewed_by"/>
+        <result property="reviewedAt" column="reviewed_at"/>
+        <result property="reviewComment" column="review_comment"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <resultMap id="AgentProfilePoMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentProfilePo">
+        <id property="agentId" column="agent_id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="agentName" column="agent_name"/>
+        <result property="agentType" column="agent_type"/>
+        <result property="ownerTeam" column="owner_team"/>
+        <result property="description" column="description"/>
+        <result property="approvalStatus" column="approval_status"/>
+        <result property="enabled" column="enabled"/>
+        <result property="riskStatus" column="risk_status"/>
+        <result property="policyVersion" column="policy_version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <resultMap id="AgentCredentialPoMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentCredentialPo">
+        <id property="credentialId" column="credential_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="credentialType" column="credential_type"/>
+        <result property="publicKeyFingerprint" column="public_key_fingerprint"/>
+        <result property="tokenHash" column="token_hash"/>
+        <result property="credentialVersion" column="credential_version"/>
+        <result property="issuedAt" column="issued_at"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="revokedAt" column="revoked_at"/>
+        <result property="revokedReason" column="revoked_reason"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <resultMap id="AgentCapabilityPoMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentCapabilityPo">
+        <id property="agentId" column="agent_id"/>
+        <id property="capabilityCode" column="capability_code"/>
+        <result property="capabilityVersion" column="capability_version"/>
+        <result property="enabled" column="enabled"/>
+        <result property="approvedBy" column="approved_by"/>
+        <result property="approvedAt" column="approved_at"/>
+    </resultMap>
+    <resultMap id="AgentAuthorizationScopePoMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentAuthorizationScopePo">
+        <id property="scopeId" column="scope_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="systemCode" column="system_code"/>
+        <result property="siteCode" column="site_code"/>
+        <result property="eventType" column="event_type"/>
+        <result property="taskType" column="task_type"/>
+        <result property="dataClassificationLimit" column="data_classification_limit"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <resultMap id="AgentGovernanceTableDiagnosticMap" type="com.opensocket.aievent.core.agent.governance.AgentGovernanceTableDiagnostic">
+        <result property="tableName" column="table_name"/>
+        <result property="rowCount" column="row_count"/>
+        <result property="expectedWriter" column="expected_writer"/>
+        <result property="emptyMeaning" column="empty_meaning"/>
+    </resultMap>
+    <resultMap id="AgentSecurityEventPoMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentSecurityEventPo">
+        <id property="securityEventId" column="security_event_id"/>
+        <result property="gatewayNodeId" column="gateway_node_id"/>
+        <result property="claimedAgentId" column="claimed_agent_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="eventType" column="event_type"/>
+        <result property="reason" column="reason"/>
+        <result property="fingerprint" column="fingerprint"/>
+        <result property="remoteAddress" column="remote_address"/>
+        <result property="metadataJson" column="metadata_json"/>
+        <result property="occurredAt" column="occurred_at"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+
+    <resultMap id="AgentSecurityEnforcementPolicyPoMap" type="com.opensocket.aievent.database.persistence.agent.po.AgentSecurityEnforcementPolicyPo">
+        <id property="policyId" column="policy_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="enabled" column="enabled"/>
+        <result property="duplicateRuntimeMode" column="duplicate_runtime_mode"/>
+        <result property="requireCredentialRotation" column="require_credential_rotation"/>
+        <result property="notifyEmail" column="notify_email"/>
+        <result property="notifySlack" column="notify_slack"/>
+        <result property="notifySiem" column="notify_siem"/>
+        <result property="emailRecipientsJson" column="email_recipients_json"/>
+        <result property="slackChannelsJson" column="slack_channels_json"/>
+        <result property="siemTopicsJson" column="siem_topics_json"/>
+        <result property="metadataJson" column="metadata_json"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="upsertEnrollment">
+        insert into agent_enrollment_requests (enrollment_id, claimed_agent_id, tenant_id, agent_name, agent_type, submitted_metadata_json, evidence_json, fingerprint, remote_address, status, submitted_at, reviewed_by, reviewed_at, review_comment, created_at, updated_at)
+        values (#{enrollment.enrollmentId}, #{enrollment.claimedAgentId}, #{enrollment.tenantId}, #{enrollment.agentName}, #{enrollment.agentType}, coalesce(cast(#{enrollment.submittedMetadataJson} as jsonb), '{}'::jsonb), coalesce(cast(#{enrollment.evidenceJson} as jsonb), '{}'::jsonb), #{enrollment.fingerprint}, #{enrollment.remoteAddress}, #{enrollment.status}, #{enrollment.submittedAt}, #{enrollment.reviewedBy}, #{enrollment.reviewedAt}, #{enrollment.reviewComment}, #{enrollment.createdAt}, #{enrollment.updatedAt})
+        on conflict (enrollment_id) do update set
+            claimed_agent_id = excluded.claimed_agent_id,
+            tenant_id = excluded.tenant_id,
+            agent_name = excluded.agent_name,
+            agent_type = excluded.agent_type,
+            submitted_metadata_json = excluded.submitted_metadata_json,
+            evidence_json = excluded.evidence_json,
+            fingerprint = excluded.fingerprint,
+            remote_address = excluded.remote_address,
+            status = excluded.status,
+            submitted_at = excluded.submitted_at,
+            reviewed_by = excluded.reviewed_by,
+            reviewed_at = excluded.reviewed_at,
+            review_comment = excluded.review_comment,
+            updated_at = excluded.updated_at
+    </insert>
+    <select id="findEnrollment" resultMap="AgentEnrollmentRequestPoMap">select * from agent_enrollment_requests where enrollment_id = #{enrollmentId}</select>
+    <select id="findLatestEnrollmentByAgent" resultMap="AgentEnrollmentRequestPoMap">
+        select * from agent_enrollment_requests
+        where claimed_agent_id = #{claimedAgentId}
+        order by
+            case status when 'PENDING_REVIEW' then 1 when 'REGISTERED' then 2 when 'APPROVED' then 3 when 'REJECTED' then 4 else 9 end,
+            updated_at desc nulls last,
+            submitted_at desc nulls last
+        limit 1
+    </select>
+    <select id="searchEnrollments" resultMap="AgentEnrollmentRequestPoMap">
+        select * from agent_enrollment_requests
+        <where><if test="status != null">status = #{status}</if></where>
+        order by submitted_at desc nulls last limit #{limit}
+    </select>
+
+    <insert id="upsertProfile">
+        insert into agent_profiles (agent_id, tenant_id, agent_name, agent_type, owner_team, description, approval_status, enabled, risk_status, policy_version, created_at, updated_at)
+        values (#{profile.agentId}, #{profile.tenantId}, #{profile.agentName}, #{profile.agentType}, #{profile.ownerTeam}, #{profile.description}, #{profile.approvalStatus}, #{profile.enabled}, #{profile.riskStatus}, #{profile.policyVersion}, #{profile.createdAt}, #{profile.updatedAt})
+        on conflict (agent_id) do update set
+            tenant_id = excluded.tenant_id,
+            agent_name = excluded.agent_name,
+            agent_type = excluded.agent_type,
+            owner_team = excluded.owner_team,
+            description = excluded.description,
+            approval_status = excluded.approval_status,
+            enabled = excluded.enabled,
+            risk_status = excluded.risk_status,
+            policy_version = excluded.policy_version,
+            updated_at = excluded.updated_at
+    </insert>
+    <select id="findProfile" resultMap="AgentProfilePoMap">select * from agent_profiles where agent_id = #{agentId}</select>
+    <select id="searchProfiles" resultMap="AgentProfilePoMap">
+        select * from agent_profiles
+        <where><if test="approvalStatus != null">approval_status = #{approvalStatus}</if></where>
+        order by updated_at desc nulls last limit #{limit}
+    </select>
+
+    <insert id="insertCredential">
+        insert into agent_credentials (credential_id, agent_id, credential_type, public_key_fingerprint, token_hash, credential_version, issued_at, expires_at, revoked_at, revoked_reason, created_at, updated_at)
+        values (#{credential.credentialId}, #{credential.agentId}, #{credential.credentialType}, #{credential.publicKeyFingerprint}, #{credential.tokenHash}, #{credential.credentialVersion}, #{credential.issuedAt}, #{credential.expiresAt}, #{credential.revokedAt}, #{credential.revokedReason}, #{credential.createdAt}, #{credential.updatedAt})
+    </insert>
+    <select id="findActiveCredentialByTokenHash" resultMap="AgentCredentialPoMap">
+        select * from agent_credentials
+        where agent_id = #{agentId} and token_hash = #{tokenHash}
+          and revoked_at is null and (expires_at is null or expires_at &gt;= #{now})
+        order by credential_version desc limit 1
+    </select>
+    <select id="findActiveCredentialByFingerprint" resultMap="AgentCredentialPoMap">
+        select * from agent_credentials
+        where agent_id = #{agentId} and public_key_fingerprint = #{publicKeyFingerprint}
+          and revoked_at is null and (expires_at is null or expires_at &gt;= #{now})
+        order by credential_version desc limit 1
+    </select>
+    <select id="findLatestCredential" resultMap="AgentCredentialPoMap">
+        select * from agent_credentials
+        where agent_id = #{agentId}
+        order by revoked_at nulls first, credential_version desc, issued_at desc nulls last
+        limit 1
+    </select>
+    <update id="revokeCredentials">
+        update agent_credentials set revoked_at = #{revokedAt}, revoked_reason = #{reason}, updated_at = #{revokedAt}
+        where agent_id = #{agentId} and revoked_at is null
+    </update>
+
+    <delete id="deleteCapabilities">delete from agent_capabilities where agent_id = #{agentId}</delete>
+    <insert id="insertCapability">
+        insert into agent_capabilities (agent_id, capability_code, capability_version, enabled, approved_by, approved_at)
+        values (#{capability.agentId}, #{capability.capabilityCode}, #{capability.capabilityVersion}, #{capability.enabled}, #{capability.approvedBy}, #{capability.approvedAt})
+        on conflict (agent_id, capability_code) do update set capability_version = excluded.capability_version, enabled = excluded.enabled, approved_by = excluded.approved_by, approved_at = excluded.approved_at
+    </insert>
+    <select id="findEnabledCapabilities" resultMap="AgentCapabilityPoMap">select * from agent_capabilities where agent_id = #{agentId} and enabled = true order by capability_code</select>
+
+    <delete id="deleteScopes">delete from agent_authorization_scopes where agent_id = #{agentId}</delete>
+    <insert id="insertScope">
+        insert into agent_authorization_scopes (scope_id, agent_id, tenant_id, system_code, site_code, event_type, task_type, data_classification_limit, enabled, created_at, updated_at)
+        values (#{scope.scopeId}, #{scope.agentId}, #{scope.tenantId}, #{scope.systemCode}, #{scope.siteCode}, #{scope.eventType}, #{scope.taskType}, #{scope.dataClassificationLimit}, #{scope.enabled}, #{scope.createdAt}, #{scope.updatedAt})
+    </insert>
+    <select id="findEnabledScopes" resultMap="AgentAuthorizationScopePoMap">select * from agent_authorization_scopes where agent_id = #{agentId} and enabled = true order by tenant_id, system_code, task_type</select>
+
+    <insert id="insertAudit">
+        insert into agent_approval_audit (audit_id, agent_id, enrollment_id, action, old_status, new_status, operator_id, reason, created_at)
+        values (#{audit.auditId}, #{audit.agentId}, #{audit.enrollmentId}, #{audit.action}, #{audit.oldStatus}, #{audit.newStatus}, #{audit.operatorId}, #{audit.reason}, #{audit.createdAt})
+    </insert>
+    <insert id="insertSecurityEvent">
+        insert into agent_security_events (security_event_id, gateway_node_id, claimed_agent_id, agent_id, event_type, reason, fingerprint, remote_address, metadata_json, occurred_at, created_at)
+        values (#{event.securityEventId}, #{event.gatewayNodeId}, #{event.claimedAgentId}, #{event.agentId}, #{event.eventType}, #{event.reason}, #{event.fingerprint}, #{event.remoteAddress}, coalesce(cast(#{event.metadataJson} as jsonb), '{}'::jsonb), #{event.occurredAt}, #{event.createdAt})
+    </insert>
+    <select id="searchSecurityEvents" resultMap="AgentSecurityEventPoMap">
+        select * from agent_security_events
+        <where>
+            <if test="agentId != null and agentId != ''">agent_id = #{agentId} or claimed_agent_id = #{agentId}</if>
+        </where>
+        order by occurred_at desc nulls last limit #{limit}
+    </select>
+
+    <insert id="upsertSecurityEnforcementPolicy">
+        insert into agent_security_enforcement_policies (policy_id, agent_id, enabled, duplicate_runtime_mode, require_credential_rotation, notify_email, notify_slack, notify_siem, email_recipients_json, slack_channels_json, siem_topics_json, metadata_json, updated_by, created_at, updated_at)
+        values (#{policy.policyId}, #{policy.agentId}, #{policy.enabled}, #{policy.duplicateRuntimeMode}, #{policy.requireCredentialRotation}, #{policy.notifyEmail}, #{policy.notifySlack}, #{policy.notifySiem}, coalesce(cast(#{policy.emailRecipientsJson} as jsonb), '[]'::jsonb), coalesce(cast(#{policy.slackChannelsJson} as jsonb), '[]'::jsonb), coalesce(cast(#{policy.siemTopicsJson} as jsonb), '[]'::jsonb), coalesce(cast(#{policy.metadataJson} as jsonb), '{}'::jsonb), #{policy.updatedBy}, #{policy.createdAt}, #{policy.updatedAt})
+        on conflict (agent_id) do update set
+            enabled = excluded.enabled,
+            duplicate_runtime_mode = excluded.duplicate_runtime_mode,
+            require_credential_rotation = excluded.require_credential_rotation,
+            notify_email = excluded.notify_email,
+            notify_slack = excluded.notify_slack,
+            notify_siem = excluded.notify_siem,
+            email_recipients_json = excluded.email_recipients_json,
+            slack_channels_json = excluded.slack_channels_json,
+            siem_topics_json = excluded.siem_topics_json,
+            metadata_json = excluded.metadata_json,
+            updated_by = excluded.updated_by,
+            updated_at = excluded.updated_at
+    </insert>
+    <select id="findSecurityEnforcementPolicy" resultMap="AgentSecurityEnforcementPolicyPoMap">
+        select * from agent_security_enforcement_policies where agent_id = #{agentId}
+    </select>
+    <select id="searchSecurityEnforcementPolicies" resultMap="AgentSecurityEnforcementPolicyPoMap">
+        select * from agent_security_enforcement_policies order by updated_at desc nulls last limit #{limit}
+    </select>
+
+    <select id="tableDiagnostics" resultMap="AgentGovernanceTableDiagnosticMap">
+        select 'agent_profiles' as table_name, count(*)::bigint as row_count,
+               'Core AgentGovernanceService' as expected_writer,
+               'No governed Agent profile has been approved or created.' as empty_meaning
+        from agent_profiles
+        union all
+        select 'agent_enrollment_requests', count(*)::bigint,
+               'Core authorization/enrollment API',
+               'No Agent has attempted enrollment or runtime authorization yet.'
+        from agent_enrollment_requests
+        union all
+        select 'agent_credentials', count(*)::bigint,
+               'Core approve/re-approve flow',
+               'Approved Agents are not connectable until credential material is issued.'
+        from agent_credentials
+        union all
+        select 'agent_capabilities', count(*)::bigint,
+               'Core approve/update profile flow and Flyway V23/V24 backfill',
+               'Dispatch governance cannot match Agent capabilities until populated.'
+        from agent_capabilities
+        union all
+        select 'agent_authorization_scopes', count(*)::bigint,
+               'Core approve/update profile flow and Flyway V23/V24 backfill',
+               'Dispatch governance has no allowed tenant/system/task scopes.'
+        from agent_authorization_scopes
+        union all
+        select 'agent_approval_audit', count(*)::bigint,
+               'Core governance state transitions',
+               'No governance decision or profile edit has occurred.'
+        from agent_approval_audit
+        union all
+        select 'agent_security_events', count(*)::bigint,
+               'Core authorize-connection/security-event API',
+               'No connection authorization attempt has reached Core yet.'
+        from agent_security_events
+        union all
+        select 'agent_security_enforcement_policies', count(*)::bigint,
+               'Core security policy API',
+               'No per-Agent duplicate-runtime security enforcement policy has been configured.'
+        from agent_security_enforcement_policies
+        union all
+        select 'agents', count(*)::bigint,
+               'Netty core-directory-sync -> Core AgentDirectoryService',
+               'No Netty runtime Agent has been synced to Core. Check GATEWAY_CORE_DIRECTORY_SYNC_ENABLED and Core internal token.'
+        from agents
+    </select>
+</mapper>

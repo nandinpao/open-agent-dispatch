@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.opensocket</groupId>
+        <artifactId>control-plane-parent</artifactId>
+        <version>1.0.0-p25.7.4-p5-callback-transition-governance-fix</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <artifactId>observability</artifactId>
+    <name>observability</name>
+    <description>Business metrics, health and operational summary for the modular Core.</description>
+    <dependencies>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>data-model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>domain-events</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>integration-events</artifactId>
+        </dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>kernel</artifactId></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>contracts</artifactId></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>incident</artifactId></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>event-processing</artifactId></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>agent-control</artifactId></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>task-orchestration</artifactId></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>execution-control</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
+        <dependency><groupId>io.micrometer</groupId><artifactId>micrometer-core</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,2 @@
+-- Reserved for default seed data.
+-- Current p12.1 core does not require static seed rows.

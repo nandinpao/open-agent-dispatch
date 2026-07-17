@@ -1,0 +1,47 @@
+name: OpenDispatch CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci-pr:
+    name: CI PR Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ai-event-gateway-admin-ui/package-lock.json
+
+      - name: Verify local CI/CD automation
+        run: python3 scripts/verify/verify-local-cicd.py
+
+      - name: Run PR CI gate
+        run: make ci-pr
+
+      - name: Upload CI report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendispatch-ci-output
+          path: .ci-output
+          if-no-files-found: ignore

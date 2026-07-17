@@ -1,0 +1,68 @@
+{
+  "id": "P3N_FULL_ENFORCE_ACCEPTANCE_AUTOMATION",
+  "tenantId": "tenant-a",
+  "taskId": "p3k-enforce-cms-review",
+  "taskDefinition": {
+    "definitionId": "p3n-cms-content-review",
+    "sourceSystem": "CMS",
+    "taskType": "CMS_CONTENT_REVIEW",
+    "displayName": "P3-N CMS Content Review",
+    "riskLevel": "HIGH",
+    "status": "ACTIVE"
+  },
+  "capabilities": [
+    { "capabilityCode": "CMS_CONTENT_READ", "capabilityType": "DATA_ACCESS", "domain": "CMS", "resourceType": "CONTENT", "operation": "READ", "status": "ACTIVE", "legacyTaskCoupling": false },
+    { "capabilityCode": "CONTENT_CLASSIFICATION", "capabilityType": "ANALYSIS", "domain": "CONTENT", "resourceType": "CONTENT", "operation": "CLASSIFY", "status": "ACTIVE", "legacyTaskCoupling": false }
+  ],
+  "runtimeResources": [
+    { "runtimeId": "runtime-p3k-cms-01", "runtimeCode": "runtime-p3k-cms-01", "runtimeName": "P3-K ready runtime", "runtimeType": "OPENCLAW", "trustStatus": "TRUSTED", "status": "ACTIVE" },
+    { "runtimeId": "runtime-p3k-cms-02", "runtimeCode": "runtime-p3k-cms-02", "runtimeName": "P3-K missing binding runtime", "runtimeType": "OPENCLAW", "trustStatus": "TRUSTED", "status": "ACTIVE" },
+    { "runtimeId": "runtime-p3k-cms-03", "runtimeCode": "runtime-p3k-cms-03", "runtimeName": "P3-K capability gap runtime", "runtimeType": "OPENCLAW", "trustStatus": "TRUSTED", "status": "ACTIVE" },
+    { "runtimeId": "runtime-p3k-cms-04", "runtimeCode": "runtime-p3k-cms-04", "runtimeName": "P3-K runtime feature gap runtime", "runtimeType": "OPENCLAW", "trustStatus": "TRUSTED", "status": "ACTIVE" },
+    { "runtimeId": "runtime-p3k-cms-05", "runtimeCode": "runtime-p3k-cms-05", "runtimeName": "P3-K low quality runtime", "runtimeType": "OPENCLAW", "trustStatus": "TRUSTED", "status": "ACTIVE" }
+  ],
+  "runtimeBindings": [
+    { "agentId": "agent-p3k-ready", "bindingId": "binding-p3k-active", "runtimeId": "runtime-p3k-cms-01", "bindingStatus": "ACTIVE", "capacityLimit": 5 },
+    { "agentId": "agent-p3k-missing-capability", "bindingId": "binding-p3k-capability-gap", "runtimeId": "runtime-p3k-cms-03", "bindingStatus": "ACTIVE", "capacityLimit": 5 },
+    { "agentId": "agent-p3k-untrusted-feature", "bindingId": "binding-p3k-feature-gap", "runtimeId": "runtime-p3k-cms-04", "bindingStatus": "ACTIVE", "capacityLimit": 5 },
+    { "agentId": "agent-p3k-low-quality", "bindingId": "binding-p3k-quality-gap", "runtimeId": "runtime-p3k-cms-05", "bindingStatus": "ACTIVE", "capacityLimit": 5 }
+  ],
+  "supplyProfiles": [
+    { "profileCode": "P3K_READY_CMS_REVIEWER", "profileName": "Ready CMS reviewer", "agentId": "agent-p3k-ready", "runtimeId": "runtime-p3k-cms-01", "runtimeBindingId": "binding-p3k-active", "status": "ACTIVE", "serviceRole": "CONTENT_REVIEWER", "qualityGrade": "A", "capabilitySnapshot": ["CMS_CONTENT_READ", "CONTENT_CLASSIFICATION"], "runtimeFeatureSnapshot": ["TASK_ACK", "TASK_RESULT"] },
+    { "profileCode": "P3K_MISSING_BINDING", "profileName": "Missing binding candidate", "agentId": "agent-p3k-no-binding", "runtimeId": "runtime-p3k-cms-02", "status": "ACTIVE", "serviceRole": "CONTENT_REVIEWER", "qualityGrade": "A", "capabilitySnapshot": ["CMS_CONTENT_READ", "CONTENT_CLASSIFICATION"], "runtimeFeatureSnapshot": ["TASK_ACK", "TASK_RESULT"] },
+    { "profileCode": "P3K_MISSING_CAPABILITY", "profileName": "Missing required capability candidate", "agentId": "agent-p3k-missing-capability", "runtimeId": "runtime-p3k-cms-03", "runtimeBindingId": "binding-p3k-capability-gap", "status": "ACTIVE", "serviceRole": "CONTENT_REVIEWER", "qualityGrade": "A", "capabilitySnapshot": ["CMS_CONTENT_READ"], "runtimeFeatureSnapshot": ["TASK_ACK", "TASK_RESULT"] },
+    { "profileCode": "P3K_UNTRUSTED_RUNTIME_FEATURE", "profileName": "Untrusted runtime feature candidate", "agentId": "agent-p3k-untrusted-feature", "runtimeId": "runtime-p3k-cms-04", "runtimeBindingId": "binding-p3k-feature-gap", "status": "ACTIVE", "serviceRole": "CONTENT_REVIEWER", "qualityGrade": "A", "capabilitySnapshot": ["CMS_CONTENT_READ", "CONTENT_CLASSIFICATION"], "runtimeFeatureSnapshot": ["TASK_ACK"] },
+    { "profileCode": "P3K_QUALITY_BELOW_THRESHOLD", "profileName": "Quality below threshold candidate", "agentId": "agent-p3k-low-quality", "runtimeId": "runtime-p3k-cms-05", "runtimeBindingId": "binding-p3k-quality-gap", "status": "ACTIVE", "serviceRole": "CONTENT_REVIEWER", "qualityGrade": "C", "capabilitySnapshot": ["CMS_CONTENT_READ", "CONTENT_CLASSIFICATION"], "runtimeFeatureSnapshot": ["TASK_ACK", "TASK_RESULT"] }
+  ],
+  "dispatchPolicy": {
+    "policyCode": "P3K_CMS_ENFORCE_POLICY",
+    "policyName": "P3-N CMS ENFORCE Runtime Fixture Policy",
+    "status": "ACTIVE",
+    "riskLevel": "HIGH",
+    "scopes": [{ "sourceSystem": "CMS", "taskType": "CMS_CONTENT_REVIEW", "riskLevel": "HIGH" }],
+    "requiredCapabilities": ["CMS_CONTENT_READ", "CONTENT_CLASSIFICATION"],
+    "requiredRuntimeFeatures": ["TASK_ACK", "TASK_RESULT"],
+    "qualityRules": [
+      { "metricName": "successRate", "operator": ">=", "thresholdValue": 0.95, "metricWindow": "24h", "blocking": true },
+      { "metricName": "recentFailureCount", "operator": "<=", "thresholdValue": 3, "metricWindow": "24h", "blocking": true }
+    ],
+    "scoringRules": [
+      { "factorName": "successRate", "weight": 30, "direction": "HIGHER_IS_BETTER" },
+      { "factorName": "currentLoad", "weight": 20, "direction": "LOWER_IS_BETTER" }
+    ]
+  },
+  "qualitySnapshots": [
+    { "profileCode": "P3K_READY_CMS_REVIEWER", "agentId": "agent-p3k-ready", "runtimeId": "runtime-p3k-cms-01", "successRate": 0.99, "recentFailureCount": 0, "slaBreachRate": 0.01, "qualityGrade": "A", "score": 96, "metricWindow": "24h" },
+    { "profileCode": "P3K_QUALITY_BELOW_THRESHOLD", "agentId": "agent-p3k-low-quality", "runtimeId": "runtime-p3k-cms-05", "successRate": 0.75, "recentFailureCount": 7, "slaBreachRate": 0.15, "qualityGrade": "C", "score": 45, "metricWindow": "24h" }
+  ],
+  "expected": {
+    "eligibleAgentIds": ["agent-p3k-ready"],
+    "blockedCodes": [
+      "P3H_ACTIVE_RUNTIME_BINDING_REQUIRED",
+      "P3H_REQUIRED_CAPABILITY_MISSING",
+      "P3H_REQUIRED_RUNTIME_FEATURE_NOT_TRUSTED",
+      "P3H_QUALITY_RULE_FAILED"
+    ],
+    "failClosed": true
+  }
+}

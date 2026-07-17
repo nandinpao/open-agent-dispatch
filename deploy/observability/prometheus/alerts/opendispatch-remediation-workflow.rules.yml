@@ -1,0 +1,101 @@
+groups:
+  - name: opendispatch-remediation-workflow
+    interval: 30s
+    rules:
+      - alert: OpenDispatchRemediationWorkflowExecutionFailures
+        expr: increase(aeg_core_remediation_workflows_executions_total{has_failure="true",dry_run="false"}[10m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-event-gateway-core
+          domain: remediation-workflow
+        annotations:
+          summary: "Agent remediation workflow execution failures detected"
+          description: "At least one non-dry-run remediation workflow execution failed in the last 10 minutes. Check Core workflow history and Admin UI remediation panel."
+
+      - alert: OpenDispatchRemediationWorkflowActionFailureRatioHigh
+        expr: |
+          (
+            sum(rate(aeg_core_remediation_workflow_actions_executions_total{success="false",skipped="false"}[15m]))
+            /
+            clamp_min(sum(rate(aeg_core_remediation_workflow_actions_executions_total[15m])), 0.001)
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-event-gateway-core
+          domain: remediation-workflow
+        annotations:
+          summary: "Agent remediation action failure ratio is high"
+          description: "More than 20% of remediation workflow actions are failing over 15 minutes. Inspect action_type and action_result labels."
+
+      - alert: OpenDispatchRemediationWorkflowActionFailureRatioCritical
+        expr: |
+          (
+            sum(rate(aeg_core_remediation_workflow_actions_executions_total{success="false",skipped="false"}[15m]))
+            /
+            clamp_min(sum(rate(aeg_core_remediation_workflow_actions_executions_total[15m])), 0.001)
+          ) > 0.50
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-event-gateway-core
+          domain: remediation-workflow
+        annotations:
+          summary: "Agent remediation action failure ratio is critical"
+          description: "More than 50% of remediation workflow actions are failing over 15 minutes. Pause automated execution paths and review Core logs."
+
+      - alert: OpenDispatchRemediationWorkflowApprovalLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(aeg_core_remediation_workflows_approval_latency_seconds_bucket[30m])) by (le)) > 1800
+        for: 15m
+        labels:
+          severity: warning
+          service: ai-event-gateway-core
+          domain: remediation-workflow
+        annotations:
+          summary: "Agent remediation approval latency p95 is high"
+          description: "p95 approval latency exceeded 30 minutes. Review pending remediation workflows and approval staffing."
+
+      - alert: OpenDispatchRemediationWorkflowApprovalLatencyCritical
+        expr: histogram_quantile(0.95, sum(rate(aeg_core_remediation_workflows_approval_latency_seconds_bucket[2h])) by (le)) > 7200
+        for: 10m
+        labels:
+          severity: critical
+          service: ai-event-gateway-core
+          domain: remediation-workflow
+        annotations:
+          summary: "Agent remediation approval latency p95 is critical"
+          description: "p95 approval latency exceeded 2 hours. High-risk remediation may be blocked by approval backlog."
+
+      - alert: OpenDispatchRemediationWorkflowStaleLeaseRecovery
+        expr: increase(aeg_core_remediation_workflow_stale_leases_recovered_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: ai-event-gateway-core
+          domain: remediation-workflow
+        annotations:
+          summary: "Stale remediation workflow execution lease recovered"
+          description: "The P11 stale lease reaper recovered at least one expired workflow execution lease. Check recent Core restart/crash or long-running execution."
+
+      - alert: OpenDispatchRemediationWorkflowLeaseBusySpike
+        expr: increase(aeg_core_remediation_workflow_execution_lease_events_total{event_type="EXECUTION_LEASE_BUSY"}[10m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-event-gateway-core
+          domain: remediation-workflow
+        annotations:
+          summary: "Frequent remediation workflow lease contention"
+          description: "Multiple operators or Core instances attempted to execute the same workflow concurrently. Review operator behavior and workflow lock duration."
+
+      - alert: OpenDispatchRemediationWorkflowPartialRetrySpike
+        expr: increase(aeg_core_remediation_workflow_actions_executions_total{action_result=~"ALREADY_.*"}[15m]) > 10
+        for: 5m
+        labels:
+          severity: info
+          service: ai-event-gateway-core
+          domain: remediation-workflow
+        annotations:
+          summary: "Frequent partial remediation workflow retries"
+          description: "P9 idempotency guard skipped many already-completed actions. This is safe, but may indicate repeated operator retries or flaky downstream governance actions."

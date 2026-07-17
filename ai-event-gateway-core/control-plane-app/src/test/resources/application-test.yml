@@ -1,0 +1,102 @@
+spring:
+  flyway:
+    enabled: false
+
+# Disable SharedUtility infrastructure auto-configuration for ordinary unit/API tests.
+# PostgreSQL and Redis are covered explicitly by tagged Testcontainers tests.
+pg:
+  enabled: false
+  mybatis:
+    enabled: false
+
+redis:
+  enabled: false
+
+event:
+  decisions:
+    store: MEMORY
+  dedup:
+    store: MEMORY
+    snapshot-store: NONE
+    cache-store: NONE
+
+incident:
+  store: MEMORY
+  summary:
+    store: MEMORY
+
+task:
+  store: MEMORY
+  callback:
+    store: MEMORY
+
+gateway-nodes:
+  store: MEMORY
+
+agent-directory:
+  store: MEMORY
+
+assignment:
+  store: MEMORY
+
+routing:
+  assignment-enabled: false
+  decision-store: MEMORY
+
+  poison-agent-exclusion-enabled: ${ROUTING_POISON_AGENT_EXCLUSION_ENABLED:true}
+  poison-agent-failure-threshold: ${ROUTING_POISON_AGENT_FAILURE_THRESHOLD:${DISPATCH_POISON_AGENT_FAILURE_THRESHOLD:5}}
+  runtime-failure-penalty-enabled: ${ROUTING_RUNTIME_FAILURE_PENALTY_ENABLED:true}
+  load-aware-scoring-enabled: ${ROUTING_LOAD_AWARE_SCORING_ENABLED:true}
+  zero-special-case-runtime-enabled: ${ROUTING_ZERO_SPECIAL_CASE_RUNTIME_ENABLED:true}
+  persisted-legacy-evidence-recovery-enabled: ${ROUTING_PERSISTED_LEGACY_EVIDENCE_RECOVERY_ENABLED:true}
+  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:true}
+  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:true}
+  flow-rule-routing-enabled: ${ROUTING_FLOW_RULE_ENABLED:true}
+  flow-rule-legacy-fallback-enabled: ${ROUTING_FLOW_RULE_LEGACY_FALLBACK_ENABLED:false}
+  formal-success-requires-flow-rule: ${ROUTING_FORMAL_SUCCESS_REQUIRES_FLOW_RULE:true}
+  standalone-dispatch-policy-writes-enabled: ${ROUTING_STANDALONE_DISPATCH_POLICY_WRITES_ENABLED:false}
+
+dispatch:
+  request-creation-enabled: false
+  request-store: MEMORY
+  attempt-history-store: MEMORY
+  client:
+    enabled: false
+    auto-execute-approved: false
+
+adapter-actions:
+  store: MEMORY
+
+adapter-executor:
+  enabled: false
+  auto-execute-pending: false
+  audit:
+    store: MEMORY
+
+core:
+  recovery:
+    approval:
+      store: MEMORY
+  integration-events:
+    store: MEMORY
+    projection-enabled: false
+    delivery-enabled: false
+  outbox:
+    store: MEMORY
+    dispatcher-enabled: false
+  decision:
+    task-creation-enabled: false
+  lifecycle:
+    incident:
+      auto-resolve-enabled: false
+    task:
+      timeout-enabled: false
+      auto-reassign-enabled: false
+  observability:
+    repository-summary-enabled: false
+
+agent-remediation:
+  workflow:
+    store: MEMORY
+    stale-lease-reaper:
+      enabled: false

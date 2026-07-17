@@ -1,0 +1,18 @@
+# Configuration notes: values here are safe defaults. Production and Docker deployments
+# should override ports, node identifiers, discovery mode, and security-related options by .env.
+gateway:
+  environment: local
+
+logging:
+  level:
+    root: INFO
+    com.opensocket.aievent.gateway.netty: DEBUG
+
+# Local developer defaults for React Admin UI.
+# VSCode Java Debug does not automatically source Docker Compose .env, so the local profile
+# keeps controlled dev CORS patterns enabled by default. Production keeps strict env-driven CORS.
+admin:
+  cors-allowed-origins: ${ADMIN_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  cors-allowed-origin-patterns: ${ADMIN_CORS_ALLOWED_ORIGIN_PATTERNS:http://*:[3000],http://*:[3001],https://*:[3000],https://*:[3001]}
+  cors-allow-credentials: ${ADMIN_CORS_ALLOW_CREDENTIALS:false}
+  cors-max-age-seconds: ${ADMIN_CORS_MAX_AGE_SECONDS:3600}

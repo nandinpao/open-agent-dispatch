@@ -1,0 +1,26 @@
+{
+  "fixtureId": "p3k-enforce-cms-review",
+  "engineMode": "ENFORCE",
+  "task": {
+    "taskId": "p3k-enforce-cms-review",
+    "sourceSystem": "CMS",
+    "taskType": "CMS_CONTENT_REVIEW",
+    "tenantId": "tenant-a"
+  },
+  "policy": {
+    "policyCode": "P3K_CMS_ENFORCE_POLICY",
+    "requiredCapabilities": ["CMS_CONTENT_READ", "CONTENT_CLASSIFICATION"],
+    "requiredRuntimeFeatures": ["TASK_ACK", "TASK_RESULT"],
+    "qualityRules": ["successRate >= 0.95", "recentFailureCount <= 3"]
+  },
+  "expected": {
+    "eligibleAgents": ["agent-p3k-ready"],
+    "blockedCodes": [
+      "P3H_ACTIVE_RUNTIME_BINDING_REQUIRED",
+      "P3H_REQUIRED_CAPABILITY_MISSING",
+      "P3H_REQUIRED_RUNTIME_FEATURE_NOT_TRUSTED",
+      "P3H_QUALITY_RULE_FAILED"
+    ],
+    "failClosed": true
+  }
+}

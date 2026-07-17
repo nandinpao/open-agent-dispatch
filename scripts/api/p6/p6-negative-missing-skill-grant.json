@@ -1,0 +1,17 @@
+{
+  "tenantId": "tenant-p6-empty-db",
+  "agentId": "agent-p6-flow-rule-001",
+  "flowCase": {
+    "sourceSystem": "ERP",
+    "eventStage": "EXTERNAL",
+    "objectType": "GL_ENTRY",
+    "eventType": "GL_POSTING_REJECTED",
+    "errorCode": "GL_BALANCE_MISMATCH",
+    "requestedSkill": "ERP_GL_POSTING_TRIAGE_UNGRANTED"
+  },
+  "expectedDryRun": {
+    "ready": false,
+    "dispatchable": false,
+    "firstBlockingCode": "AGENT_SKILL_GRANT"
+  }
+}

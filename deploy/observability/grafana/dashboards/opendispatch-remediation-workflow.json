@@ -1,0 +1,77 @@
+{
+  "title": "OpenDispatch - Remediation Workflow",
+  "uid": "opendispatch-remediation-workflow",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "tags": ["opendispatch", "remediation", "workflow", "p12"],
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Workflow executions / 10m",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum(increase(aeg_core_remediation_workflows_executions_total[10m]))", "legendFormat": "executions" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Execution failures / 10m",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        { "expr": "sum(increase(aeg_core_remediation_workflows_executions_total{has_failure=\"true\",dry_run=\"false\"}[10m]))", "legendFormat": "failures" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Stale leases recovered / 10m",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "sum(increase(aeg_core_remediation_workflow_stale_leases_recovered_total[10m]))", "legendFormat": "recovered" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Approval latency p95",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(aeg_core_remediation_workflows_approval_latency_seconds_bucket[30m])) by (le))", "legendFormat": "p95 seconds" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Workflow decisions by event type",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "sum by (event_type) (rate(aeg_core_remediation_workflows_decisions_total[5m]))", "legendFormat": "{{event_type}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Action execution result rate",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "sum by (action_type, action_result) (rate(aeg_core_remediation_workflow_actions_executions_total[5m]))", "legendFormat": "{{action_type}} / {{action_result}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Workflow lease events",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "sum by (event_type) (rate(aeg_core_remediation_workflow_execution_lease_events_total[5m]))", "legendFormat": "{{event_type}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Stale lease recovery run outcomes",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "expr": "sum(rate(aeg_core_remediation_workflow_stale_leases_scanned_total[5m]))", "legendFormat": "scanned" },
+        { "expr": "sum(rate(aeg_core_remediation_workflow_stale_leases_recovered_total[5m]))", "legendFormat": "recovered" },
+        { "expr": "sum(rate(aeg_core_remediation_workflow_stale_leases_race_lost_total[5m]))", "legendFormat": "race_lost" }
+      ]
+    }
+  ]
+}

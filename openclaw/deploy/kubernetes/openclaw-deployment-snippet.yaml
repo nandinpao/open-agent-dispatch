@@ -1,0 +1,51 @@
+# Recommended immutable production model: the image already contains v1.0.0.
+# The JWT is mounted as a read-only file so it can be rotated independently.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw-gateway
+  template:
+    metadata:
+      labels:
+        app: openclaw-gateway
+    spec:
+      containers:
+        - name: openclaw-gateway
+          image: registry.example.com/openclaw-with-opensocket:1.0.0
+          imagePullPolicy: IfNotPresent
+          command: ["openclaw", "gateway", "start"]
+          envFrom:
+            - configMapRef:
+                name: opensocket-plugin-config
+          volumeMounts:
+            - name: opensocket-state
+              mountPath: /var/lib/openclaw/opensocket-state
+            - name: opensocket-artifacts
+              mountPath: /var/lib/openclaw/opensocket-artifacts
+            - name: opensocket-observability
+              mountPath: /var/lib/openclaw/opensocket-observability
+            - name: opensocket-credential
+              mountPath: /var/run/secrets/opensocket
+              readOnly: true
+      volumes:
+        - name: opensocket-state
+          persistentVolumeClaim:
+            claimName: openclaw-opensocket-state
+        - name: opensocket-artifacts
+          persistentVolumeClaim:
+            claimName: openclaw-opensocket-artifacts
+        - name: opensocket-observability
+          persistentVolumeClaim:
+            claimName: openclaw-opensocket-observability
+        - name: opensocket-credential
+          secret:
+            secretName: opensocket-plugin-secret
+            defaultMode: 0400
+            items:
+              - key: agent.jwt
+                path: agent.jwt

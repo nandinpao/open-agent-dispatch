@@ -1,0 +1,10 @@
+# P3-O controlled ENFORCE profile.
+# Use only after P3-N/P3-O live acceptance artifacts are archived and reviewed.
+routing:
+  eligibility-engine-mode: ${ROUTING_ELIGIBILITY_ENGINE_MODE:ENFORCE}
+  flow-rule-routing-enabled: ${ROUTING_FLOW_RULE_ENABLED:true}
+  flow-rule-legacy-fallback-enabled: ${ROUTING_FLOW_RULE_LEGACY_FALLBACK_ENABLED:false}
+  formal-success-requires-flow-rule: ${ROUTING_FORMAL_SUCCESS_REQUIRES_FLOW_RULE:true}
+  standalone-dispatch-policy-writes-enabled: ${ROUTING_STANDALONE_DISPATCH_POLICY_WRITES_ENABLED:false}
+  require-v2-score-breakdown-in-enforce: ${ROUTING_REQUIRE_V2_SCORE_BREAKDOWN_IN_ENFORCE:true}
+  legacy-profile-eligibility-disabled-in-enforce: ${ROUTING_LEGACY_PROFILE_ELIGIBILITY_DISABLED_IN_ENFORCE:true}

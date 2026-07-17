@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.adapter.dao.AdapterExecutorAuditDao">
+  <resultMap id="AuditRowMap" type="com.opensocket.aievent.database.persistence.adapter.po.AdapterExecutorAuditPo">
+    <id property="auditId" column="audit_id"/><result property="actionId" column="action_id"/><result property="taskId" column="task_id"/><result property="incidentId" column="incident_id"/>
+    <result property="adapterType" column="adapter_type"/><result property="actionType" column="action_type"/><result property="executorName" column="executor_name"/>
+    <result property="beforeStatus" column="before_status"/><result property="afterStatus" column="after_status"/><result property="outcome" column="outcome"/><result property="message" column="message"/>
+    <result property="attemptCount" column="attempt_count"/><result property="createdAt" column="created_at"/><result property="payloadSnapshotJson" column="payload_snapshot_json"/>
+  </resultMap>
+  <sql id="Columns">audit_id,action_id,task_id,incident_id,adapter_type,action_type,executor_name,before_status,after_status,outcome,message,attempt_count,created_at,payload_snapshot_json</sql>
+  <insert id="insertIgnore">insert into adapter_executor_audit(<include refid="Columns"/>) values(#{audit.auditId},#{audit.actionId},#{audit.taskId},#{audit.incidentId},#{audit.adapterType},#{audit.actionType},#{audit.executorName},#{audit.beforeStatus},#{audit.afterStatus},#{audit.outcome},#{audit.message},#{audit.attemptCount},#{audit.createdAt},coalesce(cast(#{audit.payloadSnapshotJson} as jsonb), '{}'::jsonb)) on conflict(audit_id) do nothing</insert>
+  <select id="recent" resultMap="AuditRowMap">select <include refid="Columns"/> from adapter_executor_audit order by created_at desc limit #{limit}</select>
+  <select id="findByActionId" resultMap="AuditRowMap">select <include refid="Columns"/> from adapter_executor_audit where action_id=#{actionId} order by created_at desc limit #{limit}</select>
+</mapper>

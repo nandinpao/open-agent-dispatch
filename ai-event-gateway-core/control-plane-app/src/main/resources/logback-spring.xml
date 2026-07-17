@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds">
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="ai-event-gateway-core"/>
+    <property name="LOG_DIR" value="${LOG_DIR:-logs}"/>
+    <property name="ROOT_LEVEL" value="${LOG_LEVEL_ROOT:-INFO}"/>
+    <property name="CORE_LEVEL" value="${LOG_LEVEL_CORE:-INFO}"/>
+    <property name="DISPATCH_TRACE_LEVEL" value="${LOG_LEVEL_DISPATCH_TRACE:-INFO}"/>
+    <property name="LOG_LEVEL_TRACING" value="${LOG_LEVEL_TRACING:-INFO}"/>
+    <property name="LOG_MAX_FILE_SIZE" value="${LOG_MAX_FILE_SIZE:-50MB}"/>
+    <property name="LOG_MAX_HISTORY" value="${LOG_MAX_HISTORY:-14}"/>
+    <property name="LOG_TOTAL_SIZE_CAP" value="${LOG_TOTAL_SIZE_CAP:-2GB}"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level app=${APP_NAME} thread=%thread traceId=%X{traceId:-} spanId=%X{spanId:-} tenant=%X{tenantId:-} eventStage=%X{eventStage:-} correlationId=%X{correlationId:-} flow=%X{matchedFlowId:-} rule=%X{matchedRuleId:-} skill=%X{requestedSkill:-} task=%X{taskId:-} agent=%X{agentId:-} logger=%logger{36} msg=%msg%n%ex"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CORE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/core.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/core.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="DISPATCH_TRACE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/dispatch-trace.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/dispatch-trace.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.opensocket.aievent.core" level="${CORE_LEVEL}"/>
+    <logger name="com.opensocket.aievent.core.api.EventIntakeController" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.processing.DefaultEventProcessingFacade" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.dispatch.flow" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.dispatch" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.database.persistence.dispatch.flow" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.task.TaskDecisionService" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.task.DefaultTaskOrchestrationFacade" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+
+    <logger name="com.opensocket.aievent.core.lifecycle" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.routing.RoutingDecisionService" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+
+    <logger name="com.opensocket.aievent.core.callback" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.api.TaskCallbackController" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+
+    <logger name="com.opensocket.aievent.core.api.CoreDashboardController" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.timeline.DispatchTimelineService" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+    <logger name="com.opensocket.aievent.core.action" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="DISPATCH_TRACE_FILE"/>
+    </logger>
+
+    <logger name="io.micrometer.tracing" level="${LOG_LEVEL_TRACING}"/>
+    <logger name="brave.Tracer" level="${LOG_LEVEL_TRACING}"/>
+
+    <root level="${ROOT_LEVEL}">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="CORE_FILE"/>
+    </root>
+</configuration>

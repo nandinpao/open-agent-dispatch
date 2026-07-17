@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.incident.dao.IncidentOccurrenceSummaryDao">
+  <resultMap id="SummaryRowMap" type="com.opensocket.aievent.database.persistence.incident.po.IncidentOccurrenceSummaryPo">
+    <id property="summaryId" column="summary_id"/><result property="incidentId" column="incident_id"/><result property="fingerprint" column="fingerprint"/>
+    <result property="tenantId" column="tenant_id"/><result property="sourceSystem" column="source_system"/><result property="siteId" column="site_id"/><result property="plantId" column="plant_id"/>
+    <result property="objectType" column="object_type"/><result property="objectId" column="object_id"/><result property="eventType" column="event_type"/><result property="errorCode" column="error_code"/>
+    <result property="windowStart" column="window_start"/><result property="windowEnd" column="window_end"/><result property="occurrenceCount" column="occurrence_count"/>
+    <result property="maxSeverity" column="max_severity"/><result property="latestEventId" column="latest_event_id"/><result property="latestMessage" column="latest_message"/><result property="latestPayloadJson" column="latest_payload_json"/>
+  </resultMap>
+  <insert id="upsertOccurrence">
+    insert into incident_occurrence_summary(summary_id,incident_id,fingerprint,tenant_id,source_system,site_id,plant_id,object_type,object_id,event_type,error_code,window_start,window_end,occurrence_count,max_severity,latest_event_id,latest_message,latest_payload_json)
+    values(#{summary.summaryId},#{summary.incidentId},#{summary.fingerprint},#{summary.tenantId},#{summary.sourceSystem},#{summary.siteId},#{summary.plantId},#{summary.objectType},#{summary.objectId},#{summary.eventType},#{summary.errorCode},#{summary.windowStart},#{summary.windowEnd},1,#{summary.maxSeverity},#{summary.latestEventId},#{summary.latestMessage},coalesce(cast(#{summary.latestPayloadJson} as jsonb), '{}'::jsonb))
+    on conflict(incident_id,window_start,window_end) do update set occurrence_count=incident_occurrence_summary.occurrence_count+1,max_severity=case when severity_rank(excluded.max_severity)&gt;severity_rank(incident_occurrence_summary.max_severity) then excluded.max_severity else incident_occurrence_summary.max_severity end,latest_event_id=excluded.latest_event_id,latest_message=excluded.latest_message,latest_payload_json=excluded.latest_payload_json,updated_at=now()
+  </insert>
+  <select id="findByIncidentId" resultMap="SummaryRowMap">select summary_id,incident_id,fingerprint,tenant_id,source_system,site_id,plant_id,object_type,object_id,event_type,error_code,window_start,window_end,occurrence_count,max_severity,latest_event_id,latest_message,latest_payload_json from incident_occurrence_summary where incident_id=#{incidentId} order by window_start desc limit #{limit}</select>
+</mapper>

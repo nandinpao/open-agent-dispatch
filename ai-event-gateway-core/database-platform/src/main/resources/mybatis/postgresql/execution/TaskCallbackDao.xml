@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.execution.dao.TaskCallbackDao">
+    <resultMap id="TaskCallbackPoMap" type="com.opensocket.aievent.database.persistence.execution.po.TaskCallbackPo">
+        <id property="callbackId" column="callback_id"/><result property="callbackType" column="callback_type"/><result property="taskId" column="task_id"/>
+        <result property="dispatchRequestId" column="dispatch_request_id"/><result property="assignmentId" column="assignment_id"/><result property="agentId" column="agent_id"/>
+        <result property="ownerGatewayNodeId" column="owner_gateway_node_id"/><result property="agentSessionId" column="agent_session_id"/><result property="attemptNo" column="attempt_no"/><result property="fencingToken" column="fencing_token"/>
+        <result property="accepted" column="accepted"/><result property="ignoredReason" column="ignored_reason"/><result property="message" column="message"/><result property="progressPercent" column="progress_percent"/>
+        <result property="errorCode" column="error_code"/><result property="errorMessage" column="error_message"/><result property="payloadJson" column="payload_json"/>
+        <result property="occurredAt" column="occurred_at"/><result property="processedAt" column="processed_at"/><result property="duplicate" column="duplicate"/>
+        <result property="idempotencyKey" column="idempotency_key"/><result property="callbackFingerprint" column="callback_fingerprint"/><result property="replayDetected" column="replay_detected"/>
+        <result property="previousTaskStatus" column="previous_task_status"/><result property="newTaskStatus" column="new_task_status"/><result property="previousDispatchStatus" column="previous_dispatch_status"/><result property="newDispatchStatus" column="new_dispatch_status"/>
+    </resultMap>
+    <sql id="CallbackColumns">callback_id, callback_type, task_id, dispatch_request_id, assignment_id, agent_id, owner_gateway_node_id, agent_session_id, attempt_no, fencing_token, accepted, ignored_reason, message, progress_percent, error_code, error_message, payload_json, occurred_at, processed_at, duplicate, idempotency_key, callback_fingerprint, replay_detected, previous_task_status, new_task_status, previous_dispatch_status, new_dispatch_status</sql>
+    <insert id="upsert">
+        insert into task_callbacks (<include refid="CallbackColumns"/>) values (
+            #{record.callbackId}, #{record.callbackType}, #{record.taskId}, #{record.dispatchRequestId}, #{record.assignmentId}, #{record.agentId}, #{record.ownerGatewayNodeId}, #{record.agentSessionId}, #{record.attemptNo}, #{record.fencingToken}, #{record.accepted}, #{record.ignoredReason}, #{record.message}, #{record.progressPercent}, #{record.errorCode}, #{record.errorMessage}, coalesce(coalesce(cast(#{record.payloadJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{record.occurredAt}, #{record.processedAt}, #{record.duplicate}, #{record.idempotencyKey}, #{record.callbackFingerprint}, #{record.replayDetected}, #{record.previousTaskStatus}, #{record.newTaskStatus}, #{record.previousDispatchStatus}, #{record.newDispatchStatus}
+        ) on conflict (callback_id) do update set
+            callback_type = excluded.callback_type, task_id = excluded.task_id, dispatch_request_id = excluded.dispatch_request_id, assignment_id = excluded.assignment_id,
+            agent_id = excluded.agent_id, owner_gateway_node_id = excluded.owner_gateway_node_id, agent_session_id = excluded.agent_session_id, attempt_no = excluded.attempt_no, fencing_token = excluded.fencing_token,
+            accepted = excluded.accepted, ignored_reason = excluded.ignored_reason, message = excluded.message, progress_percent = excluded.progress_percent,
+            error_code = excluded.error_code, error_message = excluded.error_message, payload_json = excluded.payload_json, occurred_at = excluded.occurred_at,
+            processed_at = excluded.processed_at, duplicate = excluded.duplicate, idempotency_key = excluded.idempotency_key, callback_fingerprint = excluded.callback_fingerprint, replay_detected = excluded.replay_detected, previous_task_status = excluded.previous_task_status, new_task_status = excluded.new_task_status,
+            previous_dispatch_status = excluded.previous_dispatch_status, new_dispatch_status = excluded.new_dispatch_status
+    </insert>
+    <insert id="insert">
+        insert into task_callbacks (<include refid="CallbackColumns"/>) values (
+            #{record.callbackId}, #{record.callbackType}, #{record.taskId}, #{record.dispatchRequestId}, #{record.assignmentId}, #{record.agentId}, #{record.ownerGatewayNodeId}, #{record.agentSessionId}, #{record.attemptNo}, #{record.fencingToken}, #{record.accepted}, #{record.ignoredReason}, #{record.message}, #{record.progressPercent}, #{record.errorCode}, #{record.errorMessage}, coalesce(coalesce(cast(#{record.payloadJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{record.occurredAt}, #{record.processedAt}, #{record.duplicate}, #{record.idempotencyKey}, #{record.callbackFingerprint}, #{record.replayDetected}, #{record.previousTaskStatus}, #{record.newTaskStatus}, #{record.previousDispatchStatus}, #{record.newDispatchStatus}
+        )
+    </insert>
+    <select id="findByCallbackId" resultMap="TaskCallbackPoMap">select * from task_callbacks where callback_id = #{callbackId}</select>
+    <select id="findByTaskId" resultMap="TaskCallbackPoMap">
+        select *
+        from task_callbacks
+        where task_id = #{taskId}
+        order by processed_at desc nulls last, occurred_at desc nulls last
+        limit #{limit}
+    </select>
+    <select id="findByDispatchRequestId" resultMap="TaskCallbackPoMap">
+        select *
+        from task_callbacks
+        where dispatch_request_id = #{dispatchRequestId}
+        order by processed_at desc nulls last, occurred_at desc nulls last
+        limit #{limit}
+    </select>
+    <select id="recent" resultMap="TaskCallbackPoMap">
+        select *
+        from task_callbacks
+        order by processed_at desc nulls last, occurred_at desc nulls last
+        limit #{limit}
+    </select>
+</mapper>

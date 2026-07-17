@@ -1,0 +1,18 @@
+package com.opensocket.aievent.core.agent.governance;
+
+public enum AgentAuthorizationDenyReason {
+    NONE,
+    AGENT_ID_REQUIRED,
+    AGENT_NOT_FOUND,
+    AGENT_NOT_APPROVED,
+    AGENT_REJECTED,
+    AGENT_DISABLED,
+    AGENT_SUSPENDED,
+    AGENT_REVOKED,
+    AGENT_QUARANTINED,
+    CREDENTIAL_REQUIRED,
+    CREDENTIAL_INVALID,
+    CREDENTIAL_REVOKED,
+    FINGERPRINT_MISMATCH,
+    INTERNAL_ERROR
+}

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "scenario": "rolling-upgrade",
+  "status": "TEMPLATE",
+  "executedAt": "2026-06-11T00:00:00.000Z",
+  "releaseVersion": "1.0.0",
+  "artifacts": ["replace-with-controlled-evidence-reference"]
+}

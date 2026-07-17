@@ -1,0 +1,1679 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.agent.assignment.dao.AgentAssignmentDao">
+
+    <resultMap id="DispatchTaskDefinitionMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.DispatchTaskDefinitionPo">
+        <id property="definitionId" column="definition_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="sourceSystem" column="source_system" />
+        <result property="taskType" column="task_type" />
+        <result property="displayName" column="display_name" />
+        <result property="description" column="description" />
+        <result property="domain" column="domain" />
+        <result property="riskLevel" column="risk_level" />
+        <result property="defaultSeverity" column="default_severity" />
+        <result property="ownerTeam" column="owner_team" />
+        <result property="status" column="status" />
+        <result property="version" column="version" />
+        <result property="effectiveFrom" column="effective_from" />
+        <result property="retiredAt" column="retired_at" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+
+
+    <resultMap id="DispatchEventTaskMappingMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.DispatchEventTaskMappingPo">
+        <id property="mappingId" column="mapping_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="sourceSystem" column="source_system" />
+        <result property="objectType" column="object_type" />
+        <result property="eventType" column="event_type" />
+        <result property="errorCode" column="error_code" />
+        <result property="messagePattern" column="message_pattern" />
+        <result property="taskType" column="task_type" />
+        <result property="capabilityCode" column="capability_code" />
+        <result property="priority" column="priority" />
+        <result property="active" column="is_active" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="AgentAssignmentProfileMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentAssignmentProfilePo">
+        <id property="profileId" column="profile_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="profileCode" column="profile_code" />
+        <result property="profileName" column="profile_name" />
+        <result property="agentType" column="agent_type" />
+        <result property="taskDefinitionId" column="task_definition_id" />
+        <result property="sourceSystem" column="source_system" />
+        <result property="taskType" column="task_type" />
+        <result property="description" column="description" />
+        <result property="allowedTaskTypesJson" column="allowed_task_types_json" />
+        <result property="allowedIssueProvidersJson" column="allowed_issue_providers_json" />
+        <result property="requiredRuntimeFeaturesJson" column="required_runtime_features_json" />
+        <result property="toolPolicy" column="tool_policy" />
+        <result property="riskLevelLimit" column="risk_level_limit" />
+        <result property="requiresCertification" column="requires_certification" />
+        <result property="requiresHumanApproval" column="requires_human_approval" />
+        <result property="active" column="is_active" />
+        <result property="policyVersion" column="policy_version" />
+        <result property="effectiveAt" column="effective_at" />
+        <result property="expiresAt" column="expires_at" />
+        <result property="renewalRequiredBeforeDays" column="renewal_required_before_days" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+
+
+    <resultMap id="AgentAssignmentProfilePolicyBindingMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentAssignmentProfilePolicyBindingPo">
+        <id property="bindingId" column="binding_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="profileCode" column="profile_code" />
+        <result property="policyCode" column="policy_code" />
+        <result property="policyName" column="policy_name" />
+        <result property="bindingMode" column="binding_mode" />
+        <result property="required" column="is_required" />
+        <result property="active" column="is_active" />
+        <result property="priority" column="priority" />
+        <result property="conditionExpr" column="condition_expr" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="AgentQualificationMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentQualificationPo">
+        <id property="qualificationId" column="qualification_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="agentId" column="agent_id" />
+        <result property="profileCode" column="profile_code" />
+        <result property="qualificationStatus" column="qualification_status" />
+        <result property="evidenceType" column="evidence_type" />
+        <result property="evidenceRef" column="evidence_ref" />
+        <result property="approvedBy" column="approved_by" />
+        <result property="approvedAt" column="approved_at" />
+        <result property="expiresAt" column="expires_at" />
+        <result property="grantedPolicyVersion" column="granted_policy_version" />
+        <result property="lastRenewedAt" column="last_renewed_at" />
+        <result property="renewalDueAt" column="renewal_due_at" />
+        <result property="renewalStatus" column="renewal_status" />
+        <result property="reason" column="reason" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+
+
+
+    <resultMap id="AgentCapabilityCatalogMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentCapabilityCatalogPo">
+        <id property="capabilityCode" column="capability_code" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="capabilityId" column="capability_id" />
+        <result property="capabilityName" column="capability_name" />
+        <result property="category" column="category" />
+        <result property="capabilityType" column="capability_type" />
+        <result property="domain" column="domain" />
+        <result property="resourceType" column="resource_type" />
+        <result property="operation" column="operation" />
+        <result property="dataClass" column="data_class" />
+        <result property="serviceLevel" column="service_level" />
+        <result property="legacyTaskCoupling" column="legacy_task_coupling" />
+        <result property="migrationStatus" column="migration_status" />
+        <result property="description" column="description" />
+        <result property="taskDefinitionId" column="task_definition_id" />
+        <result property="sourceSystem" column="source_system" />
+        <result property="taskType" column="task_type" />
+        <result property="riskLevel" column="risk_level" />
+        <result property="status" column="status" />
+        <result property="version" column="version" />
+        <result property="ownerTeam" column="owner_team" />
+        <result property="requiresApproval" column="requires_approval" />
+        <result property="requiresCertification" column="requires_certification" />
+        <result property="requiresRuntimeProbe" column="requires_runtime_probe" />
+        <result property="dispatchEligible" column="is_dispatch_eligible" />
+        <result property="effectiveFrom" column="effective_from" />
+        <result property="retiredAt" column="retired_at" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="AssignmentProfileCapabilityBindingMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AssignmentProfileCapabilityBindingPo">
+        <id property="bindingId" column="binding_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="profileCode" column="profile_code" />
+        <result property="capabilityCode" column="capability_code" />
+        <result property="capabilityName" column="capability_name" />
+        <result property="bindingMode" column="binding_mode" />
+        <result property="required" column="is_required" />
+        <result property="active" column="is_active" />
+        <result property="priority" column="priority" />
+        <result property="approvalStatus" column="approval_status" />
+        <result property="conditionExpr" column="condition_expr" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="AgentCapabilityAssignmentMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentCapabilityAssignmentPo">
+        <id property="assignmentId" column="assignment_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="agentId" column="agent_id" />
+        <result property="capabilityCode" column="capability_code" />
+        <result property="capabilityName" column="capability_name" />
+        <result property="status" column="status" />
+        <result property="source" column="source" />
+        <result property="requestedBy" column="requested_by" />
+        <result property="requestedAt" column="requested_at" />
+        <result property="approvedBy" column="approved_by" />
+        <result property="approvedAt" column="approved_at" />
+        <result property="revokedBy" column="revoked_by" />
+        <result property="revokedAt" column="revoked_at" />
+        <result property="expiresAt" column="expires_at" />
+        <result property="evidenceRef" column="evidence_ref" />
+        <result property="reason" column="reason" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+
+
+
+    <resultMap id="RuntimeResourceMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.RuntimeResourcePo">
+        <id property="runtimeId" column="runtime_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="runtimeCode" column="runtime_code" />
+        <result property="runtimeName" column="runtime_name" />
+        <result property="runtimeType" column="runtime_type" />
+        <result property="connectorType" column="connector_type" />
+        <result property="executionHost" column="execution_host" />
+        <result property="environment" column="environment" />
+        <result property="region" column="region" />
+        <result property="zone" column="zone" />
+        <result property="trustStatus" column="trust_status" />
+        <result property="status" column="status" />
+        <result property="capacityLimit" column="capacity_limit" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="AgentRuntimeBindingMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentRuntimeBindingPo">
+        <id property="bindingId" column="binding_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="agentId" column="agent_id" />
+        <result property="runtimeId" column="runtime_id" />
+        <result property="runtimeCode" column="runtime_code" />
+        <result property="bindingStatus" column="binding_status" />
+        <result property="verifiedBy" column="verified_by" />
+        <result property="verifiedAt" column="verified_at" />
+        <result property="approvedBy" column="approved_by" />
+        <result property="approvedAt" column="approved_at" />
+        <result property="effectiveFrom" column="effective_from" />
+        <result property="expiresAt" column="expires_at" />
+        <result property="capacityLimit" column="capacity_limit" />
+        <result property="region" column="region" />
+        <result property="zone" column="zone" />
+        <result property="dataScope" column="data_scope" />
+        <result property="riskLimit" column="risk_limit" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="RuntimeFeatureCatalogMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.RuntimeFeatureCatalogPo">
+        <id property="featureCode" column="feature_code" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="featureId" column="feature_id" />
+        <result property="featureName" column="feature_name" />
+        <result property="category" column="category" />
+        <result property="description" column="description" />
+        <result property="status" column="status" />
+        <result property="version" column="version" />
+        <result property="requiresProbe" column="requires_probe" />
+        <result property="requiresTrustApproval" column="requires_trust_approval" />
+        <result property="dispatchEligible" column="is_dispatch_eligible" />
+        <result property="ownerTeam" column="owner_team" />
+        <result property="effectiveFrom" column="effective_from" />
+        <result property="retiredAt" column="retired_at" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="AgentRuntimeFeatureObservationMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentRuntimeFeatureObservationPo">
+        <id property="observationId" column="observation_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="agentId" column="agent_id" />
+        <result property="runtimeId" column="runtime_id" />
+        <result property="bindingId" column="binding_id" />
+        <result property="featureCode" column="feature_code" />
+        <result property="featureName" column="feature_name" />
+        <result property="observedValue" column="observed_value" />
+        <result property="source" column="source" />
+        <result property="probeResult" column="probe_result" />
+        <result property="observedAt" column="observed_at" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="AgentRuntimeFeatureTrustMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentRuntimeFeatureTrustPo">
+        <id property="trustId" column="trust_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="agentId" column="agent_id" />
+        <result property="runtimeId" column="runtime_id" />
+        <result property="bindingId" column="binding_id" />
+        <result property="featureCode" column="feature_code" />
+        <result property="featureName" column="feature_name" />
+        <result property="trustStatus" column="trust_status" />
+        <result property="source" column="source" />
+        <result property="observedAt" column="observed_at" />
+        <result property="verifiedBy" column="verified_by" />
+        <result property="verifiedAt" column="verified_at" />
+        <result property="trustedBy" column="trusted_by" />
+        <result property="trustedAt" column="trusted_at" />
+        <result property="revokedBy" column="revoked_by" />
+        <result property="revokedAt" column="revoked_at" />
+        <result property="expiresAt" column="expires_at" />
+        <result property="evidenceRef" column="evidence_ref" />
+        <result property="reason" column="reason" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+
+
+
+
+    <resultMap id="DispatchPolicyMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.DispatchPolicyPo">
+        <id property="policyCode" column="policy_code" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="policyId" column="policy_id" />
+        <result property="policyName" column="policy_name" />
+        <result property="description" column="description" />
+        <result property="ownerTeam" column="owner_team" />
+        <result property="riskLevel" column="risk_level" />
+        <result property="status" column="status" />
+        <result property="version" column="version" />
+        <result property="effectiveFrom" column="effective_from" />
+        <result property="retiredAt" column="retired_at" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="DispatchPolicyScopeMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.DispatchPolicyScopePo">
+        <id property="scopeId" column="scope_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="policyCode" column="policy_code" />
+        <result property="sourceSystem" column="source_system" />
+        <result property="taskType" column="task_type" />
+        <result property="taskDefinitionId" column="task_definition_id" />
+        <result property="riskLevel" column="risk_level" />
+        <result property="priority" column="priority" />
+        <result property="conditionExpr" column="condition_expr" />
+        <result property="active" column="is_active" />
+        <result property="priorityOrder" column="priority_order" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="DispatchPolicyRequiredCapabilityMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.DispatchPolicyRequiredCapabilityPo">
+        <id property="ruleId" column="rule_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="policyCode" column="policy_code" />
+        <result property="capabilityCode" column="capability_code" />
+        <result property="capabilityName" column="capability_name" />
+        <result property="requiredMode" column="required_mode" />
+        <result property="minVersion" column="min_version" />
+        <result property="conditionExpr" column="condition_expr" />
+        <result property="blocking" column="is_blocking" />
+        <result property="priority" column="priority" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="DispatchPolicyRequiredRuntimeFeatureMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.DispatchPolicyRequiredRuntimeFeaturePo">
+        <id property="ruleId" column="rule_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="policyCode" column="policy_code" />
+        <result property="featureCode" column="feature_code" />
+        <result property="featureName" column="feature_name" />
+        <result property="trustStatus" column="trust_status" />
+        <result property="conditionExpr" column="condition_expr" />
+        <result property="blocking" column="is_blocking" />
+        <result property="priority" column="priority" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="DispatchPolicyQualityRuleMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.DispatchPolicyQualityRulePo">
+        <id property="ruleId" column="rule_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="policyCode" column="policy_code" />
+        <result property="metricName" column="metric_name" />
+        <result property="operator" column="operator" />
+        <result property="thresholdValue" column="threshold_value" />
+        <result property="metricWindow" column="metric_window" />
+        <result property="blocking" column="is_blocking" />
+        <result property="scoreWeight" column="score_weight" />
+        <result property="conditionExpr" column="condition_expr" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <resultMap id="DispatchPolicyScoringRuleMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.DispatchPolicyScoringRulePo">
+        <id property="ruleId" column="rule_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="policyCode" column="policy_code" />
+        <result property="factorName" column="factor_name" />
+        <result property="weight" column="weight" />
+        <result property="direction" column="direction" />
+        <result property="conditionExpr" column="condition_expr" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+
+<resultMap id="AgentQualityMetricsWindowMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentQualityMetricsWindowPo">
+    <id property="metricId" column="metric_id" />
+    <result property="tenantId" column="tenant_id" />
+    <result property="agentId" column="agent_id" />
+    <result property="runtimeId" column="runtime_id" />
+    <result property="bindingId" column="binding_id" />
+    <result property="supplyProfileId" column="supply_profile_id" />
+    <result property="profileCode" column="profile_code" />
+    <result property="metricWindow" column="metric_window" />
+    <result property="windowStart" column="window_start" />
+    <result property="windowEnd" column="window_end" />
+    <result property="successRate" column="success_rate" />
+    <result property="failureRate" column="failure_rate" />
+    <result property="timeoutRate" column="timeout_rate" />
+    <result property="slaBreachRate" column="sla_breach_rate" />
+    <result property="avgAckLatencyMs" column="avg_ack_latency_ms" />
+    <result property="avgCompletionLatencyMs" column="avg_completion_latency_ms" />
+    <result property="recentFailureCount" column="recent_failure_count" />
+    <result property="manualRating" column="manual_rating" />
+    <result property="qualityGrade" column="quality_grade" />
+    <result property="riskPenalty" column="risk_penalty" />
+    <result property="score" column="score" />
+    <result property="sampleSize" column="sample_size" />
+    <result property="calculatedAt" column="calculated_at" />
+    <result property="source" column="source" />
+    <result property="metadataJson" column="metadata_json" />
+    <result property="createdAt" column="created_at" />
+    <result property="updatedAt" column="updated_at" />
+</resultMap>
+
+<resultMap id="AgentQualityMetricsDailyMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.AgentQualityMetricsDailyPo" extends="AgentQualityMetricsWindowMap">
+    <result property="metricDate" column="metric_date" />
+</resultMap>
+
+<resultMap id="RuntimeQualityMetricsDailyMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.RuntimeQualityMetricsDailyPo" extends="AgentQualityMetricsWindowMap">
+    <result property="metricDate" column="metric_date" />
+</resultMap>
+
+<resultMap id="SupplyProfileQualitySnapshotMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.SupplyProfileQualitySnapshotPo" extends="AgentQualityMetricsWindowMap">
+    <id property="snapshotId" column="snapshot_id" />
+</resultMap>
+
+    <resultMap id="SupplyProfileMap" type="com.opensocket.aievent.database.persistence.agent.assignment.po.SupplyProfilePo">
+        <id property="supplyProfileId" column="supply_profile_id" />
+        <result property="tenantId" column="tenant_id" />
+        <result property="profileCode" column="profile_code" />
+        <result property="profileName" column="profile_name" />
+        <result property="agentId" column="agent_id" />
+        <result property="runtimeBindingId" column="runtime_binding_id" />
+        <result property="runtimeId" column="runtime_id" />
+        <result property="serviceRole" column="service_role" />
+        <result property="serviceLevel" column="service_level" />
+        <result property="qualityGrade" column="quality_grade" />
+        <result property="riskLimit" column="risk_limit" />
+        <result property="dataScope" column="data_scope" />
+        <result property="capacityPolicy" column="capacity_policy" />
+        <result property="status" column="status" />
+        <result property="effectiveFrom" column="effective_from" />
+        <result property="expiresAt" column="expires_at" />
+        <result property="capabilitySnapshotJson" column="capability_snapshot_json" />
+        <result property="runtimeFeatureSnapshotJson" column="runtime_feature_snapshot_json" />
+        <result property="qualitySnapshotJson" column="quality_snapshot_json" />
+        <result property="metadataJson" column="metadata_json" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="DispatchTaskDefinitionColumns">
+        tenant_id, definition_id, source_system, task_type, display_name, description, domain,
+        risk_level, default_severity, owner_team, status, version, effective_from, retired_at,
+        metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+
+
+    <sql id="EventTaskMappingColumns">
+        tenant_id, mapping_id, source_system, object_type, event_type, error_code, message_pattern,
+        task_type, capability_code, priority, is_active, metadata_json::text as metadata_json,
+        created_at, updated_at
+    </sql>
+
+    <sql id="ProfileColumns">
+        tenant_id, profile_id, profile_code, profile_name, agent_type, task_definition_id, source_system, task_type, description,
+        allowed_task_types_json::text as allowed_task_types_json,
+        allowed_issue_providers_json::text as allowed_issue_providers_json,
+        required_runtime_features_json::text as required_runtime_features_json,
+        tool_policy, risk_level_limit, requires_certification, requires_human_approval,
+        is_active, policy_version, effective_at, expires_at, renewal_required_before_days,
+        metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+
+
+
+
+    <sql id="CapabilityCatalogColumns">
+        tenant_id, capability_id, capability_code, capability_name, category, capability_type, domain, resource_type, operation,
+        data_class, service_level, legacy_task_coupling, migration_status, description, task_definition_id,
+        source_system, task_type, risk_level, status, version, owner_team, requires_approval,
+        requires_certification, requires_runtime_probe, is_dispatch_eligible, effective_from, retired_at,
+        metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="CapabilityBindingColumns">
+        tenant_id, binding_id, profile_code, capability_code, capability_name, binding_mode,
+        is_required, is_active, priority, approval_status, condition_expr, metadata_json::text as metadata_json,
+        created_at, updated_at
+    </sql>
+
+    <sql id="CapabilityAssignmentColumns">
+        tenant_id, assignment_id, agent_id, capability_code, capability_name, status, source,
+        requested_by, requested_at, approved_by, approved_at, revoked_by, revoked_at, expires_at,
+        evidence_ref, reason, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+
+
+
+
+
+
+
+    <sql id="DispatchPolicyColumns">
+        tenant_id, policy_id, policy_code, policy_name, description, owner_team, risk_level, status,
+        version, effective_from, retired_at, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="DispatchPolicyScopeColumns">
+        tenant_id, scope_id, policy_code, source_system, task_type, task_definition_id, risk_level,
+        priority, condition_expr, is_active, priority_order, metadata_json::text as metadata_json,
+        created_at, updated_at
+    </sql>
+
+    <sql id="DispatchPolicyRequiredCapabilityColumns">
+        tenant_id, rule_id, policy_code, capability_code, capability_name, required_mode, min_version,
+        condition_expr, is_blocking, priority, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="DispatchPolicyRequiredRuntimeFeatureColumns">
+        tenant_id, rule_id, policy_code, feature_code, feature_name, trust_status, condition_expr,
+        is_blocking, priority, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="DispatchPolicyQualityRuleColumns">
+        tenant_id, rule_id, policy_code, metric_name, operator, threshold_value, metric_window,
+        is_blocking, score_weight, condition_expr, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="DispatchPolicyScoringRuleColumns">
+        tenant_id, rule_id, policy_code, factor_name, weight, direction, condition_expr,
+        metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+
+<sql id="AgentQualityMetricsWindowColumns">
+    tenant_id, metric_id, agent_id, runtime_id, binding_id, supply_profile_id, null::varchar as profile_code,
+    metric_window, window_start, window_end, success_rate, failure_rate, timeout_rate, sla_breach_rate,
+    avg_ack_latency_ms, avg_completion_latency_ms, recent_failure_count, manual_rating,
+    quality_grade, risk_penalty, score, sample_size, calculated_at, source,
+    metadata_json::text as metadata_json, created_at, updated_at
+</sql>
+
+<sql id="AgentQualityMetricsDailyColumns">
+    tenant_id, metric_id, metric_date, agent_id, runtime_id, binding_id, supply_profile_id, null::varchar as profile_code,
+    'daily'::varchar as metric_window, null::timestamptz as window_start, metric_date::timestamptz as window_end,
+    success_rate, failure_rate, timeout_rate, sla_breach_rate,
+    avg_ack_latency_ms, avg_completion_latency_ms, recent_failure_count, manual_rating,
+    quality_grade, risk_penalty, score, sample_size, updated_at as calculated_at, 'DAILY'::varchar as source,
+    metadata_json::text as metadata_json, created_at, updated_at
+</sql>
+
+<sql id="RuntimeQualityMetricsDailyColumns">
+    tenant_id, metric_id, metric_date, null::varchar as agent_id, runtime_id, null::varchar as binding_id,
+    null::varchar as supply_profile_id, null::varchar as profile_code, 'daily'::varchar as metric_window,
+    null::timestamptz as window_start, metric_date::timestamptz as window_end,
+    success_rate, failure_rate, timeout_rate, sla_breach_rate,
+    avg_ack_latency_ms, avg_completion_latency_ms, recent_failure_count, null::numeric as manual_rating,
+    quality_grade, risk_penalty, score, sample_size, updated_at as calculated_at, 'RUNTIME_DAILY'::varchar as source,
+    metadata_json::text as metadata_json, created_at, updated_at
+</sql>
+
+<sql id="SupplyProfileQualitySnapshotColumns">
+    tenant_id, snapshot_id, snapshot_id as metric_id, supply_profile_id, profile_code, agent_id, runtime_id, binding_id,
+    metric_window, null::timestamptz as window_start, calculated_at as window_end,
+    success_rate, failure_rate, timeout_rate, sla_breach_rate,
+    avg_ack_latency_ms, avg_completion_latency_ms, recent_failure_count, manual_rating,
+    quality_grade, risk_penalty, score, sample_size, calculated_at, source,
+    metadata_json::text as metadata_json, created_at, updated_at
+</sql>
+
+    <sql id="SupplyProfileColumns">
+        tenant_id, supply_profile_id, profile_code, profile_name, agent_id, runtime_binding_id, runtime_id,
+        service_role, service_level, quality_grade, risk_limit, data_scope, capacity_policy, status,
+        effective_from, expires_at, capability_snapshot_json::text as capability_snapshot_json,
+        runtime_feature_snapshot_json::text as runtime_feature_snapshot_json, quality_snapshot_json::text as quality_snapshot_json,
+        metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+
+    <sql id="RuntimeResourceColumns">
+        tenant_id, runtime_id, runtime_code, runtime_name, runtime_type, connector_type, execution_host,
+        environment, region, zone, trust_status, status, capacity_limit, metadata_json::text as metadata_json,
+        created_at, updated_at
+    </sql>
+
+    <sql id="AgentRuntimeBindingColumns">
+        tenant_id, binding_id, agent_id, runtime_id, runtime_code, binding_status, verified_by, verified_at,
+        approved_by, approved_at, effective_from, expires_at, capacity_limit, region, zone, data_scope,
+        risk_limit, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="RuntimeFeatureCatalogColumns">
+        tenant_id, feature_id, feature_code, feature_name, category, description, status, version,
+        requires_probe, requires_trust_approval, is_dispatch_eligible, owner_team, effective_from, retired_at,
+        metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="RuntimeFeatureObservationColumns">
+        tenant_id, observation_id, agent_id, feature_code, feature_name, observed_value, source, probe_result,
+        observed_at, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="RuntimeFeatureTrustColumns">
+        tenant_id, trust_id, agent_id, runtime_id, binding_id, feature_code, feature_name, trust_status, source, observed_at,
+        verified_by, verified_at, trusted_by, trusted_at, revoked_by, revoked_at, expires_at,
+        evidence_ref, reason, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+    <sql id="PolicyBindingColumns">
+        tenant_id, binding_id, profile_code, policy_code, policy_name, binding_mode,
+        is_required, is_active, priority, condition_expr, metadata_json::text as metadata_json,
+        created_at, updated_at
+    </sql>
+
+    <sql id="QualificationColumns">
+        tenant_id, qualification_id, agent_id, profile_code, qualification_status,
+        evidence_type, evidence_ref, approved_by, approved_at, expires_at,
+        granted_policy_version, last_renewed_at, renewal_due_at, renewal_status,
+        reason, metadata_json::text as metadata_json, created_at, updated_at
+    </sql>
+
+
+    <insert id="upsertTaskDefinition">
+        insert into dispatch_task_definitions (
+            tenant_id, definition_id, source_system, task_type, display_name, description, domain,
+            risk_level, default_severity, owner_team, status, version, effective_from, retired_at, metadata_json, created_at, updated_at
+        ) values (
+            #{definition.tenantId}, #{definition.definitionId}, #{definition.sourceSystem}, #{definition.taskType}, #{definition.displayName}, #{definition.description}, #{definition.domain},
+            #{definition.riskLevel}, #{definition.defaultSeverity}, #{definition.ownerTeam}, #{definition.status}, #{definition.version}, #{definition.effectiveFrom}, #{definition.retiredAt}, coalesce(cast(#{definition.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{definition.createdAt}, now()), coalesce(#{definition.updatedAt}, now())
+        )
+        on conflict (definition_id) do update set
+            source_system = excluded.source_system,
+            task_type = excluded.task_type,
+            display_name = excluded.display_name,
+            description = excluded.description,
+            domain = excluded.domain,
+            risk_level = excluded.risk_level,
+            default_severity = excluded.default_severity,
+            owner_team = excluded.owner_team,
+            status = excluded.status,
+            version = excluded.version,
+            effective_from = excluded.effective_from,
+            retired_at = excluded.retired_at,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findTaskDefinitionById" resultMap="DispatchTaskDefinitionMap">
+        select <include refid="DispatchTaskDefinitionColumns" />
+        from dispatch_task_definitions
+        where tenant_id = #{tenantId} and definition_id = #{definitionId}
+    </select>
+
+    <select id="findTaskDefinitionBySourceAndTask" resultMap="DispatchTaskDefinitionMap">
+        select <include refid="DispatchTaskDefinitionColumns" />
+        from dispatch_task_definitions
+        where tenant_id = #{tenantId}
+          and upper(source_system) = upper(#{sourceSystem})
+          and upper(task_type) = upper(#{taskType})
+        order by case status when 'ACTIVE' then 1 when 'NEEDS_REVIEW' then 2 when 'DRAFT' then 3 else 4 end, updated_at desc
+        limit 1
+    </select>
+
+    <select id="searchTaskDefinitions" resultMap="DispatchTaskDefinitionMap">
+        select <include refid="DispatchTaskDefinitionColumns" />
+        from dispatch_task_definitions
+        where tenant_id = #{tenantId}
+        <if test="status != null and status != ''">
+          and status = #{status}
+        </if>
+        order by source_system asc, task_type asc
+        limit #{limit}
+    </select>
+
+
+
+    <insert id="upsertEventTaskMapping">
+        insert into dispatch_event_task_mappings (
+            tenant_id, mapping_id, source_system, object_type, event_type, error_code, message_pattern,
+            task_type, capability_code, priority, is_active, metadata_json, created_at, updated_at
+        ) values (
+            #{mapping.tenantId}, #{mapping.mappingId}, #{mapping.sourceSystem}, #{mapping.objectType}, #{mapping.eventType}, #{mapping.errorCode}, #{mapping.messagePattern},
+            #{mapping.taskType}, #{mapping.capabilityCode}, #{mapping.priority}, #{mapping.active}, coalesce(cast(#{mapping.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{mapping.createdAt}, now()), coalesce(#{mapping.updatedAt}, now())
+        )
+        on conflict (tenant_id, mapping_id) do update set
+            source_system = excluded.source_system,
+            object_type = excluded.object_type,
+            event_type = excluded.event_type,
+            error_code = excluded.error_code,
+            message_pattern = excluded.message_pattern,
+            task_type = excluded.task_type,
+            capability_code = excluded.capability_code,
+            priority = excluded.priority,
+            is_active = excluded.is_active,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findEventTaskMappingById" resultMap="DispatchEventTaskMappingMap">
+        select <include refid="EventTaskMappingColumns" />
+        from dispatch_event_task_mappings
+        where tenant_id = #{tenantId} and mapping_id = #{mappingId}
+    </select>
+
+    <select id="findBestEventTaskMapping" resultMap="DispatchEventTaskMappingMap">
+        select <include refid="EventTaskMappingColumns" />
+        from dispatch_event_task_mappings
+        where tenant_id = #{tenantId}
+          and is_active = true
+          and upper(source_system) = upper(#{sourceSystem})
+          and (object_type is null or object_type = '' or object_type = '*' or object_type = 'ANY' or upper(object_type) = upper(coalesce(#{objectType}, '')))
+          and (event_type is null or event_type = '' or event_type = '*' or event_type = 'ANY' or upper(event_type) = upper(coalesce(#{eventType}, '')))
+          and (error_code is null or error_code = '' or error_code = '*' or error_code = 'ANY' or upper(error_code) = upper(coalesce(#{errorCode}, '')))
+          and (message_pattern is null or message_pattern = '' or message_pattern = '*' or upper(coalesce(#{message}, '')) like '%' || upper(message_pattern) || '%')
+        order by priority asc,
+                 ((case when object_type is null or object_type = '' or object_type in ('*','ANY') then 0 else 4 end)
+                + (case when event_type is null or event_type = '' or event_type in ('*','ANY') then 0 else 4 end)
+                + (case when error_code is null or error_code = '' or error_code in ('*','ANY') then 0 else 4 end)
+                + (case when message_pattern is null or message_pattern = '' or message_pattern = '*' then 0 else 1 end)) desc,
+                 updated_at desc
+        limit 1
+    </select>
+
+    <select id="searchEventTaskMappings" resultMap="DispatchEventTaskMappingMap">
+        select <include refid="EventTaskMappingColumns" />
+        from dispatch_event_task_mappings
+        where tenant_id = #{tenantId}
+        <if test="sourceSystem != null and sourceSystem != ''">
+          and upper(source_system) = upper(#{sourceSystem})
+        </if>
+        <if test="active != null">
+          and is_active = #{active}
+        </if>
+        order by source_system asc, priority asc, updated_at desc
+        limit #{limit}
+    </select>
+
+    <insert id="upsertProfile">
+        insert into agent_assignment_profiles (
+            tenant_id, profile_id, profile_code, profile_name, agent_type, task_definition_id, source_system, task_type, description,
+            allowed_task_types_json, allowed_issue_providers_json, required_runtime_features_json,
+            tool_policy, risk_level_limit, requires_certification, requires_human_approval,
+            is_active, policy_version, effective_at, expires_at, renewal_required_before_days, metadata_json, created_at, updated_at
+        ) values (
+            #{profile.tenantId}, #{profile.profileId}, #{profile.profileCode}, #{profile.profileName}, #{profile.agentType}, #{profile.taskDefinitionId}, #{profile.sourceSystem}, #{profile.taskType}, #{profile.description},
+            cast(#{profile.allowedTaskTypesJson} as jsonb), cast(#{profile.allowedIssueProvidersJson} as jsonb), cast(#{profile.requiredRuntimeFeaturesJson} as jsonb),
+            #{profile.toolPolicy}, #{profile.riskLevelLimit}, #{profile.requiresCertification}, #{profile.requiresHumanApproval},
+            #{profile.active}, #{profile.policyVersion}, #{profile.effectiveAt}, #{profile.expiresAt}, #{profile.renewalRequiredBeforeDays}, coalesce(cast(#{profile.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{profile.createdAt}, now()), coalesce(#{profile.updatedAt}, now())
+        )
+        on conflict (tenant_id, profile_code) do update set
+            profile_name = excluded.profile_name,
+            agent_type = excluded.agent_type,
+            task_definition_id = excluded.task_definition_id,
+            source_system = excluded.source_system,
+            task_type = excluded.task_type,
+            description = excluded.description,
+            allowed_task_types_json = excluded.allowed_task_types_json,
+            allowed_issue_providers_json = excluded.allowed_issue_providers_json,
+            required_runtime_features_json = excluded.required_runtime_features_json,
+            tool_policy = excluded.tool_policy,
+            risk_level_limit = excluded.risk_level_limit,
+            requires_certification = excluded.requires_certification,
+            requires_human_approval = excluded.requires_human_approval,
+            is_active = excluded.is_active,
+            policy_version = excluded.policy_version,
+            effective_at = excluded.effective_at,
+            expires_at = excluded.expires_at,
+            renewal_required_before_days = excluded.renewal_required_before_days,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findProfileByCode" resultMap="AgentAssignmentProfileMap">
+        select <include refid="ProfileColumns" />
+        from agent_assignment_profiles
+        where tenant_id = #{tenantId} and profile_code = #{profileCode}
+    </select>
+
+    <select id="searchProfiles" resultMap="AgentAssignmentProfileMap">
+        select <include refid="ProfileColumns" />
+        from agent_assignment_profiles
+        where tenant_id = #{tenantId}
+        <if test="agentType != null and agentType != ''">
+          and (agent_type = #{agentType} or agent_type = 'ANY')
+        </if>
+        <if test="active != null">
+          and is_active = #{active}
+        </if>
+        order by profile_code asc
+        limit #{limit}
+    </select>
+
+
+
+    <delete id="deleteProfile">
+        delete from agent_assignment_profiles
+        where tenant_id = #{tenantId} and profile_code = #{profileCode}
+    </delete>
+
+
+
+    <insert id="upsertCapabilityCatalog">
+        insert into agent_capability_catalog (
+            tenant_id, capability_id, capability_code, capability_name, category, capability_type, domain, resource_type, operation,
+            data_class, service_level, legacy_task_coupling, migration_status, description, task_definition_id,
+            source_system, task_type, risk_level, status, version, owner_team, requires_approval,
+            requires_certification, requires_runtime_probe, is_dispatch_eligible, effective_from, retired_at,
+            metadata_json, created_at, updated_at
+        ) values (
+            #{capability.tenantId}, #{capability.capabilityId}, #{capability.capabilityCode}, #{capability.capabilityName}, #{capability.category}, #{capability.capabilityType}, #{capability.domain}, #{capability.resourceType}, #{capability.operation},
+            #{capability.dataClass}, #{capability.serviceLevel}, #{capability.legacyTaskCoupling}, #{capability.migrationStatus}, #{capability.description}, #{capability.taskDefinitionId},
+            #{capability.sourceSystem}, #{capability.taskType}, #{capability.riskLevel}, #{capability.status}, #{capability.version}, #{capability.ownerTeam}, #{capability.requiresApproval},
+            #{capability.requiresCertification}, #{capability.requiresRuntimeProbe}, #{capability.dispatchEligible}, #{capability.effectiveFrom}, #{capability.retiredAt},
+            coalesce(cast(#{capability.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{capability.createdAt}, now()), coalesce(#{capability.updatedAt}, now())
+        )
+        on conflict (tenant_id, capability_code) do update set
+            capability_name = excluded.capability_name,
+            category = excluded.category,
+            capability_type = excluded.capability_type,
+            domain = excluded.domain,
+            resource_type = excluded.resource_type,
+            operation = excluded.operation,
+            data_class = excluded.data_class,
+            service_level = excluded.service_level,
+            legacy_task_coupling = excluded.legacy_task_coupling,
+            migration_status = excluded.migration_status,
+            description = excluded.description,
+            task_definition_id = excluded.task_definition_id,
+            source_system = excluded.source_system,
+            task_type = excluded.task_type,
+            risk_level = excluded.risk_level,
+            status = excluded.status,
+            version = excluded.version,
+            owner_team = excluded.owner_team,
+            requires_approval = excluded.requires_approval,
+            requires_certification = excluded.requires_certification,
+            requires_runtime_probe = excluded.requires_runtime_probe,
+            is_dispatch_eligible = excluded.is_dispatch_eligible,
+            effective_from = excluded.effective_from,
+            retired_at = excluded.retired_at,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findCapabilityByCode" resultMap="AgentCapabilityCatalogMap">
+        select <include refid="CapabilityCatalogColumns" />
+        from agent_capability_catalog
+        where tenant_id = #{tenantId} and capability_code = #{capabilityCode}
+    </select>
+
+    <select id="searchCapabilities" resultMap="AgentCapabilityCatalogMap">
+        select <include refid="CapabilityCatalogColumns" />
+        from agent_capability_catalog
+        where tenant_id = #{tenantId}
+        <if test="status != null and status != ''">
+          and status = #{status}
+        </if>
+        <if test="taskDefinitionId != null and taskDefinitionId != ''">
+          and task_definition_id = #{taskDefinitionId}
+        </if>
+        order by capability_code asc
+        limit #{limit}
+    </select>
+
+    <insert id="upsertCapabilityBinding">
+        insert into assignment_profile_capability_bindings (
+            tenant_id, binding_id, profile_code, capability_code, capability_name, binding_mode,
+            is_required, is_active, priority, approval_status, condition_expr, metadata_json, created_at, updated_at
+        ) values (
+            #{binding.tenantId}, #{binding.bindingId}, #{binding.profileCode}, #{binding.capabilityCode}, #{binding.capabilityName}, #{binding.bindingMode},
+            #{binding.required}, #{binding.active}, #{binding.priority}, #{binding.approvalStatus}, #{binding.conditionExpr}, coalesce(coalesce(coalesce(cast(#{binding.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{binding.createdAt}, now()), coalesce(#{binding.updatedAt}, now())
+        )
+        on conflict (tenant_id, profile_code, capability_code) do update set
+            capability_name = excluded.capability_name,
+            binding_mode = excluded.binding_mode,
+            is_required = excluded.is_required,
+            is_active = excluded.is_active,
+            priority = excluded.priority,
+            approval_status = excluded.approval_status,
+            condition_expr = excluded.condition_expr,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findCapabilityBinding" resultMap="AssignmentProfileCapabilityBindingMap">
+        select <include refid="CapabilityBindingColumns" />
+        from assignment_profile_capability_bindings
+        where tenant_id = #{tenantId} and profile_code = #{profileCode} and capability_code = #{capabilityCode}
+    </select>
+
+    <select id="findCapabilityBindings" resultMap="AssignmentProfileCapabilityBindingMap">
+        select <include refid="CapabilityBindingColumns" />
+        from assignment_profile_capability_bindings
+        where tenant_id = #{tenantId} and profile_code = #{profileCode}
+        <if test="active != null">
+          and is_active = #{active}
+        </if>
+        order by priority desc, capability_code asc
+    </select>
+
+    <delete id="deleteCapabilityBinding">
+        delete from assignment_profile_capability_bindings
+        where tenant_id = #{tenantId} and profile_code = #{profileCode} and capability_code = #{capabilityCode}
+    </delete>
+
+
+
+
+
+
+
+
+    <insert id="upsertDispatchPolicy">
+        insert into dispatch_policies (
+            tenant_id, policy_id, policy_code, policy_name, description, owner_team, risk_level, status,
+            version, effective_from, retired_at, metadata_json, created_at, updated_at
+        ) values (
+            #{policy.tenantId}, #{policy.policyId}, #{policy.policyCode}, #{policy.policyName}, #{policy.description}, #{policy.ownerTeam}, #{policy.riskLevel}, #{policy.status},
+            #{policy.version}, #{policy.effectiveFrom}, #{policy.retiredAt}, coalesce(cast(#{policy.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{policy.createdAt}, now()), coalesce(#{policy.updatedAt}, now())
+        )
+        on conflict (tenant_id, policy_code) do update set
+            policy_name = excluded.policy_name,
+            description = excluded.description,
+            owner_team = excluded.owner_team,
+            risk_level = excluded.risk_level,
+            status = excluded.status,
+            version = excluded.version,
+            effective_from = excluded.effective_from,
+            retired_at = excluded.retired_at,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findDispatchPolicyByCode" resultMap="DispatchPolicyMap">
+        select <include refid="DispatchPolicyColumns" />
+        from dispatch_policies
+        where tenant_id = #{tenantId} and policy_code = #{policyCode}
+    </select>
+
+    <select id="searchDispatchPolicies" resultMap="DispatchPolicyMap">
+        select <include refid="DispatchPolicyColumns" />
+        from dispatch_policies
+        where tenant_id = #{tenantId}
+        <if test="status != null and status != ''">
+          and status = #{status}
+        </if>
+        order by policy_code asc
+        limit #{limit}
+    </select>
+
+    <insert id="upsertDispatchPolicyScope">
+        insert into dispatch_policy_scopes (
+            tenant_id, scope_id, policy_code, source_system, task_type, task_definition_id, risk_level,
+            priority, condition_expr, is_active, priority_order, metadata_json, created_at, updated_at
+        ) values (
+            #{scope.tenantId}, #{scope.scopeId}, #{scope.policyCode}, #{scope.sourceSystem}, #{scope.taskType}, #{scope.taskDefinitionId}, #{scope.riskLevel},
+            #{scope.priority}, #{scope.conditionExpr}, #{scope.active}, #{scope.priorityOrder}, coalesce(cast(#{scope.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{scope.createdAt}, now()), coalesce(#{scope.updatedAt}, now())
+        )
+        on conflict (tenant_id, scope_id) do update set
+            policy_code = excluded.policy_code, source_system = excluded.source_system, task_type = excluded.task_type,
+            task_definition_id = excluded.task_definition_id, risk_level = excluded.risk_level, priority = excluded.priority,
+            condition_expr = excluded.condition_expr, is_active = excluded.is_active, priority_order = excluded.priority_order,
+            metadata_json = excluded.metadata_json, updated_at = now()
+    </insert>
+
+    <select id="findDispatchPolicyScopes" resultMap="DispatchPolicyScopeMap">
+        select <include refid="DispatchPolicyScopeColumns" />
+        from dispatch_policy_scopes
+        where tenant_id = #{tenantId} and policy_code = #{policyCode}
+        <if test="active != null">
+          and is_active = #{active}
+        </if>
+        order by priority_order desc, source_system asc, task_type asc
+    </select>
+
+    <insert id="upsertDispatchPolicyRequiredCapability">
+        insert into dispatch_policy_required_capabilities (
+            tenant_id, rule_id, policy_code, capability_code, capability_name, required_mode, min_version,
+            condition_expr, is_blocking, priority, metadata_json, created_at, updated_at
+        ) values (
+            #{rule.tenantId}, #{rule.ruleId}, #{rule.policyCode}, #{rule.capabilityCode}, #{rule.capabilityName}, #{rule.requiredMode}, #{rule.minVersion},
+            #{rule.conditionExpr}, #{rule.blocking}, #{rule.priority}, coalesce(coalesce(coalesce(coalesce(cast(#{rule.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{rule.createdAt}, now()), coalesce(#{rule.updatedAt}, now())
+        )
+        on conflict (tenant_id, rule_id) do update set
+            policy_code = excluded.policy_code, capability_code = excluded.capability_code, capability_name = excluded.capability_name,
+            required_mode = excluded.required_mode, min_version = excluded.min_version, condition_expr = excluded.condition_expr,
+            is_blocking = excluded.is_blocking, priority = excluded.priority, metadata_json = excluded.metadata_json, updated_at = now()
+    </insert>
+
+    <select id="findDispatchPolicyRequiredCapabilities" resultMap="DispatchPolicyRequiredCapabilityMap">
+        select <include refid="DispatchPolicyRequiredCapabilityColumns" />
+        from dispatch_policy_required_capabilities
+        where tenant_id = #{tenantId} and policy_code = #{policyCode}
+        <if test="blocking != null">
+          and is_blocking = #{blocking}
+        </if>
+        order by priority desc, capability_code asc
+    </select>
+
+    <insert id="upsertDispatchPolicyRequiredRuntimeFeature">
+        insert into dispatch_policy_required_runtime_features (
+            tenant_id, rule_id, policy_code, feature_code, feature_name, trust_status,
+            condition_expr, is_blocking, priority, metadata_json, created_at, updated_at
+        ) values (
+            #{rule.tenantId}, #{rule.ruleId}, #{rule.policyCode}, #{rule.featureCode}, #{rule.featureName}, #{rule.trustStatus},
+            #{rule.conditionExpr}, #{rule.blocking}, #{rule.priority}, coalesce(coalesce(coalesce(coalesce(cast(#{rule.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{rule.createdAt}, now()), coalesce(#{rule.updatedAt}, now())
+        )
+        on conflict (tenant_id, rule_id) do update set
+            policy_code = excluded.policy_code, feature_code = excluded.feature_code, feature_name = excluded.feature_name,
+            trust_status = excluded.trust_status, condition_expr = excluded.condition_expr, is_blocking = excluded.is_blocking,
+            priority = excluded.priority, metadata_json = excluded.metadata_json, updated_at = now()
+    </insert>
+
+    <select id="findDispatchPolicyRequiredRuntimeFeatures" resultMap="DispatchPolicyRequiredRuntimeFeatureMap">
+        select <include refid="DispatchPolicyRequiredRuntimeFeatureColumns" />
+        from dispatch_policy_required_runtime_features
+        where tenant_id = #{tenantId} and policy_code = #{policyCode}
+        <if test="blocking != null">
+          and is_blocking = #{blocking}
+        </if>
+        order by priority desc, feature_code asc
+    </select>
+
+    <insert id="upsertDispatchPolicyQualityRule">
+        insert into dispatch_policy_quality_rules (
+            tenant_id, rule_id, policy_code, metric_name, operator, threshold_value, metric_window,
+            is_blocking, score_weight, condition_expr, metadata_json, created_at, updated_at
+        ) values (
+            #{rule.tenantId}, #{rule.ruleId}, #{rule.policyCode}, #{rule.metricName}, #{rule.operator}, #{rule.thresholdValue}, #{rule.metricWindow},
+            #{rule.blocking}, #{rule.scoreWeight}, #{rule.conditionExpr}, coalesce(coalesce(coalesce(coalesce(cast(#{rule.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{rule.createdAt}, now()), coalesce(#{rule.updatedAt}, now())
+        )
+        on conflict (tenant_id, rule_id) do update set
+            policy_code = excluded.policy_code, metric_name = excluded.metric_name, operator = excluded.operator,
+            threshold_value = excluded.threshold_value, metric_window = excluded.metric_window, is_blocking = excluded.is_blocking,
+            score_weight = excluded.score_weight, condition_expr = excluded.condition_expr, metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findDispatchPolicyQualityRules" resultMap="DispatchPolicyQualityRuleMap">
+        select <include refid="DispatchPolicyQualityRuleColumns" />
+        from dispatch_policy_quality_rules
+        where tenant_id = #{tenantId} and policy_code = #{policyCode}
+        <if test="blocking != null">
+          and is_blocking = #{blocking}
+        </if>
+        order by is_blocking desc, metric_name asc
+    </select>
+
+    <insert id="upsertDispatchPolicyScoringRule">
+        insert into dispatch_policy_scoring_rules (
+            tenant_id, rule_id, policy_code, factor_name, weight, direction, condition_expr,
+            metadata_json, created_at, updated_at
+        ) values (
+            #{rule.tenantId}, #{rule.ruleId}, #{rule.policyCode}, #{rule.factorName}, #{rule.weight}, #{rule.direction}, #{rule.conditionExpr},
+            coalesce(coalesce(coalesce(coalesce(cast(#{rule.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{rule.createdAt}, now()), coalesce(#{rule.updatedAt}, now())
+        )
+        on conflict (tenant_id, rule_id) do update set
+            policy_code = excluded.policy_code, factor_name = excluded.factor_name, weight = excluded.weight,
+            direction = excluded.direction, condition_expr = excluded.condition_expr, metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findDispatchPolicyScoringRules" resultMap="DispatchPolicyScoringRuleMap">
+        select <include refid="DispatchPolicyScoringRuleColumns" />
+        from dispatch_policy_scoring_rules
+        where tenant_id = #{tenantId} and policy_code = #{policyCode}
+        order by weight desc, factor_name asc
+    </select>
+
+
+    <insert id="upsertSupplyProfile">
+        insert into supply_profiles (
+            tenant_id, supply_profile_id, profile_code, profile_name, agent_id, runtime_binding_id, runtime_id,
+            service_role, service_level, quality_grade, risk_limit, data_scope, capacity_policy, status,
+            effective_from, expires_at, capability_snapshot_json, runtime_feature_snapshot_json, quality_snapshot_json,
+            metadata_json, created_at, updated_at
+        ) values (
+            #{profile.tenantId}, #{profile.supplyProfileId}, #{profile.profileCode}, #{profile.profileName}, #{profile.agentId}, #{profile.runtimeBindingId}, #{profile.runtimeId},
+            #{profile.serviceRole}, #{profile.serviceLevel}, #{profile.qualityGrade}, #{profile.riskLimit}, #{profile.dataScope}, #{profile.capacityPolicy}, #{profile.status},
+            #{profile.effectiveFrom}, #{profile.expiresAt}, coalesce(cast(#{profile.capabilitySnapshotJson} as jsonb), '{}'::jsonb), coalesce(cast(#{profile.runtimeFeatureSnapshotJson} as jsonb), '{}'::jsonb), coalesce(cast(#{profile.qualitySnapshotJson} as jsonb), '{}'::jsonb),
+            coalesce(cast(#{profile.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{profile.createdAt}, now()), coalesce(#{profile.updatedAt}, now())
+        )
+        on conflict (tenant_id, profile_code) do update set
+            profile_name = excluded.profile_name,
+            agent_id = excluded.agent_id,
+            runtime_binding_id = excluded.runtime_binding_id,
+            runtime_id = excluded.runtime_id,
+            service_role = excluded.service_role,
+            service_level = excluded.service_level,
+            quality_grade = excluded.quality_grade,
+            risk_limit = excluded.risk_limit,
+            data_scope = excluded.data_scope,
+            capacity_policy = excluded.capacity_policy,
+            status = excluded.status,
+            effective_from = excluded.effective_from,
+            expires_at = excluded.expires_at,
+            capability_snapshot_json = excluded.capability_snapshot_json,
+            runtime_feature_snapshot_json = excluded.runtime_feature_snapshot_json,
+            quality_snapshot_json = excluded.quality_snapshot_json,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findSupplyProfileById" resultMap="SupplyProfileMap">
+        select <include refid="SupplyProfileColumns" />
+        from supply_profiles
+        where tenant_id = #{tenantId} and supply_profile_id = #{supplyProfileId}
+    </select>
+
+    <select id="findSupplyProfileByCode" resultMap="SupplyProfileMap">
+        select <include refid="SupplyProfileColumns" />
+        from supply_profiles
+        where tenant_id = #{tenantId} and profile_code = #{profileCode}
+    </select>
+
+    <select id="searchSupplyProfiles" resultMap="SupplyProfileMap">
+        select <include refid="SupplyProfileColumns" />
+        from supply_profiles
+        where tenant_id = #{tenantId}
+        <if test="agentId != null and agentId != ''">
+          and agent_id = #{agentId}
+        </if>
+        <if test="runtimeBindingId != null and runtimeBindingId != ''">
+          and runtime_binding_id = #{runtimeBindingId}
+        </if>
+        <if test="status != null and status != ''">
+          and status = #{status}
+        </if>
+        order by profile_code asc
+        limit #{limit}
+    </select>
+
+
+    <insert id="upsertRuntimeResource">
+        insert into runtime_resources (
+            tenant_id, runtime_id, runtime_code, runtime_name, runtime_type, connector_type, execution_host,
+            environment, region, zone, trust_status, status, capacity_limit, metadata_json, created_at, updated_at
+        ) values (
+            #{resource.tenantId}, #{resource.runtimeId}, #{resource.runtimeCode}, #{resource.runtimeName}, #{resource.runtimeType}, #{resource.connectorType}, #{resource.executionHost},
+            #{resource.environment}, #{resource.region}, #{resource.zone}, #{resource.trustStatus}, #{resource.status}, #{resource.capacityLimit}, coalesce(cast(#{resource.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{resource.createdAt}, now()), coalesce(#{resource.updatedAt}, now())
+        )
+        on conflict (tenant_id, runtime_id) do update set
+            runtime_code = excluded.runtime_code,
+            runtime_name = excluded.runtime_name,
+            runtime_type = excluded.runtime_type,
+            connector_type = excluded.connector_type,
+            execution_host = excluded.execution_host,
+            environment = excluded.environment,
+            region = excluded.region,
+            zone = excluded.zone,
+            trust_status = excluded.trust_status,
+            status = excluded.status,
+            capacity_limit = excluded.capacity_limit,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findRuntimeResourceById" resultMap="RuntimeResourceMap">
+        select <include refid="RuntimeResourceColumns" />
+        from runtime_resources
+        where tenant_id = #{tenantId} and runtime_id = #{runtimeId}
+    </select>
+
+    <select id="findRuntimeResourceByCode" resultMap="RuntimeResourceMap">
+        select <include refid="RuntimeResourceColumns" />
+        from runtime_resources
+        where tenant_id = #{tenantId} and runtime_code = #{runtimeCode}
+        order by updated_at desc
+        limit 1
+    </select>
+
+    <select id="searchRuntimeResources" resultMap="RuntimeResourceMap">
+        select <include refid="RuntimeResourceColumns" />
+        from runtime_resources
+        where tenant_id = #{tenantId}
+        <if test="status != null and status != ''">
+          and status = #{status}
+        </if>
+        <if test="trustStatus != null and trustStatus != ''">
+          and trust_status = #{trustStatus}
+        </if>
+        order by runtime_code asc
+        limit #{limit}
+    </select>
+
+    <update id="updateActiveRuntimeBindingByTenantAndAgent">
+        update agent_runtime_bindings
+        set
+            runtime_id = #{binding.runtimeId},
+            runtime_code = #{binding.runtimeCode},
+            binding_status = #{binding.bindingStatus},
+            verified_by = #{binding.verifiedBy},
+            verified_at = #{binding.verifiedAt},
+            approved_by = #{binding.approvedBy},
+            approved_at = #{binding.approvedAt},
+            effective_from = #{binding.effectiveFrom},
+            expires_at = #{binding.expiresAt},
+            capacity_limit = #{binding.capacityLimit},
+            region = #{binding.region},
+            zone = #{binding.zone},
+            data_scope = #{binding.dataScope},
+            risk_limit = #{binding.riskLimit},
+            metadata_json = coalesce(coalesce(coalesce(cast(#{binding.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb),
+            updated_at = coalesce(#{binding.updatedAt}, now())
+        where tenant_id = #{binding.tenantId}
+          and agent_id = #{binding.agentId}
+          and binding_status = 'ACTIVE'
+    </update>
+
+    <insert id="upsertRuntimeBinding">
+        insert into agent_runtime_bindings (
+            tenant_id, binding_id, agent_id, runtime_id, runtime_code, binding_status, verified_by, verified_at,
+            approved_by, approved_at, effective_from, expires_at, capacity_limit, region, zone, data_scope,
+            risk_limit, metadata_json, created_at, updated_at
+        ) values (
+            #{binding.tenantId}, #{binding.bindingId}, #{binding.agentId}, #{binding.runtimeId}, #{binding.runtimeCode}, #{binding.bindingStatus}, #{binding.verifiedBy}, #{binding.verifiedAt},
+            #{binding.approvedBy}, #{binding.approvedAt}, #{binding.effectiveFrom}, #{binding.expiresAt}, #{binding.capacityLimit}, #{binding.region}, #{binding.zone}, #{binding.dataScope},
+            #{binding.riskLimit}, coalesce(coalesce(coalesce(cast(#{binding.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{binding.createdAt}, now()), coalesce(#{binding.updatedAt}, now())
+        )
+        on conflict (binding_id) do update set
+            tenant_id = excluded.tenant_id,
+            agent_id = excluded.agent_id,
+            runtime_id = excluded.runtime_id,
+            runtime_code = excluded.runtime_code,
+            binding_status = excluded.binding_status,
+            verified_by = excluded.verified_by,
+            verified_at = excluded.verified_at,
+            approved_by = excluded.approved_by,
+            approved_at = excluded.approved_at,
+            effective_from = excluded.effective_from,
+            expires_at = excluded.expires_at,
+            capacity_limit = excluded.capacity_limit,
+            region = excluded.region,
+            zone = excluded.zone,
+            data_scope = excluded.data_scope,
+            risk_limit = excluded.risk_limit,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findRuntimeBinding" resultMap="AgentRuntimeBindingMap">
+        select <include refid="AgentRuntimeBindingColumns" />
+        from agent_runtime_bindings
+        where binding_id = #{bindingId}
+    </select>
+
+    <select id="findActiveRuntimeBindingByTenantAndAgent" resultMap="AgentRuntimeBindingMap">
+        select <include refid="AgentRuntimeBindingColumns" />
+        from agent_runtime_bindings
+        where tenant_id = #{tenantId}
+          and agent_id = #{agentId}
+          and binding_status = 'ACTIVE'
+          and (effective_from is null or effective_from &lt;= now())
+          and (expires_at is null or expires_at > now())
+        order by updated_at desc
+        limit 1
+    </select>
+
+    <select id="findActiveRuntimeBindingByAgent" resultMap="AgentRuntimeBindingMap">
+        select <include refid="AgentRuntimeBindingColumns" />
+        from agent_runtime_bindings
+        where agent_id = #{agentId}
+          and binding_status = 'ACTIVE'
+          and (effective_from is null or effective_from &lt;= now())
+          and (expires_at is null or expires_at > now())
+        order by updated_at desc
+        limit 1
+    </select>
+
+    <select id="findRuntimeBindingsByAgent" resultMap="AgentRuntimeBindingMap">
+        select <include refid="AgentRuntimeBindingColumns" />
+        from agent_runtime_bindings
+        where agent_id = #{agentId}
+        <if test="status != null and status != ''">
+          and binding_status = #{status}
+        </if>
+        order by updated_at desc
+    </select>
+
+    <select id="searchRuntimeBindings" resultMap="AgentRuntimeBindingMap">
+        select <include refid="AgentRuntimeBindingColumns" />
+        from agent_runtime_bindings
+        where tenant_id = #{tenantId}
+        <if test="runtimeId != null and runtimeId != ''">
+          and runtime_id = #{runtimeId}
+        </if>
+        <if test="status != null and status != ''">
+          and binding_status = #{status}
+        </if>
+        order by updated_at desc
+        limit #{limit}
+    </select>
+
+    <insert id="upsertRuntimeFeatureCatalog">
+        insert into runtime_feature_catalog (
+            tenant_id, feature_id, feature_code, feature_name, category, description, status, version,
+            requires_probe, requires_trust_approval, is_dispatch_eligible, owner_team, effective_from, retired_at,
+            metadata_json, created_at, updated_at
+        ) values (
+            #{feature.tenantId}, #{feature.featureId}, #{feature.featureCode}, #{feature.featureName}, #{feature.category}, #{feature.description}, #{feature.status}, #{feature.version},
+            #{feature.requiresProbe}, #{feature.requiresTrustApproval}, #{feature.dispatchEligible}, #{feature.ownerTeam}, #{feature.effectiveFrom}, #{feature.retiredAt},
+            coalesce(cast(#{feature.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{feature.createdAt}, now()), coalesce(#{feature.updatedAt}, now())
+        )
+        on conflict (tenant_id, feature_code) do update set
+            feature_name = excluded.feature_name,
+            category = excluded.category,
+            description = excluded.description,
+            status = excluded.status,
+            version = excluded.version,
+            requires_probe = excluded.requires_probe,
+            requires_trust_approval = excluded.requires_trust_approval,
+            is_dispatch_eligible = excluded.is_dispatch_eligible,
+            owner_team = excluded.owner_team,
+            effective_from = excluded.effective_from,
+            retired_at = excluded.retired_at,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findRuntimeFeatureByCode" resultMap="RuntimeFeatureCatalogMap">
+        select <include refid="RuntimeFeatureCatalogColumns" />
+        from runtime_feature_catalog
+        where tenant_id = #{tenantId} and feature_code = #{featureCode}
+    </select>
+
+    <select id="searchRuntimeFeatures" resultMap="RuntimeFeatureCatalogMap">
+        select <include refid="RuntimeFeatureCatalogColumns" />
+        from runtime_feature_catalog
+        where tenant_id = #{tenantId}
+        <if test="status != null and status != ''">
+          and status = #{status}
+        </if>
+        order by category asc, feature_code asc
+        limit #{limit}
+    </select>
+
+    <insert id="insertRuntimeFeatureObservation">
+        insert into agent_runtime_feature_observations (
+            tenant_id, observation_id, agent_id, feature_code, feature_name, observed_value, source, probe_result,
+            observed_at, metadata_json, created_at, updated_at
+        ) values (
+            #{observation.tenantId}, #{observation.observationId}, #{observation.agentId}, #{observation.featureCode}, #{observation.featureName}, #{observation.observedValue}, #{observation.source}, #{observation.probeResult},
+            #{observation.observedAt}, coalesce(cast(#{observation.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{observation.createdAt}, now()), coalesce(#{observation.updatedAt}, now())
+        )
+    </insert>
+
+    <select id="findRuntimeFeatureObservationsByAgent" resultMap="AgentRuntimeFeatureObservationMap">
+        select <include refid="RuntimeFeatureObservationColumns" />
+        from agent_runtime_feature_observations
+        where agent_id = #{agentId}
+        order by observed_at desc
+    </select>
+
+    <insert id="upsertRuntimeFeatureTrust">
+        insert into agent_runtime_feature_trust (
+            tenant_id, trust_id, agent_id, runtime_id, binding_id, feature_code, feature_name, trust_status, source, observed_at,
+            verified_by, verified_at, trusted_by, trusted_at, revoked_by, revoked_at, expires_at,
+            evidence_ref, reason, metadata_json, created_at, updated_at
+        ) values (
+            #{trust.tenantId}, #{trust.trustId}, #{trust.agentId}, #{trust.runtimeId}, #{trust.bindingId}, #{trust.featureCode}, #{trust.featureName}, #{trust.trustStatus}, #{trust.source}, #{trust.observedAt},
+            #{trust.verifiedBy}, #{trust.verifiedAt}, #{trust.trustedBy}, #{trust.trustedAt}, #{trust.revokedBy}, #{trust.revokedAt}, #{trust.expiresAt},
+            #{trust.evidenceRef}, #{trust.reason}, coalesce(cast(#{trust.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{trust.createdAt}, now()), coalesce(#{trust.updatedAt}, now())
+        )
+        on conflict (tenant_id, agent_id, feature_code) do update set
+            runtime_id = excluded.runtime_id,
+            binding_id = excluded.binding_id,
+            feature_name = excluded.feature_name,
+            trust_status = excluded.trust_status,
+            source = excluded.source,
+            observed_at = excluded.observed_at,
+            verified_by = excluded.verified_by,
+            verified_at = excluded.verified_at,
+            trusted_by = excluded.trusted_by,
+            trusted_at = excluded.trusted_at,
+            revoked_by = excluded.revoked_by,
+            revoked_at = excluded.revoked_at,
+            expires_at = excluded.expires_at,
+            evidence_ref = excluded.evidence_ref,
+            reason = excluded.reason,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findRuntimeFeatureTrust" resultMap="AgentRuntimeFeatureTrustMap">
+        select <include refid="RuntimeFeatureTrustColumns" />
+        from agent_runtime_feature_trust
+        where trust_id = #{trustId}
+    </select>
+
+    <select id="findRuntimeFeatureTrustByAgentAndFeature" resultMap="AgentRuntimeFeatureTrustMap">
+        select <include refid="RuntimeFeatureTrustColumns" />
+        from agent_runtime_feature_trust
+        where agent_id = #{agentId} and feature_code = #{featureCode}
+        order by updated_at desc
+        limit 1
+    </select>
+
+    <select id="findRuntimeFeatureTrustsByAgent" resultMap="AgentRuntimeFeatureTrustMap">
+        select <include refid="RuntimeFeatureTrustColumns" />
+        from agent_runtime_feature_trust
+        where agent_id = #{agentId}
+        order by updated_at desc
+    </select>
+
+    <insert id="upsertCapabilityAssignment">
+        insert into agent_capability_assignments (
+            tenant_id, assignment_id, agent_id, capability_code, capability_name, status, source,
+            requested_by, requested_at, approved_by, approved_at, revoked_by, revoked_at, expires_at,
+            evidence_ref, reason, metadata_json, created_at, updated_at
+        ) values (
+            #{assignment.tenantId}, #{assignment.assignmentId}, #{assignment.agentId}, #{assignment.capabilityCode}, #{assignment.capabilityName}, #{assignment.status}, #{assignment.source},
+            #{assignment.requestedBy}, #{assignment.requestedAt}, #{assignment.approvedBy}, #{assignment.approvedAt}, #{assignment.revokedBy}, #{assignment.revokedAt}, #{assignment.expiresAt},
+            #{assignment.evidenceRef}, #{assignment.reason}, coalesce(cast(#{assignment.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{assignment.createdAt}, now()), coalesce(#{assignment.updatedAt}, now())
+        )
+        on conflict (tenant_id, agent_id, capability_code) do update set
+            capability_name = excluded.capability_name,
+            status = excluded.status,
+            source = excluded.source,
+            requested_by = excluded.requested_by,
+            requested_at = excluded.requested_at,
+            approved_by = excluded.approved_by,
+            approved_at = excluded.approved_at,
+            revoked_by = excluded.revoked_by,
+            revoked_at = excluded.revoked_at,
+            expires_at = excluded.expires_at,
+            evidence_ref = excluded.evidence_ref,
+            reason = excluded.reason,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findCapabilityAssignment" resultMap="AgentCapabilityAssignmentMap">
+        select <include refid="CapabilityAssignmentColumns" />
+        from agent_capability_assignments
+        where assignment_id = #{assignmentId}
+    </select>
+
+    <select id="findCapabilityAssignmentByAgentAndCapability" resultMap="AgentCapabilityAssignmentMap">
+        select <include refid="CapabilityAssignmentColumns" />
+        from agent_capability_assignments
+        where agent_id = #{agentId} and capability_code = #{capabilityCode}
+    </select>
+
+    <select id="findCapabilityAssignmentsByAgent" resultMap="AgentCapabilityAssignmentMap">
+        select <include refid="CapabilityAssignmentColumns" />
+        from agent_capability_assignments
+        where agent_id = #{agentId}
+        order by updated_at desc
+    </select>
+
+    <delete id="deleteCapabilityAssignment">
+        delete from agent_capability_assignments
+        where agent_id = #{agentId} and assignment_id = #{assignmentId}
+    </delete>
+
+
+<insert id="upsertAgentQualityMetricsDaily">
+    insert into agent_quality_metrics_daily (
+        tenant_id, metric_id, metric_date, agent_id, runtime_id, binding_id, supply_profile_id,
+        success_rate, failure_rate, timeout_rate, sla_breach_rate, avg_ack_latency_ms, avg_completion_latency_ms,
+        recent_failure_count, manual_rating, quality_grade, risk_penalty, score, sample_size, metadata_json, created_at, updated_at
+    ) values (
+        #{metrics.tenantId}, #{metrics.metricId}, #{metrics.metricDate}, #{metrics.agentId}, #{metrics.runtimeId}, #{metrics.bindingId}, #{metrics.supplyProfileId},
+        #{metrics.successRate}, #{metrics.failureRate}, #{metrics.timeoutRate}, #{metrics.slaBreachRate}, #{metrics.avgAckLatencyMs}, #{metrics.avgCompletionLatencyMs},
+        #{metrics.recentFailureCount}, #{metrics.manualRating}, #{metrics.qualityGrade}, #{metrics.riskPenalty}, #{metrics.score}, #{metrics.sampleSize}, coalesce(coalesce(coalesce(cast(#{metrics.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{metrics.createdAt}, now()), coalesce(#{metrics.updatedAt}, now())
+    ) on conflict (tenant_id, metric_id) do update set
+        success_rate = excluded.success_rate, failure_rate = excluded.failure_rate, timeout_rate = excluded.timeout_rate,
+        sla_breach_rate = excluded.sla_breach_rate, avg_ack_latency_ms = excluded.avg_ack_latency_ms,
+        avg_completion_latency_ms = excluded.avg_completion_latency_ms, recent_failure_count = excluded.recent_failure_count,
+        manual_rating = excluded.manual_rating, quality_grade = excluded.quality_grade, risk_penalty = excluded.risk_penalty,
+        score = excluded.score, sample_size = excluded.sample_size, metadata_json = excluded.metadata_json, updated_at = now()
+</insert>
+
+<select id="findAgentQualityMetricsDaily" resultMap="AgentQualityMetricsDailyMap">
+    select <include refid="AgentQualityMetricsDailyColumns" /> from agent_quality_metrics_daily
+    where tenant_id = #{tenantId}
+    <if test="agentId != null and agentId != ''">and agent_id = #{agentId}</if>
+    order by metric_date desc limit #{limit}
+</select>
+
+<insert id="upsertAgentQualityMetricsWindow">
+    insert into agent_quality_metrics_window (
+        tenant_id, metric_id, agent_id, runtime_id, binding_id, supply_profile_id, metric_window, window_start, window_end,
+        success_rate, failure_rate, timeout_rate, sla_breach_rate, avg_ack_latency_ms, avg_completion_latency_ms,
+        recent_failure_count, manual_rating, quality_grade, risk_penalty, score, sample_size, metadata_json, created_at, updated_at
+    ) values (
+        #{metrics.tenantId}, #{metrics.metricId}, #{metrics.agentId}, #{metrics.runtimeId}, #{metrics.bindingId}, #{metrics.supplyProfileId}, #{metrics.metricWindow}, #{metrics.windowStart}, #{metrics.windowEnd},
+        #{metrics.successRate}, #{metrics.failureRate}, #{metrics.timeoutRate}, #{metrics.slaBreachRate}, #{metrics.avgAckLatencyMs}, #{metrics.avgCompletionLatencyMs},
+        #{metrics.recentFailureCount}, #{metrics.manualRating}, #{metrics.qualityGrade}, #{metrics.riskPenalty}, #{metrics.score}, #{metrics.sampleSize}, coalesce(coalesce(coalesce(cast(#{metrics.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{metrics.createdAt}, now()), coalesce(#{metrics.updatedAt}, now())
+    ) on conflict (tenant_id, metric_id) do update set
+        window_start = excluded.window_start, window_end = excluded.window_end, success_rate = excluded.success_rate,
+        failure_rate = excluded.failure_rate, timeout_rate = excluded.timeout_rate, sla_breach_rate = excluded.sla_breach_rate,
+        avg_ack_latency_ms = excluded.avg_ack_latency_ms, avg_completion_latency_ms = excluded.avg_completion_latency_ms,
+        recent_failure_count = excluded.recent_failure_count, manual_rating = excluded.manual_rating, quality_grade = excluded.quality_grade,
+        risk_penalty = excluded.risk_penalty, score = excluded.score, sample_size = excluded.sample_size,
+        metadata_json = excluded.metadata_json, updated_at = now()
+</insert>
+
+<select id="findAgentQualityMetricsWindow" resultMap="AgentQualityMetricsWindowMap">
+    select <include refid="AgentQualityMetricsWindowColumns" /> from agent_quality_metrics_window
+    where tenant_id = #{tenantId}
+    <if test="agentId != null and agentId != ''">and agent_id = #{agentId}</if>
+    <if test="metricWindow != null and metricWindow != ''">and metric_window = #{metricWindow}</if>
+    order by updated_at desc limit #{limit}
+</select>
+
+<insert id="upsertRuntimeQualityMetricsDaily">
+    insert into runtime_quality_metrics_daily (
+        tenant_id, metric_id, metric_date, runtime_id, success_rate, failure_rate, timeout_rate, sla_breach_rate,
+        avg_ack_latency_ms, avg_completion_latency_ms, recent_failure_count, quality_grade, risk_penalty, score,
+        sample_size, metadata_json, created_at, updated_at
+    ) values (
+        #{metrics.tenantId}, #{metrics.metricId}, #{metrics.metricDate}, #{metrics.runtimeId}, #{metrics.successRate}, #{metrics.failureRate}, #{metrics.timeoutRate}, #{metrics.slaBreachRate},
+        #{metrics.avgAckLatencyMs}, #{metrics.avgCompletionLatencyMs}, #{metrics.recentFailureCount}, #{metrics.qualityGrade}, #{metrics.riskPenalty}, #{metrics.score},
+        #{metrics.sampleSize}, coalesce(coalesce(coalesce(cast(#{metrics.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{metrics.createdAt}, now()), coalesce(#{metrics.updatedAt}, now())
+    ) on conflict (tenant_id, metric_id) do update set
+        success_rate = excluded.success_rate, failure_rate = excluded.failure_rate, timeout_rate = excluded.timeout_rate,
+        sla_breach_rate = excluded.sla_breach_rate, quality_grade = excluded.quality_grade, score = excluded.score,
+        sample_size = excluded.sample_size, metadata_json = excluded.metadata_json, updated_at = now()
+</insert>
+
+<select id="findRuntimeQualityMetricsDaily" resultMap="RuntimeQualityMetricsDailyMap">
+    select <include refid="RuntimeQualityMetricsDailyColumns" /> from runtime_quality_metrics_daily
+    where tenant_id = #{tenantId}
+    <if test="runtimeId != null and runtimeId != ''">and runtime_id = #{runtimeId}</if>
+    order by metric_date desc limit #{limit}
+</select>
+
+<insert id="upsertSupplyProfileQualitySnapshot">
+    insert into supply_profile_quality_snapshot (
+        tenant_id, snapshot_id, supply_profile_id, profile_code, agent_id, runtime_id, binding_id, metric_window,
+        success_rate, failure_rate, timeout_rate, sla_breach_rate, avg_ack_latency_ms, avg_completion_latency_ms,
+        recent_failure_count, manual_rating, quality_grade, risk_penalty, score, sample_size, calculated_at,
+        source, metadata_json, created_at, updated_at
+    ) values (
+        #{snapshot.tenantId}, #{snapshot.snapshotId}, #{snapshot.supplyProfileId}, #{snapshot.profileCode}, #{snapshot.agentId}, #{snapshot.runtimeId}, #{snapshot.bindingId}, #{snapshot.metricWindow},
+        #{snapshot.successRate}, #{snapshot.failureRate}, #{snapshot.timeoutRate}, #{snapshot.slaBreachRate}, #{snapshot.avgAckLatencyMs}, #{snapshot.avgCompletionLatencyMs},
+        #{snapshot.recentFailureCount}, #{snapshot.manualRating}, #{snapshot.qualityGrade}, #{snapshot.riskPenalty}, #{snapshot.score}, #{snapshot.sampleSize}, coalesce(#{snapshot.calculatedAt}, now()),
+        #{snapshot.source}, coalesce(cast(#{snapshot.metadataJson} as jsonb), '{}'::jsonb), coalesce(#{snapshot.createdAt}, now()), coalesce(#{snapshot.updatedAt}, now())
+    ) on conflict (tenant_id, snapshot_id) do update set
+        success_rate = excluded.success_rate, failure_rate = excluded.failure_rate, timeout_rate = excluded.timeout_rate,
+        sla_breach_rate = excluded.sla_breach_rate, recent_failure_count = excluded.recent_failure_count,
+        manual_rating = excluded.manual_rating, quality_grade = excluded.quality_grade, risk_penalty = excluded.risk_penalty,
+        score = excluded.score, sample_size = excluded.sample_size, calculated_at = excluded.calculated_at,
+        source = excluded.source, metadata_json = excluded.metadata_json, updated_at = now()
+</insert>
+
+<select id="findSupplyProfileQualitySnapshot" resultMap="SupplyProfileQualitySnapshotMap">
+    select <include refid="SupplyProfileQualitySnapshotColumns" /> from supply_profile_quality_snapshot
+    where tenant_id = #{tenantId} and profile_code = #{profileCode}
+    <if test="metricWindow != null and metricWindow != ''">and metric_window = #{metricWindow}</if>
+    order by calculated_at desc limit 1
+</select>
+
+<select id="searchSupplyProfileQualitySnapshots" resultMap="SupplyProfileQualitySnapshotMap">
+    select <include refid="SupplyProfileQualitySnapshotColumns" /> from supply_profile_quality_snapshot
+    where tenant_id = #{tenantId}
+    <if test="agentId != null and agentId != ''">and agent_id = #{agentId}</if>
+    <if test="runtimeId != null and runtimeId != ''">and runtime_id = #{runtimeId}</if>
+    <if test="metricWindow != null and metricWindow != ''">and metric_window = #{metricWindow}</if>
+    order by calculated_at desc limit #{limit}
+</select>
+
+    <insert id="upsertPolicyBinding">
+        insert into agent_assignment_profile_policy_bindings (
+            tenant_id, binding_id, profile_code, policy_code, policy_name, binding_mode,
+            is_required, is_active, priority, condition_expr, metadata_json, created_at, updated_at
+        ) values (
+            #{binding.tenantId}, #{binding.bindingId}, #{binding.profileCode}, #{binding.policyCode}, #{binding.policyName}, #{binding.bindingMode},
+            #{binding.required}, #{binding.active}, #{binding.priority}, #{binding.conditionExpr}, coalesce(coalesce(coalesce(cast(#{binding.metadataJson} as jsonb), '{}'::jsonb), '{}'::jsonb), '{}'::jsonb), coalesce(#{binding.createdAt}, now()), coalesce(#{binding.updatedAt}, now())
+        )
+        on conflict (tenant_id, profile_code, policy_code) do update set
+            policy_name = excluded.policy_name,
+            binding_mode = excluded.binding_mode,
+            is_required = excluded.is_required,
+            is_active = excluded.is_active,
+            priority = excluded.priority,
+            condition_expr = excluded.condition_expr,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findPolicyBinding" resultMap="AgentAssignmentProfilePolicyBindingMap">
+        select <include refid="PolicyBindingColumns" />
+        from agent_assignment_profile_policy_bindings
+        where tenant_id = #{tenantId} and profile_code = #{profileCode} and policy_code = #{policyCode}
+    </select>
+
+    <select id="findPolicyBindings" resultMap="AgentAssignmentProfilePolicyBindingMap">
+        select <include refid="PolicyBindingColumns" />
+        from agent_assignment_profile_policy_bindings
+        where tenant_id = #{tenantId}
+          and profile_code = #{profileCode}
+        <if test="active != null">
+          and is_active = #{active}
+        </if>
+        order by priority desc, policy_code asc
+    </select>
+
+    <delete id="deletePolicyBinding">
+        delete from agent_assignment_profile_policy_bindings
+        where tenant_id = #{tenantId} and profile_code = #{profileCode} and policy_code = #{policyCode}
+    </delete>
+
+    <insert id="upsertQualification">
+        insert into agent_qualifications (
+            tenant_id, qualification_id, agent_id, profile_code, qualification_status,
+            evidence_type, evidence_ref, approved_by, approved_at, expires_at,
+            granted_policy_version, last_renewed_at, renewal_due_at, renewal_status,
+            reason, metadata_json, created_at, updated_at
+        ) values (
+            #{qualification.tenantId}, #{qualification.qualificationId}, #{qualification.agentId}, #{qualification.profileCode}, #{qualification.qualificationStatus},
+            #{qualification.evidenceType}, #{qualification.evidenceRef}, #{qualification.approvedBy}, #{qualification.approvedAt}, #{qualification.expiresAt},
+            #{qualification.grantedPolicyVersion}, #{qualification.lastRenewedAt}, #{qualification.renewalDueAt}, #{qualification.renewalStatus},
+            #{qualification.reason}, cast(#{qualification.metadataJson} as jsonb), coalesce(#{qualification.createdAt}, now()), coalesce(#{qualification.updatedAt}, now())
+        )
+        on conflict (qualification_id) do update set
+            tenant_id = excluded.tenant_id,
+            agent_id = excluded.agent_id,
+            profile_code = excluded.profile_code,
+            qualification_status = excluded.qualification_status,
+            evidence_type = excluded.evidence_type,
+            evidence_ref = excluded.evidence_ref,
+            approved_by = excluded.approved_by,
+            approved_at = excluded.approved_at,
+            expires_at = excluded.expires_at,
+            granted_policy_version = excluded.granted_policy_version,
+            last_renewed_at = excluded.last_renewed_at,
+            renewal_due_at = excluded.renewal_due_at,
+            renewal_status = excluded.renewal_status,
+            reason = excluded.reason,
+            metadata_json = excluded.metadata_json,
+            updated_at = now()
+    </insert>
+
+    <select id="findQualification" resultMap="AgentQualificationMap">
+        select <include refid="QualificationColumns" />
+        from agent_qualifications
+        where qualification_id = #{qualificationId}
+    </select>
+
+    <delete id="deleteQualification">
+        delete from agent_qualifications
+        where agent_id = #{agentId} and qualification_id = #{qualificationId}
+    </delete>
+
+    <select id="findQualificationByAgentAndProfile" resultMap="AgentQualificationMap">
+        select <include refid="QualificationColumns" />
+        from agent_qualifications
+        where agent_id = #{agentId} and profile_code = #{profileCode}
+        order by updated_at desc
+        limit 1
+    </select>
+
+    <select id="findQualificationsByAgent" resultMap="AgentQualificationMap">
+        select <include refid="QualificationColumns" />
+        from agent_qualifications
+        where agent_id = #{agentId}
+        order by updated_at desc
+    </select>
+
+    <select id="findQualificationsByProfile" resultMap="AgentQualificationMap">
+        select <include refid="QualificationColumns" />
+        from agent_qualifications
+        where tenant_id = #{tenantId} and profile_code = #{profileCode}
+        order by updated_at desc
+    </select>
+
+</mapper>

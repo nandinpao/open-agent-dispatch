@@ -1,0 +1,51 @@
+package com.opensocket.aievent.core.decision;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+
+public record EventIntakeDecisionResponse(
+        String eventId,
+        String fingerprint,
+        String incidentId,
+        DecisionType decisionType,
+        boolean duplicate,
+        long occurrenceCount,
+        String severity,
+        List<DecisionAction> actions,
+        boolean taskCreated,
+        String taskId,
+        String taskType,
+        boolean taskSuppressed,
+        String taskDecisionReason,
+        boolean assignmentCreated,
+        String assignmentId,
+        String selectedAgentId,
+        String selectedGatewayNodeId,
+        String selectedSiteId,
+        String routingDecisionId,
+        String assignmentStatus,
+        String assignmentReason,
+        boolean dispatchRequestCreated,
+        String dispatchRequestId,
+        String dispatchStatus,
+        String dispatchReviewMode,
+        String dispatchEligibilityStatus,
+        String dispatchGatewayPath,
+        String dispatchReason,
+        boolean dispatchSuppressed,
+        boolean mcpCalled,
+        boolean issueCreated,
+        String reason,
+        OffsetDateTime decidedAt,
+        String eventStage,
+        String originSourceSystem,
+        String targetSystem,
+        String requestedSkill,
+        String handoffMode,
+        String correlationId,
+        String parentTaskId,
+        String primaryStatus,
+        String primaryReasonCode,
+        String nextAction
+) {
+}

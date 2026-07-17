@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.task.dao.TaskDispatchAttemptDao">
+  <resultMap id="DispatchAttemptRowMap" type="com.opensocket.aievent.database.persistence.task.po.TaskDispatchAttemptPo">
+    <id property="dispatchAttemptId" column="dispatch_attempt_id"/>
+    <result property="taskId" column="task_id"/><result property="incidentId" column="incident_id"/><result property="routingDecisionId" column="routing_decision_id"/>
+    <result property="selectedAgentId" column="selected_agent_id"/><result property="selectedGatewayNodeId" column="selected_gateway_node_id"/><result property="selectedAgentSessionId" column="selected_agent_session_id"/><result property="selectedSiteId" column="selected_site_id"/>
+    <result property="selectedScore" column="selected_score"/><result property="status" column="status"/><result property="eligibilityStatus" column="eligibility_status"/>
+    <result property="decisionReason" column="decision_reason"/><result property="scoreBreakdownJson" column="score_breakdown_json"/><result property="eligibilityFactsJson" column="eligibility_facts_json"/>
+    <result property="createdAt" column="created_at"/><result property="updatedAt" column="updated_at"/>
+  </resultMap>
+  <sql id="Columns">dispatch_attempt_id,task_id,incident_id,routing_decision_id,selected_agent_id,selected_gateway_node_id,selected_agent_session_id,selected_site_id,selected_score,status,eligibility_status,decision_reason,score_breakdown_json,eligibility_facts_json,created_at,updated_at</sql>
+  <insert id="upsert">insert into task_dispatch_attempts(<include refid="Columns"/>) values(#{attempt.dispatchAttemptId},#{attempt.taskId},#{attempt.incidentId},#{attempt.routingDecisionId},#{attempt.selectedAgentId},#{attempt.selectedGatewayNodeId},#{attempt.selectedAgentSessionId},#{attempt.selectedSiteId},#{attempt.selectedScore},#{attempt.status},#{attempt.eligibilityStatus},#{attempt.decisionReason},coalesce(cast(#{attempt.scoreBreakdownJson} as jsonb), '{}'::jsonb),coalesce(cast(#{attempt.eligibilityFactsJson} as jsonb), '{}'::jsonb),#{attempt.createdAt},#{attempt.updatedAt}) on conflict(dispatch_attempt_id) do update set status=excluded.status,eligibility_status=excluded.eligibility_status,decision_reason=excluded.decision_reason,score_breakdown_json=excluded.score_breakdown_json,eligibility_facts_json=excluded.eligibility_facts_json,updated_at=excluded.updated_at</insert>
+  <select id="findById" resultMap="DispatchAttemptRowMap">select <include refid="Columns"/> from task_dispatch_attempts where dispatch_attempt_id=#{dispatchAttemptId}</select>
+  <select id="findByTaskId" resultMap="DispatchAttemptRowMap">select <include refid="Columns"/> from task_dispatch_attempts where task_id=#{taskId} order by created_at desc limit #{limit}</select>
+  <select id="recent" resultMap="DispatchAttemptRowMap">select <include refid="Columns"/> from task_dispatch_attempts order by created_at desc limit #{limit}</select>
+</mapper>

@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.agent.remediation.dao.AgentRemediationWorkflowDao">
+    <resultMap id="AgentRemediationWorkflowPoMap" type="com.opensocket.aievent.database.persistence.agent.remediation.po.AgentRemediationWorkflowPo">
+        <id property="workflowId" column="workflow_id"/>
+        <result property="proposalId" column="proposal_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="status" column="status"/>
+        <result property="severity" column="severity"/>
+        <result property="approvalRequired" column="approval_required"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="lastOperatorId" column="last_operator_id"/>
+        <result property="rollbackSuggestionsJson" column="rollback_suggestions"/>
+        <result property="actionsJson" column="actions_json"/>
+        <result property="metadataJson" column="metadata"/>
+        <result property="executionLeaseOwner" column="execution_lease_owner"/>
+        <result property="executionLeaseAcquiredAt" column="execution_lease_acquired_at"/>
+        <result property="executionLeaseExpiresAt" column="execution_lease_expires_at"/>
+        <result property="executionLeaseVersion" column="execution_lease_version"/>
+        <result property="version" column="version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="AgentRemediationWorkflowHistoryPoMap" type="com.opensocket.aievent.database.persistence.agent.remediation.po.AgentRemediationWorkflowHistoryPo">
+        <id property="historyId" column="history_id"/>
+        <result property="workflowId" column="workflow_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="eventType" column="event_type"/>
+        <result property="operatorId" column="operator_id"/>
+        <result property="reason" column="reason"/>
+        <result property="metadataJson" column="metadata"/>
+        <result property="occurredAt" column="occurred_at"/>
+    </resultMap>
+
+
+    <resultMap id="AgentRemediationWorkflowActionExecutionPoMap" type="com.opensocket.aievent.database.persistence.agent.remediation.po.AgentRemediationWorkflowActionExecutionPo">
+        <id property="actionExecutionId" column="action_execution_id"/>
+        <result property="workflowId" column="workflow_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="actionId" column="action_id"/>
+        <result property="actionType" column="action_type"/>
+        <result property="idempotencyKey" column="idempotency_key"/>
+        <result property="status" column="status"/>
+        <result property="attemptCount" column="attempt_count"/>
+        <result property="lastOperatorId" column="last_operator_id"/>
+        <result property="lastReason" column="last_reason"/>
+        <result property="lastResultJson" column="last_result"/>
+        <result property="lastError" column="last_error"/>
+        <result property="firstAttemptAt" column="first_attempt_at"/>
+        <result property="lastAttemptAt" column="last_attempt_at"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="WorkflowColumns">
+        workflow_id, proposal_id, agent_id, status, severity, approval_required, created_by, last_operator_id,
+        rollback_suggestions::text as rollback_suggestions, actions_json::text as actions_json, metadata::text as metadata,
+        execution_lease_owner, execution_lease_acquired_at, execution_lease_expires_at, execution_lease_version,
+        version, created_at, updated_at
+    </sql>
+
+    <sql id="HistoryColumns">
+        history_id, workflow_id, agent_id, event_type, operator_id, reason, metadata::text as metadata, occurred_at
+    </sql>
+
+    <sql id="ActionExecutionColumns">
+        action_execution_id, workflow_id, agent_id, action_id, action_type, idempotency_key, status, attempt_count,
+        last_operator_id, last_reason, last_result::text as last_result, last_error, first_attempt_at,
+        last_attempt_at, completed_at, created_at, updated_at
+    </sql>
+
+    <insert id="insertWorkflow">
+        insert into agent_remediation_workflows (
+            workflow_id, proposal_id, agent_id, status, severity, approval_required, created_by, last_operator_id,
+            rollback_suggestions, actions_json, metadata, version, created_at, updated_at
+        ) values (
+            #{record.workflowId}, #{record.proposalId}, #{record.agentId}, #{record.status}, #{record.severity},
+            #{record.approvalRequired}, #{record.createdBy}, #{record.lastOperatorId},
+            coalesce(cast(#{record.rollbackSuggestionsJson} as jsonb), '[]'::jsonb),
+            coalesce(cast(#{record.actionsJson} as jsonb), '[]'::jsonb),
+            coalesce(cast(#{record.metadataJson} as jsonb), '{}'::jsonb),
+            coalesce(#{record.version}, 0), #{record.createdAt}, #{record.updatedAt}
+        )
+    </insert>
+
+    <select id="findWorkflowById" resultMap="AgentRemediationWorkflowPoMap">
+        select <include refid="WorkflowColumns"/>
+        from agent_remediation_workflows
+        where workflow_id = #{workflowId}
+    </select>
+
+    <select id="findWorkflowsByAgentId" resultMap="AgentRemediationWorkflowPoMap">
+        select <include refid="WorkflowColumns"/>
+        from agent_remediation_workflows
+        where agent_id = #{agentId}
+        order by updated_at desc, created_at desc
+        limit #{limit}
+    </select>
+
+    <update id="updateWorkflowStatusIfCurrent">
+        update agent_remediation_workflows
+        set status = #{nextStatus},
+            last_operator_id = #{lastOperatorId},
+            updated_at = #{updatedAt},
+            version = version + 1
+        where workflow_id = #{workflowId}
+          and status = #{expectedStatus}
+    </update>
+
+    <update id="acquireWorkflowExecutionLease">
+        update agent_remediation_workflows
+        set execution_lease_owner = #{leaseOwner},
+            execution_lease_acquired_at = #{acquiredAt},
+            execution_lease_expires_at = #{expiresAt},
+            execution_lease_version = coalesce(execution_lease_version, 0) + 1,
+            last_operator_id = #{lastOperatorId},
+            updated_at = #{acquiredAt},
+            version = version + 1
+        where workflow_id = #{workflowId}
+          and status = #{expectedStatus}
+          and (
+              execution_lease_owner is null
+              or execution_lease_expires_at is null
+              or execution_lease_expires_at &lt;= #{acquiredAt}
+          )
+    </update>
+
+    <update id="releaseWorkflowExecutionLease">
+        update agent_remediation_workflows
+        set execution_lease_owner = null,
+            execution_lease_acquired_at = null,
+            execution_lease_expires_at = null,
+            updated_at = #{updatedAt},
+            version = version + 1
+        where workflow_id = #{workflowId}
+          and execution_lease_owner = #{leaseOwner}
+    </update>
+
+    <update id="clearExpiredWorkflowExecutionLease">
+        update agent_remediation_workflows
+        set execution_lease_owner = null,
+            execution_lease_acquired_at = null,
+            execution_lease_expires_at = null,
+            updated_at = #{now},
+            version = version + 1
+        where workflow_id = #{workflowId}
+          and execution_lease_expires_at is not null
+          and execution_lease_expires_at &lt;= #{now}
+    </update>
+
+    <update id="clearExpiredWorkflowExecutionLeaseForOwner">
+        update agent_remediation_workflows
+        set execution_lease_owner = null,
+            execution_lease_acquired_at = null,
+            execution_lease_expires_at = null,
+            updated_at = #{now},
+            version = version + 1
+        where workflow_id = #{workflowId}
+          and execution_lease_owner = #{leaseOwner}
+          and execution_lease_expires_at is not null
+          and execution_lease_expires_at &lt;= #{now}
+    </update>
+
+    <select id="findExpiredWorkflowExecutionLeases" resultMap="AgentRemediationWorkflowPoMap">
+        select <include refid="WorkflowColumns"/>
+        from agent_remediation_workflows
+        where execution_lease_owner is not null
+          and execution_lease_expires_at is not null
+          and execution_lease_expires_at &lt;= #{now}
+        order by execution_lease_expires_at asc, updated_at asc
+        limit #{limit}
+    </select>
+
+    <insert id="insertHistory">
+        insert into agent_remediation_workflow_history (
+            history_id, workflow_id, agent_id, event_type, operator_id, reason, metadata, occurred_at
+        ) values (
+            #{record.historyId}, #{record.workflowId}, #{record.agentId}, #{record.eventType},
+            #{record.operatorId}, #{record.reason}, coalesce(cast(#{record.metadataJson} as jsonb), '{}'::jsonb),
+            #{record.occurredAt}
+        )
+    </insert>
+
+    <select id="findHistoryByWorkflowId" resultMap="AgentRemediationWorkflowHistoryPoMap">
+        select <include refid="HistoryColumns"/>
+        from agent_remediation_workflow_history
+        where workflow_id = #{workflowId}
+        order by occurred_at asc, history_id asc
+    </select>
+
+    <select id="findHistoryByEventType" resultMap="AgentRemediationWorkflowHistoryPoMap">
+        select <include refid="HistoryColumns"/>
+        from agent_remediation_workflow_history
+        where event_type = #{eventType}
+        order by occurred_at desc, history_id desc
+        limit #{limit}
+    </select>
+
+    <insert id="insertActionExecutionIfAbsent">
+        insert into agent_remediation_workflow_action_executions (
+            action_execution_id, workflow_id, agent_id, action_id, action_type, idempotency_key, status,
+            attempt_count, last_operator_id, last_reason, last_result, last_error, first_attempt_at,
+            last_attempt_at, completed_at, created_at, updated_at
+        ) values (
+            #{record.actionExecutionId}, #{record.workflowId}, #{record.agentId}, #{record.actionId},
+            #{record.actionType}, #{record.idempotencyKey}, #{record.status}, coalesce(#{record.attemptCount}, 0),
+            #{record.lastOperatorId}, #{record.lastReason}, coalesce(cast(#{record.lastResultJson} as jsonb), '{}'::jsonb),
+            #{record.lastError}, #{record.firstAttemptAt}, #{record.lastAttemptAt}, #{record.completedAt},
+            #{record.createdAt}, #{record.updatedAt}
+        )
+        on conflict (workflow_id, action_id) do nothing
+    </insert>
+
+    <select id="findActionExecutionsByWorkflowId" resultMap="AgentRemediationWorkflowActionExecutionPoMap">
+        select <include refid="ActionExecutionColumns"/>
+        from agent_remediation_workflow_action_executions
+        where workflow_id = #{workflowId}
+        order by created_at asc, action_execution_id asc
+    </select>
+
+    <select id="findActionExecutionById" resultMap="AgentRemediationWorkflowActionExecutionPoMap">
+        select <include refid="ActionExecutionColumns"/>
+        from agent_remediation_workflow_action_executions
+        where action_execution_id = #{actionExecutionId}
+    </select>
+
+    <update id="claimActionExecutionForRun">
+        update agent_remediation_workflow_action_executions
+        set status = 'RUNNING',
+            attempt_count = attempt_count + 1,
+            last_operator_id = #{lastOperatorId},
+            last_reason = #{lastReason},
+            first_attempt_at = coalesce(first_attempt_at, #{updatedAt}),
+            last_attempt_at = #{updatedAt},
+            completed_at = null,
+            updated_at = #{updatedAt}
+        where action_execution_id = #{actionExecutionId}
+          and status in ('PENDING', 'FAILED')
+    </update>
+
+    <update id="completeActionExecutionIfRunning">
+        update agent_remediation_workflow_action_executions
+        set status = #{nextStatus},
+            last_result = coalesce(cast(#{lastResultJson} as jsonb), '{}'::jsonb),
+            last_error = #{lastError},
+            completed_at = case when #{nextStatus} in ('SUCCEEDED', 'SKIPPED', 'FAILED') then #{updatedAt} else completed_at end,
+            updated_at = #{updatedAt}
+        where action_execution_id = #{actionExecutionId}
+          and status = 'RUNNING'
+    </update>
+
+</mapper>

@@ -1,0 +1,42 @@
+{
+  "properties": [
+    {
+      "name": "aeg.database-platform.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enable database platform auto-configuration."
+    },
+    {
+      "name": "aeg.database-platform.health-enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Expose the database platform health contributor."
+    },
+    {
+      "name": "aeg.database-platform.validate-on-startup",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Fail startup when required database infrastructure beans are missing."
+    },
+    {
+      "name": "aeg.database-platform.require-data-source",
+      "type": "java.lang.Boolean",
+      "defaultValue": true
+    },
+    {
+      "name": "aeg.database-platform.require-sql-session-factory",
+      "type": "java.lang.Boolean",
+      "defaultValue": true
+    },
+    {
+      "name": "aeg.database-platform.require-flyway",
+      "type": "java.lang.Boolean",
+      "defaultValue": true
+    },
+    {
+      "name": "aeg.database-platform.validation-timeout",
+      "type": "java.time.Duration",
+      "defaultValue": "2s"
+    }
+  ]
+}

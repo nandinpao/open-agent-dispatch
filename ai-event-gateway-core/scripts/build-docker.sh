@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+set -eu
+ENV_FILE="${1:-.env.production.example}"
+if [ ! -f "$ENV_FILE" ]; then
+  echo "Env file not found: $ENV_FILE" >&2
+  exit 1
+fi
+set -a
+. "$ENV_FILE"
+set +a
+
+docker build \
+  --build-arg NEXT_PUBLIC_APP_NAME="$NEXT_PUBLIC_APP_NAME" \
+  --build-arg NEXT_PUBLIC_ADMIN_BACKEND_MODE="${NEXT_PUBLIC_ADMIN_BACKEND_MODE:-dual}" \
+  --build-arg NEXT_PUBLIC_USE_MOCK="$NEXT_PUBLIC_USE_MOCK" \
+  --build-arg NEXT_PUBLIC_AUTH_ENABLED="${NEXT_PUBLIC_AUTH_ENABLED:-true}" \
+  --build-arg NEXT_PUBLIC_CORE_API_BASE_URL="${NEXT_PUBLIC_CORE_API_BASE_URL:-/core-api}" \
+  --build-arg NEXT_PUBLIC_NETTY_API_BASE_URL="${NEXT_PUBLIC_NETTY_API_BASE_URL:-/netty-api}" \
+  --build-arg NEXT_PUBLIC_NETTY_RUNTIME_WS_URL="${NEXT_PUBLIC_NETTY_RUNTIME_WS_URL:-/api/admin/runtime/stream}" \
+  --build-arg NEXT_PUBLIC_GATEWAY_API_BASE_URL="${NEXT_PUBLIC_GATEWAY_API_BASE_URL:-/netty-api}" \
+  --build-arg NEXT_PUBLIC_GATEWAY_WS_URL="${NEXT_PUBLIC_GATEWAY_WS_URL:-/api/admin/runtime/stream}" \
+  --build-arg NEXT_PUBLIC_REFRESH_INTERVAL_MS="$NEXT_PUBLIC_REFRESH_INTERVAL_MS" \
+  --build-arg NEXT_PUBLIC_REQUEST_TIMEOUT_MS="$NEXT_PUBLIC_REQUEST_TIMEOUT_MS" \
+  --build-arg NEXT_PUBLIC_WS_RECONNECT_INTERVAL_MS="$NEXT_PUBLIC_WS_RECONNECT_INTERVAL_MS" \
+  --build-arg NEXT_PUBLIC_WS_RECONNECT_MAX_INTERVAL_MS="$NEXT_PUBLIC_WS_RECONNECT_MAX_INTERVAL_MS" \
+  --build-arg NEXT_PUBLIC_WS_HEARTBEAT_INTERVAL_MS="$NEXT_PUBLIC_WS_HEARTBEAT_INTERVAL_MS" \
+  --build-arg NEXT_PUBLIC_WS_MAX_EVENTS="$NEXT_PUBLIC_WS_MAX_EVENTS" \
+  --build-arg CORE_BACKEND_ORIGIN="${CORE_BACKEND_ORIGIN:-http://localhost:18080}" \
+  --build-arg NETTY_BACKEND_ORIGIN="${NETTY_BACKEND_ORIGIN:-http://localhost:18081}" \
+  --build-arg GATEWAY_BACKEND_ORIGIN="${GATEWAY_BACKEND_ORIGIN:-http://localhost:18081}" \
+  -t "${IMAGE_NAME:-ai-event-gateway-admin-ui}:${IMAGE_TAG:-local}" .

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.execution.dao.RecoveryApprovalRequestDao">
+    <resultMap id="RecoveryApprovalRequestPoMap" type="com.opensocket.aievent.database.persistence.execution.po.RecoveryApprovalRequestPo">
+        <id property="approvalId" column="approval_id"/>
+        <result property="status" column="status"/>
+        <result property="action" column="action"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetId" column="target_id"/>
+        <result property="dispatchRequestId" column="dispatch_request_id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="riskLevel" column="risk_level"/>
+        <result property="requestedBy" column="requested_by"/>
+        <result property="requesterPrincipal" column="requester_principal"/>
+        <result property="requesterRole" column="requester_role"/>
+        <result property="requestReason" column="request_reason"/>
+        <result property="requestId" column="request_id"/>
+        <result property="requestClientAddress" column="request_client_address"/>
+        <result property="requestUserAgent" column="request_user_agent"/>
+        <result property="approvalReason" column="approval_reason"/>
+        <result property="approvedBy" column="approved_by"/>
+        <result property="approverPrincipal" column="approver_principal"/>
+        <result property="approverRole" column="approver_role"/>
+        <result property="approvalRequestId" column="approval_request_id"/>
+        <result property="approvalClientAddress" column="approval_client_address"/>
+        <result property="approvalUserAgent" column="approval_user_agent"/>
+        <result property="rejectedBy" column="rejected_by"/>
+        <result property="rejectedReason" column="rejected_reason"/>
+        <result property="cancelledBy" column="cancelled_by"/>
+        <result property="cancelledReason" column="cancelled_reason"/>
+        <result property="executionResult" column="execution_result"/>
+        <result property="executionError" column="execution_error"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="approvedAt" column="approved_at"/>
+        <result property="executedAt" column="executed_at"/>
+        <result property="rejectedAt" column="rejected_at"/>
+        <result property="cancelledAt" column="cancelled_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="payloadJson" column="payload_json"/>
+    </resultMap>
+
+    <sql id="RecoveryApprovalColumns">
+        approval_id, status, action, target_type, target_id, dispatch_request_id, task_id, agent_id,
+        risk_level, requested_by, requester_principal, requester_role, request_reason, request_id,
+        request_client_address, request_user_agent, approval_reason, approved_by, approver_principal,
+        approver_role, approval_request_id, approval_client_address, approval_user_agent, rejected_by,
+        rejected_reason, cancelled_by, cancelled_reason, execution_result, execution_error, expires_at,
+        approved_at, executed_at, rejected_at, cancelled_at, created_at, updated_at, payload_json
+    </sql>
+
+    <insert id="upsert">
+        insert into recovery_approval_requests (<include refid="RecoveryApprovalColumns"/>) values (
+            #{record.approvalId}, #{record.status}, #{record.action}, #{record.targetType}, #{record.targetId},
+            #{record.dispatchRequestId}, #{record.taskId}, #{record.agentId}, #{record.riskLevel}, #{record.requestedBy},
+            #{record.requesterPrincipal}, #{record.requesterRole}, #{record.requestReason}, #{record.requestId},
+            #{record.requestClientAddress}, #{record.requestUserAgent}, #{record.approvalReason}, #{record.approvedBy},
+            #{record.approverPrincipal}, #{record.approverRole}, #{record.approvalRequestId}, #{record.approvalClientAddress},
+            #{record.approvalUserAgent}, #{record.rejectedBy}, #{record.rejectedReason}, #{record.cancelledBy},
+            #{record.cancelledReason}, #{record.executionResult}, #{record.executionError}, #{record.expiresAt},
+            #{record.approvedAt}, #{record.executedAt}, #{record.rejectedAt}, #{record.cancelledAt}, #{record.createdAt},
+            #{record.updatedAt}, coalesce(cast(#{record.payloadJson} as jsonb), '{}'::jsonb)
+        )
+        on conflict (approval_id) do update set
+            status = excluded.status,
+            action = excluded.action,
+            target_type = excluded.target_type,
+            target_id = excluded.target_id,
+            dispatch_request_id = excluded.dispatch_request_id,
+            task_id = excluded.task_id,
+            agent_id = excluded.agent_id,
+            risk_level = excluded.risk_level,
+            requested_by = excluded.requested_by,
+            requester_principal = excluded.requester_principal,
+            requester_role = excluded.requester_role,
+            request_reason = excluded.request_reason,
+            request_id = excluded.request_id,
+            request_client_address = excluded.request_client_address,
+            request_user_agent = excluded.request_user_agent,
+            approval_reason = excluded.approval_reason,
+            approved_by = excluded.approved_by,
+            approver_principal = excluded.approver_principal,
+            approver_role = excluded.approver_role,
+            approval_request_id = excluded.approval_request_id,
+            approval_client_address = excluded.approval_client_address,
+            approval_user_agent = excluded.approval_user_agent,
+            rejected_by = excluded.rejected_by,
+            rejected_reason = excluded.rejected_reason,
+            cancelled_by = excluded.cancelled_by,
+            cancelled_reason = excluded.cancelled_reason,
+            execution_result = excluded.execution_result,
+            execution_error = excluded.execution_error,
+            expires_at = excluded.expires_at,
+            approved_at = excluded.approved_at,
+            executed_at = excluded.executed_at,
+            rejected_at = excluded.rejected_at,
+            cancelled_at = excluded.cancelled_at,
+            updated_at = excluded.updated_at,
+            payload_json = excluded.payload_json
+    </insert>
+
+    <select id="findById" resultMap="RecoveryApprovalRequestPoMap">
+        select <include refid="RecoveryApprovalColumns"/>
+        from recovery_approval_requests
+        where approval_id = #{approvalId}
+    </select>
+
+    <select id="findByStatus" resultMap="RecoveryApprovalRequestPoMap">
+        select <include refid="RecoveryApprovalColumns"/>
+        from recovery_approval_requests
+        <where>
+            <choose>
+                <when test="status != null">status = #{status}</when>
+                <otherwise>1 = 1</otherwise>
+            </choose>
+        </where>
+        order by created_at desc, updated_at desc
+        limit #{limit}
+    </select>
+
+    <select id="recent" resultMap="RecoveryApprovalRequestPoMap">
+        select <include refid="RecoveryApprovalColumns"/>
+        from recovery_approval_requests
+        order by created_at desc, updated_at desc
+        limit #{limit}
+    </select>
+</mapper>

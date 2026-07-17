@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.integrationevent.dao.IntegrationEventDao">
+  <resultMap id="IntegrationEventPoMap" type="com.opensocket.aievent.database.persistence.integrationevent.po.IntegrationEventPo">
+    <id property="integrationEventId" column="integration_event_id"/><result property="eventId" column="event_id"/><result property="eventType" column="event_type"/>
+    <result property="aggregateType" column="aggregate_type"/><result property="aggregateId" column="aggregate_id"/><result property="envelopeJson" column="envelope_json"/>
+    <result property="status" column="status"/><result property="attemptCount" column="attempt_count"/><result property="nextAttemptAt" column="next_attempt_at"/>
+    <result property="lastError" column="last_error"/><result property="claimedBy" column="claimed_by"/><result property="claimUntil" column="claim_until"/>
+    <result property="createdAt" column="created_at"/><result property="deliveredAt" column="delivered_at"/><result property="updatedAt" column="updated_at"/>
+  </resultMap>
+  <resultMap id="StatusCountPoMap" type="com.opensocket.aievent.database.persistence.integrationevent.po.StatusCountPo"><result property="status" column="status"/><result property="total" column="total"/></resultMap>
+  <sql id="Columns">integration_event_id,event_id,event_type,aggregate_type,aggregate_id,envelope_json,status,attempt_count,next_attempt_at,last_error,claimed_by,claim_until,created_at,delivered_at,updated_at</sql>
+  <insert id="insertIgnore">insert into integration_event_outbox(<include refid="Columns"/>) values(#{event.integrationEventId},#{event.eventId},#{event.eventType},#{event.aggregateType},#{event.aggregateId},coalesce(cast(#{event.envelopeJson} as jsonb), '{}'::jsonb),#{event.status},#{event.attemptCount},#{event.nextAttemptAt},#{event.lastError},#{event.claimedBy},#{event.claimUntil},#{event.createdAt},#{event.deliveredAt},#{event.updatedAt}) on conflict(event_id) do nothing</insert>
+  <select id="findByEventId" resultMap="IntegrationEventPoMap">select <include refid="Columns"/> from integration_event_outbox where event_id=#{eventId}</select>
+  <select id="claimDispatchable" resultMap="IntegrationEventPoMap">
+    with candidates as (
+      select integration_event_id from integration_event_outbox
+      where status='PENDING'
+         or (status='RETRY_WAITING' and (next_attempt_at is null or next_attempt_at &lt;= #{now}))
+         or (status='DELIVERING' and (claim_until is null or claim_until &lt;= #{now}))
+      order by created_at asc for update skip locked limit #{limit}
+    )
+    update integration_event_outbox e set status='DELIVERING',claimed_by=#{workerId},claim_until=#{claimUntil},updated_at=#{now}
+    from candidates c where e.integration_event_id=c.integration_event_id returning e.*
+  </select>
+  <update id="markDelivered">update integration_event_outbox set status='DELIVERED',delivered_at=#{deliveredAt},updated_at=#{deliveredAt},last_error=null,next_attempt_at=null,claimed_by=null,claim_until=null where integration_event_id=#{integrationEventId} and status='DELIVERING' and claimed_by=#{workerId} and claim_until=#{claimUntil}</update>
+  <update id="markRetry">update integration_event_outbox set status='RETRY_WAITING',attempt_count=#{attemptCount},next_attempt_at=#{nextAttemptAt},last_error=#{error},claimed_by=null,claim_until=null,updated_at=#{updatedAt} where integration_event_id=#{integrationEventId} and status='DELIVERING' and claimed_by=#{workerId} and claim_until=#{claimUntil}</update>
+  <update id="markDeadLetter">update integration_event_outbox set status='DEAD_LETTER',attempt_count=#{attemptCount},last_error=#{error},next_attempt_at=null,claimed_by=null,claim_until=null,updated_at=#{updatedAt} where integration_event_id=#{integrationEventId} and status='DELIVERING' and claimed_by=#{workerId} and claim_until=#{claimUntil}</update>
+  <select id="statusCounts" resultMap="StatusCountPoMap">select status,count(*)::integer as total from integration_event_outbox group by status order by status</select>
+</mapper>
