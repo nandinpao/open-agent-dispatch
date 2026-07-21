@@ -342,11 +342,9 @@ export function buildDispatchAssignmentEvidence(
     ]),
     ...asStringArray(selected?.matchedCapabilities),
   ]);
-  // P3-Y: Admin-managed capabilities are valid direct dispatch contracts. If a task carries
-  // a raw requirement such as CMS_CONTENT_REVIEW or a user-created capability and no candidate
-  // has been selected yet, do not call it CONTRACT_NOT_RESOLVED merely because routing has not
-  // persisted an explicit effectiveCapabilities array. Treat the raw requirement as the
-  // effective direct capability until backend evidence says otherwise.
+  // Phase 4-4: capability evidence is diagnostic/reference-only for the Current Source Flow -> Agent Pool model.
+  // Preserve legacy raw/effective capability evidence for operator explanation, but do not present it as
+  // the Current setup path or a first-version routing gate.
   const effectiveCapabilities = explicitEffectiveCapabilities.length
     ? explicitEffectiveCapabilities
     : rawRequirements;
@@ -551,10 +549,11 @@ export function DispatchAssignmentEvidencePanel(
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             {props.description ??
-              "Evidence from Core routing, optional Required Capability, dispatch request, runtime delivery, callback inbox, and issue tracking. This is the operator view for explaining assignment success or failure."}
+              "Evidence from Current Source Flow / Agent Pool routing plus diagnostic-only capability fields, dispatch request, runtime delivery, callback inbox and issue tracking. Use capability data as reference evidence, not as the Current setup path."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-indigo-700">Capability evidence: diagnostic-only</span>
           {evidence.latestDecision?.status ? (
             <StatusBadge status={evidence.latestDecision.status} />
           ) : null}
@@ -577,18 +576,18 @@ export function DispatchAssignmentEvidencePanel(
         <>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <EvidenceCard
-              label="Required Capability"
+              label="Legacy/diagnostic requirement"
               tone={evidence.rawRequirements.length ? "good" : "neutral"}
             >
-              <ChipList values={evidence.rawRequirements} empty="No Required Capability configured" />
+              <ChipList values={evidence.rawRequirements} empty="No legacy Required Capability configured" />
             </EvidenceCard>
             <EvidenceCard
-              label="Effective Capabilities"
+              label="Reference-only capabilities"
               tone={evidence.effectiveCapabilities.length ? "good" : "warn"}
             >
               <ChipList
                 values={evidence.effectiveCapabilities}
-                empty="No resolved capability contract"
+                empty="No diagnostic capability evidence"
               />
             </EvidenceCard>
             <EvidenceCard
@@ -612,12 +611,12 @@ export function DispatchAssignmentEvidencePanel(
               ) : null}
             </EvidenceCard>
             <EvidenceCard
-              label="Runtime Reported"
+              label="Runtime diagnostics"
               tone={evidence.runtimeCapabilities.length ? "good" : "warn"}
             >
               <ChipList
                 values={evidence.runtimeCapabilities}
-                empty="No runtime capability evidence"
+                empty="No runtime capability diagnostic evidence"
               />
             </EvidenceCard>
             <EvidenceCard

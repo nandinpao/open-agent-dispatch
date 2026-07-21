@@ -160,7 +160,7 @@ export function lifecycleOperatorDecision(summary: DispatchLifecycleSummary): { 
     return { title: 'Lifecycle 失敗', description: summary.headline, currentStage: current?.title ?? 'Failed', nextAction: operatorNextActionText(summary.nextAction, '查看 Timeline Event Log 後決定 Retry / Reassign / Cancel。'), tone: 'danger' };
   }
   if (summary.overallStatus === 'BLOCKED') {
-    return { title: 'Lifecycle 被阻擋', description: summary.blockedReason ?? summary.headline, currentStage: current?.title ?? 'Blocked', nextAction: operatorNextActionText(summary.nextAction, '修正治理、能力或 runtime 條件後再派工。'), tone: 'warning' };
+    return { title: 'Lifecycle 被阻擋', description: summary.blockedReason ?? summary.headline, currentStage: current?.title ?? 'Blocked', nextAction: operatorNextActionText(summary.nextAction, '修正派工設定、Agent Pool 或 Runtime 條件後再派工。'), tone: 'warning' };
   }
   if (summary.overallStatus === 'WAITING_AGENT') {
     return { title: '等待 Agent 回覆', description: 'Gateway 已接受或 Agent 已 ACK，Core 正在等待 callback。', currentStage: current?.title ?? 'Agent callback', nextAction: operatorNextActionText(summary.nextAction, '等待 Agent RESULT / ERROR callback，或檢查 runtime callback relay。'), tone: 'warning' };
@@ -504,9 +504,9 @@ export type TaskDispatchDiagnosisCode =
   | 'NO_MATCHING_FLOW'
   | 'NO_MATCHING_RULE'
   | 'NO_FLOW_AGENT'
-  | 'MISSING_REQUIRED_CAPABILITY'
   | 'AGENT_OFFLINE'
   | 'AGENT_CAPACITY_FULL'
+  | 'MANUAL_ASSIGNMENT_REQUIRED'
   | 'DISPATCH_DELIVERY_FAILED'
   | 'RESULT_TIMEOUT';
 
@@ -546,16 +546,6 @@ const noFlowCodes = new Set([
   'NO_SOURCE_SYSTEM_PROFILE_MATCH',
 ]);
 
-const capabilityCodes = new Set([
-  'MISSING_REQUIRED_CAPABILITY',
-  'P3H_MISSING_REQUIRED_CAPABILITY',
-  'AGENT_SKILL_GRANT_MISSING',
-  'RUNTIME_CAPABILITY_MISSING',
-  'CAPABILITY_NOT_APPROVED',
-  'MISSING_REQUIRED_CAPABILITY',
-  'REQUIRED_SKILL_MISSING',
-]);
-
 const offlineCodes = new Set([
   'AGENT_OFFLINE',
   'RUNTIME_NOT_CONNECTED',
@@ -578,6 +568,12 @@ const noAgentCodes = new Set([
   'NO_CANDIDATE',
   'DISPATCH_DELAYED_NO_FLOW_AGENT',
   'CANDIDATE_POOL_EMPTY',
+]);
+
+const manualAssignmentCodes = new Set([
+  'MANUAL_ASSIGNMENT_REQUIRED',
+  'WAITING_MANUAL_ASSIGNMENT',
+  'OPERATOR_REVIEW_REQUIRED',
 ]);
 
 const deliveryCodes = new Set([
@@ -661,26 +657,13 @@ export function deriveTaskDispatchDiagnosis(input: {
       code: 'NO_MATCHING_FLOW',
       title: '沒有符合的派工流程',
       reason: '此事件沒有命中已啟用的 Dispatch Flow Rule，因此尚未進入 Agent 候選判斷。',
-      nextAction: '建立或啟用符合事件條件的派工流程，並在流程中選擇至少一個已核准 Agent。',
+      nextAction: '建立或啟用符合事件條件的 Source Flow，指定預設或規則目標 Agent Pool，並加入至少一個已核准 Agent。',
       tone: 'warning',
       actionHref: flowCreateHref(task),
       actionLabel: '建立派工流程',
     };
   }
-  if (containsCode(tokens, capabilityCodes)) {
-    return {
-      ...common,
-      code: 'MISSING_REQUIRED_CAPABILITY',
-      title: 'Agent 缺少必要特殊能力',
-      reason: missingCapabilities.length
-        ? `此流程要求 ${missingCapabilities.join('、')}，目前沒有符合的已核准 Agent。`
-        : '目前沒有 Agent 具備此 Flow Rule 明確要求的特殊能力。',
-      nextAction: '在派工流程中確認必要 Capability，或核准具備該 Capability 的 Agent。',
-      tone: 'warning',
-      actionHref: task.matchedFlowId ? `/dispatch-flows?flowId=${encodeURIComponent(task.matchedFlowId)}` : '/dispatch-flows',
-      actionLabel: '查看派工流程',
-    };
-  }
+
   if (containsCode(tokens, offlineCodes)) {
     return {
       ...common,
@@ -705,13 +688,25 @@ export function deriveTaskDispatchDiagnosis(input: {
       actionLabel: '調整處理 Agent',
     };
   }
+  if (containsCode(tokens, manualAssignmentCodes)) {
+    return {
+      ...common,
+      code: 'MANUAL_ASSIGNMENT_REQUIRED',
+      title: '需要人工指定派工目標',
+      reason: 'Task 已進入人工處置狀態，自動派工不會繼續選擇 Agent。',
+      nextAction: '指定 Agent、變更工作池，或取消此 Task。',
+      tone: 'warning',
+      actionHref: `/tasks/${encodeURIComponent(task.taskId)}`,
+      actionLabel: '執行人工處置',
+    };
+  }
   if (containsCode(tokens, noAgentCodes)) {
     return {
       ...common,
       code: 'NO_FLOW_AGENT',
       title: '派工流程沒有可用 Agent',
-      reason: 'Flow Rule 已命中，但目前沒有同時符合核准、Capability、Runtime 與容量條件的 Agent。',
-      nextAction: '查看 Flow 選擇的 Agent，依阻擋原因修正後再重新派工。',
+      reason: 'Source Flow 已命中，但目標 Agent Pool 目前沒有同時符合治理狀態、Runtime、容量與 backoff 條件的 Agent。',
+      nextAction: '查看目標 Agent Pool 與成員排除原因，修正後再重新派工。',
       tone: 'warning',
       actionHref: task.matchedFlowId ? `/dispatch-flows?flowId=${encodeURIComponent(task.matchedFlowId)}` : '/dispatch-flows',
       actionLabel: '查看派工流程',
@@ -776,7 +771,7 @@ export function buildStandardDispatchTimeline(
   const acked = agentAcknowledged(task) || timelineHas(timeline, 'ACK', 'AGENT_ACCEPTED');
   const completed = taskCompleted(task);
   const blockedAt = diagnosis.code === 'NO_MATCHING_FLOW' ? 'flow'
-    : ['MISSING_REQUIRED_CAPABILITY', 'AGENT_OFFLINE', 'AGENT_CAPACITY_FULL', 'NO_FLOW_AGENT'].includes(diagnosis.code) ? 'agent'
+    : ['AGENT_OFFLINE', 'AGENT_CAPACITY_FULL', 'NO_FLOW_AGENT', 'MANUAL_ASSIGNMENT_REQUIRED'].includes(diagnosis.code) ? 'agent'
       : diagnosis.code === 'DISPATCH_DELIVERY_FAILED' ? 'delivery'
         : diagnosis.code === 'RESULT_TIMEOUT' ? 'result'
           : undefined;

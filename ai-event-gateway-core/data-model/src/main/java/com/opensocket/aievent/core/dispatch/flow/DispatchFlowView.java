@@ -30,6 +30,8 @@ public class DispatchFlowView {
     private List<DispatchFlowRequiredSkillView> requiredSkills = new ArrayList<>();
     private List<DispatchFlowAgentView> agents = new ArrayList<>();
     private Map<String, Object> metadata = new LinkedHashMap<>();
+    private Integer version;
+    private String updatedBy;
     private OffsetDateTime updatedAt;
 
     public String getTenantId() { return tenantId; }
@@ -82,6 +84,10 @@ public class DispatchFlowView {
     public void setAgents(List<DispatchFlowAgentView> agents) { this.agents = agents == null ? new ArrayList<>() : new ArrayList<>(agents); }
     public Map<String, Object> getMetadata() { return metadata; }
     public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata == null ? new LinkedHashMap<>() : new LinkedHashMap<>(metadata); }
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
+    public String getUpdatedBy() { return updatedBy; }
+    public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

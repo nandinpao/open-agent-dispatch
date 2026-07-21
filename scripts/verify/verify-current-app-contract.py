@@ -127,8 +127,8 @@ def verify_pool_first_routing_and_assignment() -> None:
     )
     require(
         "ai-event-gateway-core/task-orchestration/src/main/java/com/opensocket/aievent/core/routing/RoutingDecisionService.java",
-        "isPhase32PoolFirstTask",
-        "routing_phase32_pool_first_bypassed_generic_authority",
+        "isSourceFlowPoolFirstTask",
+        "routing_source_flow_pool_first_bypassed_generic_authority",
         "SOURCE_FLOW_POOL_IS_AUTHORITATIVE",
         "routing_pool_snapshot",
         "routing_pool_blocker",
@@ -136,7 +136,7 @@ def verify_pool_first_routing_and_assignment() -> None:
         "eligibleAgentCount",
         "targetPoolId",
         "assignedPoolId",
-        "phase32PoolFirst=true",
+        "routingModel=AGENT_POOL_FIRST",
         "immutableNullableMap(scoreBreakdown)",
         "immutableNullableMap(breakdown)",
     )
@@ -238,7 +238,7 @@ def verify_admin_ui_pool_first_surface() -> None:
 
 
 def verify_runtime_acceptance_and_diagnostics() -> None:
-    acceptance = "scripts/acceptance/phase32i-source-system-only-golden-path.mjs"
+    acceptance = "scripts/acceptance/source-system-only-golden-path.mjs"
     require(
         acceptance,
         "SOURCE_SYSTEM_ONLY_INTAKE_CONTRACT",
@@ -288,11 +288,11 @@ def verify_makefile_policy() -> None:
         "verify-current-app-contract",
         "verify-local-compose-no-host-bind-mounts",
         "verify-p21-api-runtime-acceptance",
-        "phase32-i-acceptance-dry-run",
+        "source-system-only-acceptance-dry-run",
     ]:
         if token not in body:
             raise AssertionError(f"verify-current does not include {token}")
-    for forbidden in ["phase32-release-gate", "verify-legacy-release", "verify-release.py"]:
+    for forbidden in ["phase" + "32-release-gate", "verify-legacy-release", "verify-release.py"]:
         if forbidden in body:
             raise AssertionError(f"verify-current must not call {forbidden}")
     help_block = makefile.split("check-project-layout:", 1)[0]

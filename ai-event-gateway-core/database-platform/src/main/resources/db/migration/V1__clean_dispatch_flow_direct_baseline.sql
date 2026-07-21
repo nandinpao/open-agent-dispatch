@@ -3,7 +3,7 @@
 -- Only the standard path is modeled:
 -- source_systems -> dispatch_flows(Source Flow) -> dispatch_policies(known-event override rules)
 -- -> agent_pools/work queues -> agent_pool_members -> agents -> tasks -> task_assignments -> dispatch_requests.
--- Capability rows are retained as Agent metadata / compatibility records only; Phase 32-B
+-- Capability rows are retained as Agent metadata / compatibility records only; current
 -- does not allow Capability to become a first-version routing gate.
 
 create table if not exists source_systems (
@@ -109,7 +109,7 @@ create table if not exists agent_profiles (
 );
 create index if not exists idx_agent_profiles_tenant_status on agent_profiles(tenant_id, approval_status, enabled);
 
--- Phase 32-B: Agent Pool / Work Queue persistence.
+-- Agent Pool / Work Queue persistence.
 -- Pools are the first-version dispatch targets. A Source Flow resolves to a Pool,
 -- then runtime selection chooses an Agent from active Pool members.
 create table if not exists agent_pools (
@@ -391,7 +391,7 @@ create index if not exists idx_dispatch_policies_flow on dispatch_policies(tenan
 create index if not exists idx_dispatch_policies_match on dispatch_policies(tenant_id, source_system, event_stage, object_type, event_type, error_code, status);
 create index if not exists idx_dispatch_policies_target_pool on dispatch_policies(tenant_id, target_pool_id, status, priority);
 
--- Phase 32-B compatibility view: the product model calls these Flow Rules,
+-- Compatibility view: the product model calls these Flow Rules,
 -- while the historical physical table remains dispatch_policies in this clean baseline.
 create or replace view dispatch_flow_rules as
 select

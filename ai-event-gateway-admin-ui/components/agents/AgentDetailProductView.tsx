@@ -19,7 +19,7 @@ import { useAgentDetail, type AgentDetailBundle } from '@/hooks/useAgentDetail';
 import { useI18n } from '@/hooks/useI18n';
 import { coreAdminApi } from '@/lib/api/coreAdminApi';
 import type { CommandResult } from '@/lib/types/admin';
-import type { CoreAgentCapability, CoreAgentCapabilityAssignment, CoreAgentCapabilityCatalog, CoreAgentCapabilityCommand, CoreAgentProfile, CoreAgentSetupReadinessResponse, CoreAgentConnectionRepairAction, CoreAgentConnectionRepairActionResult, CoreAgentRuntimeBinding, CoreTaskRuntimeView } from '@/lib/types/core';
+import type { CoreAgentCapability, CoreAgentCapabilityAssignment, CoreAgentCapabilityCatalog, CoreAgentCapabilityCommand, CoreAgentCertificationRun, CoreAgentProfile, CoreAgentSetupReadinessResponse, CoreAgentConnectionRepairAction, CoreAgentConnectionRepairActionResult, CoreAgentRuntimeBinding, CoreTaskRuntimeView, CoreAgentQualityMetricsWindow } from '@/lib/types/core';
 import { formatDateTime } from '@/lib/utils/format';
 
 type AgentDetailTab = 'overview' | 'connection' | 'capabilities' | 'flows' | 'tasks' | 'advanced';
@@ -196,7 +196,7 @@ function buildSetupSteps(data: AgentDetailBundle): SetupStep[] {
     { id: 'profile', label: 'Agent 已核准並啟用', complete: profileReady, actionLabel: profileReady ? '查看連線設定' : '核准或編輯 Agent', tab: 'connection', description: 'Agent Profile 是身分與管理權威。' },
     { id: 'credential', label: 'Credential 有效', complete: credentialReady, actionLabel: credentialReady ? '查看 Credential' : '建立 Credential', tab: 'connection', description: 'Runtime 必須使用有效 Credential 才能連線。' },
     { id: 'runtime', label: 'Runtime 已連線', complete: connected, actionLabel: connected ? '查看連線' : '啟動 Agent', tab: 'connection', description: 'Agent 必須連線並持續回報 heartbeat。' },
-    { id: 'flows', label: '至少加入一個 Agent Pool', complete: flowReady, actionLabel: flowReady ? '查看 Pool / Source Flow' : '加入 Agent Pool', tab: 'flows', description: 'Phase 32-G 的派工主體是 Agent Pool；Source Flow 指到 Pool，再由 Pool 選 Agent。' },
+    { id: 'flows', label: '至少加入一個 Agent Pool', complete: flowReady, actionLabel: flowReady ? '查看 Source Flow / Agent Pool' : '到派工設定加入 Agent Pool', tab: 'flows', description: 'Current setup path：來源系統 → Source Flow → Agent Pool → Pool Member Agent。' },
     { id: 'capabilities', label: '能力標籤僅供查詢', complete: true, actionLabel: '查看能力標籤', tab: 'capabilities', description: '一般工作不需要 Capability；第一版派單不以 Capability 作為 gate。' },
   ];
 }
@@ -254,7 +254,7 @@ function taskContractTone(data: AgentDetailBundle): 'good' | 'warn' | 'bad' {
 
 function TwoLayerReadinessPanel({ data }: Readonly<{ data: AgentDetailBundle }>) {
   return (
-    <Panel title="派工準備狀態" description="Phase 32-G 標準流程只檢查 Agent 身分、Runtime 與 Agent Pool 關聯。Capability 是能力標籤，不是第一版 routing gate。">
+    <Panel title="派工準備狀態" description="Current setup path：來源系統 → Source Flow → Agent Pool → Pool Member Agent。此頁只確認 Agent 身分、Runtime 與 Pool membership；Capability 是能力標籤，不是第一版 routing gate。">
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
           <div className="flex items-start justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-wide text-emerald-700">Agent Runtime</div><h3 className="mt-1 text-lg font-black text-slate-950">Runtime 是否可接收工作？</h3></div><StatusBadge status={runtimeReadyStatus(data)} /></div>
@@ -263,9 +263,172 @@ function TwoLayerReadinessPanel({ data }: Readonly<{ data: AgentDetailBundle }>)
         </div>
         <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4">
           <div className="flex items-start justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-wide text-purple-700">Agent Pool</div><h3 className="mt-1 text-lg font-black text-slate-950">哪些 Pool 可以派給此 Agent？</h3></div><StatusBadge status={taskContractStatus(data)} /></div>
-          <p className="mt-2 text-sm leading-6 text-slate-700">目前加入 {data.agentPools?.length ?? 0} 個 Agent Pool。Source Flow 指到 Pool，再由 Pool 選 Agent。</p>
-          <div className="mt-3"><Link href="/dispatch-flows" className="rounded-xl bg-purple-700 px-4 py-2 text-sm font-black text-white hover:bg-purple-800">建立或查看 Agent Pool / Source Flow</Link></div>
+          <p className="mt-2 text-sm leading-6 text-slate-700">目前加入 {data.agentPools?.length ?? 0} 個 Agent Pool。若尚未可派單，請回到派工設定檢查 Source Flow 是否指到正確 Pool，並確認此 Agent 是 Pool member。</p>
+          <div className="mt-3"><Link href="/dispatch-flows" className="rounded-xl bg-purple-700 px-4 py-2 text-sm font-black text-white hover:bg-purple-800">開啟派工設定：Source Flow / Agent Pool</Link></div>
         </div>
+      </div>
+    </Panel>
+  );
+}
+
+
+
+function numberValue(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function percentText(value: unknown): string {
+  const numeric = numberValue(value);
+  if (numeric === undefined) return '-';
+  const percent = numeric <= 1 ? numeric * 100 : numeric;
+  return `${percent.toFixed(percent >= 10 ? 1 : 2)}%`;
+}
+
+function latencyText(value: unknown): string {
+  const numeric = numberValue(value);
+  if (numeric === undefined) return '-';
+  if (numeric >= 1000) return `${(numeric / 1000).toFixed(1)}s`;
+  return `${numeric.toFixed(0)}ms`;
+}
+
+function latestQualityWindow(windows: CoreAgentQualityMetricsWindow[]): CoreAgentQualityMetricsWindow | undefined {
+  return [...windows].sort((left, right) => {
+    const leftTime = Date.parse(left.calculatedAt ?? left.windowEnd ?? left.updatedAt ?? left.createdAt ?? '') || 0;
+    const rightTime = Date.parse(right.calculatedAt ?? right.windowEnd ?? right.updatedAt ?? right.createdAt ?? '') || 0;
+    return rightTime - leftTime;
+  })[0];
+}
+
+function qualityObservationValue(window: CoreAgentQualityMetricsWindow | undefined, field: keyof CoreAgentQualityMetricsWindow, metadataKey: string): unknown {
+  return window?.[field] ?? window?.metadata?.[metadataKey];
+}
+
+function qualityResponsibility(window: CoreAgentQualityMetricsWindow | undefined): string {
+  const scope = String(window?.responsibilityScope ?? window?.metadata?.responsibilityScope ?? window?.metadata?.qualityResponsibility ?? 'UNKNOWN').toUpperCase();
+  if (scope === 'AGENT') return 'Agent-responsible sample';
+  if (scope === 'UPSTREAM_PAYLOAD') return 'Upstream payload / source-system responsible';
+  if (scope === 'SYSTEM_CONFIGURATION') return 'System configuration responsible';
+  return 'Responsibility not classified';
+}
+
+function AgentQualityObservationPanel({ data }: Readonly<{ data: AgentDetailBundle }>) {
+  const latest = latestQualityWindow(data.agentQualityWindows ?? []);
+  const p95 = qualityObservationValue(latest, 'p95CompletionLatencyMs', 'p95CompletionLatencyMs');
+  const retryRate = qualityObservationValue(latest, 'retryRate', 'retryRate');
+  const manualReassignmentRate = qualityObservationValue(latest, 'manualReassignmentRate', 'manualReassignmentRate');
+  const recentHealthScore = qualityObservationValue(latest, 'recentHealthScore', 'recentHealthScore');
+  const minimumSample = Number(latest?.minimumSample ?? latest?.metadata?.minimumSample ?? 30);
+  const sampleSize = latest?.sampleSize ?? 0;
+  const sampleReady = sampleSize >= minimumSample;
+  const decayWindow = String(latest?.decayWindow ?? latest?.metadata?.decayWindow ?? '7d');
+  const observationWindow = String(latest?.observationWindow ?? latest?.metricWindow ?? '24h');
+  return (
+    <Panel
+      title="Agent Quality Observation"
+      description="Phase 9B quality metrics are observation-only. They help operators understand recent behavior, but Selection Strategy and Runtime Eligibility must not consume this score."
+    >
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+        <div className="font-black">Observation-only / no selection impact</div>
+        <p className="mt-1">成功率、平均處理時間、P95、ACK timeout、Result failure、Retry、人工改派與最近健康度僅供觀察；正式派工仍由 Source Flow、Agent Pool、Pool Member、Runtime Eligibility 與 Selection Strategy 決定。</p>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <StatCard label="Success Rate" value={percentText(latest?.successRate)} tone={sampleReady ? 'good' : 'warn'} />
+        <StatCard label="Avg Completion" value={latencyText(latest?.avgCompletionLatencyMs)} tone="neutral" />
+        <StatCard label="P95 Completion" value={latencyText(p95)} tone="neutral" />
+        <StatCard label="Health Score" value={recentHealthScore === undefined ? '-' : String(recentHealthScore)} tone="neutral" />
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-4">
+        <StatCard label="ACK Timeout" value={percentText(qualityObservationValue(latest, 'ackTimeoutRate', 'ackTimeoutRate') ?? latest?.timeoutRate)} tone="neutral" />
+        <StatCard label="Result Failure" value={percentText(qualityObservationValue(latest, 'resultFailureRate', 'resultFailureRate') ?? latest?.failureRate)} tone="neutral" />
+        <StatCard label="Retry Rate" value={percentText(retryRate)} tone="neutral" />
+        <StatCard label="Manual Reassign" value={percentText(manualReassignmentRate)} tone="neutral" />
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <MetricLine label="Observation window" value={`${observationWindow} · decay=${decayWindow}`} />
+        <MetricLine label="Minimum sample" value={`${sampleSize} / ${minimumSample} ${sampleReady ? 'ready' : 'insufficient sample'}`} />
+        <MetricLine label="Responsibility" value={qualityResponsibility(latest)} />
+      </div>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
+        selectionImpact=NONE · observationOnly=true · source={latest?.source ?? 'quality-observation-read-model'} · calculatedAt={formatDateTime(latest?.calculatedAt ?? latest?.updatedAt)}
+      </div>
+    </Panel>
+  );
+}
+
+function MetricLine({ label, value }: Readonly<{ label: string; value: ReactNode }>) {
+  return <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</div><div className="mt-1 text-sm font-black text-slate-900">{value}</div></div>;
+}
+
+function metadataText(metadata: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = metadata?.[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function capabilityRegistrySource(assignment: CoreAgentCapabilityAssignment, catalog?: CoreAgentCapabilityCatalog): string {
+  return assignment.source || metadataText(assignment.metadata, 'source') || metadataText(catalog?.metadata, 'source') || 'Admin-managed reference';
+}
+
+function capabilityRegistryVersion(assignment: CoreAgentCapabilityAssignment, catalog?: CoreAgentCapabilityCatalog): string {
+  return metadataText(assignment.metadata, 'capabilityVersion') || metadataText(catalog?.metadata, 'capabilityVersion') || (catalog?.version ? `v${catalog.version}` : '-');
+}
+
+function capabilityRegistryCertification(assignment: CoreAgentCapabilityAssignment, certifications: CoreAgentCertificationRun[], catalog?: CoreAgentCapabilityCatalog): string {
+  const explicit = assignment.evidenceRef || metadataText(assignment.metadata, 'certificationRef') || metadataText(catalog?.metadata, 'certificationRef');
+  if (explicit) return explicit;
+  const matched = certifications.find((run) => run.status === 'PASSED' && normalizeCode(run.profileCode) === normalizeCode(assignment.capabilityCode));
+  return matched?.certificationRunId ?? (catalog?.requiresCertification ? 'Certification required' : '-');
+}
+
+function CapabilityRegistryPanel({ data }: Readonly<{ data: AgentDetailBundle }>) {
+  const catalogByCode = new Map((data.capabilityCatalog ?? []).map((item) => [normalizeCode(item.capabilityCode), item]));
+  const rows = activeCapabilityAssignments(data.capabilityAssignments)
+    .map((assignment) => ({ assignment, catalog: catalogByCode.get(normalizeCode(assignment.capabilityCode)) }))
+    .sort((left, right) => normalizeCode(left.assignment.capabilityCode).localeCompare(normalizeCode(right.assignment.capabilityCode)));
+  const runtimeReported = new Set((data.runtimeCapabilityItems ?? []).map((item) => normalizeCode(item.capabilityValue)).filter(Boolean));
+
+  return (
+    <Panel
+      title="Capability Registry 2.0"
+      description="Capability Registry 只維護 Agent 能力的 reference、search、governance 與 certification evidence；Current Routing Eligibility 不讀此表作為隱性 gate。"
+    >
+      <div className="grid gap-3 md:grid-cols-4">
+        <StatCard label="Catalog" value={data.capabilityCatalog?.length ?? 0} tone="neutral" />
+        <StatCard label="Assignments" value={rows.length} tone={rows.length ? 'good' : 'warn'} />
+        <StatCard label="Runtime Reported" value={runtimeReported.size} tone="neutral" />
+        <StatCard label="Certifications" value={data.certificationRuns?.length ?? 0} tone="neutral" />
+      </div>
+      <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm leading-6 text-indigo-900">
+        <div className="font-black">Reference-only enforcement boundary</div>
+        <p className="mt-1">管理員可以用 Capability 搜尋、描述與治理 Agent；真正派工仍必須透過 Source Flow → Agent Pool → Pool Member Agent。此區不建立 Pool membership、不改 Flow、不影響 Runtime Eligibility。</p>
+      </div>
+      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+        <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-wide text-slate-500">
+            <tr><th className="px-4 py-3">Capability</th><th className="px-4 py-3">Admin Approval</th><th className="px-4 py-3">Source / Version</th><th className="px-4 py-3">Last Reported</th><th className="px-4 py-3">Certification</th><th className="px-4 py-3">Routing Impact</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 bg-white">
+            {rows.map(({ assignment, catalog }) => {
+              const code = normalizeCode(assignment.capabilityCode);
+              const lastReported = assignment.updatedAt || assignment.approvedAt || assignment.requestedAt || catalog?.updatedAt || '-';
+              return (
+                <tr key={assignment.assignmentId ?? code}>
+                  <td className="px-4 py-3"><div className="font-black text-slate-900">{code}</div><div className="text-xs text-slate-500">{assignment.capabilityName || catalog?.capabilityName || '-'}</div></td>
+                  <td className="px-4 py-3"><StatusBadge status={assignment.status ?? 'UNKNOWN'} /></td>
+                  <td className="px-4 py-3 text-xs leading-5 text-slate-600"><b>{capabilityRegistrySource(assignment, catalog)}</b><br />{capabilityRegistryVersion(assignment, catalog)}</td>
+                  <td className="px-4 py-3 text-xs leading-5 text-slate-600">{lastReported}<br />Runtime observed: {runtimeReported.has(code) ? 'yes' : 'optional / no'}</td>
+                  <td className="px-4 py-3 text-xs leading-5 text-slate-600">{capabilityRegistryCertification(assignment, data.certificationRuns ?? [], catalog)}</td>
+                  <td className="px-4 py-3"><StatusBadge status="NO_ROUTING_GATE" label="No routing gate" title="Capability Registry is advisory/reference-only in Phase 9A." /></td>
+                </tr>
+              );
+            })}
+            {!rows.length ? <tr><td colSpan={6} className="px-4 py-4 text-sm font-bold text-slate-500">尚無 active capability assignment。可用 Assign Reference Capability 記錄 Agent 能力，但這不會改變 Source Flow / Agent Pool 派工設定。</td></tr> : null}
+          </tbody>
+        </table>
       </div>
     </Panel>
   );
@@ -314,9 +477,10 @@ function CapabilityList({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-        <div className="font-black">Admin-managed capability source of truth</div>
-        <p className="mt-1 leading-6">Dispatch usable is based on Admin UI/Core approval only. Runtime observation is optional diagnostics and never blocks an approved capability.</p>
+      <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
+        <div className="font-black">Reference-only capability labels</div>
+        <p className="mt-1 leading-6">Capability labels describe what the Agent can do and support search, audit, and diagnostics. Current dispatch setup is Source Flow → Agent Pool; Capability does not replace Pool membership or act as a routing gate.</p>
+        <Link href="/dispatch-flows" className="mt-3 inline-flex rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-black text-indigo-700 hover:bg-indigo-50">Open Source Flow / Agent Pool setup</Link>
       </div>
 
       {rowCodes.length > 0 ? (
@@ -327,7 +491,7 @@ function CapabilityList({
               <th className="px-4 py-3">{t('agent.detail.table.capability')}</th>
               <th className="px-4 py-3">Core Approval</th>
               <th className="px-4 py-3">Runtime Observation (optional)</th>
-              <th className="px-4 py-3">Dispatch Usable</th>
+              <th className="px-4 py-3">Reference Status</th>
               <th className="px-4 py-3">{t('agent.detail.table.source')}</th>
               <th className="px-4 py-3 text-right">{t('agent.detail.table.actions')}</th>
             </tr>
@@ -376,7 +540,7 @@ function CapabilityList({
       {ignoredNonWorkingCapabilities.length > 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <div className="font-black">Non-working capability values ignored</div>
-          <p className="mt-1 leading-6">These values are not used as the working capability source for Dispatch Flow matching: {Array.from(new Set(ignoredNonWorkingCapabilities)).sort().join(', ')}</p>
+          <p className="mt-1 leading-6">These values are legacy/profile capability references. They are preserved for diagnostics and are not used as the Current Source Flow / Agent Pool routing gate: {Array.from(new Set(ignoredNonWorkingCapabilities)).sort().join(', ')}</p>
         </div>
       ) : null}
 
@@ -385,7 +549,7 @@ function CapabilityList({
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="text-sm font-black text-slate-900">Revoked capability records</div>
-              <p className="mt-1 text-xs leading-5 text-slate-500">These records are no longer dispatch-usable. Remove them from the working list after revocation if the Agent capability set changed.</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">These records are no longer reference-usable. They are retained for audit/diagnostics until removed by an operator.</p>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -611,7 +775,7 @@ function AgentDispatchFlowsPanel({ data, agentId }: Readonly<{ data: AgentDetail
     <div className="space-y-5">
       <Panel
         title="Agent Pool / Work Queue"
-        description="Phase 32-G 的標準派單關聯是 Agent Pool。Source Flow 指到 Pool，再由 Pool 內策略選 Agent；Capability 僅是能力標籤參考。"
+        description="標準派單關聯是 Agent Pool。Source Flow 指到 Pool，再由 Pool 內策略選 Agent；Capability 僅是能力標籤參考。"
         action={<Link href="/dispatch-flows" className="rounded-xl bg-purple-700 px-4 py-2 text-sm font-black text-white hover:bg-purple-800">管理 Pool / Source Flow</Link>}
       >
         {pools.length ? (
@@ -637,13 +801,13 @@ function AgentDispatchFlowsPanel({ data, agentId }: Readonly<{ data: AgentDetail
             })}
           </div>
         ) : (
-          <EmptyState title="尚未加入 Agent Pool" description="請在 Dispatch Flows 頁建立 TRIAGE_POOL 或處理池，並把此 Agent 加入 Pool。" />
+          <EmptyState title="尚未加入 Agent Pool" description="請在派工設定建立預設處理池或其他工作池，並把此 Agent 加入 Pool。" />
         )}
       </Panel>
 
       <Panel
         title="相容：直接選用此 Agent 的舊 Dispatch Flow"
-        description="這裡只作歷史相容參考。Phase 32-G 新流程應以 Agent Pool 為派單主體。"
+        description="這裡只作歷史相容參考。Current 流程應以 Agent Pool 為派單主體。"
       >
         {flows.length ? (
           <div className="grid gap-3 md:grid-cols-2">
@@ -667,7 +831,7 @@ function AgentDispatchFlowsPanel({ data, agentId }: Readonly<{ data: AgentDetail
             })}
           </div>
         ) : (
-          <EmptyState title="沒有舊式直接 Flow Agent 關聯" description="這是正常狀態；Phase 32-G 標準流程會顯示在 Agent Pool 區塊。" />
+          <EmptyState title="沒有舊式直接 Flow Agent 關聯" description="這是正常狀態；標準流程會顯示在 Agent Pool 區塊。" />
         )}
       </Panel>
     </div>
@@ -726,7 +890,7 @@ function OverviewPanel({ data, setActiveTab }: Readonly<{ data: AgentDetailBundl
           <StatCard label="Setup Progress" value={`${completedSteps} / ${steps.length}`} tone={completedSteps === steps.length ? 'good' : 'warn'} />
           <StatCard label="Agent Runtime Ready" value={runtimeReadyStatus(data)} tone={runtimeReadyTone(data)} />
           <StatCard label="Agent Pools" value={data.agentPools?.length ?? 0} tone={taskContractTone(data)} />
-          <StatCard label="Capabilities" value={approvedCapabilityCount(data)} tone={approvedCapabilityCount(data) ? 'good' : 'warn'} />
+          <StatCard label="Capability Labels" value={approvedCapabilityCount(data)} tone={approvedCapabilityCount(data) ? 'good' : 'warn'} />
           <StatCard label="Blocking Checks" value={blockers.length} tone={blockers.length ? 'bad' : 'good'} />
         </div>
 
@@ -1171,8 +1335,8 @@ export OPENSOCKET_AGENT_TOKEN=<issued-token>
         <pre className="overflow-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">{backendStartCommand?.command ?? fallbackStartCommand}</pre>
         {backendStartCommand?.expectedCapabilities?.length ? (
           <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
-            <div className="text-xs font-black uppercase tracking-wide text-indigo-700">Admin-managed dispatch capabilities</div>
-            <p className="mt-1 text-xs leading-5 text-indigo-900">These capabilities are managed in Core/Admin UI and are not required in the Agent startup environment. The runtime only needs identity, credential, gateway URL, heartbeat, and capacity.</p>
+            <div className="text-xs font-black uppercase tracking-wide text-indigo-700">Reference-only dispatch capability labels</div>
+            <p className="mt-1 text-xs leading-5 text-indigo-900">These capability labels are managed in Core/Admin UI for reference and diagnostics. They are not required in the Agent startup environment and do not replace Source Flow / Agent Pool configuration. The runtime only needs identity, credential, gateway URL, heartbeat and capacity.</p>
             <pre className="mt-3 overflow-auto rounded-xl bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">{backendStartCommand.expectedCapabilities.join(',')}</pre>
           </div>
         ) : null}
@@ -1339,11 +1503,17 @@ export function AgentDetailProductView({ agentId }: AgentDetailProductViewProps)
 
         {activeTab === 'capabilities' ? (
           <div className="space-y-5">
+            <AgentQualityObservationPanel data={data} />
+            <CapabilityRegistryPanel data={data} />
             <Panel
-              title="特殊能力"
-              description="Capability 只表示 Agent 的特殊技術能力與查詢標籤。Phase 32-G 第一版派單由 Source Flow / Agent Pool 決定，不以 Capability 作為 gate。"
-              action={<button type="button" onClick={() => setCapabilityDialogOpen(true)} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800">Assign Capability</button>}
+              title="特殊能力（Reference-only）"
+              description="Capability 只表示 Agent 的特殊技術能力、查詢標籤與診斷線索。Current 派工設定主流程是 Source Flow / Agent Pool，不以 Capability 作為第一版 routing gate。"
+              action={<button type="button" onClick={() => setCapabilityDialogOpen(true)} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800">Assign Reference Capability</button>}
             >
+              <div className="mb-4 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm leading-6 text-indigo-900">
+                <div className="font-black">Reference-only / diagnostic-only section</div>
+                <p className="mt-1">Use this section to document Agent skills and troubleshoot evidence. To change real dispatch routing, open Dispatch Flows and configure Source Flow → Agent Pool → Pool Member Agent.</p>
+              </div>
               <CapabilityList
                 assignments={data.capabilityAssignments}
                 profileCapabilities={data.profile?.capabilities}
@@ -1390,4 +1560,4 @@ export function AgentDetailProductView({ agentId }: AgentDetailProductViewProps)
 }
 
 
-// Historical R5 verifier markers. Not rendered in the Stage 4 Agent UI.
+// Historical verifier markers. Not rendered in the Current Agent UI.

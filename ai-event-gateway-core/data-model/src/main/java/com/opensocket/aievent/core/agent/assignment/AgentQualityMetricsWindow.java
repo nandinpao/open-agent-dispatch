@@ -35,6 +35,19 @@ public class AgentQualityMetricsWindow {
     private BigDecimal riskPenalty = BigDecimal.ZERO;
     private BigDecimal score = BigDecimal.ZERO;
     private int sampleSize;
+    // Phase 9B: observation-only metrics. Persisted values may also be stored in metadata until schema is expanded.
+    private Long p95CompletionLatencyMs;
+    private BigDecimal ackTimeoutRate;
+    private BigDecimal resultFailureRate;
+    private BigDecimal retryRate;
+    private BigDecimal manualReassignmentRate;
+    private BigDecimal recentHealthScore;
+    private String observationWindow;
+    private Integer minimumSample;
+    private String decayWindow;
+    private String responsibilityScope;
+    private Boolean observationOnly = Boolean.TRUE;
+    private String selectionImpact = "NONE";
     private OffsetDateTime calculatedAt;
     private String source;
     private Map<String, Object> metadata = new LinkedHashMap<>();

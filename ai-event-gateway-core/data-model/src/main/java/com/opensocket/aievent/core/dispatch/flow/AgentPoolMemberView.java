@@ -4,7 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Phase 32-B API model for Agent membership in an Agent Pool / Work Queue. */
+/** API model for Agent membership in an Agent Pool / Work Queue. */
 public class AgentPoolMemberView {
     private String tenantId;
     private String poolId;
@@ -17,6 +17,8 @@ public class AgentPoolMemberView {
     private String approvalStatus;
     private String runtimeStatus;
     private Map<String, Object> metadata = new LinkedHashMap<>();
+    private Integer version;
+    private String updatedBy;
     private OffsetDateTime updatedAt;
 
     public String getTenantId() { return tenantId; }
@@ -41,6 +43,10 @@ public class AgentPoolMemberView {
     public void setRuntimeStatus(String runtimeStatus) { this.runtimeStatus = runtimeStatus; }
     public Map<String, Object> getMetadata() { return metadata; }
     public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata == null ? new LinkedHashMap<>() : new LinkedHashMap<>(metadata); }
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
+    public String getUpdatedBy() { return updatedBy; }
+    public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

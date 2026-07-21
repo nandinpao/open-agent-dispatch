@@ -15,7 +15,7 @@ import java.util.Set;
  * ORPHANED -> RECONCILING -> QUEUED / FAILED / DEAD_LETTER
  * </pre>
  *
- * <p>Legacy states are retained only for older task rows while Stage 8 standard dispatch uses direct delivery.</p>
+ * <p>Legacy states are retained only for older task rows while current standard dispatch uses direct delivery.</p>
  */
 public enum TaskStatus {
     /** Task is ready for dispatch eligibility/routing. */

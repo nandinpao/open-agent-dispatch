@@ -35,7 +35,7 @@ public class StandardApiResponseAdvice implements ResponseBodyAdvice<Object> {
                                   ServerHttpResponse response) {
         if (body instanceof StandardApiResponse<?>) {
             // Preserve the status selected by ResponseEntity/exception handlers.
-            // Stage 8-F0f forbids hiding BAD_REQUEST/INTERNAL_ERROR envelopes behind HTTP 200.
+            // The current API contract forbids hiding BAD_REQUEST/INTERNAL_ERROR envelopes behind HTTP 200.
             return body;
         }
         if (!shouldWrap(body, selectedContentType, request)) {

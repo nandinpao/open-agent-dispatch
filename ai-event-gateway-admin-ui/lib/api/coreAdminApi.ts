@@ -41,6 +41,8 @@ import type {
   CoreDispatchFlowAgentView,
   CoreDispatchFlowReadinessRequest,
   CoreDispatchFlowReadinessResponse,
+  CoreDispatchSimulationRequest,
+  CoreDispatchSimulationResponse,
   CoreDispatchFlowRuleView,
   CoreDispatchFlowRequiredSkillView,
   CoreDispatchFlowView,
@@ -63,6 +65,10 @@ import type {
   CoreAgentCapabilityCatalog,
   CoreAgentCapabilityAssignment,
   CoreAgentCapabilityCommand,
+  CoreAgentAdvisoryRecommendation,
+  CoreAdvancedSelectionStrategyContract,
+  CoreAgentPoolCapabilityPolicy,
+  CoreAgentAdvisoryRecommendationDecisionCommand,
   CoreRuntimeFeatureCatalog,
   CoreRuntimeResource,
   CoreSupplyProfile,
@@ -115,9 +121,13 @@ import type {
   CoreRecoveryGovernanceActionResult,
   CoreRecoveryOperatorRunbook,
   CoreTaskRecord,
+  CoreTaskA2AClassificationFlowContract,
   CoreTaskClassificationRequest,
   CoreTaskClassificationResult,
   CoreTaskIssueTracking,
+  CoreTaskIssueDedupSummary,
+  CoreTaskRemediationCommandRequest,
+  CoreTaskRemediationCommandResult,
   CoreTaskRuntimeSnapshot,
   CoreTaskRuntimeView,
   CoreTaskCaseTimelineView,
@@ -223,6 +233,13 @@ function requireTenantId(tenantId: string | undefined, operation: string): strin
   void operation;
   return requireCoreTenantContext(tenantId);
 }
+
+function optimisticLockHeaders(version?: number | null): Record<string, string> | undefined {
+  return typeof version === 'number' && Number.isFinite(version) && version > 0
+    ? { 'If-Match': String(Math.trunc(version)) }
+    : undefined;
+}
+
 
 function pickString(
   record: Record<string, unknown>,
@@ -1152,7 +1169,7 @@ export const coreAdminApi = {
     const scopedTenantId = requireTenantId(tenantId, "Agent Pool update");
     const query = new URLSearchParams();
     query.set("tenantId", scopedTenantId);
-    return coreApiPut<CoreAgentPoolView>(`${coreAdminEndpoints.agentPool(poolId)}?${query.toString()}`, { ...body, tenantId: scopedTenantId, poolId });
+    return coreApiPut<CoreAgentPoolView>(`${coreAdminEndpoints.agentPool(poolId)}?${query.toString()}`, { ...body, tenantId: scopedTenantId, poolId }, { headers: optimisticLockHeaders(body.version) });
   },
 
   getDispatchFlow(flowId: string, tenantId = ""): Promise<CoreDispatchFlowView> {
@@ -1176,12 +1193,12 @@ export const coreAdminApi = {
     const query = new URLSearchParams();
     query.set("tenantId", scopedTenantId);
     const params = query.toString() ? `?${query.toString()}` : "";
-    return coreApiPut<CoreDispatchFlowView>(`${coreAdminEndpoints.dispatchFlow(flowId)}${params}`, body);
+    return coreApiPut<CoreDispatchFlowView>(`${coreAdminEndpoints.dispatchFlow(flowId)}${params}`, { ...body, tenantId: scopedTenantId, flowId }, { headers: optimisticLockHeaders(body.version) });
   },
 
   createDispatchFlowRealTestEvent(
     flowId: string,
-    body: { message?: string; severity?: string; objectId?: string; correlationId?: string; siteId?: string; plantId?: string; attributes?: Record<string, unknown> } = {},
+    body: { message?: string; severity?: string; eventType?: string; objectType?: string; errorCode?: string; objectId?: string; correlationId?: string; siteId?: string; plantId?: string; attributes?: Record<string, unknown> } = {},
     tenantId = "",
   ): Promise<CoreEventIntakeDecisionResponse> {
     const scopedTenantId = requireTenantId(tenantId, "real Dispatch Flow test event");
@@ -1191,6 +1208,14 @@ export const coreAdminApi = {
       `${coreAdminEndpoints.dispatchFlowRealTestEvent(flowId)}?${query.toString()}`,
       body,
     );
+  },
+
+
+  simulateDispatch(body: CoreDispatchSimulationRequest, tenantId = ""): Promise<CoreDispatchSimulationResponse> {
+    const scopedTenantId = requireTenantId(tenantId, "dispatch simulation");
+    const query = new URLSearchParams();
+    query.set("tenantId", scopedTenantId);
+    return coreApiPost<CoreDispatchSimulationResponse>(`${coreAdminEndpoints.dispatchSimulation}?${query.toString()}`, { ...body, tenantId: scopedTenantId });
   },
 
   dryRunDispatchFlow(body: CoreDispatchFlowReadinessRequest, tenantId = ""): Promise<CoreDispatchFlowReadinessResponse> {
@@ -1380,6 +1405,80 @@ export const coreAdminApi = {
 
 
 
+
+
+  getAdvancedSelectionStrategyContracts(): Promise<CoreAdvancedSelectionStrategyContract[]> {
+    return coreGetList<CoreAdvancedSelectionStrategyContract>(coreAdminEndpoints.advancedSelectionStrategyContracts);
+  },
+
+  getAgentPoolCapabilityPolicies(targetPoolId = "", tenantId = "", limit = 200): Promise<CoreAgentPoolCapabilityPolicy[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (targetPoolId) query.set("targetPoolId", targetPoolId);
+    if (limit) query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreAgentPoolCapabilityPolicy>(`${coreAdminEndpoints.agentPoolCapabilityPolicies}${suffix}`);
+  },
+
+  upsertAgentPoolCapabilityPolicy(targetPoolId: string, body: CoreAgentPoolCapabilityPolicy, tenantId = ""): Promise<CoreAgentPoolCapabilityPolicy> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreAgentPoolCapabilityPolicy>(`${coreAdminEndpoints.agentPoolCapabilityPolicy(targetPoolId)}${suffix}`, body);
+  },
+
+  getAdvisoryRecommendations(
+    targetPoolId = "",
+    agentId = "",
+    status = "",
+    evidenceWindow = "24h",
+    tenantId = "",
+    limit = 100,
+  ): Promise<CoreAgentAdvisoryRecommendation[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (targetPoolId) query.set("targetPoolId", targetPoolId);
+    if (agentId) query.set("agentId", agentId);
+    if (status) query.set("status", status);
+    if (evidenceWindow) query.set("evidenceWindow", evidenceWindow);
+    if (limit) query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreAgentAdvisoryRecommendation>(`${coreAdminEndpoints.advisoryRecommendations}${suffix}`);
+  },
+
+  generateAdvisoryRecommendations(
+    targetPoolId = "",
+    agentId = "",
+    evidenceWindow = "24h",
+    tenantId = "",
+    limit = 100,
+  ): Promise<CoreAgentAdvisoryRecommendation[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (targetPoolId) query.set("targetPoolId", targetPoolId);
+    if (agentId) query.set("agentId", agentId);
+    if (evidenceWindow) query.set("evidenceWindow", evidenceWindow);
+    if (limit) query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreApiPost<CoreAgentAdvisoryRecommendation[]>(`${coreAdminEndpoints.advisoryRecommendationsGenerate}${suffix}`, {});
+  },
+
+  acceptAdvisoryRecommendation(
+    recommendationId: string,
+    body: CoreAgentAdvisoryRecommendationDecisionCommand,
+    tenantId = "",
+  ): Promise<CoreAgentAdvisoryRecommendation> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPost<CoreAgentAdvisoryRecommendation>(`${coreAdminEndpoints.advisoryRecommendationAccept(recommendationId)}${suffix}`, body);
+  },
+
+  rejectAdvisoryRecommendation(
+    recommendationId: string,
+    body: CoreAgentAdvisoryRecommendationDecisionCommand,
+    tenantId = "",
+  ): Promise<CoreAgentAdvisoryRecommendation> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPost<CoreAgentAdvisoryRecommendation>(`${coreAdminEndpoints.advisoryRecommendationReject(recommendationId)}${suffix}`, body);
+  },
+
   getAgentQualityDaily(agentId: string, tenantId = "", limit = 90): Promise<CoreAgentQualityMetricsDaily[]> {
     const query = new URLSearchParams();
     if (tenantId) query.set("tenantId", tenantId);
@@ -1507,6 +1606,8 @@ export const coreAdminApi = {
     return coreApiPut<CoreRuntimeFeatureCatalog>(`${coreAdminEndpoints.runtimeFeature(featureCode)}${suffix}`, body);
   },
 
+  // Phase 4-4: Capability catalog APIs are reference-only / diagnostic-only for Current setup.
+  // Use Source Flow -> Agent Pool APIs when changing real dispatch routing.
   getCapabilities(
     status?: string,
     taskDefinitionId?: string,
@@ -1522,6 +1623,7 @@ export const coreAdminApi = {
     );
   },
 
+  // Phase 4-4: Upserting a capability changes reference metadata only; it must not be treated as a Current routing gate.
   upsertCapability(
     capabilityCode: string,
     body: CoreAgentCapabilityCatalog,
@@ -1728,12 +1830,14 @@ export const coreAdminApi = {
 
 
 
+  // Phase 4-4: Agent capability assignments are reference-only labels and diagnostic evidence in the Current model.
   getAgentCapabilities(agentId: string): Promise<CoreAgentCapabilityAssignment[]> {
     return coreGetList<CoreAgentCapabilityAssignment>(
       coreAdminEndpoints.agentCapabilities(agentId),
     );
   },
 
+  // Phase 4-4: Requesting a capability documents Agent ability; it does not add the Agent to a Source Flow / Agent Pool.
   requestAgentCapability(
     agentId: string,
     body: CoreAgentCapabilityCommand,
@@ -1912,6 +2016,7 @@ export const coreAdminApi = {
     );
   },
 
+  // Phase 4-4: Legacy/governance eligibility diagnostic. Current setup uses Source Flow -> Agent Pool -> Pool Member Agent.
   getAgentDispatchEligibility(
     agentId: string,
     taskId?: string,
@@ -1922,6 +2027,7 @@ export const coreAdminApi = {
     return coreApiGet<CoreAgentDispatchEligibility>(endpoint);
   },
 
+  // Phase 4-4: Legacy dispatch requirements diagnostic. Do not use as the Current setup API.
   getTaskDispatchRequirements(
     taskId: string,
   ): Promise<CoreTaskDispatchRequirements> {
@@ -1930,6 +2036,7 @@ export const coreAdminApi = {
     );
   },
 
+  // Phase 4-4: Legacy eligible-agent diagnostic. Current routing evidence should come from Source Flow / Agent Pool decisions.
   getTaskEligibleAgents(
     taskId: string,
     limit = 500,
@@ -1939,6 +2046,7 @@ export const coreAdminApi = {
     );
   },
 
+  // Phase 4-4: Governance eligibility diagnostic-only surface; not the Current dispatch configuration path.
   getTaskEligibleAgentsV2(
     taskId: string,
     limit = 500,
@@ -2398,6 +2506,7 @@ export const coreAdminApi = {
     );
   },
 
+  // Phase 4-4: Legacy dispatch-contract resolver. Prefer Source Flow / Agent Pool dry-run for Current setup.
   resolveDispatchContract(
     body: CoreTaskDispatchContractResolveRequest,
   ): Promise<CoreTaskDispatchContractResolveResult> {
@@ -2436,6 +2545,7 @@ export const coreAdminApi = {
     );
   },
 
+  // Phase 4-4: Capability resolver is diagnostic/reference-only in the Current Source Flow / Agent Pool model.
   resolveTaskCapabilities(
     body: CoreTaskCapabilityResolveRequest,
   ): Promise<CoreTaskCapabilityResolveResult> {
@@ -2597,6 +2707,13 @@ export const coreAdminApi = {
     );
   },
 
+
+  getTaskIssueDedup(taskId: string): Promise<CoreTaskIssueDedupSummary> {
+    return coreApiGet<CoreTaskIssueDedupSummary>(
+      coreAdminEndpoints.taskIssueDedup(taskId),
+    );
+  },
+
   getTaskDispatchEvidence(
     taskId: string,
     limit = 200,
@@ -2616,6 +2733,7 @@ export const coreAdminApi = {
     );
   },
 
+  // Phase 4-4: Legacy dispatch-contract readiness repair surface. Keep for diagnostics; Current setup is Source Flow / Agent Pool.
   runTaskDispatchContractReadiness(
     taskId: string,
     body?: CoreTaskDispatchContractRepairRequest,
@@ -2626,6 +2744,7 @@ export const coreAdminApi = {
     );
   },
 
+  // Phase 4-4: Legacy dispatch-contract repair surface. Do not use as the primary Current setup flow.
   repairTaskDispatchContract(
     taskId: string,
     body?: CoreTaskDispatchContractRepairRequest,
@@ -2811,12 +2930,27 @@ export const coreAdminApi = {
   },
 
 
+  getTaskA2AClassificationContract(): Promise<CoreTaskA2AClassificationFlowContract> {
+    return coreApiGet<CoreTaskA2AClassificationFlowContract>(coreAdminEndpoints.taskA2AClassificationContract);
+  },
+
   submitTaskClassificationResult(
     taskId: string,
     body: CoreTaskClassificationRequest,
   ): Promise<CoreTaskClassificationResult> {
     return coreApiPost<CoreTaskClassificationResult>(
       coreAdminEndpoints.taskClassificationResult(taskId),
+      body,
+    );
+  },
+
+
+  runTaskRemediationCommand(
+    taskId: string,
+    body: CoreTaskRemediationCommandRequest,
+  ): Promise<CoreTaskRemediationCommandResult> {
+    return coreApiPost<CoreTaskRemediationCommandResult>(
+      coreAdminEndpoints.taskCommands(taskId),
       body,
     );
   },

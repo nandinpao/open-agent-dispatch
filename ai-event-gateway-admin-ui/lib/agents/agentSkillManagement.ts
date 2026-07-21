@@ -50,10 +50,6 @@ function enabledSkillCodes(skills?: CoreAgentSkillDefinition[] | null): string[]
   return unique((skills ?? []).filter((skill) => skill.enabled !== false).map((skill) => skill.skillCode));
 }
 
-function intersect(left: string[], right: string[]): string[] {
-  const rightSet = new Set(right);
-  return left.filter((item) => rightSet.has(item));
-}
 
 function subtract(left: string[], right: string[]): string[] {
   const rightSet = new Set(right);
@@ -71,9 +67,9 @@ export function buildAgentSkillManagementSummary(input: {
   const runtime = runtimeReportedCapabilities(input.runtimeCapabilityItems, input.runtimeLoad);
   const registry = enabledSkillCodes(input.skillDefinitions);
   const registryKnown = Array.isArray(input.skillDefinitions);
-  // Admin UI / Core approval is the dispatch source of truth. Runtime capability values are
-  // diagnostics only and must not make approved capabilities non-dispatchable.
-  const dispatchableCapabilities = registryKnown && registry.length > 0 ? intersect(governance, registry) : governance;
+  // Capability values are reference/search metadata in Current routing. They do not define
+  // Pool membership and must not make an otherwise eligible Agent dispatchable or blocked.
+  const dispatchableCapabilities = governance;
   const missingGovernanceCapabilities: string[] = [];
   const missingRuntimeCapabilities: string[] = [];
   const missingRegistryCapabilities = registryKnown ? subtract(governance, registry) : [];
@@ -93,27 +89,24 @@ export function buildAgentSkillManagementSummary(input: {
   if (!runtimeConnected) {
     nextActions.push({ title: '讓 Agent runtime 重新連線', description: '即使 Core 已授權，runtime 不在線也無法派工。', tone: 'warning' });
   }
-  if (missingGovernanceCapabilities.length) {
-    nextActions.push({ title: '一鍵核准缺少的能力', description: `缺少 ${missingGovernanceCapabilities.join(', ')} 的 Governance 授權。`, tone: 'primary' });
-  }
   if (runtime.length === 0 && dispatchableCapabilities.length > 0) {
-    nextActions.push({ title: 'Runtime capability observation is optional', description: '能力由 Admin UI/Core 管理；runtime 未回報能力不會阻擋已核准能力派工。', tone: 'neutral' });
+    nextActions.push({ title: 'Runtime Capability 僅供參考', description: 'Runtime 未回報 Capability 標籤不會阻擋 Current Agent Pool 派工。', tone: 'neutral' });
   }
   if (missingRegistryCapabilities.length) {
-    nextActions.push({ title: '補齊進階政策定義', description: `${missingRegistryCapabilities.join(', ')} 出現在 Agent advanced diagnostics，但尚未成為啟用中的 advanced policy definition。`, tone: 'neutral' });
+    nextActions.push({ title: '補齊 Capability 參考資料', description: `${missingRegistryCapabilities.join(', ')} 出現在 Agent 診斷資料，但尚未存在於 Capability Registry。`, tone: 'neutral' });
   }
   if (dispatchableCapabilities.length) {
-    nextActions.push({ title: '執行 Dispatch Flow evidence', description: '選擇具體任務場景，檢查 Task requiredCapabilities 是否與此 Agent 對齊。', tone: 'primary' });
+    nextActions.push({ title: '查看工作池與 Runtime Eligibility', description: '確認此 Agent 已加入目標 Agent Pool，且連線、容量、Credential 與 Backoff 狀態可用。', tone: 'primary' });
   }
   if (nextActions.length === 0) {
-    nextActions.push({ title: '先建立能力與 Agent 授權', description: '目前沒有足夠資料判斷此 Agent 可接哪些任務。', tone: 'neutral' });
+    nextActions.push({ title: '檢查 Agent Pool membership', description: 'Capability 資料不是派工必要條件；請確認此 Agent 是否已加入目標工作池。', tone: 'neutral' });
   }
 
   if (!input.profile || !profileApproved || !profileEnabled || !riskNormal) {
     return {
       status: 'blocked',
       title: '此 Agent 尚未通過治理，不能派工',
-      description: '請先處理 Agent Profile、Approval、Enabled、Risk 或 Credential，再看能力授權。',
+      description: '請先處理 Agent、Approval、Enabled、Risk 或 Credential，再檢查工作池 membership。',
       dispatchableCapabilities,
       missingGovernanceCapabilities,
       missingRuntimeCapabilities,
@@ -122,11 +115,11 @@ export function buildAgentSkillManagementSummary(input: {
       nextActions
     };
   }
-  if (!runtimeConnected || missingGovernanceCapabilities.length || missingRegistryCapabilities.length) {
+  if (!runtimeConnected) {
     return {
-      status: dispatchableCapabilities.length ? 'waiting' : 'blocked',
-      title: dispatchableCapabilities.length ? '此 Agent 部分能力可派工，仍有缺口' : '此 Agent 目前還不能接指定技能任務',
-      description: '請依下方缺口先修後台 Flow Agent approval 或進階政策定義；runtime capability observation 不作為業務能力阻擋。',
+      status: 'waiting',
+      title: 'Agent 已核准，但 Runtime 尚未連線',
+      description: 'Capability 與 Registry 缺口只作參考；目前真正阻擋條件是 Agent Runtime 不可用。',
       dispatchableCapabilities,
       missingGovernanceCapabilities,
       missingRuntimeCapabilities,
@@ -137,8 +130,8 @@ export function buildAgentSkillManagementSummary(input: {
   }
   return {
     status: 'ready',
-    title: '此 Agent 已有可派工能力',
-    description: '下方列出的項目已由 Admin UI/Core 核准；runtime capability observation 僅供診斷，實際派工仍以 Dispatch Flow Agent assignment / Flow Agent approval / Dispatch Policy 為準。',
+    title: 'Agent 管理狀態與 Runtime 可用',
+    description: 'Capability 標籤僅供查詢與治理參考；正式候選範圍仍由 Agent Pool membership 決定。',
     dispatchableCapabilities,
     missingGovernanceCapabilities,
     missingRuntimeCapabilities,
@@ -161,20 +154,20 @@ export function buildSkillRegistryManagementSummary(input: {
   const nextActions: SkillRegistryManagementSummary['nextActions'] = [];
 
   if (!selectedSkillCode) {
-    nextActions.push({ title: '一般派工請先到 Dispatch Flows', description: '這裡是進階政策頁；新增可派工角色與 Agent 授權請從 Dispatch Flows 開始。', tone: 'primary' });
+    nextActions.push({ title: '一般派工請先到 Dispatch Flows', description: '這裡是 Capability Registry 參考頁；正式派工設定請從 Source Flow 與 Agent Pool 開始。', tone: 'primary' });
   } else if (input.selectedSkill?.enabled === false) {
-    nextActions.push({ title: '啟用此 advanced policy definition', description: '停用的進階政策不應進入 policy-aware compatibility diagnostics。', tone: 'warning' });
+    nextActions.push({ title: '啟用此 advanced policy definition', description: '停用的 Capability 參考資料不再用於搜尋與治理呈現，但不影響 Current routing。', tone: 'warning' });
   } else {
-    nextActions.push({ title: '檢查對應 Dispatch Flow', description: `${selectedSkillCode} 只是進階政策定義；請確認 Task Type 已對應到後台 Dispatch Flow。`, tone: 'primary' });
-    nextActions.push({ title: '檢查 Agent Flow Agent approval', description: 'Agent 必須由後台授予並核准 profile Flow Agent approval，不能只靠 runtime keyword。', tone: 'warning' });
-    nextActions.push({ title: '執行 Dispatch Recipes / Readiness', description: '選擇任務場景與 Agent，讓系統確認 Task、Profile、Flow Agent approval、Runtime 是否對齊。', tone: 'neutral' });
+    nextActions.push({ title: '檢查對應 Dispatch Flow', description: `${selectedSkillCode} 是 Capability 參考資料；正式派工請確認 Source Flow 與 Agent Pool。`, tone: 'primary' });
+    nextActions.push({ title: '檢查 Agent Pool membership', description: 'Capability 不會自動把 Agent 加入工作池；請在 Agent Pool 明確加入成員。', tone: 'warning' });
+    nextActions.push({ title: '查看派工證據', description: '從 Source Flow／Agent Pool 或 Task Evidence 檢查 Pool membership 與 Runtime Eligibility。', tone: 'neutral' });
   }
 
   if (skills.length === 0) {
     return {
       status: 'waiting',
-      title: '尚未建立進階政策定義',
-      description: '一般派工不需要先建立此頁資料；若要治理風險、資料類型、遮蔽或人工審核，再建立 advanced policy definition。',
+      title: '尚未建立 Capability 參考資料',
+      description: '一般派工不需要先建立此頁資料；若要補充 Agent 能力描述、搜尋與治理資訊，再建立 Capability Registry 資料。',
       selectedSkillCode,
       selectedTaskTypes,
       enabledSkillCount: 0,
@@ -187,7 +180,7 @@ export function buildSkillRegistryManagementSummary(input: {
     return {
       status: 'blocked',
       title: `${beginnerSkillLabel(selectedSkillCode)} 目前停用`,
-      description: '停用的 advanced policy definition 不能作為 policy-aware compatibility diagnostics 的有效規則。',
+      description: '停用的 Capability 不再顯示為有效參考資料，但不會阻擋 Current Agent Pool 派工。',
       selectedSkillCode,
       selectedTaskTypes,
       enabledSkillCount: enabledSkills.length,
@@ -198,8 +191,8 @@ export function buildSkillRegistryManagementSummary(input: {
   }
   return {
     status: 'ready',
-    title: selectedSkillCode ? `${beginnerSkillLabel(selectedSkillCode)} 已在進階政策定義中` : '進階政策定義可用',
-    description: 'Advanced policy definitions 只負責補充風險、資料類型、遮蔽、人工審核與相容性診斷；是否能派工仍要看 Dispatch Flow、Agent Flow Agent approval、Capability approval 與 Runtime facts。',
+    title: selectedSkillCode ? `${beginnerSkillLabel(selectedSkillCode)} 已在 Capability Registry 中` : 'Capability Registry 可用',
+    description: 'Capability Registry 只補充 Agent 描述、搜尋與治理資訊；是否能派工仍要看 Source Flow、Agent Pool membership 與 Runtime Eligibility。',
     selectedSkillCode,
     selectedTaskTypes,
     enabledSkillCount: enabledSkills.length,

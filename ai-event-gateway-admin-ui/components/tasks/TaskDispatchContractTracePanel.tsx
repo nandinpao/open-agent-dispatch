@@ -15,8 +15,15 @@ interface Props {
 const STANDARD_BLOCKERS = new Set([
   "NO_MATCHING_FLOW",
   "NO_MATCHING_RULE",
+  "SOURCE_FLOW_HAS_NO_DEFAULT_POOL",
+  "RULE_TARGET_POOL_NOT_FOUND",
+  "POOL_HAS_NO_ACTIVE_MEMBER",
+  "POOL_AGENT_RUNTIME_NOT_FOUND",
+  "POOL_AGENT_OFFLINE",
+  "POOL_AGENT_CAPACITY_FULL",
+  "POOL_AGENT_BACKOFF",
+  "NO_ELIGIBLE_AGENT_IN_POOL",
   "NO_FLOW_AGENT",
-  "MISSING_REQUIRED_CAPABILITY",
   "AGENT_OFFLINE",
   "AGENT_CAPACITY_FULL",
   "DISPATCH_DELIVERY_FAILED",
@@ -42,18 +49,24 @@ function detailPreview(details?: Record<string, unknown>) {
 
 function actionFor(code?: string): { href: string; label: string; advice: string } {
   const normalized = normalizeCode(code);
-  if (normalized === "NO_MATCHING_FLOW" || normalized === "NO_MATCHING_RULE") return { href: "/dispatch-flows", label: "Open Dispatch Flow", advice: "建立或啟用符合此事件條件的 Dispatch Flow / Flow Rule。" };
-  if (normalized === "NO_FLOW_AGENT") return { href: "/dispatch-flows", label: "Select Flow Agent", advice: "在 Dispatch Flow 中選擇至少一個已核准 Agent。" };
-  if (normalized === "MISSING_REQUIRED_CAPABILITY") return { href: "/dispatch-flows", label: "Review Capability", advice: "確認 Flow Rule 的 Required Capability，或核准具備該能力的 Agent。" };
-  if (normalized === "AGENT_OFFLINE" || normalized === "AGENT_CAPACITY_FULL") return { href: "/agents", label: "Open Agent", advice: "檢查 Agent runtime、heartbeat、credential 與容量。" };
+  if (normalized === "NO_MATCHING_FLOW" || normalized === "NO_MATCHING_RULE") return { href: "/dispatch-flows", label: "Open Dispatch Setup", advice: "到派工設定建立或啟用符合此事件條件的 Source Flow / Rule override。" };
+  if (normalized === "SOURCE_FLOW_HAS_NO_DEFAULT_POOL") return { href: "/dispatch-flows", label: "Set Default Pool", advice: "到派工設定為 Source Flow 指定預設 Agent Pool。" };
+  if (normalized === "RULE_TARGET_POOL_NOT_FOUND") return { href: "/dispatch-flows", label: "Fix Rule Target Pool", advice: "到派工設定檢查 Rule override 的目標 Agent Pool 是否存在並啟用。" };
+  if (normalized === "POOL_HAS_NO_ACTIVE_MEMBER" || normalized === "POOL_AGENT_RUNTIME_NOT_FOUND") return { href: "/dispatch-flows", label: "Open Agent Pool", advice: "到派工設定將已核准 Agent 加入 Agent Pool，並確認 Pool member 狀態為啟用。" };
+  if (normalized === "POOL_AGENT_OFFLINE" || normalized === "POOL_AGENT_CAPACITY_FULL" || normalized === "POOL_AGENT_BACKOFF" || normalized === "NO_ELIGIBLE_AGENT_IN_POOL") return { href: "/dispatch-flows", label: "Review Pool Members", advice: "先從派工設定檢查 Source Flow -> Agent Pool -> Pool Member Agent，再確認 Agent runtime、capacity 與 backoff。" };
+  if (normalized === "NO_FLOW_AGENT") return { href: "/dispatch-flows", label: "Open Agent Pool", advice: "Current setup 不直接選 Flow Agent；請在派工設定把已核准 Agent 加入目標 Agent Pool。" };
+  if (normalized === "MISSING_REQUIRED_CAPABILITY") return { href: "/dispatch-flows", label: "Open Dispatch Setup", advice: "Capability 是 reference-only / diagnostic-only；請先確認 Source Flow、Agent Pool 與 Pool Member Agent 設定。" };
+  if (normalized === "AGENT_OFFLINE" || normalized === "AGENT_CAPACITY_FULL") return { href: "/agents", label: "Open Agent", advice: "檢查 Agent runtime、heartbeat、credential 與容量；Pool membership 請回到派工設定確認。" };
   if (normalized === "DISPATCH_DELIVERY_FAILED" || normalized === "RESULT_TIMEOUT") return { href: "/agents", label: "Check Runtime", advice: "檢查 Netty delivery、Agent callback relay 與 runtime log 後重新派工。" };
-  return { href: "/dispatch-flows", label: "Open Dispatch Flow", advice: "依 Runtime Decision Chain 的第一個標準 blocker 修正後重新派工。" };
+  return { href: "/dispatch-flows", label: "Open Dispatch Setup", advice: "依 Source Flow -> Agent Pool -> Pool Member Agent 標準鏈的第一個 blocker 修正後重新派工。" };
 }
 
 export function TaskDispatchContractTracePanel({ task, trace, error, retrying, onRetry }: Readonly<Props>) {
-  const blockingCode = normalizeCode(trace?.firstBlockingCode ?? task.blockedReason ?? task.failureReason);
+  const rawBlockingCode = normalizeCode(trace?.firstBlockingCode ?? task.blockedReason ?? task.failureReason);
+  const capabilityReferenceOnly = rawBlockingCode === "MISSING_REQUIRED_CAPABILITY" || rawBlockingCode === "REQUIRED_CAPABILITY_MISSING";
+  const blockingCode = capabilityReferenceOnly ? "" : rawBlockingCode;
   const blockingReason = trace?.firstBlockingReason ?? task.failureReason ?? task.lifecycleReason;
-  const ready = Boolean(trace?.ready);
+  const ready = Boolean(trace?.ready) || capabilityReferenceOnly;
   const status = trace?.status ?? (error ? "ERROR" : task.dispatchStatus ?? task.status);
   const action = actionFor(blockingCode);
   const standard = !blockingCode || STANDARD_BLOCKERS.has(blockingCode);
@@ -64,17 +77,18 @@ export function TaskDispatchContractTracePanel({ task, trace, error, retrying, o
         <div>
           <div className="text-xs font-black uppercase tracking-wide text-violet-700">Runtime Decision Chain</div>
           <h2 className="mt-1 text-lg font-black text-slate-950">標準派工主因</h2>
-          <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-600">此區只顯示 Flow、Rule、Flow Agent、Required Capability、Runtime、Capacity、DispatchRequest、ACK 與 RESULT 的正式證據。標準 Task 診斷不再使用舊式派工模型 或獨立診斷工具。</p>
+          <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-600">此區依 Current setup path 顯示 Source Flow、Rule override / default Pool、Agent Pool、Pool Member Agent、Runtime、Capacity、DispatchRequest、ACK 與 RESULT 的正式證據。Capability 與 legacy Flow Agent 只作 reference / diagnostic，不是主要設定入口。</p>
         </div>
-        <div className="flex flex-wrap gap-2"><StatusBadge status={ready ? "READY" : status ?? "UNKNOWN"} />{blockingCode ? <StatusBadge status={blockingCode} /> : null}</div>
+        <div className="flex flex-wrap gap-2"><StatusBadge status={ready ? "READY" : status ?? "UNKNOWN"} />{blockingCode ? <StatusBadge status={blockingCode} /> : capabilityReferenceOnly ? <StatusBadge status="CAPABILITY_REFERENCE_ONLY" /> : null}</div>
       </div>
 
       {error ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">Runtime Decision Chain 讀取失敗：{error}</div> : null}
 
       <div className={`rounded-xl border p-4 ${statusTone(status, !ready && Boolean(blockingCode))}`}>
         <div className="text-sm font-black text-slate-950">{trace?.summary ?? (ready ? "Dispatch path is ready." : "尚未回傳完整派工證據；請依下方標準主因處理。")}</div>
+        {capabilityReferenceOnly ? <p className="mt-2 text-sm leading-6 text-blue-700">Capability 缺口僅作 reference / diagnostic，不阻擋 Current Agent Pool 派工。請以 Source Flow、Pool Member 與 Runtime eligibility 為準。</p> : null}
         {!ready ? <p className="mt-2 text-sm leading-6 text-rose-700">主要原因：{blockingCode || "UNKNOWN"} — {blockingReason ?? "尚未回傳明確原因"}</p> : null}
-        {!standard ? <p className="mt-2 text-sm font-semibold leading-6 text-amber-800">此原因不是 Phase 8 標準 blocker；請以 Runtime Decision Chain 轉換後的標準原因為準。</p> : null}
+        {!standard ? <p className="mt-2 text-sm font-semibold leading-6 text-amber-800">此原因不是 Current 標準 blocker；請以 Runtime Decision Chain 轉換後的標準原因為準。</p> : null}
         <p className="mt-2 text-sm font-semibold leading-6 text-blue-800">建議修復：{action.advice}</p>
       </div>
 

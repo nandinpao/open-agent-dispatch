@@ -56,7 +56,7 @@ class DispatchFlowControllerRealTestEventTest {
         assertThat(request.getValue().getEventType()).isEqualTo("ORDER_FAILED");
         assertThat(request.getValue().getSeverity()).isEqualTo("HIGH");
         assertThat(request.getValue().getMessage()).isEqualTo("real test");
-        assertThat(request.getValue().getCorrelationId()).startsWith("stage5-test-");
+        assertThat(request.getValue().getCorrelationId()).startsWith("source-flow-test-");
         assertThat(request.getValue().getAttributes())
                 .containsEntry("openDispatchRealTestEvent", true)
                 .containsEntry("flowId", "flow-1")
@@ -72,6 +72,30 @@ class DispatchFlowControllerRealTestEventTest {
         assertThatThrownBy(() -> controller.createRealTestEvent("flow-1", Map.of(), "tenant-a"))
                 .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
                         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+    }
+
+    @Test
+    void createsRealEventFromSourceDefaultWhenNoExternalRuleExists() {
+        DispatchFlowView flow = activeFlow();
+        flow.setRules(List.of());
+        EventIntakeDecisionResponse expected = mock(EventIntakeDecisionResponse.class);
+        when(management.findFlow("tenant-a", "flow-1")).thenReturn(Optional.of(flow));
+        when(intake.intake(any(EventIntakeRequest.class))).thenReturn(expected);
+
+        EventIntakeDecisionResponse actual = controller.createRealTestEvent(
+                "flow-1",
+                Map.of("message", "source default real test", "eventType", "PAYMENT_BLOCKED_BY_RISK_RULE", "objectType", "PAYMENT"),
+                "tenant-a");
+
+        assertThat(actual).isSameAs(expected);
+        ArgumentCaptor<EventIntakeRequest> request = ArgumentCaptor.forClass(EventIntakeRequest.class);
+        verify(intake).intake(request.capture());
+        assertThat(request.getValue().getSourceSystem()).isEqualTo("SRC_E2E");
+        assertThat(request.getValue().getObjectType()).isEqualTo("PAYMENT");
+        assertThat(request.getValue().getEventType()).isEqualTo("PAYMENT_BLOCKED_BY_RISK_RULE");
+        assertThat(request.getValue().getAttributes())
+                .containsEntry("ruleId", "SOURCE_DEFAULT")
+                .containsEntry("routingEntry", "SOURCE_DEFAULT_POOL");
     }
 
     private DispatchFlowView activeFlow() {
@@ -95,6 +119,7 @@ class DispatchFlowControllerRealTestEventTest {
         flow.setFlowName("E2E Flow");
         flow.setSourceSystem("SRC_E2E");
         flow.setStatus("ACTIVE");
+        flow.setDefaultPoolId("pool-e2e");
         flow.setRules(List.of(rule));
         flow.setAgents(List.of(agent));
         return flow;

@@ -15,7 +15,6 @@ const STANDARD_BLOCKERS = new Set([
   "NO_MATCHING_FLOW",
   "NO_MATCHING_RULE",
   "NO_FLOW_AGENT",
-  "MISSING_REQUIRED_CAPABILITY",
   "AGENT_OFFLINE",
   "AGENT_CAPACITY_FULL",
   "DISPATCH_DELIVERY_FAILED",
@@ -42,7 +41,6 @@ function detailPreview(details?: Record<string, unknown>) {
 function actionFor(code?: string): { href: string; label: string } {
   const normalized = String(code ?? "").toUpperCase();
   if (normalized === "AGENT_OFFLINE" || normalized === "AGENT_CAPACITY_FULL") return { href: "/agents", label: "Open Agent" };
-  if (normalized === "MISSING_REQUIRED_CAPABILITY") return { href: "/dispatch-flows", label: "Review Capability" };
   if (normalized === "DISPATCH_DELIVERY_FAILED" || normalized === "RESULT_TIMEOUT") return { href: "/agents", label: "Check Runtime" };
   return { href: "/dispatch-flows", label: "Open Dispatch Flow" };
 }
@@ -61,7 +59,9 @@ export function TaskDispatchEvidenceTimelinePanel({
   }
 
   const sourceSystem = evidence.task?.sourceSystem;
-  const blockingCode = String(evidence.firstBlockingCode ?? "").toUpperCase();
+  const rawBlockingCode = String(evidence.firstBlockingCode ?? "").toUpperCase();
+  const capabilityReferenceOnly = rawBlockingCode === "MISSING_REQUIRED_CAPABILITY" || rawBlockingCode === "REQUIRED_CAPABILITY_MISSING";
+  const blockingCode = capabilityReferenceOnly ? "" : rawBlockingCode;
   const action = actionFor(blockingCode);
   const standard = !blockingCode || STANDARD_BLOCKERS.has(blockingCode);
 
@@ -75,14 +75,15 @@ export function TaskDispatchEvidenceTimelinePanel({
         </div>
         <div className="flex flex-wrap gap-2">
           <StatusBadge status={evidence.status ?? "UNKNOWN"} />
-          {evidence.firstBlockingCode ? <StatusBadge status={evidence.firstBlockingCode} /> : null}
+          {blockingCode ? <StatusBadge status={blockingCode} /> : null}
         </div>
       </div>
 
       <div className={`rounded-xl border p-4 ${standard ? "border-slate-100 bg-slate-50" : "border-amber-200 bg-amber-50"}`}>
         <div className="text-sm font-bold text-slate-900">{evidence.summary ?? "Task dispatch evidence chain generated."}</div>
-        {evidence.firstBlockingReason ? <p className="mt-1 text-sm text-rose-700">主要原因：{blockingCode || "UNKNOWN"} — {evidence.firstBlockingReason}</p> : null}
-        {!standard ? <p className="mt-2 text-sm font-semibold text-amber-800">此原因已被 Phase 8 標準化層攔截；標準 UI 只允許八種派工 blocker。請查看 Runtime Decision Chain 的第一個標準 blocker。</p> : null}
+        {capabilityReferenceOnly ? <p className="mt-1 text-sm text-blue-700">Capability 缺口僅保留為參考診斷，不作為 Current Agent Pool 派工 blocker。請以 Source Flow、Agent Pool、Pool Member 與 Runtime 證據判斷。</p> : null}
+        {!capabilityReferenceOnly && evidence.firstBlockingReason ? <p className="mt-1 text-sm text-rose-700">主要原因：{blockingCode || "UNKNOWN"} — {evidence.firstBlockingReason}</p> : null}
+        {!standard ? <p className="mt-2 text-sm font-semibold text-amber-800">此原因已由標準化派工層轉換；標準 UI 只顯示正式派工 blocker。請查看 Runtime Decision Chain 的第一個標準原因。</p> : null}
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">

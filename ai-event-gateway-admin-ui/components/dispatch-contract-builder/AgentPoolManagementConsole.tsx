@@ -6,7 +6,10 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { coreAdminApi } from '@/lib/api/coreAdminApi';
+import { ApiError } from '@/lib/api/client';
 import type { CoreAgentPoolMemberView, CoreAgentPoolView, CoreDispatchFlowAgentOptionView, CoreSourceSystem } from '@/lib/types/core';
+
+type EditablePoolMember = CoreAgentPoolMemberView;
 
 type PoolEditorState = {
   poolId?: string;
@@ -17,14 +20,49 @@ type PoolEditorState = {
   selectionStrategy: string;
   status: string;
   description: string;
-  memberIds: string[];
+  members: EditablePoolMember[];
+  version?: number;
+  updatedAt?: string;
+  updatedBy?: string;
 };
+
+const SUPPORTED_SELECTION_STRATEGIES = ['LOWEST_LOAD', 'WEIGHTED_SCORE', 'MANUAL_ONLY'] as const;
+
+const SELECTION_STRATEGY_LABELS: Record<string, string> = {
+  LOWEST_LOAD: '低負載優先',
+  WEIGHTED_SCORE: '權重分數',
+  MANUAL_ONLY: '只進人工佇列',
+};
+
+const MEMBER_STATUS_OPTIONS = ['ACTIVE', 'INACTIVE', 'DISABLED'] as const;
+
+function isSupportedSelectionStrategy(value?: string | null): boolean {
+  const normalized = String(value ?? '').toUpperCase();
+  return SUPPORTED_SELECTION_STRATEGIES.some((strategy) => strategy === normalized);
+}
+
+function selectionStrategyLabel(value?: string | null): string {
+  const normalized = String(value ?? 'LOWEST_LOAD').toUpperCase();
+  return SELECTION_STRATEGY_LABELS[normalized] ? `${SELECTION_STRATEGY_LABELS[normalized]} (${normalized})` : `${normalized}（舊策略，請改選支援策略）`;
+}
 
 const inputClass = 'mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-100';
 const labelClass = 'text-sm font-black text-slate-800';
 
 function normalizeCode(value: string): string {
   return value.trim().toUpperCase().replace(/[^A-Z0-9_\-.]/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function normalizePositiveInteger(value: number | string | undefined | null, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.round(parsed));
+}
+
+function normalizePriority(value: number | string | undefined | null, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.round(parsed));
 }
 
 function generateId(prefix: string): string {
@@ -50,8 +88,14 @@ function emptyEditor(sourceSystem = ''): PoolEditorState {
     selectionStrategy: 'LOWEST_LOAD',
     status: 'ACTIVE',
     description: '未知事件與未分類事件先進入此 Pool，再由 Triage Agent 分類。',
-    memberIds: [],
+    members: [],
+    version: undefined,
   };
+}
+
+function normalizeMemberStatus(status?: string | null): string {
+  const normalized = normalizeCode(status ?? 'ACTIVE');
+  return MEMBER_STATUS_OPTIONS.some((option) => option === normalized) ? normalized : 'ACTIVE';
 }
 
 function editorFromPool(pool: CoreAgentPoolView): PoolEditorState {
@@ -64,26 +108,62 @@ function editorFromPool(pool: CoreAgentPoolView): PoolEditorState {
     selectionStrategy: pool.selectionStrategy ?? 'LOWEST_LOAD',
     status: String(pool.status ?? 'ACTIVE').toUpperCase(),
     description: pool.description ?? '',
-    memberIds: (pool.members ?? []).filter((member) => String(member.memberStatus ?? 'ACTIVE').toUpperCase() !== 'RETIRED').map((member) => member.agentId),
+    version: pool.version,
+    updatedAt: pool.updatedAt,
+    updatedBy: pool.updatedBy,
+    members: (pool.members ?? [])
+      .filter((member) => String(member.memberStatus ?? 'ACTIVE').toUpperCase() !== 'RETIRED')
+      .map((member) => ({
+        ...member,
+        poolId: pool.poolId,
+        poolCode: pool.poolCode,
+        memberStatus: normalizeMemberStatus(member.memberStatus),
+        priority: normalizePriority(member.priority, 100),
+        weight: normalizePositiveInteger(member.weight, 1),
+        metadata: member.metadata ?? {},
+      })),
   };
 }
 
+function metadataKeyCount(metadata?: Record<string, unknown>): number {
+  return metadata ? Object.keys(metadata).length : 0;
+}
+
 function memberViews(editor: PoolEditorState, agents: CoreDispatchFlowAgentOptionView[]): CoreAgentPoolMemberView[] {
-  return editor.memberIds.map((agentId) => {
-    const agent = agents.find((candidate) => candidate.agentId === agentId);
+  return editor.members.map((member) => {
+    const agent = agents.find((candidate) => candidate.agentId === member.agentId);
     return {
+      ...member,
       poolId: editor.poolId ?? '',
       poolCode: normalizeCode(editor.poolCode),
-      agentId,
-      agentName: agent?.agentName ?? agentId,
-      memberStatus: 'ACTIVE',
-      priority: 100,
-      weight: 1,
-      approvalStatus: agent?.approvalStatus,
-      runtimeStatus: agent?.runtimeStatus,
-      metadata: { phase32gPoolMember: true },
+      agentId: member.agentId,
+      agentName: agent?.agentName ?? member.agentName ?? member.agentId,
+      memberStatus: normalizeMemberStatus(member.memberStatus),
+      priority: normalizePriority(member.priority, 100),
+      weight: normalizePositiveInteger(member.weight, 1),
+      approvalStatus: agent?.approvalStatus ?? member.approvalStatus,
+      runtimeStatus: agent?.runtimeStatus ?? member.runtimeStatus,
+      metadata: member.metadata ?? {},
     };
   });
+}
+
+function newMemberForAgent(agent: CoreDispatchFlowAgentOptionView, editor: PoolEditorState): EditablePoolMember {
+  return {
+    poolId: editor.poolId ?? '',
+    poolCode: normalizeCode(editor.poolCode),
+    agentId: agent.agentId,
+    agentName: agent.agentName ?? agent.agentId,
+    memberStatus: 'ACTIVE',
+    priority: 100,
+    weight: 1,
+    approvalStatus: agent.approvalStatus,
+    runtimeStatus: agent.runtimeStatus,
+    metadata: {
+      memberSource: 'ADMIN_CONFIGURATION',
+      routingModel: 'AGENT_POOL_FIRST',
+    },
+  };
 }
 
 function PoolEditorDialog({
@@ -107,10 +187,26 @@ function PoolEditorDialog({
   onClose: () => void;
   onSave: () => void;
 }>) {
+  const selectedAgentIds = useMemo(() => new Set(editor.members.map((member) => member.agentId)), [editor.members]);
+
   if (!open) return null;
 
-  function toggleAgent(agentId: string) {
-    onChange({ memberIds: editor.memberIds.includes(agentId) ? editor.memberIds.filter((id) => id !== agentId) : [...editor.memberIds, agentId] });
+  function toggleAgent(agent: CoreDispatchFlowAgentOptionView) {
+    if (selectedAgentIds.has(agent.agentId)) {
+      onChange({ members: editor.members.filter((member) => member.agentId !== agent.agentId) });
+      return;
+    }
+    onChange({ members: [...editor.members, newMemberForAgent(agent, editor)] });
+  }
+
+  function updateMember(agentId: string, patch: Partial<EditablePoolMember>) {
+    onChange({
+      members: editor.members.map((member) => member.agentId === agentId ? { ...member, ...patch } : member),
+    });
+  }
+
+  function editableMember(agentId: string): EditablePoolMember | undefined {
+    return editor.members.find((member) => member.agentId === agentId);
   }
 
   return (
@@ -120,7 +216,8 @@ function PoolEditorDialog({
           <div>
             <div className="text-xs font-black uppercase tracking-wide text-purple-700">Agent Pool / Work Queue</div>
             <h2 className="mt-1 text-xl font-black text-slate-950">{editor.poolId ? '編輯 Agent Pool' : '建立 Agent Pool'}</h2>
-            <p className="mt-1 text-sm text-slate-600">Pool 是 Phase 32-G 的派單目標；Capability 僅為 Agent 能力標籤，不會阻擋第一版派單。</p>
+            {editor.version ? <div className="mt-1 text-xs font-bold text-slate-500">版本 {editor.version} · 最後更新 {editor.updatedAt ?? '-'}{editor.updatedBy ? ` · ${editor.updatedBy}` : ''}</div> : null}
+            <p className="mt-1 text-sm text-slate-600">Pool 是目前派單目標；Capability 僅為 Agent 能力標籤，不會阻擋第一版派單。</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-black text-slate-600 hover:bg-slate-50" aria-label="關閉">×</button>
         </div>
@@ -147,16 +244,16 @@ function PoolEditorDialog({
                   <option value="MANUAL_REVIEW">MANUAL_REVIEW：人工審核池</option>
                 </select>
               </label>
-              <label className={labelClass}>Pool Code<span className="text-rose-600"> *</span><input className={inputClass} value={editor.poolCode} onChange={(event) => onChange({ poolCode: normalizeCode(event.target.value) })} placeholder="ERP_TRIAGE_POOL" /></label>
-              <label className={labelClass}>Pool 名稱<span className="text-rose-600"> *</span><input className={inputClass} value={editor.poolName} onChange={(event) => onChange({ poolName: event.target.value })} placeholder="ERP 一線分類池" /></label>
+              <label className={labelClass}>Pool Code<span className="text-rose-600"> *</span><input className={inputClass} value={editor.poolCode} onChange={(event) => onChange({ poolCode: normalizeCode(event.target.value) })} placeholder="DEFAULT_PROCESSING_POOL" /></label>
+              <label className={labelClass}>Pool 名稱<span className="text-rose-600"> *</span><input className={inputClass} value={editor.poolName} onChange={(event) => onChange({ poolName: event.target.value })} placeholder="預設處理池" /></label>
               <label className={labelClass}>選人策略
                 <select className={inputClass} value={editor.selectionStrategy} onChange={(event) => onChange({ selectionStrategy: event.target.value })}>
-                  <option value="LOWEST_LOAD">LOWEST_LOAD：低負載優先</option>
-                  <option value="WEIGHTED_SCORE">WEIGHTED_SCORE：權重分數</option>
-                  <option value="ROUND_ROBIN">ROUND_ROBIN：輪詢</option>
-                  <option value="LOCAL_FIRST">LOCAL_FIRST：本地優先</option>
-                  <option value="MANUAL_ONLY">MANUAL_ONLY：只進工作佇列</option>
+                  {!isSupportedSelectionStrategy(editor.selectionStrategy) ? <option value={editor.selectionStrategy} disabled>{selectionStrategyLabel(editor.selectionStrategy)}</option> : null}
+                  <option value="LOWEST_LOAD">低負載優先（LOWEST_LOAD）</option>
+                  <option value="WEIGHTED_SCORE">權重分數（WEIGHTED_SCORE）</option>
+                  <option value="MANUAL_ONLY">只進人工佇列（MANUAL_ONLY）</option>
                 </select>
+                <span className="mt-1 block text-xs font-semibold text-slate-500">ROUND_ROBIN / LOCAL_FIRST 尚未成為正式 Runtime 策略，暫不開放新設定。</span>
               </label>
               <label className={labelClass}>狀態
                 <select className={inputClass} value={editor.status} onChange={(event) => onChange({ status: event.target.value })}>
@@ -171,20 +268,44 @@ function PoolEditorDialog({
           <section className="rounded-3xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <div><div className="text-xs font-black uppercase tracking-wide text-slate-500">2. Pool Members</div><h3 className="mt-1 text-lg font-black">把 Agent 加入這個 Pool</h3></div>
-              <span className="text-xs font-bold text-slate-500">已選 {editor.memberIds.length}</span>
+              <span className="text-xs font-bold text-slate-500">已選 {editor.members.length}</span>
             </div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">既有成員會保留 weight、priority、status 與 metadata；只有新加入成員才使用 weight=1、priority=100 的預設值。</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {agents.map((agent) => {
-                const checked = editor.memberIds.includes(agent.agentId);
+                const checked = selectedAgentIds.has(agent.agentId);
+                const member = editableMember(agent.agentId);
                 return (
-                  <label key={agent.agentId} className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 ${checked ? 'border-purple-300 bg-purple-50' : 'border-slate-200 bg-slate-50'}`}>
-                    <input type="checkbox" className="mt-1 h-4 w-4" checked={checked} onChange={() => toggleAgent(agent.agentId)} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-black text-slate-950">{agent.agentName ?? agent.agentId}</span>
-                      <span className="mt-1 block text-xs text-slate-500">{agent.agentId}</span>
-                      <span className="mt-2 flex flex-wrap gap-2"><StatusBadge status={agent.approvalStatus ?? 'UNKNOWN'} /><StatusBadge status={agent.runtimeConnected ? 'CONNECTED' : 'NOT_CONNECTED'} /></span>
-                    </span>
-                  </label>
+                  <div key={agent.agentId} className={`rounded-2xl border p-4 ${checked ? 'border-purple-300 bg-purple-50' : 'border-slate-200 bg-slate-50'}`}>
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input type="checkbox" className="mt-1 h-4 w-4" checked={checked} onChange={() => toggleAgent(agent)} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-black text-slate-950">{agent.agentName ?? agent.agentId}</span>
+                        <span className="mt-1 block text-xs text-slate-500">{agent.agentId}</span>
+                        <span className="mt-2 flex flex-wrap gap-2"><StatusBadge status={agent.approvalStatus ?? 'UNKNOWN'} /><StatusBadge status={agent.runtimeConnected ? 'CONNECTED' : 'NOT_CONNECTED'} /></span>
+                      </span>
+                    </label>
+                    {checked && member ? (
+                      <div className="mt-4 grid gap-3 border-t border-purple-100 pt-4 sm:grid-cols-3">
+                        <label className="text-xs font-black text-slate-700">狀態
+                          <select className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold" value={normalizeMemberStatus(member.memberStatus)} onChange={(event) => updateMember(agent.agentId, { memberStatus: event.target.value })}>
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="INACTIVE">INACTIVE</option>
+                            <option value="DISABLED">DISABLED</option>
+                          </select>
+                        </label>
+                        <label className="text-xs font-black text-slate-700">Priority
+                          <input type="number" min={0} step={1} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold" value={normalizePriority(member.priority, 100)} onChange={(event) => updateMember(agent.agentId, { priority: normalizePriority(event.target.value, 100) })} />
+                        </label>
+                        <label className="text-xs font-black text-slate-700">Weight
+                          <input type="number" min={1} step={1} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-2 py-2 text-xs font-bold" value={normalizePositiveInteger(member.weight, 1)} onChange={(event) => updateMember(agent.agentId, { weight: normalizePositiveInteger(event.target.value, 1) })} />
+                        </label>
+                        <div className="sm:col-span-3 rounded-xl bg-white/70 px-3 py-2 text-xs font-semibold text-slate-600">
+                          Metadata：保留 {metadataKeyCount(member.metadata)} 個欄位；本表單不會覆蓋既有 metadata。
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })}
               {!agents.length ? <EmptyState title="沒有 Agent" description="請先建立並核准 Agent，再回到 Pool 加入成員。" compact /> : null}
@@ -198,6 +319,13 @@ function PoolEditorDialog({
       </div>
     </div>
   );
+}
+
+function optimisticConflictMessage(caught: unknown): string | null {
+  if (caught instanceof ApiError && (caught.code === 'RESOURCE_VERSION_CONFLICT' || caught.status === 409)) {
+    return '此 Agent Pool 已被其他管理員更新。請重新載入後比較差異，確認後再儲存。';
+  }
+  return null;
 }
 
 export function AgentPoolManagementConsole() {
@@ -256,6 +384,7 @@ export function AgentPoolManagementConsole() {
     const poolCode = normalizeCode(editor.poolCode);
     if (!poolCode) { setError('Pool Code 為必填。'); return; }
     if (!editor.poolName.trim()) { setError('Pool 名稱為必填。'); return; }
+    if (!isSupportedSelectionStrategy(editor.selectionStrategy)) { setError('請改選支援的選人策略：低負載優先、權重分數或只進人工佇列。'); return; }
     setBusy(true); setError(null); setMessage(null);
     try {
       const body: CoreAgentPoolView = {
@@ -268,8 +397,14 @@ export function AgentPoolManagementConsole() {
         selectionStrategy: editor.selectionStrategy,
         status: editor.status,
         description: editor.description.trim(),
+        version: editor.version,
+        updatedAt: editor.updatedAt,
+        updatedBy: editor.updatedBy,
         members: memberViews(editor, agents),
-        metadata: { phase32gAgentPoolAdminUi: true },
+        metadata: {
+          routingModel: 'AGENT_POOL_FIRST',
+          adminUiEditor: 'AGENT_POOL_MEMBER_PRESERVING',
+        },
       };
       const saved = editor.poolId
         ? await coreAdminApi.updateAgentPool(editor.poolId, body, scopedTenantId)
@@ -278,7 +413,13 @@ export function AgentPoolManagementConsole() {
       setMessage(`Agent Pool「${saved.poolName ?? saved.poolCode ?? saved.poolId}」已儲存。`);
       await reload();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '儲存 Agent Pool 失敗。');
+      const conflict = optimisticConflictMessage(caught);
+      if (conflict) {
+        setError(conflict);
+        await reload();
+      } else {
+        setError(caught instanceof Error ? caught.message : '儲存 Agent Pool 失敗。');
+      }
     } finally {
       setBusy(false);
     }
@@ -291,7 +432,7 @@ export function AgentPoolManagementConsole() {
           <div>
             <div className="text-xs font-black uppercase tracking-wide text-purple-700">Agent Pools / Work Queues</div>
             <h1 className="mt-1 text-2xl font-black text-slate-950">Agent Pool 管理</h1>
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">Phase 32-G 的設定主體是 Pool。先建立 TRIAGE_POOL 與各業務處理池，再由 Source Flow 指到 Pool；新手不需要碰 Capability 也能完成派單。</p>
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">目前設定主體是 Pool。先建立 TRIAGE_POOL 與各業務處理池，再由 Source Flow 指到 Pool；新手不需要碰 Capability 也能完成派單。</p>
           </div>
           <Button tone="primary" onClick={() => openCreate(activeSources[0]?.sourceSystemId)} disabled={!tenantId.trim()}>建立 Agent Pool</Button>
         </div>
@@ -318,15 +459,17 @@ export function AgentPoolManagementConsole() {
             </div>
             <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600">
               <span className="rounded-full bg-slate-100 px-2 py-1">{pool.poolType ?? 'RESOLUTION'}</span>
-              <span className="rounded-full bg-slate-100 px-2 py-1">{pool.selectionStrategy ?? 'LOWEST_LOAD'}</span>
+              <span className="rounded-full bg-slate-100 px-2 py-1">{selectionStrategyLabel(pool.selectionStrategy)}</span>
               <span className="rounded-full bg-slate-100 px-2 py-1">成員 {pool.memberCount ?? pool.members?.length ?? 0}</span>
               <span className="rounded-full bg-slate-100 px-2 py-1">可用 {pool.availableAgentCount ?? 0}</span>
+              <span className="rounded-full bg-slate-100 px-2 py-1">v{pool.version ?? '-'}</span>
             </div>
             <div className="mt-4 space-y-2">
               {(pool.members ?? []).slice(0, 4).map((member) => (
                 <div key={member.agentId} className="rounded-2xl bg-slate-50 p-3">
                   <div className="truncate text-sm font-black text-slate-900">{member.agentName ?? member.agentId}</div>
-                  <div className="mt-1 flex flex-wrap gap-2"><StatusBadge status={member.approvalStatus ?? 'UNKNOWN'} /><StatusBadge status={member.runtimeStatus ?? 'UNKNOWN'} /></div>
+                  <div className="mt-1 flex flex-wrap gap-2"><StatusBadge status={member.memberStatus ?? 'ACTIVE'} /><StatusBadge status={member.approvalStatus ?? 'UNKNOWN'} /><StatusBadge status={member.runtimeStatus ?? 'UNKNOWN'} /></div>
+                  <div className="mt-2 text-[11px] font-bold text-slate-500">priority={member.priority ?? 100} · weight={member.weight ?? 1}</div>
                 </div>
               ))}
               {!(pool.members ?? []).length ? <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">此 Pool 尚未加入 Agent，Source Flow 指到這裡會顯示 Pool blocker。</div> : null}

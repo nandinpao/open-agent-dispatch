@@ -223,14 +223,14 @@ public class FlowRuleRoutingService {
     }
 
     private String standardCapabilityRequirementMode(String persistedMode, List<String> requiredSkills, String requestedSkill) {
-        // In the unified Stage 8 dispatch authority, requestedSkill is matching/trace evidence only.
+        // In the unified dispatch authority, requestedSkill is matching/trace evidence only.
         // Only Flow-owned required skills/capabilities participate in capability eligibility.
         return hasRequiredCapability(requiredSkills) ? "EXPLICIT" : "NONE";
     }
 
     private String standardCandidatePoolMode(String persistedMode) {
-        // Backward-compatible persisted token retained for Stage 8 verifier compatibility.
-        // Phase 32-D actual candidate authority is targetPoolId + AgentPoolRoutingRepository.
+        // Backward-compatible persisted token retained for current verifier compatibility.
+        // Actual candidate authority is targetPoolId + AgentPoolRoutingRepository.
         return "EXPLICIT_FLOW_AGENTS";
     }
 
@@ -259,6 +259,7 @@ public class FlowRuleRoutingService {
                 repository.getClass().getName());
         FlowRuleRuntimeQuery query = new FlowRuleRuntimeQuery();
         query.setTenantId(task.getTenantId());
+        query.setFlowId(cleanIdentifier(task.getMatchedFlowId()));
         query.setSourceSystem(source);
         query.setOriginSourceSystem(task.getOriginSourceSystem());
         query.setTargetSystem(target);

@@ -833,7 +833,7 @@ export function TaskTable() {
         open={pendingAction !== null}
         title={pendingAction?.type === "cancel" ? "取消 Task" : "重新派工"}
         target={pendingAction?.row.task.taskId ?? ""}
-        description={pendingAction?.type === "cancel" ? "取消後 Task 將由 Core 權威狀態機進入取消狀態。" : "重新派工會使用目前已儲存的 Dispatch Flow、Agent 與 Capability 設定。"}
+        description={pendingAction?.type === "cancel" ? "取消後 Task 將由 Core 權威狀態機進入取消狀態。" : "重新派工會使用目前已儲存的 Source Flow、Agent Pool 與 Pool Member Agent 設定；Capability 只作 reference / diagnostics。"}
         confirmLabel={pendingAction?.type === "cancel" ? "確認取消" : "確認重新派工"}
         tone={pendingAction?.type === "cancel" ? "danger" : "warning"}
         requiredPhrase={pendingAction?.type === "cancel" ? "CONFIRM_CANCEL_TASK" : undefined}

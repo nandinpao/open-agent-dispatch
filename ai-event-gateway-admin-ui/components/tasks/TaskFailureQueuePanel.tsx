@@ -170,7 +170,7 @@ export function TaskFailureQueuePanel() {
 
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         <div className="font-bold">Admin Failure Queue</div>
-        <p className="mt-1 leading-6">集中顯示 retry wait、dispatch blocked、terminal failed、escalated、dead-letter、orphaned 與 reconciling 任務。P1-4 後不再把等待重試直接當成 failure reason。</p>
+        <p className="mt-1 leading-6">集中顯示 retry wait、dispatch blocked、terminal failed、escalated、dead-letter、orphaned 與 reconciling 任務；等待重試不會直接被視為終態失敗。</p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
           {Object.entries(data.counts ?? {}).map(([status, count]) => <span key={status} className="rounded-full bg-white px-2.5 py-1 font-semibold text-amber-800">{status}: {count}</span>)}
           {Object.entries(data.reasonCategoryCounts ?? {}).map(([category, count]) => (

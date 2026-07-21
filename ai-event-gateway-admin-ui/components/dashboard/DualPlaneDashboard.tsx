@@ -397,7 +397,7 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
   async function decideApproval(approval: CoreRecoveryApprovalRequest, decision: 'approve' | 'reject') {
     const reason = window.prompt(`請輸入 ${decision === 'approve' ? '核准' : '拒絕'} approval ${approval.approvalId} 的原因，至少 12 個字元。`)?.trim();
     if (!reason || reason.length < 12) {
-      window.alert('原因太短；P10.7 要求至少 12 個字元。');
+      window.alert('原因太短；高風險復原操作至少需要 12 個字元。');
       return;
     }
     const phrase = runbook?.policy?.approvalConfirmationPhrase ?? 'CONFIRM_DUAL_CONTROL_APPROVAL';
@@ -427,7 +427,7 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle
         title="Recovery Operations / Alerting"
-        description="P10.4 指標：以 Core dispatch attempt history 統計 delayed requeue、runtime backoff、dead-letter 與 scanner failed，支援 SLA/SLO 與告警判斷。"
+        description="以 Core dispatch attempt history 統計 delayed requeue、runtime backoff、dead-letter 與 scanner failed，支援 SLA/SLO 與告警判斷。"
         status={error ? 'UNAVAILABLE' : metrics?.status ?? 'NO_DATA'}
       />
       {error ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{error}</div> : null}
@@ -499,8 +499,8 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
           <div className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-bold text-slate-900">P10.7 Operator Runbook</div>
-                <div className="mt-1 text-xs text-slate-500">Runbook 由 Core /admin/recovery/runbook 提供；包含 P10.7 RBAC、reason、confirmation 與 dual-control policy。</div>
+                <div className="text-sm font-bold text-slate-900">Operator Recovery Runbook</div>
+                <div className="mt-1 text-xs text-slate-500">Runbook 由 Core /admin/recovery/runbook 提供；包含 RBAC、reason、confirmation 與 dual-control policy。</div>
               </div>
               <StatusBadge status={runbookError ? 'RUNBOOK_UNAVAILABLE' : runbook?.version ?? 'NO_RUNBOOK'} />
             </div>
@@ -533,7 +533,7 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
           <div className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-bold text-slate-900">P10.7 Pending Recovery Approvals</div>
+                <div className="text-sm font-bold text-slate-900">Pending Recovery Approvals</div>
                 <div className="mt-1 text-xs text-slate-500">High-risk recovery actions now require request → second-person approval → execution.</div>
               </div>
               <StatusBadge status={approvalError ? 'APPROVAL_QUEUE_UNAVAILABLE' : approvals.length > 0 ? `${approvals.length}_PENDING` : 'NO_PENDING_APPROVALS'} />

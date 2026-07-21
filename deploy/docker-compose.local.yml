@@ -160,7 +160,7 @@ services:
       CORE_DEFAULT_ROUTING_POLICY: ${CORE_DEFAULT_ROUTING_POLICY:-DOMAIN_AWARE}
       ROUTING_ASSIGNMENT_ENABLED: "true"
       DISPATCH_REQUEST_CREATION_ENABLED: "true"
-      # Stage 8 standard delivery gate still verifies the direct assignment -> dispatch request -> Netty -> Agent ACK/RESULT path.
+      # Current standard delivery gate verifies the direct assignment -> dispatch request -> Netty -> Agent ACK/RESULT path.
       DISPATCH_REVIEW_MODE: AUTO_APPROVE
       DISPATCH_CLIENT_ENABLED: "true"
       DISPATCH_CLIENT_AUTO_EXECUTE_APPROVED: "true"

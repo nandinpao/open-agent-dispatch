@@ -47,7 +47,7 @@ public class EventIntakeRequest {
     private String objectType;
     private String objectId;
     /**
-     * Optional from Phase 32-C onward. Missing or blank values are normalized
+     * Optional in the current SourceSystem-only intake contract. Missing or blank values are normalized
      * to UNKNOWN so source-system-only intake can create a TRIAGE task.
      */
     private String eventType;

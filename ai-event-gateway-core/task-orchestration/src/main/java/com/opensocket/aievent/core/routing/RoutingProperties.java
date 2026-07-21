@@ -12,7 +12,7 @@ public class RoutingProperties {
     private int minimumScore = 50;
     private int maxCandidates = 20;
     private boolean updateTaskStatusOnAssignment = true;
-    /** Lease TTL used by the single Stage 8 direct-dispatch assignment path. */
+    /** Lease TTL used by the current direct-dispatch assignment path. */
     private Duration assignmentLeaseTtl = Duration.ofMinutes(5);
     /**
      * P9.2 compatibility switch. When enabled, routing candidates are evaluated against the

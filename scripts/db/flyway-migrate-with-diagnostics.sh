@@ -30,7 +30,7 @@ assert_no_macos_metadata_files() {
       [ -n "$file" ] || continue
       log "remaining-macos-metadata-file name=$(basename "$file")"
     done
-    log "ERROR: rebuild the migration Docker volume after excluding AppleDouble files. Suggested: make down-v && make cd-local"
+    log "ERROR: rebuild the migration Docker volume after excluding AppleDouble files. Suggested: make cd-local-reset-db"
     exit 18
   fi
 }
@@ -102,13 +102,13 @@ log "pending migrations are expected before a fresh baseline migrate; checksum m
 if [ "${OPENDISPATCH_FLYWAY_DEBUG:-false}" = "true" ]; then
   # shellcheck disable=SC2086
   if ! flyway -X $base_args -validateMigrationNaming=true -ignoreMigrationPatterns='*:pending' validate; then
-    log "preflight validate failed. If this reports checksum mismatch for V1 after clean-baseline development, do not use repair unless you intentionally accept a schema-history-only update. For local development, reset the PostgreSQL volume so V1 is recreated from the current file. Suggested: make down-v && make cd-local"
+    log "preflight validate failed. If this reports checksum mismatch for V1 after clean-baseline development, do not use repair unless you intentionally accept a schema-history-only update. For local development, reset the PostgreSQL volume so V1 is recreated from the current file. Suggested: make cd-local-reset-db (or: make reset-local-db && make cd-local)"
     exit 1
   fi
 else
   # shellcheck disable=SC2086
   if ! flyway $base_args -validateMigrationNaming=true -ignoreMigrationPatterns='*:pending' validate; then
-    log "preflight validate failed. If this reports checksum mismatch for V1 after clean-baseline development, do not use repair unless you intentionally accept a schema-history-only update. For local development, reset the PostgreSQL volume so V1 is recreated from the current file. Suggested: make down-v && make cd-local"
+    log "preflight validate failed. If this reports checksum mismatch for V1 after clean-baseline development, do not use repair unless you intentionally accept a schema-history-only update. For local development, reset the PostgreSQL volume so V1 is recreated from the current file. Suggested: make cd-local-reset-db (or: make reset-local-db && make cd-local)"
     exit 1
   fi
 fi

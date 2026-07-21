@@ -23,8 +23,8 @@ export function CapabilityCardSelector({
   onChange,
   loading = false,
   disabled = false,
-  title = "Capability Catalog",
-  description = "Select reusable capabilities from the Capability Catalog. Capability approvals are managed from Agent Detail.",
+  title = "Capability Catalog（Reference-only）",
+  description = "Capability labels are reference-only metadata for search, diagnostics and future governance. Current dispatch setup is Source Flow -> Agent Pool; capability selection must not be treated as the first-version routing gate.",
 }: Readonly<CapabilityCardSelectorProps>) {
   const selected = new Set(selectedCodes.map(normalize));
 
@@ -51,12 +51,18 @@ export function CapabilityCardSelector({
           {selected.size} selected
         </span>
       </div>
-      <LegacyValueWarning label="capability" values={selectedCodes} options={capabilityOptions} message="Selected capability values are not ACTIVE catalog entries. Remove or replace them before relying on dispatch eligibility." />
+      <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-900">
+        <div className="font-black uppercase tracking-wide">Reference-only capability catalog</div>
+        <p className="mt-1 font-semibold">
+          Capability values remain useful for Agent description, search, audit and diagnostic evidence. They do not replace the {"Current setup path: Source Flow -> Agent Pool -> Pool Member Agent"}.
+        </p>
+      </div>
+      <LegacyValueWarning label="capability" values={selectedCodes} options={capabilityOptions} message="Selected capability values are not ACTIVE catalog entries. Treat them as reference-only metadata; Current dispatch eligibility is managed through Source Flow and Agent Pool configuration." />
       {loading ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Loading capability catalog...</div>
       ) : activeCapabilities.length === 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          No ACTIVE capability catalog entries are available. Create or activate capabilities before assigning Agent capabilities.
+          No ACTIVE capability catalog entries are available. Create or activate capabilities only when you need reference-only Agent labels or diagnostic metadata; Current dispatch setup still starts from Source Flow and Agent Pool.
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">

@@ -60,6 +60,8 @@ public class JdbcFlowRuleRoutingRepository implements FlowRuleRoutingRepository 
         params.put("tenantIds", tenantAliases(rawTenantId));
         params.put("tenantId", tenantId);
         params.put("sourceSystem", sourceSystem);
+        params.put("hasFlowId", !blank(query.getFlowId()));
+        params.put("flowId", firstNonBlank(query.getFlowId(), "__ANY_FLOW_ID__"));
         params.put("originSourceSystem", firstNonBlank(normalize(query.getOriginSourceSystem()), sourceSystem));
         params.put("hasTargetSystem", hasTargetSystem);
         params.put("targetSystem", firstNonBlank(targetSystem, "__ANY_TARGET_SYSTEM__"));
@@ -112,6 +114,7 @@ public class JdbcFlowRuleRoutingRepository implements FlowRuleRoutingRepository 
                 where upper(f.tenant_id) in (:tenantIds)
                   and upper(coalesce(f.status, 'DRAFT')) in ('ACTIVE','ENABLED')
                   and upper(coalesce(f.flow_type, 'SOURCE_FLOW')) = 'SOURCE_FLOW'
+                  and (:hasFlowId = false or f.flow_id = :flowId)
                   and upper(f.source_system) in (:sourceSystem, '*')
             ), candidate_rules as (
                 select

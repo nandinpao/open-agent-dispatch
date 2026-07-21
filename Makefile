@@ -8,15 +8,21 @@ CI_COMPOSE_FILE ?= deploy/docker-compose.ci.yml
 COMPOSE_LOCAL := docker compose -p $(PROJECT_NAME) --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 COMPOSE_CI := docker compose -p $(PROJECT_NAME)-ci --env-file $(CI_ENV_FILE) -f $(CI_COMPOSE_FILE)
 
-.PHONY: help verify-current verify-legacy-release verify-stage0-dispatch-authority-freeze phase0-dispatch-authority-freeze check-project-layout repair-project-layout check-toolchain verify-stage2-sql-tenant-contract characterize-stage2-report characterize-stage2-dry-run characterize-stage2-strict test-stage2-admin-tenant-contract test-stage2-postgres-optional-filters stage2-sql-tenant-contract characterize-stage3-report characterize-stage3-dry-run characterize-stage3-strict verify-stage3-dispatch-flow-aggregate test-stage3-dispatch-flow-aggregate stage3-dispatch-flow-aggregate validate verify-observability-dependency-policy verify-observability-dependency-tree verify-slf4j-direct-dependencies verify-p1b-otlp-collector verify-p2a-http-observation verify-p2b-core-business-observation verify-p3a-spring-managed-context-propagation verify-p3b-manual-executor-outbound-http verify-p3c-agent-protocol-trace-propagation verify-p4a-core-admin-authentication verify-p4b-admin-ui-core-authentication verify-p4c-authentication-final-convergence verify-p5a-production-otel-hardening validate-p5a-production-otel-runtime smoke-p4b-auth smoke-p4c-auth smoke-otlp build-core build-netty build-admin docker-core docker-netty docker-admin docker-all up up-agent down down-v smoke test-admin-strict test-source-clean clean-artifacts ci-fast ci-pr ci-release ci-release-dry-run ci-local ci-local-teardown cd-local ci-ps ci-open ci-smoke ci-report ci-diagnose ci-port-check ci-down ci-down-v ci-logs clean-ci install-ci-workflows release-package release-package-offline release-notes verify verify-prod-security verify-p2m1-dispatch-contract verify-p2m2-dispatch-policy-contract verify-p2p-cms-content-review-contract verify-p2p-cms-content-review-api verify-p2r-dispatch-contract-release-gate verify-p3m-enforce-runtime-acceptance verify-p3n-full-enforce-acceptance verify-p3o-enforce-hardening verify-p3p-production-observability verify-stage9-agent-setup verify-r0-dispatch-flow-rule-inventory verify-r1-dispatch-flow-ui-ia verify-r7-test-trace-chain verify-r6-flow-rule-routing-engine verify-r5-flow-owned-agent-assignment verify-r4-flow-owned-capabilities-skills verify-r3-event-stage-a2a-envelope verify-r2-flow-owned-rule-model verify-r10-flow-rule-a2a-regression acceptance-r10-flow-rule-a2a-regression verify-p0-1-r12-14-v108-baseline verify-p0-2-flow-rule-dispatchability verify-p1-db-backed-dispatch-flow-crud verify-p2-flow-rule-dry-run-readiness verify-p3-beginner-three-step-dispatch-flow-ui verify-p0-zero-special-case-dispatch verify-p1-generic-dispatch-governance-model verify-p2-requirement-resolver-shadow-mode verify-p3-eligibility-shadow-evaluators verify-p4-generic-candidate-routing-shadow verify-p5-runtime-hardcode-removal verify-p7-dispatch-governance-admin-ui verify-p8-action-grant-workflow verify-p9-effectful-action-runtime-integration verify-p10-generic-dispatch-authoritative-cutover verify-p11-legacy-control-path-decommission verify-p11-assignment-diagnostics
+.PHONY: help verify-current verify-legacy-release verify-stage0-dispatch-authority-freeze phase0-dispatch-authority-freeze check-project-layout repair-project-layout check-toolchain verify-stage2-sql-tenant-contract characterize-stage2-report characterize-stage2-dry-run characterize-stage2-strict test-stage2-admin-tenant-contract test-stage2-postgres-optional-filters stage2-sql-tenant-contract characterize-stage3-report characterize-stage3-dry-run characterize-stage3-strict verify-stage3-dispatch-flow-aggregate test-stage3-dispatch-flow-aggregate stage3-dispatch-flow-aggregate validate verify-observability-dependency-policy verify-observability-dependency-tree verify-slf4j-direct-dependencies verify-p1b-otlp-collector verify-p2a-http-observation verify-p2b-core-business-observation verify-p3a-spring-managed-context-propagation verify-p3b-manual-executor-outbound-http verify-p3c-agent-protocol-trace-propagation verify-p4a-core-admin-authentication verify-p4b-admin-ui-core-authentication verify-p4c-authentication-final-convergence verify-p5a-production-otel-hardening validate-p5a-production-otel-runtime smoke-p4b-auth smoke-p4c-auth smoke-otlp build-core build-netty build-admin docker-core docker-netty docker-admin docker-all up up-agent down down-v reset-local-db cd-local-reset-db smoke test-admin-strict test-source-clean clean-artifacts ci-fast ci-pr ci-release ci-release-dry-run ci-local ci-local-teardown cd-local ci-ps ci-open ci-smoke ci-report ci-diagnose ci-port-check ci-down ci-down-v ci-logs clean-ci install-ci-workflows release-package release-package-offline release-notes verify verify-prod-security verify-p2m1-dispatch-contract verify-p2m2-dispatch-policy-contract verify-p2p-cms-content-review-contract verify-p2p-cms-content-review-api verify-p2r-dispatch-contract-release-gate verify-p3m-enforce-runtime-acceptance verify-p3n-full-enforce-acceptance verify-p3o-enforce-hardening verify-p3p-production-observability verify-stage9-agent-setup verify-r0-dispatch-flow-rule-inventory verify-r1-dispatch-flow-ui-ia verify-r7-test-trace-chain verify-r6-flow-rule-routing-engine verify-r5-flow-owned-agent-assignment verify-r4-flow-owned-capabilities-skills verify-r3-event-stage-a2a-envelope verify-r2-flow-owned-rule-model verify-r10-flow-rule-a2a-regression acceptance-r10-flow-rule-a2a-regression verify-p0-1-r12-14-v108-baseline verify-p0-2-flow-rule-dispatchability verify-p1-db-backed-dispatch-flow-crud verify-p2-flow-rule-dry-run-readiness verify-p3-beginner-three-step-dispatch-flow-ui verify-p0-zero-special-case-dispatch verify-p1-generic-dispatch-governance-model verify-p2-requirement-resolver-shadow-mode verify-p3-eligibility-shadow-evaluators verify-p4-generic-candidate-routing-shadow verify-p5-runtime-hardcode-removal verify-p7-dispatch-governance-admin-ui verify-p8-action-grant-workflow verify-p9-effectful-action-runtime-integration verify-p10-generic-dispatch-authoritative-cutover verify-p11-legacy-control-path-decommission verify-p11-assignment-diagnostics
 
 help:
 	@echo "OpenDispatch local automation"
 	@echo ""
 	@echo "Daily commands:"
-	@echo "  make verify          Run the single current app/config verification gate"
+	@echo "  make verify          Run the canonical current release verification gate"
+	@echo "  make verify-fast     Run structural/current contract checks without the live stack"
+	@echo "  make verify-build    Build Java/Admin artifacts in a prepared toolchain"
+	@echo "  make verify-e2e      Run the Phase 7B full live Current release gate"
+	@echo "  make verify-e2e-dry-run Validate the live-gate contract without starting a stack"
 	@echo "  make cd-local        Build artifacts, start local stack, and smoke test"
-	@echo "  make down-v          Stop local stack and remove volumes"
+	@echo "  make down-v          Stop local stack and remove all local volumes"
+	@echo "  make reset-local-db  Remove only the local PostgreSQL volume used by cd-local"
+	@echo "  make cd-local-reset-db Reset local PostgreSQL and run cd-local; use after Flyway V1 checksum mismatch"
 	@echo "  make collect-dispatch-logs Collect Core/Netty/Admin UI/Agent diagnostics"
 	@echo "  make test-admin-strict Run Admin UI typecheck, lint, tests, and build"
 	@echo "  make check-toolchain Verify Java / Maven / Node / npm / Docker Compose"
@@ -79,6 +85,13 @@ down:
 down-v:
 	./scripts/ci/local-admin-ui-host.sh stop --env-file $(ENV_FILE) --output-dir $(CI_OUTPUT_DIR) || true
 	$(COMPOSE_LOCAL) down -v --remove-orphans
+
+reset-local-db:
+	PROJECT_NAME=$(PROJECT_NAME) COMPOSE_FILE=$(COMPOSE_FILE) ENV_FILE=$(ENV_FILE) ./scripts/db/reset-local-postgres-volume.sh
+
+cd-local-reset-db:
+	$(MAKE) reset-local-db PROJECT_NAME=$(PROJECT_NAME) COMPOSE_FILE=$(COMPOSE_FILE) ENV_FILE=$(ENV_FILE) CI_OUTPUT_DIR=$(CI_OUTPUT_DIR)
+	$(MAKE) cd-local PROJECT_NAME=$(PROJECT_NAME) COMPOSE_FILE=$(COMPOSE_FILE) ENV_FILE=$(ENV_FILE) CI_OUTPUT_DIR=$(CI_OUTPUT_DIR)
 
 smoke:
 	./scripts/ci/local-smoke.sh --project $(PROJECT_NAME) --compose-file $(COMPOSE_FILE) --env-file $(ENV_FILE)
@@ -160,18 +173,79 @@ clean-ci:
 install-ci-workflows:
 	./scripts/release/install-ci-workflows.sh
 
-verify: verify-current
+# Phase 7A canonical current verification entrypoints.
+# Historical Stage/Phase verifiers are retained below as archive-* targets only;
+# they are no longer dependencies of make verify.
+.PHONY: verify verify-fast verify-build verify-integration verify-e2e verify-e2e-dry-run verify-live-e2e verify-release verify-current verify-release-hygiene archive-verify-current-legacy archive-verify-stage8-release-gate archive-verify-phase32
 
-.PHONY: verify-current verify-current-app-contract verify-p21-api-runtime-acceptance verify-phase32
+verify:
+	$(MAKE) verify-release
+
 verify-current:
+	@echo "verify-current is a compatibility alias; use make verify or make verify-release."
+	$(MAKE) verify-release
+
+verify-fast:
+	python3 scripts/verify/verify-current-ui-semantics.py
+	python3 scripts/verify/verify-phase5b-dispatch-workspace-shell.py
+	python3 scripts/verify/verify-phase5c-flow-rule-pool-editor.py
+	python3 scripts/verify/verify-phase5d-dispatch-simulation.py
+	python3 scripts/verify/verify-phase5e-beginner-journey.py
+	python3 scripts/verify/verify-phase6a-task-diagnosis-read-model.py
+	python3 scripts/verify/verify-phase6b-task-remediation-command-model.py
+	python3 scripts/verify/verify-phase6c-issue-dedup-timeline.py
+	python3 scripts/verify/verify-phase7a-current-verification-governance.py
+	python3 scripts/verify/verify-phase7b-full-live-release-gate.py
+	python3 scripts/verify/verify-phase8a-current-documentation-entry.py
+	python3 scripts/verify/verify-phase8b-document-archive.py
+	python3 scripts/verify/verify-phase9a-capability-registry-reference-only.py
+	python3 scripts/verify/verify-phase9b-agent-quality-observation.py
+	python3 scripts/verify/verify-phase9c-advisory-recommendation.py
+	python3 scripts/verify/verify-phase9d-explicit-capability-policy.py
+	python3 scripts/verify/verify-phase9e-advanced-selection-strategy-contract.py
+	python3 scripts/verify/verify-phase9f-a2a-classification-flow.py
+	python3 scripts/verify/verify-release-hygiene.py --project-root .
+
+verify-build:
+	./scripts/ci/admin-ui-clean-generated.sh --best-effort
+	cd ai-event-gateway-admin-ui && npm ci && npm run typecheck && npm run lint
+	mvn -f pom.xml -DskipTests package
+
+verify-integration:
+	python3 scripts/verify/verify-local-compose-no-host-bind-mounts.py
+	python3 scripts/verify/verify-p21-api-runtime-acceptance.py
+	python3 scripts/verify/verify-phase4-release-gate.py
+
+verify-e2e:
+	CURRENT_FULL_LIVE_RELEASE_GATE_MODE=$${CURRENT_FULL_LIVE_RELEASE_GATE_MODE:-live} ./scripts/release/current-full-live-release-gate.sh
+
+verify-live-e2e:
+	CURRENT_FULL_LIVE_RELEASE_GATE_MODE=live ./scripts/release/current-full-live-release-gate.sh
+
+verify-e2e-dry-run:
+	CURRENT_FULL_LIVE_RELEASE_GATE_MODE=dry-run ./scripts/release/current-full-live-release-gate.sh
+
+verify-release: verify-fast verify-build verify-integration verify-e2e verify-release-hygiene
+
+verify-release-hygiene:
+	python3 scripts/verify/verify-release-hygiene.py --project-root .
+
+archive-verify-current-legacy:
 	$(MAKE) verify-stage8-f0f-flow-agent-setup-error-contract
 	$(MAKE) verify-stage8-dispatch-authority-unification
 	$(MAKE) verify-local-compose-no-host-bind-mounts
 	$(MAKE) verify-p21-api-runtime-acceptance
 	$(MAKE) verify-current-app-contract
-	$(MAKE) phase32-i-acceptance-dry-run
+	$(MAKE) source-system-only-acceptance-dry-run
+
+archive-verify-stage8-release-gate:
+	python3 scripts/verify/verify-stage8-release-gate.py
+
+archive-verify-phase32:
+	$(MAKE) verify-phase32
 
 verify-current-app-contract:
+	@echo "Archived current-app verifier. Prefer make verify-fast / make verify-release."
 	python3 scripts/verify/verify-current-app-contract.py
 
 verify-p21-api-runtime-acceptance:
@@ -183,6 +257,7 @@ verify-local-compose-no-host-bind-mounts:
 	python3 scripts/verify/verify-local-compose-no-host-bind-mounts.py
 
 verify-legacy-release:
+	@echo "Archived legacy release verifier. Prefer make verify-release."
 	python3 scripts/verify/verify-release.py
 	python3 scripts/verify/verify-stage0-integration-characterization.py
 	python3 scripts/architecture/stage0_dispatch_feature_freeze.py
@@ -1102,6 +1177,16 @@ verify-phase32h-pool-first-diagnostics:
 phase32-h: verify-phase32a-source-flow-contract verify-phase32b-agent-pool-persistence verify-phase32c-event-intake-relaxation verify-phase32d-source-flow-pool-routing verify-phase32e-triage-classification-resolution verify-phase32f-task-detail-a2a-evidence-chain verify-phase32g-source-flow-agent-pool-admin-ui verify-phase32h-pool-first-diagnostics
 	@echo "Phase 32-H Pool-first diagnostics gate passed."
 
+.PHONY: verify-source-system-only-golden-path source-system-only-acceptance-dry-run source-system-only-live
+verify-source-system-only-golden-path:
+	python3 scripts/verify/verify-source-system-only-golden-path.py
+
+source-system-only-acceptance-dry-run:
+	node scripts/acceptance/source-system-only-golden-path.mjs --dry-run --negative
+
+source-system-only-live:
+	node scripts/acceptance/source-system-only-golden-path.mjs --negative
+
 .PHONY: verify-phase32i-source-system-only-golden-path phase32-i-acceptance-dry-run phase32-i-live phase32-i phase32-release-gate verify-phase32
 verify-phase32i-source-system-only-golden-path:
 	python3 scripts/verify/verify-phase32i-source-system-only-golden-path.py
@@ -1120,3 +1205,127 @@ phase32-release-gate: verify-current-app-contract phase32-i-acceptance-dry-run
 
 verify-phase32: verify-current-app-contract phase32-i-acceptance-dry-run
 	@echo "Phase 32 current code/config verification is included in make verify."
+
+.PHONY: verify-phase0-current-baseline
+verify-phase0-current-baseline:
+	python3 scripts/verify/verify-phase0-current-baseline.py
+
+.PHONY: verify-phase1-1-selection-strategy
+verify-phase1-1-selection-strategy: verify-phase0-current-baseline
+	python3 scripts/verify/verify-phase1-1-selection-strategy.py
+
+.PHONY: verify-phase1-2-agent-pool-member-preservation
+verify-phase1-2-agent-pool-member-preservation: verify-phase1-1-selection-strategy
+	python3 scripts/verify/verify-phase1-2-agent-pool-member-preservation.py
+
+.PHONY: verify-phase1-3-source-flow-legacy-preservation
+verify-phase1-3-source-flow-legacy-preservation: verify-phase1-2-agent-pool-member-preservation
+	python3 scripts/verify/verify-phase1-3-source-flow-legacy-preservation.py
+
+.PHONY: verify-phase1-4-current-metadata-cleanup
+verify-phase1-4-current-metadata-cleanup: verify-phase1-3-source-flow-legacy-preservation
+	python3 scripts/verify/verify-phase1-4-current-metadata-cleanup.py
+
+.PHONY: verify-phase2-1-dispatch-integrity-report
+verify-phase2-1-dispatch-integrity-report: verify-phase1-4-current-metadata-cleanup
+	python3 scripts/verify/verify-phase2-1-dispatch-integrity-report.py
+
+.PHONY: verify-phase2-2-dispatch-integrity-repair-plan
+verify-phase2-2-dispatch-integrity-repair-plan: verify-phase2-1-dispatch-integrity-report
+	python3 scripts/verify/verify-phase2-2-dispatch-integrity-repair-plan.py
+
+.PHONY: verify-phase2-3-dispatch-composite-fk
+verify-phase2-3-dispatch-composite-fk: verify-phase2-2-dispatch-integrity-repair-plan
+	python3 scripts/verify/verify-phase2-3-dispatch-composite-fk.py
+
+.PHONY: verify-phase2-4-dispatch-enum-checks
+verify-phase2-4-dispatch-enum-checks: verify-phase2-3-dispatch-composite-fk
+	python3 scripts/verify/verify-phase2-4-dispatch-enum-checks.py
+
+.PHONY: verify-phase2-5-dispatch-optimistic-locking
+verify-phase2-5-dispatch-optimistic-locking: verify-phase2-4-dispatch-enum-checks
+	python3 scripts/verify/verify-phase2-5-dispatch-optimistic-locking.py
+
+.PHONY: verify-phase2-6-api-ui-optimistic-lock-conflict-handling
+verify-phase2-6-api-ui-optimistic-lock-conflict-handling: verify-phase2-5-dispatch-optimistic-locking
+	python3 scripts/verify/verify-phase2-6-api-ui-optimistic-lock-conflict-handling.py
+
+.PHONY: verify-phase2-7-1-constraint-validate-readiness-report
+verify-phase2-7-1-constraint-validate-readiness-report: verify-phase2-6-api-ui-optimistic-lock-conflict-handling
+	python3 scripts/verify/verify-phase2-7-1-constraint-validate-readiness-report.py
+
+.PHONY: verify-phase2-7-2-batch-validate-current-configuration-constraints
+verify-phase2-7-2-batch-validate-current-configuration-constraints: verify-phase2-7-1-constraint-validate-readiness-report
+	python3 scripts/verify/verify-phase2-7-2-batch-validate-current-configuration-constraints.py
+
+.PHONY: verify-phase2-7-3-active-lifecycle-constraint-validation
+verify-phase2-7-3-active-lifecycle-constraint-validation: verify-phase2-7-2-batch-validate-current-configuration-constraints
+	python3 scripts/verify/verify-phase2-7-3-active-lifecycle-constraint-validation.py
+
+.PHONY: verify-phase2-release-gate
+verify-phase2-release-gate:
+	python3 scripts/verify/verify-phase2-release-gate.py
+
+.PHONY: verify-phase3-1-routing-responsibility-extraction-plan
+verify-phase3-1-routing-responsibility-extraction-plan: verify-phase2-release-gate
+	python3 scripts/verify/verify-phase3-1-routing-responsibility-extraction-plan.py
+
+.PHONY: verify-phase3-2-selection-strategy-registry
+verify-phase3-2-selection-strategy-registry: verify-phase3-1-routing-responsibility-extraction-plan
+	python3 scripts/verify/verify-phase3-2-selection-strategy-registry.py
+
+.PHONY: verify-phase3-3-runtime-eligibility-evaluator
+verify-phase3-3-runtime-eligibility-evaluator: verify-phase3-2-selection-strategy-registry
+	python3 scripts/verify/verify-phase3-3-runtime-eligibility-evaluator.py
+
+.PHONY: verify-phase3-4-pool-resolver
+verify-phase3-4-pool-resolver: verify-phase3-3-runtime-eligibility-evaluator
+	python3 scripts/verify/verify-phase3-4-pool-resolver.py
+
+.PHONY: verify-phase3-5-flow-rule-resolver
+verify-phase3-5-flow-rule-resolver: verify-phase3-4-pool-resolver
+	python3 scripts/verify/verify-phase3-5-flow-rule-resolver.py
+
+.PHONY: verify-phase3-6-routing-evidence-blocker-builders
+verify-phase3-6-routing-evidence-blocker-builders: verify-phase3-5-flow-rule-resolver
+	python3 scripts/verify/verify-phase3-6-routing-evidence-blocker-builders.py
+
+.PHONY: verify-phase3-7-routing-orchestrator-facade
+verify-phase3-7-routing-orchestrator-facade: verify-phase3-6-routing-evidence-blocker-builders
+	python3 scripts/verify/verify-phase3-7-routing-orchestrator-facade.py
+
+.PHONY: verify-phase3-8-candidate-scoring-service
+verify-phase3-8-candidate-scoring-service: verify-phase3-7-routing-orchestrator-facade
+	python3 scripts/verify/verify-phase3-8-candidate-scoring-service.py
+
+.PHONY: verify-phase3-9-generic-authority-bridge
+verify-phase3-9-generic-authority-bridge: verify-phase3-8-candidate-scoring-service
+	python3 scripts/verify/verify-phase3-9-generic-authority-bridge.py
+
+.PHONY: verify-phase3-release-gate
+verify-phase3-release-gate:
+	python3 scripts/verify/verify-phase3-release-gate.py
+
+.PHONY: verify-phase4-1-current-legacy-boundary-plan
+verify-phase4-1-current-legacy-boundary-plan: verify-phase3-release-gate
+	python3 scripts/verify/verify-phase4-1-current-legacy-boundary-plan.py
+
+.PHONY: verify-phase4-2-current-path-legacy-dependency-inventory
+verify-phase4-2-current-path-legacy-dependency-inventory: verify-phase4-1-current-legacy-boundary-plan
+	python3 scripts/verify/verify-phase4-2-current-path-legacy-dependency-inventory.py
+
+.PHONY: verify-phase4-3-legacy-api-deprecation-headers
+verify-phase4-3-legacy-api-deprecation-headers: verify-phase4-2-current-path-legacy-dependency-inventory
+	python3 scripts/verify/verify-phase4-3-legacy-api-deprecation-headers.py
+
+.PHONY: verify-phase4-4-admin-ui-legacy-surface-labeling
+verify-phase4-4-admin-ui-legacy-surface-labeling: verify-phase4-3-legacy-api-deprecation-headers
+	python3 scripts/verify/verify-phase4-4-admin-ui-legacy-surface-labeling.py
+
+.PHONY: verify-phase4-5-current-setup-navigation-hardening
+verify-phase4-5-current-setup-navigation-hardening: verify-phase4-4-admin-ui-legacy-surface-labeling
+	python3 scripts/verify/verify-phase4-5-current-setup-navigation-hardening.py
+
+.PHONY: verify-phase4-release-gate
+verify-phase4-release-gate:
+	python3 scripts/verify/verify-phase4-release-gate.py

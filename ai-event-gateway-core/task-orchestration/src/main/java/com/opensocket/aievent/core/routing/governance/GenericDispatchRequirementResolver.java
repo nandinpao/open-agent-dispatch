@@ -12,7 +12,7 @@ import com.opensocket.aievent.core.dispatch.flow.FlowRuleRoutingPlan;
 import com.opensocket.aievent.core.task.TaskRecord;
 
 /**
- * Stage 8 direct-dispatch requirement resolver.
+ * Current direct-dispatch requirement resolver.
  *
  * The standard runtime contract is owned only by the matched Dispatch Flow:
  * Flow Rule -> Flow Agent Assignment -> optional required Capability.

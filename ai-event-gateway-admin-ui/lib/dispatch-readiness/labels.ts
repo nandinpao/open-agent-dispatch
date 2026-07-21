@@ -14,7 +14,7 @@ export const capabilityBeginnerLabels: Record<string, BeginnerLabel> = {
   },
   GENERAL_AGENT: {
     label: '一般 Agent 能力',
-    description: 'Agent 的基本平台能力；實際可處理範圍仍由後台 Capability、Dispatch Flow Agent assignment 與 Action Grant 決定。'
+    description: 'Agent 的基本平台能力標籤；實際候選範圍由 Agent Pool membership 決定，可接單狀態由 Runtime Eligibility 決定。'
   }
 };
 
@@ -56,27 +56,27 @@ export const policyBeginnerLabels: Record<string, BeginnerLabel> = {
 };
 
 export const readinessCheckLabels: Record<string, string> = {
-  TASK_REQUIRES_CAPABILITY: 'Task Requirement 已解析',
-  CAPABILITY_DEFINED: 'Capability Catalog 已存在',
-  DISPATCH_CONTRACT_RESOLVED: 'Task 需求可轉成派工資格合約',
-  GOVERNANCE_PROFILE: 'Agent 身份已通過治理核准',
-  GOVERNANCE_APPROVED_CAPABILITY: 'Agent 已取得後台 Flow Agent approval',
-  RUNTIME_AGENT_ONLINE: 'Agent Runtime 目前在線且可接任務',
-  RUNTIME_REPORTED_CAPABILITY: 'Runtime protocol feature 檢查',
-  AGENT_CAPACITY_AVAILABLE: 'Agent 還有可用容量',
-  CAPABILITY_CONTRACT_ELIGIBLE: 'Dispatch Eligibility 總檢查通過'
+  TASK_REQUIRES_CAPABILITY: 'Task Capability Metadata（參考）',
+  CAPABILITY_DEFINED: 'Capability Catalog（參考）',
+  DISPATCH_CONTRACT_RESOLVED: 'Source Flow／Agent Pool 已解析',
+  GOVERNANCE_PROFILE: 'Agent 管理狀態已核准',
+  GOVERNANCE_APPROVED_CAPABILITY: 'Capability 核准資訊（參考）',
+  RUNTIME_AGENT_ONLINE: 'Agent Runtime 在線',
+  RUNTIME_REPORTED_CAPABILITY: 'Runtime Capability 觀測（參考）',
+  AGENT_CAPACITY_AVAILABLE: 'Agent 容量可用',
+  CAPABILITY_CONTRACT_ELIGIBLE: 'Runtime Eligibility 總檢查通過'
 };
 
 export const readinessCheckBeginnerHints: Record<string, string> = {
-  TASK_REQUIRES_CAPABILITY: 'Task 必須先解析出任務類型、工具政策與後台派工需求，系統才知道需要哪種 Agent Dispatch Flow Agent assignment。',
-  CAPABILITY_DEFINED: '後台必須明確建立 Capability 或選擇安全的 Source Baseline；系統不會依來源名稱自動推論。',
-  DISPATCH_CONTRACT_RESOLVED: '派工合約會把 Task 的需求轉成可檢查的 required profile、runtime feature、tool policy 與風險限制。',
-  GOVERNANCE_PROFILE: 'Agent 身份必須先被公司治理核准，不能只靠 runtime 自己宣稱。',
-  GOVERNANCE_APPROVED_CAPABILITY: 'Agent 必須有後台核准的 Agent Dispatch Flow Agent assignment / Flow Agent approval，才可以接此類任務。',
-  RUNTIME_AGENT_ONLINE: 'Agent 必須真的連上 Gateway，否則 Core 找得到 profile 也送不出去。',
-  RUNTIME_REPORTED_CAPABILITY: 'Agent runtime 必須支援必要 protocol feature，例如 TASK_ACK、TASK_RESULT；業務 capability 由 Admin UI/Core 管理，不要求 runtime 自行宣告。',
-  AGENT_CAPACITY_AVAILABLE: 'Agent 忙碌或 slots 用完時，暫時不應再接新任務。',
-  CAPABILITY_CONTRACT_ELIGIBLE: '這是 Dispatch Eligibility 總檢查。若失敗，請依序檢查 Dispatch Flow Agent assignment、Capability Grant、Operation Profile、Action Grant、Governance、Runtime 與 Capacity。'
+  TASK_REQUIRES_CAPABILITY: 'requiredCapabilities 僅作歷史與查詢參考；Current 派工仍以 Source Flow、Agent Pool 與 Pool Member Agent 為準。',
+  CAPABILITY_DEFINED: 'Capability 是 Agent 描述、搜尋與治理資訊；沒有 Capability 設定不應隱性阻擋 Agent Pool 派工。',
+  DISPATCH_CONTRACT_RESOLVED: '確認事件的 sourceSystem 可解析到啟用中的 Source Flow，且 Flow 已指定 Default Agent Pool。',
+  GOVERNANCE_PROFILE: 'Agent 必須存在、已核准、enabled，且未被 suspended、disabled 或 revoked。',
+  GOVERNANCE_APPROVED_CAPABILITY: 'Capability 核准只作參考；請改查 Agent 是否已加入目標 Agent Pool。',
+  RUNTIME_AGENT_ONLINE: 'Pool Member Agent 必須實際連上 Gateway，否則 Core 無法投遞。',
+  RUNTIME_REPORTED_CAPABILITY: 'Runtime capability observation 只作診斷；TASK_ACK、TASK_RESULT 等 transport feature 仍需正常。',
+  AGENT_CAPACITY_AVAILABLE: 'Agent slots 用完、draining 或 Backoff 時，暫時不應再接新任務。',
+  CAPABILITY_CONTRACT_ELIGIBLE: '請依序檢查 Source Flow、Agent Pool、Pool Member Agent、Runtime、Credential、Capacity 與 Backoff。'
 };
 
 export function normalizeCode(value?: string): string {
@@ -96,7 +96,7 @@ export function beginnerCapabilityLabel(capabilityCode?: string): string {
 
 export function beginnerCapabilityDescription(capabilityCode?: string): string {
   const normalized = normalizeCode(capabilityCode);
-  return capabilityBeginnerLabels[normalized]?.description ?? '尚未設定友善說明；請確認 capability policy definition。';
+  return capabilityBeginnerLabels[normalized]?.description ?? '尚未設定友善說明；此 Capability 僅作查詢與治理參考。';
 }
 
 export function beginnerStatusLabel(status?: string): string {

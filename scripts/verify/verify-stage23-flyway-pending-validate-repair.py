@@ -7,9 +7,10 @@ ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
 
 wrapper_path = ROOT / 'scripts/db/flyway-migrate-with-diagnostics.sh'
-doc_path = ROOT / 'docs/PHASE23_FLYWAY_PENDING_VALIDATE_REPAIR.md'
+doc_path = ROOT / 'docs/archive/phase-series/PHASE23_FLYWAY_PENDING_VALIDATE_REPAIR.md'
+reset_script_path = ROOT / 'scripts/db/reset-local-postgres-volume.sh'
 
-for path in [wrapper_path, doc_path]:
+for path in [wrapper_path, doc_path, reset_script_path]:
     if not path.exists():
         errors.append(f'missing required file: {path.relative_to(ROOT)}')
 
@@ -25,6 +26,8 @@ if wrapper_path.exists():
         'flyway validate requested explicitly; running strict validate without ignoreMigrationPatterns.',
         'exec flyway $base_args -validateMigrationNaming=true validate',
         'exec flyway $base_args -validateMigrationNaming=true "$command_name"',
+        'make cd-local-reset-db',
+        'make reset-local-db && make cd-local',
     ]
     for token in required_tokens:
         if token not in text:
@@ -38,8 +41,24 @@ if wrapper_path.exists():
         if token in text:
             errors.append(f'flyway wrapper still contains strict pre-migrate validate token: {token}')
 
+if reset_script_path.exists():
+    reset_text = reset_script_path.read_text(encoding='utf-8')
+    for token in [
+        'com.docker.compose.volume=opendispatch-postgres18-data',
+        'docker volume rm',
+        'compose_local down --remove-orphans',
+        'local PostgreSQL volume reset complete',
+    ]:
+        if token not in reset_text:
+            errors.append(f'local PostgreSQL reset script missing token: {token}')
+
 makefile = (ROOT / 'Makefile').read_text(encoding='utf-8')
-for token in ['verify-stage23-flyway-pending-validate-repair', 'phase23-flyway-pending-validate-repair']:
+for token in [
+    'verify-stage23-flyway-pending-validate-repair',
+    'phase23-flyway-pending-validate-repair',
+    'reset-local-db:',
+    'cd-local-reset-db:',
+]:
     if token not in makefile:
         errors.append(f'Makefile missing {token}')
 

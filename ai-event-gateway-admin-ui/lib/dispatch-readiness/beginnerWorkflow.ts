@@ -35,90 +35,123 @@ function checkStatus(result: CoreDispatchReadinessEvaluationResult | null | unde
   return normalizeCode(result?.checks?.find((check) => normalizeCode(check.key) === key)?.status);
 }
 
+function checkPassedAny(result: CoreDispatchReadinessEvaluationResult | null | undefined, keys: string[]): boolean {
+  return keys.some((key) => checkStatus(result, key) === 'PASS');
+}
+
+
 export function buildDispatchSetupSteps(result?: CoreDispatchReadinessEvaluationResult | null): BeginnerWorkflowStep[] {
   const hasResult = Boolean(result);
-  const capabilityPolicyOk = checkStatus(result, 'CAPABILITY_POLICY_DEFINED') === 'PASS' || checkStatus(result, 'SKILL_DEFINED') === 'PASS';
-  const governanceOk = checkStatus(result, 'GOVERNANCE_APPROVED_CAPABILITY') === 'PASS';
-  const runtimeOk = checkStatus(result, 'RUNTIME_AGENT_ONLINE') === 'PASS';
-  const taskOk = checkStatus(result, 'TASK_REQUIRES_CAPABILITY') === 'PASS' && checkStatus(result, 'DISPATCH_CONTRACT_RESOLVED') === 'PASS';
   const ready = result?.ready === true;
+  const sourceReady = ready || checkPassedAny(result, ['SOURCE_SYSTEM_CONFIGURED', 'SOURCE_SYSTEM_RESOLVED', 'DISPATCH_CONTRACT_RESOLVED']);
+  const agentReady = ready || checkPassedAny(result, ['AGENT_APPROVED', 'GOVERNANCE_PROFILE', 'GOVERNANCE_AGENT_APPROVED']);
+  const poolReady = ready || checkPassedAny(result, ['DEFAULT_POOL_CONFIGURED', 'AGENT_POOL_CONFIGURED', 'SOURCE_FLOW_POOL_RESOLVED']);
+  const memberReady = ready || checkPassedAny(result, ['POOL_HAS_ACTIVE_MEMBER', 'POOL_MEMBER_CONFIGURED', 'HAS_ELIGIBLE_AGENT']);
+  const flowReady = ready || checkPassedAny(result, ['SOURCE_FLOW_RESOLVED', 'FLOW_RESOLVED', 'DISPATCH_CONTRACT_RESOLVED']);
+  const runtimeReady = ready || checkPassedAny(result, ['RUNTIME_AGENT_ONLINE', 'HAS_ELIGIBLE_AGENT', 'AGENT_CAPACITY_AVAILABLE']);
 
   return [
     {
-      id: 'scenario',
-      title: 'Choose a task scenario',
-      description: 'Choose the business scenario first, such as MES alarm triage, ERP review, HR event, or general incident analysis.',
-      status: 'done'
+      id: 'source-system',
+      title: '建立來源系統',
+      description: '先建立事件來源。來源名稱由事件資料明確提供，系統不會從 eventType、objectType 或 plantId 推測 ERP、MES 或其他系統。',
+      status: !hasResult ? 'current' : sourceReady ? 'done' : 'blocked',
+      code: 'SOURCE_SYSTEM_CONFIGURED'
     },
     {
-      id: 'capability-policy',
-      title: 'Confirm capability policy and Dispatch Flow Agent selection',
-      description: 'The task must resolve to an active Agent Dispatch Flow Agent assignment and dispatch rule. Only Flow-owned Required Capability values are used.',
-      status: !hasResult ? 'waiting' : capabilityPolicyOk ? 'done' : 'blocked',
-      code: 'CAPABILITY_POLICY_DEFINED'
+      id: 'agent',
+      title: '建立並核准 Agent',
+      description: 'Agent 必須存在、已核准且未停用。Capability 只作描述與搜尋參考，不是 Current 派工必要條件。',
+      status: !hasResult ? 'waiting' : agentReady ? 'done' : sourceReady ? 'current' : 'waiting',
+      code: 'AGENT_APPROVED'
     },
     {
-      id: 'governance',
-      title: 'Approve Agent service Flow Agent approval',
-      description: 'An Agent cannot dispatch only by self-declared capability. Core must approve the Agent Dispatch Flow Agent assignment / Flow Agent approval.',
-      status: !hasResult ? 'waiting' : governanceOk ? 'done' : capabilityPolicyOk ? 'current' : 'waiting',
-      code: 'GOVERNANCE_APPROVED_CAPABILITY'
+      id: 'agent-pool',
+      title: '建立工作池並加入 Agent',
+      description: 'Agent Pool 定義候選 Agent 範圍；至少加入一個啟用中的 Pool Member Agent。',
+      status: !hasResult ? 'waiting' : poolReady && memberReady ? 'done' : agentReady ? 'current' : 'waiting',
+      code: 'AGENT_POOL_CONFIGURED'
+    },
+    {
+      id: 'source-flow',
+      title: '建立 Source Flow 並指定預設工作池',
+      description: 'Source Flow 決定事件預設進入哪個 Agent Pool；特殊分類規則只處理少數例外。',
+      status: !hasResult ? 'waiting' : flowReady && poolReady ? 'done' : poolReady && memberReady ? 'current' : 'waiting',
+      code: 'SOURCE_FLOW_RESOLVED'
     },
     {
       id: 'runtime',
-      title: 'Confirm runtime is online',
-      description: 'The runtime must be online and have capacity. Business capabilities are approved in Admin UI/Core, not self-reported by the Agent.',
-      status: !hasResult ? 'waiting' : runtimeOk ? 'done' : governanceOk ? 'current' : 'waiting',
-      code: 'RUNTIME_REPORTED_CAPABILITY'
+      title: '確認工作池中有可接單 Agent',
+      description: 'Runtime Eligibility 會檢查連線、容量、Backoff、Credential 與管理狀態。',
+      status: !hasResult ? 'waiting' : runtimeReady ? 'done' : flowReady ? 'current' : 'waiting',
+      code: 'RUNTIME_AGENT_ONLINE'
     },
     {
-      id: 'task',
-      title: 'Confirm Task Requirement',
-      description: 'The Task Requirement must map to Agent Dispatch Flow Agent assignment and capabilities, not alternate capability wording.',
-      status: !hasResult ? 'waiting' : taskOk ? 'done' : runtimeOk ? 'current' : 'waiting',
-      code: 'TASK_REQUIRES_CAPABILITY'
+      id: 'simulation',
+      title: '執行派工檢查或模擬',
+      description: '確認命中的 Source Flow、Rule、目標 Agent Pool、候選 Agent 與排除原因，不建立正式 Task。',
+      status: !hasResult ? 'waiting' : ready ? 'done' : runtimeReady ? 'current' : 'waiting'
     },
     {
-      id: 'dispatch',
-      title: 'Send test task and inspect result',
-      description: 'After readiness passes, send a test event and inspect progress/callback from the Tasks page.',
-      status: !hasResult ? 'waiting' : ready ? 'current' : 'waiting'
+      id: 'real-test',
+      title: '傳送真實測試事件',
+      description: '設定完成後建立真實 Task，並從 Task 頁確認 Assignment、Delivery、ACK 與 Result。',
+      status: ready ? 'current' : 'waiting'
     }
   ];
 }
 
 export function summarizeReadinessForBeginner(result?: CoreDispatchReadinessEvaluationResult | null): { title: string; description: string; tone: 'ready' | 'blocked' | 'waiting' } {
   if (!result) {
-    return { title: 'Dispatch readiness has not been checked', description: 'Choose a task scenario and Agent, then run the readiness check.', tone: 'waiting' };
+    return { title: '尚未檢查派工設定', description: '請依序確認來源系統、Agent、Agent Pool、Source Flow 與 Runtime Eligibility。', tone: 'waiting' };
   }
   if (result.ready) {
-    return { title: 'Ready to dispatch', description: result.beginnerSummary ?? result.summary ?? 'Task requirement, Core Flow Agent approval, runtime capability facts, and capacity are aligned.', tone: 'ready' };
+    return { title: '派工設定已就緒', description: result.beginnerSummary ?? result.summary ?? 'Source Flow、Agent Pool、Pool Member Agent 與 Runtime Eligibility 已通過。', tone: 'ready' };
   }
   const failed = result.checks?.find((check) => normalizeCode(check.status) === 'FAIL');
   return {
-    title: 'Blocked from dispatch',
-    description: failed?.beginnerHint ?? failed?.message ?? result.beginnerSummary ?? 'At least one pre-dispatch check failed.',
+    title: '派工設定尚未就緒',
+    description: failed?.beginnerHint ?? failed?.message ?? result.beginnerSummary ?? '至少有一個 Source Flow、Agent Pool、Pool Member 或 Runtime Eligibility 條件未通過。',
     tone: 'blocked'
   };
 }
 
 export function recommendedBeginnerActions(result?: CoreDispatchReadinessEvaluationResult | null): BeginnerAction[] {
   if (!result) {
-    return [{ label: 'Run dispatch readiness check', description: 'Let Core identify the missing readiness step first.', tone: 'primary' }];
+    return [{ label: '檢查派工設定', description: '讓 Core 依 Current Source Flow 與 Agent Pool 模型找出缺少的設定。', tone: 'primary' }];
   }
   if (result.ready) {
     return [
-      { label: 'Send test event', description: 'Create a test task and confirm Task → Agent → Callback is working.', tone: 'primary' },
-      { label: 'Open Tasks', description: 'After sending the task, inspect the current stage from Tasks.', tone: 'neutral' }
+      { label: '傳送真實測試事件', description: '建立測試 Task，確認 Assignment → Delivery → ACK → Result。', tone: 'primary' },
+      { label: '開啟 Task', description: '從 Task 頁查看完整派工證據與目前狀態。', tone: 'neutral' }
     ];
   }
+
   const actions: BeginnerAction[] = [];
   const failedKeys = new Set((result.checks ?? []).filter((check) => normalizeCode(check.status) === 'FAIL').map((check) => normalizeCode(check.key)));
-  if (failedKeys.has('CAPABILITY_POLICY_DEFINED') || failedKeys.has('SKILL_DEFINED')) actions.push({ label: 'Review Agent Dispatch Flow Agent assignment, Dispatch Rule, and Runtime Binding', description: 'Confirm this task type has an approved Agent Dispatch Flow Agent assignment, active Dispatch Rule, and ACTIVE Runtime Binding. Runtime online status alone is not dispatch authority.', tone: 'safe' });
-  if (failedKeys.has('GOVERNANCE_APPROVED_CAPABILITY') || failedKeys.has('GOVERNANCE_PROFILE')) actions.push({ label: 'Approve Agent service Flow Agent approval', description: 'Assign and approve the Agent Dispatch Flow Agent assignment. Runtime self-reporting is not enough for Core dispatch authority.', tone: 'safe' });
-  if (failedKeys.has('RUNTIME_AGENT_ONLINE') || failedKeys.has('RUNTIME_REPORTED_CAPABILITY')) actions.push({ label: 'Check Agent runtime capabilities', description: 'Confirm the Agent is connected. Capabilities are approved in Admin UI/Core and are not required in the runtime startup environment.', tone: 'warning' });
-  if (failedKeys.has('TASK_REQUIRES_CAPABILITY') || failedKeys.has('DISPATCH_CONTRACT_RESOLVED')) actions.push({ label: 'Review Task Requirement', description: 'Confirm the test payload/recipe produces the expected task type, tool policy, and required Dispatch Flow Agent selection.', tone: 'warning' });
-  if (actions.length === 0) actions.push({ label: 'Open developer details', description: 'Expand evidence/raw response to inspect the advanced failing condition.', tone: 'neutral' });
+  const failed = (...keys: string[]) => keys.some((key) => failedKeys.has(key));
+
+  if (failed('SOURCE_SYSTEM_CONFIGURED', 'SOURCE_SYSTEM_RESOLVED')) {
+    actions.push({ label: '建立來源系統', description: '確認事件提供真實 sourceSystem，並建立對應來源系統。', tone: 'safe' });
+  }
+  if (failed('SOURCE_FLOW_RESOLVED', 'FLOW_RESOLVED', 'DISPATCH_CONTRACT_RESOLVED', 'DISPATCH_RULE_MISSING')) {
+    actions.push({ label: '檢查 Source Flow', description: '確認來源系統有啟用中的 Source Flow，並指定 Default Agent Pool。', tone: 'safe' });
+  }
+  if (failed('DEFAULT_POOL_CONFIGURED', 'AGENT_POOL_CONFIGURED', 'MISSING_AGENT_POOL', 'POOL_HAS_NO_ACTIVE_MEMBER')) {
+    actions.push({ label: '檢查 Agent Pool', description: '建立或選擇工作池，並加入至少一個啟用中的 Agent。', tone: 'safe' });
+  }
+  if (failed('GOVERNANCE_PROFILE', 'AGENT_APPROVED', 'GOVERNANCE_AGENT_APPROVED')) {
+    actions.push({ label: '核准 Agent', description: '確認 Agent 已建立、已核准且未被停用或撤銷。', tone: 'safe' });
+  }
+  if (failed('RUNTIME_AGENT_ONLINE', 'POOL_AGENT_RUNTIME_NOT_FOUND', 'POOL_AGENT_OFFLINE', 'AGENT_CAPACITY_AVAILABLE', 'POOL_AGENT_CAPACITY_FULL', 'POOL_AGENT_BACKOFF')) {
+    actions.push({ label: '檢查 Agent Runtime', description: '確認 Pool 成員已連線、有容量、Credential 有效且不在 Backoff。', tone: 'warning' });
+  }
+  if (failed('CAPABILITY_POLICY_DEFINED', 'SKILL_DEFINED', 'GOVERNANCE_APPROVED_CAPABILITY', 'TASK_REQUIRES_CAPABILITY', 'RUNTIME_REPORTED_CAPABILITY')) {
+    actions.push({ label: '改看 Current 派工設定', description: 'Capability 與舊 readiness 欄位只作參考；請以 Source Flow、Agent Pool、Pool Member Agent 與 Runtime Evidence 為準。', tone: 'neutral' });
+  }
+  if (actions.length === 0) {
+    actions.push({ label: '開啟技術詳細資訊', description: '查看原始檢查碼與 Routing Evidence，確認尚未分類的失敗條件。', tone: 'neutral' });
+  }
   return actions;
 }
 
@@ -194,15 +227,15 @@ export interface DispatchReadinessChainStep {
 }
 
 const readinessChainCatalog: Array<{ key: string; title: string; description: string }> = [
-  { key: 'TASK_REQUIRES_CAPABILITY', title: 'Task Requirement resolved', description: 'Task 必須先解析出任務類型、工具政策與後台派工需求。' },
-  { key: 'CAPABILITY_POLICY_DEFINED', title: 'Agent Dispatch Flow Agent assignment, Dispatch Rule, and Runtime Binding are active', description: 'Core must resolve an approved Agent Dispatch Flow Agent assignment, an active Dispatch Rule, and an ACTIVE Runtime Binding; runtime online status alone is not dispatch authority.' },
-  { key: 'DISPATCH_CONTRACT_RESOLVED', title: 'Dispatch contract resolved', description: 'Task 需求必須能解析成 required profile、runtime feature、tool policy 與風險限制。' },
-  { key: 'GOVERNANCE_PROFILE', title: 'Agent identity approved', description: 'Agent profile 必須存在、已核准、enabled，且風險狀態正常。' },
-  { key: 'GOVERNANCE_APPROVED_CAPABILITY', title: 'Core capability approval exists', description: 'Agent must receive Core-approved capability assignment and Dispatch Flow Agent selection / Flow Agent approval. Runtime self-report is not dispatch authority.' },
-  { key: 'RUNTIME_AGENT_ONLINE', title: 'Runtime Agent online', description: 'Agent 必須實際連上 Gateway，否則 Core 找得到 profile 也送不出去。' },
-  { key: 'RUNTIME_REPORTED_CAPABILITY', title: 'Runtime capability observation optional', description: '業務能力由 Admin UI/Core 管理；runtime capability observation 僅供診斷，不是派工硬門檻。' },
-  { key: 'AGENT_CAPACITY_AVAILABLE', title: 'Agent capacity available', description: 'Agent 如果 slots 用完或忙碌，暫時不應再接新任務。' },
-  { key: 'SKILL_AWARE_ROUTING_ELIGIBLE', title: 'Dispatch Eligibility passed', description: '前面資格、runtime、credential 與容量條件都通過後，才允許 dispatch。' }
+  { key: 'DISPATCH_CONTRACT_RESOLVED', title: 'Source Flow 已解析', description: 'Current 派工必須解析到啟用中的 Source Flow 與 Default Agent Pool；特殊 Rule 只處理例外。' },
+  { key: 'GOVERNANCE_PROFILE', title: 'Agent 已核准', description: '候選 Agent 必須存在、已核准、enabled，且未被撤銷或暫停。' },
+  { key: 'RUNTIME_AGENT_ONLINE', title: 'Agent Runtime 在線', description: 'Pool Member Agent 必須實際連上 Gateway，才能進入 Runtime Eligibility。' },
+  { key: 'AGENT_CAPACITY_AVAILABLE', title: 'Agent 容量可用', description: 'Agent 必須有可用 slot，且不在 Backoff 或 draining 狀態。' },
+  { key: 'CAPABILITY_POLICY_DEFINED', title: 'Legacy readiness 參考', description: '舊 Capability／Profile readiness 僅保留相容診斷；Current 派工以 Source Flow、Agent Pool 與 Runtime Evidence 為準。' },
+  { key: 'GOVERNANCE_APPROVED_CAPABILITY', title: 'Capability 核准參考', description: 'Capability 是 Agent 描述與治理資訊，不是 Current Agent Pool 派工必要條件。' },
+  { key: 'RUNTIME_REPORTED_CAPABILITY', title: 'Runtime Capability 觀測參考', description: 'Runtime capability observation 只作診斷；TASK_ACK、TASK_RESULT 等 transport feature 仍由 Runtime Evidence 驗證。' },
+  { key: 'TASK_REQUIRES_CAPABILITY', title: 'Task Capability Metadata', description: 'requiredCapabilities 僅作歷史與查詢參考，不應取代 Source Flow 與 Agent Pool。' },
+  { key: 'SKILL_AWARE_ROUTING_ELIGIBLE', title: 'Runtime Eligibility 已通過', description: 'Source Flow、Agent Pool、Agent 管理狀態、Runtime、Credential、Capacity 與 Backoff 條件均通過後才可派工。' }
 ];
 
 function mapReadinessStatus(status?: string): DispatchReadinessChainStep['status'] {
@@ -231,10 +264,10 @@ export function buildDispatchReadinessChain(result?: CoreDispatchReadinessEvalua
 }
 
 export function readinessChainSummary(result?: CoreDispatchReadinessEvaluationResult | null): { title: string; description: string; tone: 'ready' | 'blocked' | 'waiting' } {
-  if (!result) return { title: '尚未建立派工判斷鏈', description: '請先執行 Dispatch Flow evidence，系統會把 Task Requirement、Dispatch Flow Agent selection、Agent Flow Agent approval、Runtime 與 Dispatch Decision 串成同一條檢查鏈。', tone: 'waiting' };
-  if (result.ready) return { title: '派工判斷鏈全部通過', description: 'Task Requirement、後台 Flow Agent approval、Runtime facts 與 Dispatch Eligibility 已通過。', tone: 'ready' };
+  if (!result) return { title: '尚未建立派工判斷鏈', description: '請先檢查 Source Flow、Default Agent Pool、Pool Member Agent 與 Runtime Eligibility。', tone: 'waiting' };
+  if (result.ready) return { title: '派工判斷鏈全部通過', description: 'Source Flow、Agent Pool、Agent 管理狀態、Runtime 與 Capacity 已通過。', tone: 'ready' };
   const failed = buildDispatchReadinessChain(result).find((step) => step.status === 'fail');
-  return { title: '派工判斷鏈尚未通過', description: failed?.beginnerHint ?? failed?.message ?? '至少有一個派工資格條件未通過。請依下方紅色步驟修正，通常是缺 Dispatch Flow Agent selection / Flow Agent approval / Capability approval 或 runtime feature。', tone: 'blocked' };
+  return { title: '派工判斷鏈尚未通過', description: failed?.beginnerHint ?? failed?.message ?? '至少有一個 Current 派工條件未通過。請依序檢查 Source Flow、Agent Pool、Pool Member Agent、Runtime、Credential、Capacity 與 Backoff。', tone: 'blocked' };
 }
 
 export function taskBeginnerHeadline(row: TaskDispatchDashboardRow): { title: string; nextAction: string; tone: 'ok' | 'waiting' | 'blocked' | 'done' } {
@@ -271,7 +304,7 @@ export function taskBeginnerHeadline(row: TaskDispatchDashboardRow): { title: st
   if (task.assignedAgentId) {
     return { title: '已選中 Agent，等待派工送出', nextAction: task.nextAction ?? '等待 Core dispatch worker 或手動 retry。', tone: 'waiting' };
   }
-  return { title: '等待可派工 Agent', nextAction: '檢查 Task Requirement、Dispatch Flow Agent selection、Agent Flow Agent approval、Runtime facts 與容量。', tone: 'waiting' };
+  return { title: '等待可派工 Agent', nextAction: '檢查 Source Flow、目標 Agent Pool、Pool Member Agent、Runtime、容量與 Backoff。', tone: 'waiting' };
 }
 
 export function agentBeginnerHeadline(profile?: CoreAgentProfile | null, load?: CoreAgentRuntimeLoadSnapshot | null): { title: string; description: string; tone: 'ok' | 'blocked' | 'waiting' } {
@@ -282,7 +315,7 @@ export function agentBeginnerHeadline(profile?: CoreAgentProfile | null, load?: 
   if (load && normalizeCode(load.status) && !['IDLE', 'READY', 'RUNNING'].includes(normalizeCode(load.status))) {
     return { title: 'Agent runtime 狀態需要確認', description: `Runtime load status=${load.status}，請確認是否可接新任務。`, tone: 'waiting' };
   }
-  return { title: 'Agent 身份治理已通過', description: '仍需確認後台 Flow Agent approval、Capability approval、Runtime facts 與容量是否符合此 Task。', tone: 'ok' };
+  return { title: 'Agent 身份治理已通過', description: '仍需確認此 Agent 已加入目標 Agent Pool，且 Runtime、容量與 Credential 狀態可用。', tone: 'ok' };
 }
 
 export function beginnerToneClass(tone: string): string {
@@ -358,7 +391,7 @@ export function agentDecisionSummary(profile?: CoreAgentProfile | null, load?: C
       statusCode,
       statusLabel: '不可派工',
       blockingReason: headline.description,
-      nextAction: profile ? '檢查 Approval、Enabled、Risk、Credential 與 approved capabilities。' : '建立或核准 Agent Profile。',
+      nextAction: profile ? '檢查 Approval、Enabled、Risk、Credential 與 Agent Pool membership。' : '建立或核准 Agent。',
       tone: 'danger'
     };
   }
@@ -375,54 +408,54 @@ export function agentDecisionSummary(profile?: CoreAgentProfile | null, load?: C
   }
   return {
     title: headline.title,
-    subtitle: '身份治理狀態正常；仍需確認 Task 所需的 Dispatch Flow Agent selection / Flow Agent approval 與 Runtime facts。',
+    subtitle: '身份治理狀態正常；仍需確認 Agent Pool membership、Runtime、Capacity 與 Credential。',
     statusCode,
     statusLabel: '治理可派工',
     blockingReason: headline.description,
-    nextAction: '使用能力矩陣或 Dispatch Flow evidence 檢查指定 Task 是否可派給此 Agent。',
+    nextAction: '查看此 Agent 所屬工作池與 Runtime Eligibility，確認是否可接指定 Task。',
     tone: 'success'
   };
 }
 
 export function capabilityDecisionSummary(capability?: { capabilityCode?: string; enabled?: boolean; riskLevel?: string; requiresHumanApproval?: boolean; maskingRequired?: boolean } | null): DecisionSummary {
-  const code = normalizeCode(capability?.capabilityCode) || 'INCIDENT_ANALYSIS';
+  const code = normalizeCode(capability?.capabilityCode) || 'UNKNOWN';
   if (!capability?.capabilityCode) {
     return {
-      title: '請先選擇進階派工政策',
-      subtitle: 'Dispatch Policy Definition 是進階政策資料；Agent 派工主流程請使用 Dispatch Flow Agent selection / Flow Agent approval。',
+      title: '尚未選擇 Capability 參考資料',
+      subtitle: 'Capability 用於 Agent 描述、搜尋與治理資訊，不是 Current Source Flow／Agent Pool 派工 Gate。',
       statusCode: 'MISSING',
       statusLabel: '尚未選擇',
-      blockingReason: '目前沒有選取的 capability policy definition。',
-      nextAction: '一般派工測試請先從 Dispatch Recipes 或 Dispatch Flow Agent selections 開始。',
-      tone: 'warning'
+      blockingReason: '沒有 Capability 參考資料不會阻擋 Agent Pool 派工。',
+      nextAction: '一般派工請前往派工設定，檢查 Source Flow、Agent Pool 與 Pool Member Agent。',
+      tone: 'neutral'
     };
   }
   if (capability.enabled === false) {
     return {
-      title: `${beginnerCapabilityLabel(code)} capability policy 已停用`,
-      subtitle: '停用的 capability policy 不應被進階 policy-aware compatibility 使用。',
+      title: `${beginnerCapabilityLabel(code)} 參考資料已停用`,
+      subtitle: '停用只影響 Capability 查詢與治理呈現，不應改變 Current Pool-first 派工結果。',
       statusCode: 'DISABLED',
-      statusLabel: 'Policy 停用',
-      blockingReason: 'capability policy definition enabled=false。',
-      nextAction: '啟用進階政策或改用其他 Dispatch Flow Agent selection / policy。',
-      tone: 'danger'
+      statusLabel: '參考資料停用',
+      blockingReason: 'Capability reference enabled=false；此狀態不是 Current routing blocker。',
+      nextAction: '如仍需顯示或搜尋此能力，可重新啟用 Capability 參考資料。',
+      tone: 'warning'
     };
   }
   return {
-    title: `${beginnerCapabilityLabel(code)} 已可作為 capability policy definition`,
-    subtitle: '下一步不是直接派工，而是確認哪些 Agent 已取得對應 Flow Agent approval，以及 runtime facts 是否符合。',
-    statusCode: capability.riskLevel ?? 'LOW',
-    statusLabel: 'Policy 已定義',
-    blockingReason: capability.requiresHumanApproval ? '此 capability policy 要求人工核准，派工或執行前需納入治理流程。' : 'Advanced policy 已定義；是否能派工仍取決於 Dispatch Flow Agent selection、Agent Flow Agent approval、Capability approval 與 Runtime facts。',
-    nextAction: '前往 Dispatch Flow Agent selections 檢查 required profile，或使用 Dispatch Recipes 檢查派工準備度。',
-    tone: capability.requiresHumanApproval || capability.maskingRequired ? 'warning' : 'success'
+    title: `${beginnerCapabilityLabel(code)} Capability 參考資料`,
+    subtitle: '此資訊可協助管理員理解與搜尋 Agent，但不取代 Agent Pool membership 或 Runtime Eligibility。',
+    statusCode: capability.riskLevel ?? 'REFERENCE',
+    statusLabel: '參考資料可用',
+    blockingReason: capability.requiresHumanApproval ? '此 Capability 的治理變更需要人工核准，但不會隱性阻擋 Current routing。' : 'Capability 不參與第一版 Agent Pool 派工 Gate。',
+    nextAction: '需要調整派工時，請修改 Source Flow、Agent Pool 或 Pool Member Agent。',
+    tone: capability.requiresHumanApproval || capability.maskingRequired ? 'warning' : 'info'
   };
 }
 
 export type DispatchRecipeLane = 'needs-action' | 'waiting' | 'done' | 'all';
 
 export interface EntityRelationshipStep {
-  id: 'capability-policy' | 'agent' | 'runtime' | 'task' | 'result' | 'identity' | 'credential' | 'Flow Agent approval' | 'dispatch';
+  id: 'source-system' | 'source-flow' | 'agent-pool' | 'agent' | 'runtime' | 'task' | 'result' | 'capability-reference' | 'identity' | 'credential' | 'dispatch';
   title: string;
   description: string;
   status: 'done' | 'current' | 'blocked' | 'waiting' | 'info';
@@ -452,8 +485,10 @@ export function taskQueueLaneLabel(lane: DispatchRecipeLane): string {
 
 export function buildTaskRelationshipSteps(row?: TaskDispatchDashboardRow | null): EntityRelationshipStep[] {
   const task = row?.task;
-  const required = normalizeList(task?.requiredCapabilities);
   const hasTask = Boolean(task?.taskId);
+  const hasFlow = Boolean(task?.matchedFlowId);
+  const poolId = task?.targetPoolId ?? task?.assignedPoolId;
+  const hasPool = Boolean(poolId);
   const hasAgent = Boolean(task?.assignedAgentId);
   const delivered = hasAny(task?.dispatchDeliveryStatus) || hasAny(task?.dispatchExecutionStatus) || hasAny(task?.dispatchStatus);
   const callbackReceived = normalizeCode(task?.callbackStatus) === 'CALLBACK_RECEIVED' || ['COMPLETED', 'SUCCEEDED'].includes(normalizeCode(task?.status));
@@ -461,32 +496,40 @@ export function buildTaskRelationshipSteps(row?: TaskDispatchDashboardRow | null
 
   return [
     {
-      id: 'capability-policy',
-      title: 'Task Requirement',
-      description: required.length > 0 ? `Task 需求：${required.map(beginnerCapabilityLabel).join('、')}；後續需解析到 Dispatch Flow Agent selection。` : 'Task 尚未清楚標示 requiredCapabilities / task requirement。',
-      status: required.length > 0 ? 'done' : hasTask ? 'current' : 'waiting',
-      code: required[0],
+      id: 'source-flow',
+      title: 'Source Flow',
+      description: hasFlow ? `已命中 Source Flow：${task?.matchedFlowId}${task?.matchedRuleId ? `；Rule：${task.matchedRuleId}` : '；使用預設工作池或無 Rule override'}。` : '尚未取得 Source Flow 證據；請確認 sourceSystem 與啟用中的 Flow。',
+      status: hasFlow ? 'done' : hasTask ? 'current' : 'waiting',
+      code: task?.matchedFlowId,
+      href: task?.matchedFlowId ? `/dispatch-flows?flowId=${encodeURIComponent(task.matchedFlowId)}` : '/dispatch-flows'
+    },
+    {
+      id: 'agent-pool',
+      title: 'Agent Pool',
+      description: hasPool ? `目標工作池：${poolId}；Pool Member 數：${task?.poolMemberCount ?? '未回傳'}。` : '尚未解析目標 Agent Pool。',
+      status: hasPool ? 'done' : hasFlow ? 'current' : 'waiting',
+      code: poolId,
       href: '/dispatch-flows'
     },
     {
       id: 'agent',
-      title: 'Agent Flow Agent approval',
-      description: hasAgent ? `已選中 ${task?.assignedAgentId}，仍需確認後台 Flow Agent approval / Capability approval。` : '尚未選中 Agent，請先完成 routing 或 reassign。',
-      status: hasAgent ? 'done' : hasTask ? 'current' : 'waiting',
+      title: 'Pool Member Agent',
+      description: hasAgent ? `已選中 ${task?.assignedAgentId}；選擇應以 Pool membership 與 Runtime Eligibility 證據為準。` : `尚未選中 Agent；目前 eligible=${task?.eligibleAgentCount ?? 0}。`,
+      status: hasAgent ? 'done' : hasPool ? 'current' : 'waiting',
       code: task?.assignedAgentId,
       href: task?.assignedAgentId ? `/agents/${encodeURIComponent(task.assignedAgentId)}` : '/agents'
     },
     {
       id: 'runtime',
-      title: 'Runtime facts',
-      description: delivered ? 'Gateway 已觀測到派工 delivery；下一步通常是等待 Agent ACK / callback。' : '尚未看到 Gateway delivery，請檢查 dispatch worker 與 runtime。',
+      title: 'Runtime / Delivery',
+      description: delivered ? 'Gateway 已觀測到派工 delivery；下一步通常是等待 Agent ACK 與 Result。' : '尚未看到 Delivery，請檢查 Agent 連線、容量、Backoff、Credential 與 dispatch worker。',
       status: failed ? 'blocked' : delivered ? 'done' : hasAgent ? 'current' : 'waiting',
       code: task?.dispatchDeliveryStatus ?? task?.dispatchExecutionStatus ?? task?.dispatchStatus
     },
     {
       id: 'task',
-      title: 'Task 派工',
-      description: hasTask ? 'Core Task 已建立，派工狀態以 Core runtime-view 為準。' : '尚未建立測試 Task。',
+      title: 'Task',
+      description: hasTask ? 'Core Task 已建立，狀態以 Core runtime-view 為準。' : '尚未建立 Task。',
       status: failed ? 'blocked' : hasTask ? 'done' : 'waiting',
       code: task?.status,
       href: task?.taskId ? `/tasks/${encodeURIComponent(task.taskId)}` : '/tasks'
@@ -494,7 +537,7 @@ export function buildTaskRelationshipSteps(row?: TaskDispatchDashboardRow | null
     {
       id: 'result',
       title: 'Result / Issue',
-      description: callbackReceived ? '已收到 callback，可查看 Agent 結果與 Issue sync。' : failed ? '任務失敗或被阻擋，請先處理 recovery。' : '尚未收到 Agent RESULT / ERROR callback 或 Issue history。',
+      description: callbackReceived ? '已收到 callback，可查看 Agent Result 與 Issue sync。' : failed ? '任務失敗或被阻擋，請查看 blocker 與 recovery evidence。' : '尚未收到 Agent RESULT／ERROR callback。',
       status: callbackReceived ? 'done' : failed ? 'blocked' : hasTask ? 'current' : 'waiting',
       code: task?.callbackStatus
     }
@@ -505,11 +548,11 @@ export function buildCapabilityRelationshipSteps(capability?: { capabilityCode?:
   const code = normalizeCode(capability?.capabilityCode);
   const enabled = capability?.enabled !== false;
   return [
-    { id: 'capability-policy', title: 'Dispatch Policy', description: code ? `${beginnerCapabilityLabel(code)} 已在進階政策定義中。` : '請先選擇一個 capability policy definition；一般派工請從 Dispatch Flow Agent selection 開始。', status: code ? enabled ? 'done' : 'blocked' : 'current', code, href: '/dispatch-flows' },
-    { id: 'agent', title: 'Agent Flow Agent approval', description: '下一步要確認哪些 Agent 已被後台核准對應 Dispatch Flow Agent selection。', status: code && enabled ? 'current' : 'waiting', href: '/agents' },
-    { id: 'runtime', title: 'Runtime facts', description: 'Agent runtime 必須在線並支援必要 protocol feature。', status: 'waiting' },
-    { id: 'task', title: 'Task 派工', description: '建立測試 Task 前，先用派工方案檢查 readiness。', status: 'waiting', href: '/dispatch-flows' },
-    { id: 'result', title: 'Result / Issue', description: 'Task 完成後再檢查 Agent callback 與 Issue sync。', status: 'waiting' }
+    { id: 'capability-reference', title: 'Capability 參考資料', description: code ? `${beginnerCapabilityLabel(code)} 可供查詢與治理參考。` : '尚未選擇 Capability；這不會阻擋 Current Agent Pool 派工。', status: code ? enabled ? 'done' : 'info' : 'current', code },
+    { id: 'source-flow', title: 'Source Flow', description: '正式派工入口是 Source Flow 與 Default／Rule Target Agent Pool。', status: 'info', href: '/dispatch-flows' },
+    { id: 'agent-pool', title: 'Agent Pool', description: 'Pool membership 決定候選 Agent 範圍；Capability 不會自動建立 Pool membership。', status: 'info', href: '/dispatch-flows' },
+    { id: 'runtime', title: 'Runtime Eligibility', description: '實際可接單狀態由連線、容量、Backoff、Credential 與管理狀態決定。', status: 'info' },
+    { id: 'result', title: 'Task Evidence', description: '從 Task 查看 Flow、Pool、Agent、Delivery、ACK 與 Result 證據。', status: 'waiting', href: '/tasks' }
   ];
 }
 
@@ -518,30 +561,31 @@ export function buildAgentRelationshipSteps(profile?: CoreAgentProfile | null, l
   const runtimeStatus = normalizeCode(load?.status);
   const runtimeReady = Boolean(load) && !['OFFLINE', 'DISCONNECTED', 'AUTH_DENIED', 'REVOKED'].includes(runtimeStatus);
   return [
-    { id: 'capability-policy', title: 'Required Profile', description: '先確認 Task 可解析到後台 Dispatch Flow Agent selection；Dispatch Policy 只留在 compatibility diagnostics。', status: 'info', href: '/dispatch-flows' },
-    { id: 'agent', title: 'Agent 授權', description: profile ? approved ? 'Core Governance 已核准此 Agent。' : 'Agent 尚未通過治理或已停用。' : 'Core 尚未建立 Agent Profile。', status: profile ? approved ? 'done' : 'blocked' : 'current', code: profile?.approvalStatus, href: '/agents' },
-    { id: 'runtime', title: 'Runtime facts', description: runtimeReady ? 'Runtime load snapshot 可用；仍需確認 required runtime features 與容量。' : 'Runtime 尚未可用或需要確認連線/授權。', status: runtimeReady ? 'done' : approved ? 'current' : 'waiting', code: load?.status },
-    { id: 'task', title: 'Task 派工', description: '選擇 Task 場景後，用 Dispatch Flow evidence 檢查此 Agent 是否可接。', status: runtimeReady && approved ? 'current' : 'waiting', href: profile?.agentId ? `/dispatch-flows?agentId=${encodeURIComponent(profile.agentId)}` : '/dispatch-flows' },
-    { id: 'result', title: 'Result / Issue', description: '收到 Agent RESULT / ERROR callback 後，才會進入結果與 Issue sync。', status: 'waiting' }
+    { id: 'agent', title: 'Agent 管理狀態', description: profile ? approved ? 'Core 已核准此 Agent，且 Agent 未停用。' : 'Agent 尚未核准、已停用或不可派工。' : 'Core 尚未建立 Agent。', status: profile ? approved ? 'done' : 'blocked' : 'current', code: profile?.approvalStatus, href: '/agents' },
+    { id: 'agent-pool', title: 'Agent Pool Membership', description: 'Agent 必須被明確加入目標 Agent Pool；Capability 不會自動把 Agent 加入工作池。', status: approved ? 'current' : 'waiting', href: '/dispatch-flows' },
+    { id: 'runtime', title: 'Runtime Eligibility', description: runtimeReady ? 'Runtime snapshot 可用；仍需確認容量、Backoff 與 Credential。' : 'Runtime 尚未可用或需要確認連線與授權。', status: runtimeReady ? 'done' : approved ? 'current' : 'waiting', code: load?.status },
+    { id: 'source-flow', title: 'Source Flow', description: 'Source Flow 與 Rule 決定 Task 進入哪個 Agent Pool。', status: approved && runtimeReady ? 'info' : 'waiting', href: '/dispatch-flows' },
+    { id: 'result', title: 'Task Evidence', description: '派工後從 Task 查看 Assignment、Delivery、ACK 與 Result。', status: 'waiting', href: '/tasks' }
   ];
 }
 
 export function buildRecipeRelationshipSteps(options?: { scenarioCapability?: string; agentId?: string; readinessReady?: boolean; readinessChecked?: boolean }): EntityRelationshipStep[] {
-  const capability = normalizeCode(options?.scenarioCapability) || 'INCIDENT_ANALYSIS';
+  const capability = normalizeCode(options?.scenarioCapability);
   const hasAgent = Boolean(options?.agentId);
   const checked = Boolean(options?.readinessChecked);
   const ready = Boolean(options?.readinessReady);
   return [
-    { id: 'capability-policy', title: 'Required Profile', description: `${beginnerCapabilityLabel(capability)} 會解析為後台 Dispatch Flow Agent selection / Dispatch Eligibility 需求。`, status: 'done', code: capability, href: '/dispatch-flows' },
-    { id: 'agent', title: 'Agent Flow Agent approval', description: hasAgent ? `本方案將檢查 ${options?.agentId} 是否具備後台 Flow Agent approval。` : '請在精靈中選擇要測試的 Agent。', status: hasAgent ? 'done' : 'current', code: options?.agentId, href: '/agents' },
-    { id: 'runtime', title: 'Runtime facts', description: checked ? 'Readiness check 會確認 Runtime 是否在線、支援必要 feature 且有容量。' : '執行 readiness 後才會知道 runtime 是否對齊。', status: checked ? ready ? 'done' : 'blocked' : 'waiting' },
-    { id: 'task', title: 'Task 派工', description: ready ? '可以建立測試 Task。' : 'Readiness 通過前先不要送測試 Task。', status: ready ? 'current' : 'waiting', href: '/tasks' },
-    { id: 'result', title: 'Result / Issue', description: 'Task 送出後到 Task Console 查看 callback 與 Issue sync。', status: 'waiting' }
+    { id: 'source-system', title: '來源系統', description: '測試事件必須提供真實 sourceSystem；系統不會依事件內容推測來源。', status: 'done' },
+    { id: 'source-flow', title: 'Source Flow / Agent Pool', description: '測試會解析 Source Flow、Rule override 或 Default Pool。', status: checked ? ready ? 'done' : 'blocked' : 'current', href: '/dispatch-flows' },
+    { id: 'agent', title: 'Pool Member Agent', description: hasAgent ? `同時查看指定 Agent ${options?.agentId} 的管理與 Runtime 狀態。` : '未指定單一 Agent時，由 Agent Pool 候選與 selection strategy 決定。', status: hasAgent ? 'done' : 'info', code: options?.agentId, href: '/agents' },
+    { id: 'capability-reference', title: 'Capability 標籤（參考）', description: capability ? `${beginnerCapabilityLabel(capability)} 僅作搜尋與診斷參考。` : '此測試未提供 Capability 標籤；不影響 Agent Pool 派工。', status: 'info', code: capability },
+    { id: 'runtime', title: 'Runtime Eligibility', description: checked ? '檢查 Agent 連線、容量、Backoff、Credential 與管理狀態。' : '執行檢查後才會取得 Runtime Eligibility。', status: checked ? ready ? 'done' : 'blocked' : 'waiting' },
+    { id: 'task', title: '真實測試事件', description: ready ? '設定已就緒，可以建立真實 Task。' : '設定通過前先不要建立真實 Task。', status: ready ? 'current' : 'waiting', href: '/tasks' }
   ];
 }
 
-// Phase 11 compatibility exports for renamed advanced screens.
-// Operator-facing readiness uses capability wording; these wrappers avoid breaking older imports.
+// Compatibility exports for renamed advanced screens.
+// These wrappers preserve older imports while keeping Capability reference-only in Current routing.
 export function skillDecisionSummary(skill?: { skillCode?: string; enabled?: boolean; riskLevel?: string; requiresHumanApproval?: boolean; maskingRequired?: boolean } | null): DecisionSummary {
   return capabilityDecisionSummary(skill ? { capabilityCode: skill.skillCode, enabled: skill.enabled, riskLevel: skill.riskLevel, requiresHumanApproval: skill.requiresHumanApproval, maskingRequired: skill.maskingRequired } : null);
 }

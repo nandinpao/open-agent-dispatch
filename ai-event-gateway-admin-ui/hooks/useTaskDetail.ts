@@ -27,6 +27,9 @@ import type {
   CoreDispatchContractTraceResponse,
   CoreTaskCaseTimelineView,
   CoreTaskRuntimeView,
+  CoreTaskRemediationCommandRequest,
+  CoreTaskRemediationCommandResult,
+  CoreTaskIssueDedupSummary,
 } from "@/lib/types/core";
 import { usePollingResource } from "@/hooks/usePollingResource";
 
@@ -52,6 +55,8 @@ export interface TaskDispatchDetailResource {
   timelineError?: string;
   caseTimeline?: CoreTaskCaseTimelineView;
   caseTimelineError?: string;
+  issueDedup?: CoreTaskIssueDedupSummary;
+  issueDedupError?: string;
   dispatchEvidence?: CoreTaskDispatchEvidenceView;
   dispatchEvidenceError?: string;
   runtimeVerification?: CoreTaskRuntimeVerificationView;
@@ -127,6 +132,7 @@ export function useTaskDetail(taskId: string) {
   const [retryingIssueSyncActionId, setRetryingIssueSyncActionId] = useState<
     string | null
   >(null);
+  const [remediatingCommand, setRemediatingCommand] = useState<string | null>(null);
 
   const loader = useCallback(async (): Promise<TaskDispatchDetailResource> => {
     const env = getPublicEnv();
@@ -223,6 +229,7 @@ export function useTaskDetail(taskId: string) {
       callbackInboxSummary,
       timeline,
       caseTimeline,
+      issueDedup,
       routingDecisions,
       dispatchEvidence,
       runtimeVerification,
@@ -243,6 +250,7 @@ export function useTaskDetail(taskId: string) {
       safeRuntime(() => coreAdminApi.getTaskCallbackInboxSummary(taskId, 100)),
       safeRuntime(() => coreAdminApi.getTaskTimeline(taskId, 200)),
       safeRuntime(() => coreAdminApi.getTaskCaseTimeline(taskId)),
+      safeRuntime(() => coreAdminApi.getTaskIssueDedup(taskId)),
       safeRuntime(() => coreAdminApi.getTaskRoutingDecisions(taskId, 20)),
       safeRuntime(() => coreAdminApi.getTaskDispatchEvidence(taskId, 200)),
       safeRuntime(() => coreAdminApi.getTaskRuntimeVerification(taskId, 90, 200)),
@@ -281,6 +289,8 @@ export function useTaskDetail(taskId: string) {
       timelineError: timeline.error,
       caseTimeline: caseTimeline.data,
       caseTimelineError: caseTimeline.error,
+      issueDedup: issueDedup.data,
+      issueDedupError: issueDedup.error,
       routingDecisions: routingDecisions.data ?? [],
       routingDecisionsError: routingDecisions.error,
       dispatchEvidence: dispatchEvidence.data,
@@ -301,6 +311,49 @@ export function useTaskDetail(taskId: string) {
   }, [taskId]);
 
   const resource = usePollingResource<TaskDispatchDetailResource>(loader);
+
+  async function runTaskRemediationCommand(
+    body: CoreTaskRemediationCommandRequest,
+  ): Promise<CoreTaskRemediationCommandResult> {
+    const env = getPublicEnv();
+    setRemediatingCommand(body.commandType);
+    try {
+      if (env.useMock) {
+        const mock = getMockCommandResult(`Task remediation command accepted: ${body.commandType}`);
+        const task = resource.data?.row.task ?? mockCoreTask(taskId);
+        const result: CoreTaskRemediationCommandResult = {
+          success: mock.success,
+          message: mock.message,
+          timestamp: mock.timestamp,
+          taskId,
+          commandType: body.commandType,
+          allowedCommandsAfter: [],
+          audit: {
+            operatorId: body.operatorId ?? 'admin-ui',
+            timestamp: mock.timestamp,
+            commandType: body.commandType,
+            reason: body.reason,
+            beforeState: { taskId, status: task.status, version: body.expectedTaskVersion ?? 0 },
+            afterState: { taskId, status: task.status, version: body.expectedTaskVersion ?? 0 },
+            idempotencyKey: body.idempotencyKey,
+            expectedTaskVersion: body.expectedTaskVersion,
+            resultingTaskVersion: body.expectedTaskVersion ?? 0,
+            evidencePolicy: 'Mock remediation preserves routing evidence.',
+          },
+          task,
+          idempotentReplay: false,
+        };
+        setCommandMessage(result.message);
+        return result;
+      }
+      const result = await coreAdminApi.runTaskRemediationCommand(taskId, body);
+      setCommandMessage(result.message);
+      await resource.refresh();
+      return result;
+    } finally {
+      setRemediatingCommand(null);
+    }
+  }
 
   async function retryTask(): Promise<CommandResult> {
     const env = getPublicEnv();
@@ -469,6 +522,8 @@ export function useTaskDetail(taskId: string) {
     movingDeadLetter,
     restoringDeadLetter,
     retryingIssueSyncActionId,
+    remediatingCommand,
+    runTaskRemediationCommand,
     retryTask,
     cancelTask,
     reassignTask,

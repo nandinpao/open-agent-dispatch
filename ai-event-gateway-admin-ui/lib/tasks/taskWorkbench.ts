@@ -162,25 +162,15 @@ function sourceSystem(task: CoreTaskRuntimeView): string | undefined {
 
 function buildTitle(task: CoreTaskRuntimeView): string {
   const priority = severityDisplay(task).code || 'TASK';
-  const system = sourceSystem(task) ?? inferSystem(task);
+  const system = sourceSystem(task) ?? '未提供來源系統';
   const target = task.objectId ?? task.objectType ?? '目標對象';
   return `【${priority}】${system} ${target} ${problemLabel(task)}${taskPurpose(task) ? ` ${taskPurpose(task)}` : ''}`;
 }
 
-function inferSystem(task: CoreTaskRuntimeView): string {
-  const eventType = normalize(task.eventType);
-  const objectType = normalize(task.objectType);
-  if (eventType.includes('EQUIPMENT') || objectType === 'EQUIPMENT' || task.plantId) return 'MES';
-  if (eventType.includes('ERP')) return 'ERP';
-  if (eventType.includes('HR')) return 'HR';
-  return 'OpenDispatch';
-}
-
 function sourceLabel(task: CoreTaskRuntimeView): string {
-  const system = sourceSystem(task) ?? inferSystem(task);
-  const site = task.siteId ?? '-';
-  const plant = task.plantId;
-  return [system, site, plant].filter(Boolean).join(' / ');
+  const system = sourceSystem(task) ?? '未提供來源系統';
+  const location = [task.siteId, task.plantId].filter((value): value is string => Boolean(value));
+  return location.length > 0 ? [system, ...location].join(' / ') : system;
 }
 
 function targetLabel(task: CoreTaskRuntimeView): string {
@@ -228,7 +218,7 @@ function businessStatus(row: TaskDispatchDashboardRow): { label: string; code: s
   if (task.assignedAgentId) {
     return { label: '已分派 Agent，準備投遞', code: 'ASSIGNED', health: 'WAITING', nextStep: '等待建立或送出 Dispatch Request' };
   }
-  return { label: '等待可處理 Agent', code: 'WAITING_AGENT', health: 'WAITING', nextStep: task.dispatchWaitReason ?? task.dispatchRetryReason ?? '檢查 Agent capability、scope、runtime load' };
+  return { label: '等待可處理 Agent', code: 'WAITING_AGENT', health: 'WAITING', nextStep: task.dispatchWaitReason ?? task.dispatchRetryReason ?? '檢查 Source Flow、目標 Agent Pool、Pool 成員與 Runtime Eligibility' };
 }
 
 function expectedOutputs(task: CoreTaskRuntimeView): string[] {
@@ -314,7 +304,7 @@ function issueBridge(task: CoreTaskRuntimeView): TaskWorkbenchIssueBridge {
 export function buildTaskWorkbenchDisplay(row: TaskDispatchDashboardRow): TaskWorkbenchDisplay {
   const task = row.task;
   const status = businessStatus(row);
-  const capabilities = task.requiredCapabilities?.length ? task.requiredCapabilities.join(', ') : '-';
+  const capabilities = task.requiredCapabilities?.length ? task.requiredCapabilities.join(', ') : '未提供（不影響 Agent Pool 派工）';
   const agent = task.assignedAgentId ? task.assignedAgentId : '尚未指派';
   const severity = severityDisplay(task);
 

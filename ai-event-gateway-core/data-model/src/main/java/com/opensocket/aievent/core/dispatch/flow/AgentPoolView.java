@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Phase 32-B API model for Agent Pool / Work Queue persistence.
+ * API model for Agent Pool / Work Queue persistence.
  *
  * <p>Pools are the first-version dispatch target. Capability remains Agent
  * metadata only and is not represented as a required routing gate here.</p>
@@ -25,6 +25,8 @@ public class AgentPoolView {
     private Integer availableAgentCount = 0;
     private List<AgentPoolMemberView> members = List.of();
     private Map<String, Object> metadata = new LinkedHashMap<>();
+    private Integer version;
+    private String updatedBy;
     private OffsetDateTime updatedAt;
 
     public String getTenantId() { return tenantId; }
@@ -53,6 +55,10 @@ public class AgentPoolView {
     public void setMembers(List<AgentPoolMemberView> members) { this.members = members == null ? List.of() : List.copyOf(members); }
     public Map<String, Object> getMetadata() { return metadata; }
     public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata == null ? new LinkedHashMap<>() : new LinkedHashMap<>(metadata); }
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
+    public String getUpdatedBy() { return updatedBy; }
+    public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

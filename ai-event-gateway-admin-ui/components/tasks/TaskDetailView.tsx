@@ -55,6 +55,8 @@ import type {
   CoreTaskCaseTimelineStepView,
   CoreTaskRuntimeView,
   CoreRecoveryGovernanceActionRequest,
+  CoreTaskRemediationCommandType,
+  CoreTaskCommandAudit,
 } from "@/lib/types/core";
 import { formatDateTime, formatDurationMs } from "@/lib/utils/format";
 import { taskAuthorityDisclaimer } from "@/lib/runtime/callbackTruth";
@@ -64,6 +66,18 @@ import {
   type StandardDispatchTimelineStep,
   type TaskDispatchDiagnosis,
 } from "@/lib/tasks/dispatchLifecycle";
+import {
+  buildTaskDiagnosisReadModel,
+  taskDiagnosisCategoryLabel,
+  taskDiagnosisOwnerPlaneLabel,
+  type TaskDiagnosisReadModel,
+  type TaskDiagnosisSeverity,
+} from "@/lib/tasks/taskDiagnosisReadModel";
+import {
+  buildTaskRemediationCommandRequest,
+  deriveAllowedTaskRemediationCommands,
+  type TaskRemediationCommandDefinition,
+} from "@/lib/tasks/taskRemediationCommands";
 
 function KeyValue({
   label,
@@ -96,6 +110,21 @@ function timelineStateClasses(state: StandardDispatchTimelineStep["state"]): str
   if (state === "current") return "border-blue-300 bg-blue-50 text-blue-900";
   return "border-slate-200 bg-white text-slate-500";
 }
+function diagnosisReadModelSeverityClasses(severity: TaskDiagnosisSeverity): string {
+  if (severity === "success") return "border-emerald-200 bg-emerald-50 text-emerald-950";
+  if (severity === "danger") return "border-rose-200 bg-rose-50 text-rose-950";
+  if (severity === "warning") return "border-amber-200 bg-amber-50 text-amber-950";
+  return "border-blue-200 bg-blue-50 text-blue-950";
+}
+
+function diagnosisReadModelStageClasses(status: TaskDiagnosisReadModel["timeline"][number]["status"]): string {
+  if (status === "done") return "border-emerald-200 bg-emerald-50 text-emerald-900";
+  if (status === "failed") return "border-rose-200 bg-rose-50 text-rose-900";
+  if (status === "blocked") return "border-amber-200 bg-amber-50 text-amber-900";
+  if (status === "current") return "border-blue-200 bg-blue-50 text-blue-900";
+  return "border-slate-200 bg-white text-slate-500";
+}
+
 
 function TaskPrimaryDiagnosisPanel({
   task,
@@ -140,7 +169,173 @@ function TaskPrimaryDiagnosisPanel({
         <KeyValue label="Agent" value={diagnosis.agentId ? <Link href={`/agents/${encodeURIComponent(diagnosis.agentId)}`} className="text-blue-700 hover:underline">{diagnosis.agentId}</Link> : "尚未指派"} />
         <KeyValue label="Trace" value={diagnosis.traceId ? <Link href={`/traces/${encodeURIComponent(diagnosis.traceId)}`} className="text-blue-700 hover:underline">{diagnosis.traceId}</Link> : "-"} />
       </div>
-      {diagnosis.missingCapabilities.length ? <div className="mt-4 text-sm"><span className="font-black">必要特殊能力：</span>{diagnosis.missingCapabilities.join("、")}</div> : null}
+      {diagnosis.missingCapabilities.length ? <div className="mt-4 text-sm"><span className="font-black">Capability 標籤（參考，不影響 Agent Pool 派工）：</span>{diagnosis.missingCapabilities.join("、")}</div> : null}
+    </section>
+  );
+}
+
+function TaskDiagnosisReadModelPanel({ model }: Readonly<{ model: TaskDiagnosisReadModel }>) {
+  const blocker = model.primaryBlocker;
+  return (
+    <section className={`rounded-3xl border p-6 shadow-sm ${diagnosisReadModelSeverityClasses(blocker.severity)}`}>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="max-w-4xl">
+          <div className="text-xs font-black uppercase tracking-wide opacity-70">Task Diagnosis Read Model · {blocker.code}</div>
+          <h2 className="mt-1 text-xl font-black">{blocker.userTitle}</h2>
+          <p className="mt-2 text-sm font-semibold leading-6">{blocker.userDescription}</p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
+            <span className="rounded-full bg-white/70 px-3 py-1">目前階段：{model.currentStage}</span>
+            <span className="rounded-full bg-white/70 px-3 py-1">分類：{taskDiagnosisCategoryLabel(blocker.category)}</span>
+            <span className="rounded-full bg-white/70 px-3 py-1">Owner：{taskDiagnosisOwnerPlaneLabel(blocker.ownerPlane)}</span>
+            <span className="rounded-full bg-white/70 px-3 py-1">Retryable：{blocker.retryable ? "是" : "否"}</span>
+          </div>
+        </div>
+        <div className="flex min-w-64 flex-col gap-2">
+          {blocker.recommendedActions.map((action) => action.href && action.enabled ? (
+            <Link key={`${action.type}-${action.label}`} href={action.href} className="rounded-xl bg-slate-950 px-4 py-2 text-center text-sm font-black text-white hover:bg-slate-800">
+              {action.label}
+            </Link>
+          ) : (
+            <div key={`${action.type}-${action.label}`} className="rounded-xl border border-white/60 bg-white/70 px-4 py-2 text-sm font-bold">
+              <div>{action.label}</div>
+              <p className="mt-1 text-xs font-semibold opacity-75">{action.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <KeyValue label="Flow" value={model.routingEvidence.flowId ? <Link href={`/dispatch-flows?flowId=${encodeURIComponent(model.routingEvidence.flowId)}`} className="text-blue-700 hover:underline">{model.routingEvidence.flowId}</Link> : "尚未命中"} />
+        <KeyValue label="Rule" value={model.routingEvidence.ruleId ?? "Default / 尚未命中"} />
+        <KeyValue label="Pool" value={model.routingEvidence.targetPoolId ?? "尚未決定"} />
+        <KeyValue label="Eligible" value={`${model.poolEligibility.eligible} / ${model.poolEligibility.totalMembers}`} />
+        <KeyValue label="Agent" value={model.routingEvidence.selectedAgentId ? <Link href={`/agents/${encodeURIComponent(model.routingEvidence.selectedAgentId)}`} className="text-blue-700 hover:underline">{model.routingEvidence.selectedAgentId}</Link> : "尚未指派"} />
+        <KeyValue label="Delivery" value={model.delivery.latestLedgerDeliveryState ?? model.delivery.dispatchDeliveryStatus ?? model.delivery.dispatchStatus ?? "尚未送達"} />
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-2xl border border-white/60 bg-white/70 p-4">
+          <div className="text-xs font-black uppercase tracking-wide opacity-70">Unified Timeline · Event → Task → Routing → Assignment → Delivery → ACK → Result → Retry → Manual Action → Issue → Completion</div>
+          <ol className="mt-3 grid gap-2 md:grid-cols-2">
+            {model.timeline.map((step) => (
+              <li key={`${step.stage}-${step.occurredAt ?? step.label}`} className={`rounded-xl border p-3 ${diagnosisReadModelStageClasses(step.status)}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black uppercase tracking-wide">{step.stage}</span>
+                  <span className="text-[11px] font-black uppercase">{step.status}</span>
+                </div>
+                <div className="mt-1 text-sm font-black">{step.label}</div>
+                <p className="mt-1 text-xs font-semibold leading-5 opacity-80">{step.detail}</p>
+                {step.occurredAt ? <div className="mt-2 text-[11px] font-semibold opacity-70">{formatDateTime(step.occurredAt)}</div> : null}
+                {step.source ? <div className="mt-2 text-[11px] font-black uppercase opacity-60">{step.source}</div> : null}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="rounded-2xl border border-white/60 bg-white/70 p-4">
+          <div className="text-xs font-black uppercase tracking-wide opacity-70">Active Issue Dedup</div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <KeyValue label="Issue Type" value={model.issueDedup.issueType} />
+            <KeyValue label="Active Status" value={model.issueDedup.activeStatus} />
+            <KeyValue label="Occurrences" value={model.issueDedup.occurrenceCount} />
+            <KeyValue label="Policy" value={model.issueDedup.autoResolutionPolicy} />
+          </div>
+          <p className="mt-3 break-all text-xs font-semibold leading-5 opacity-80">Dedup key：{model.issueDedup.activeIssueKey}</p>
+          <p className="mt-2 text-xs font-semibold leading-5 opacity-80">{model.issueDedup.summary}</p>
+          <p className="mt-2 text-[11px] font-black uppercase opacity-60">{model.issueDedup.dedupRule} · {model.issueDedup.repeatedOccurrenceBehavior}</p>
+          {model.issueDedup.externalIssueUrl ? (
+            <Link href={model.issueDedup.externalIssueUrl} target="_blank" className="mt-3 inline-flex rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white hover:bg-slate-800">
+              開啟外部 Issue
+            </Link>
+          ) : null}
+        </div>
+        <div className="rounded-2xl border border-white/60 bg-white/70 p-4">
+          <div className="text-xs font-black uppercase tracking-wide opacity-70">Pool Eligibility Summary</div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <KeyValue label="Members" value={model.poolEligibility.totalMembers} />
+            <KeyValue label="Connected" value={model.poolEligibility.connected} />
+            <KeyValue label="Runtime Found" value={model.poolEligibility.runtimeFound} />
+            <KeyValue label="Source" value={model.poolEligibility.source} />
+          </div>
+          <div className="mt-4">
+            <div className="text-xs font-black uppercase tracking-wide opacity-70">Blocked Counts</div>
+            {Object.keys(model.poolEligibility.blockedCounts).length ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {Object.entries(model.poolEligibility.blockedCounts).map(([code, count]) => (
+                  <span key={code} className="rounded-full bg-white px-3 py-1 text-xs font-black">{code}: {count}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm font-semibold opacity-75">目前沒有聚合 blocker；若 Task 尚未完成，請查看 Runtime Verification。</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {model.secondaryBlockers.length ? (
+        <div className="mt-4 rounded-2xl border border-white/60 bg-white/70 p-4">
+          <div className="text-xs font-black uppercase tracking-wide opacity-70">Secondary Blockers</div>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            {model.secondaryBlockers.map((secondary) => (
+              <div key={secondary.code} className="rounded-xl border border-white/70 bg-white/70 p-3 text-sm">
+                <div className="font-black">{secondary.code} · {taskDiagnosisCategoryLabel(secondary.category)}</div>
+                <p className="mt-1 font-semibold opacity-80">{secondary.userDescription}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function TaskRemediationActionsPanel({
+  commands,
+  runningCommand,
+  onCommand,
+}: Readonly<{
+  commands: TaskRemediationCommandDefinition[];
+  runningCommand?: string | null;
+  onCommand: (command: TaskRemediationCommandDefinition) => void;
+}>) {
+  if (!commands.length) {
+    return (
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="text-xs font-black uppercase tracking-wide text-slate-500">Task Remediation Command Model</div>
+        <h2 className="mt-1 text-lg font-black text-slate-950">目前狀態不允許人工處置</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">此 Task 已完成或已進入終態；UI 不顯示不合法 command，請只查看 Evidence 與 Timeline。</p>
+      </section>
+    );
+  }
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="text-xs font-black uppercase tracking-wide text-indigo-700">Task Remediation Command Model</div>
+          <h2 className="mt-1 text-lg font-black text-slate-950">目前狀態可執行的人工處置</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">所有 command 都會帶入 idempotency key、reason、expectedTaskVersion，並由 Core 回傳 before/after audit；原始自動派工 Evidence 不會被覆蓋。</p>
+        </div>
+        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">僅顯示合法操作</span>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {commands.map((command) => {
+          const danger = command.tone === 'danger';
+          const primary = command.tone === 'primary';
+          const running = runningCommand === command.commandType;
+          return (
+            <button
+              type="button"
+              key={command.commandType}
+              onClick={() => onCommand(command)}
+              disabled={Boolean(runningCommand)}
+              className={`rounded-2xl border p-4 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${danger ? 'border-rose-200 bg-rose-50 text-rose-900 hover:bg-rose-100' : primary ? 'border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100' : 'border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100'}`}
+            >
+              <div className="text-sm font-black">{running ? '執行中…' : command.label}</div>
+              <p className="mt-1 text-xs font-semibold leading-5 opacity-80">{command.description}</p>
+              {command.requiredPayload ? <div className="mt-2 text-[11px] font-black uppercase opacity-70">需要輸入：{command.requiredPayload}</div> : null}
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -399,7 +594,7 @@ Capability Tags Reference
               ))
             ) : (
               <span className="text-sm text-slate-500">
-沒有 Capability tag；這不會阻擋 Phase 32 派單。
+沒有 Capability tag；這不會阻擋標準 Agent Pool 派單。
               </span>
             )}
           </div>
@@ -886,7 +1081,7 @@ function StandardDispatchActionsPanel({
         <div>
           <h2 className="text-base font-bold text-slate-900">Standard Dispatch Actions</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Phase 32 standard Task CTA: Source Flow, Agent Pool, Agent runtime, or Retry Dispatch only. Capability is metadata and does not block first-version routing.
+            Standard Task CTA: Source Flow, Agent Pool, Agent runtime, or Retry Dispatch only. Capability is metadata and does not block first-version routing.
           </p>
         </div>
         <StatusBadge status="STANDARD_DISPATCH_ACTIONS" />
@@ -964,7 +1159,7 @@ function DispatchTimelinePanel({
                 <tr>
                   <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">Occurred</th>
-                  <th className="px-4 py-3">Stage</th>
+                  <th className="px-4 py-3">流程階段</th>
                   <th className="px-4 py-3">Action</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Message</th>
@@ -1833,7 +2028,7 @@ function TaskCaseTimelineRepairPanel({
         <div>
           <h2 className="text-base font-bold text-slate-900">Source Flow / Agent Pool 修復中心</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Task Detail 只用 Phase 32 標準派工鏈定位問題：Event → Source Flow → Rule override / default Pool → Agent Pool → Pool member Agent → Runtime Delivery → RESULT。失敗診斷會優先顯示 Pool blocker 與下一步修復動作。
+            Task Detail 只用標準派工鏈定位問題：Event → Source Flow → Rule override / default Pool → Agent Pool → Pool member Agent → Runtime Delivery → RESULT。失敗診斷會優先顯示 Pool blocker 與下一步修復動作。
           </p>
         </div>
         <StatusBadge status={repairCode === "READY" ? "POOL_FIRST_READY" : repairCode} />
@@ -1954,6 +2149,15 @@ function TaskA2AEvidenceChainPanel({
   const confidence = evidenceNumber(classificationEvidence, ["confidence", "classificationConfidence"]);
   const reason = evidenceString(classificationEvidence, ["reason", "message", "summary"]);
   const recommendedPoolCode = evidenceString(classificationEvidence, ["recommendedPoolCode", "recommended_pool_code", "targetPoolCode"]);
+  const rootTaskId = evidenceString(classificationEvidence, ["rootTaskId", "root_task_id"]) ?? caseTimeline?.rootTaskId ?? (task.parentTaskId ? undefined : task.taskId);
+  const correlationId = evidenceString(classificationEvidence, ["correlationId", "correlation_id"]) ?? caseTimeline?.correlationId ?? task.correlationId;
+  const classificationVersion = evidenceString(classificationEvidence, ["classificationVersion", "classification_version"]) ?? "A2A_CLASSIFICATION_V1";
+  const idempotencyKey = evidenceString(classificationEvidence, ["idempotencyKey", "idempotency_key"]);
+  const a2aDepth = evidenceNumber(classificationEvidence, ["a2aDepth", "a2a_depth"]);
+  const maxA2ADepth = evidenceNumber(classificationEvidence, ["maxA2ADepth", "max_a2a_depth"]);
+  const coreOwnedTaskCreation = evidenceString(classificationEvidence, ["coreOwnedTaskCreation"]) ?? "true";
+  const agentCreatedTask = evidenceString(classificationEvidence, ["agentCreatedTask"]) ?? "false";
+  const childTaskCreationAuthority = evidenceString(classificationEvidence, ["childTaskCreationAuthority"]) ?? "CORE_ONLY";
   const childIdsFromTimeline = caseTimeline?.childTaskIds ?? [];
   const hasEvidence = Boolean(
     task.parentTaskId ||
@@ -1967,10 +2171,10 @@ function TaskA2AEvidenceChainPanel({
     <section className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="text-xs font-black uppercase tracking-wide text-cyan-600">Phase 32-F · A2A Evidence Chain</div>
-          <h2 className="mt-1 text-lg font-black text-slate-950">TRIAGE → Classification → RESOLUTION</h2>
+          <div className="text-xs font-black uppercase tracking-wide text-cyan-600">Dispatch Evidence Chain</div>
+          <h2 className="mt-1 text-lg font-black text-slate-950">Core-owned A2A Classification Flow</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            這裡用新手看得懂的方式串起 parent TRIAGE task、分類結果、child RESOLUTION task，以及最後的 Source Flow / Agent Pool / Agent 證據。
+            這裡串起 parent TRIAGE task、Agent 回傳的 classification result、Core 驗證後建立的 child RESOLUTION task，以及最後的 Source Flow / Agent Pool / Agent 證據。Agent 只能回傳分類結果，不能自行建立下游 Task。
           </p>
         </div>
         <StatusBadge status={hasEvidence ? "A2A_CHAIN_VISIBLE" : "NO_A2A_CHAIN"} />
@@ -1989,6 +2193,8 @@ function TaskA2AEvidenceChainPanel({
           <div className="mt-3 grid gap-2">
             <KeyValue label="Task Type" value={triageTask?.taskType ?? triageTask?.taskTypeCode ?? (isResolutionTask ? "TRIAGE parent" : task.taskType ?? "-")} />
             <KeyValue label="Classification" value={triageTask?.classificationStatus ?? task.classificationStatus ?? "-"} />
+            <KeyValue label="Root Task" value={<TaskLink taskId={rootTaskId} />} />
+            <KeyValue label="Correlation" value={correlationId ?? "-"} />
             <KeyValue label="Source" value={triageTask?.sourceSystem ?? task.sourceSystem ?? "-"} />
             <KeyValue label="Original Event" value={triageTask?.eventType ?? (isResolutionTask ? "UNKNOWN / parent lookup pending" : task.eventType ?? "UNKNOWN")} />
           </div>
@@ -2004,6 +2210,8 @@ function TaskA2AEvidenceChainPanel({
             <KeyValue label="Error Code" value={classifiedErrorCode ?? "-"} />
             <KeyValue label="Confidence" value={confidence === undefined ? "-" : `${Math.round(confidence * 100)}%`} />
             <KeyValue label="Recommended Pool" value={recommendedPoolCode ?? "-"} />
+            <KeyValue label="Version" value={classificationVersion} />
+            <KeyValue label="Idempotency" value={idempotencyKey ?? "-"} />
           </div>
           {reason ? <p className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-xs font-semibold leading-5 text-cyan-900">{reason}</p> : null}
         </div>
@@ -2034,6 +2242,10 @@ function TaskA2AEvidenceChainPanel({
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
           <div className="text-xs font-black uppercase tracking-wide text-emerald-700">4. Pool / Agent Evidence</div>
           <div className="mt-3 grid gap-2">
+            <KeyValue label="Authority" value={childTaskCreationAuthority} />
+            <KeyValue label="Core-owned" value={coreOwnedTaskCreation} />
+            <KeyValue label="Agent created task" value={agentCreatedTask} />
+            <KeyValue label="Depth" value={a2aDepth === undefined ? "-" : `${a2aDepth}/${maxA2ADepth ?? "?"}`} />
             <KeyValue label="Matched Flow" value={primaryResolutionTask?.matchedFlowId ?? task.matchedFlowId ?? "-"} />
             <KeyValue label="Matched Rule" value={primaryResolutionTask?.matchedRuleId ?? task.matchedRuleId ?? "SOURCE_DEFAULT / -"} />
             <KeyValue label="Target Pool" value={primaryResolutionTask?.targetPoolId ?? primaryResolutionTask?.assignedPoolId ?? task.targetPoolId ?? task.assignedPoolId ?? "-"} />
@@ -2044,7 +2256,7 @@ function TaskA2AEvidenceChainPanel({
       </div>
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
         <span className="font-black text-slate-900">操作說明：</span>
-        未分類事件先由 Source Flow default TRIAGE_POOL 承接；Triage Agent 回報 classification result 後，系統建立 Resolution child task，並重新依分類後 eventType 命中 Flow Rule target Pool。Capability 在此畫面只做能力標籤參考，不作為第一版派單阻擋條件。
+        未分類事件先由 Source Flow default TRIAGE_POOL 承接；Triage Agent 只回報 classification result。Core 驗證 parentTaskId、rootTaskId、correlationId、classificationVersion、maxA2ADepth、cycleDetection 與 idempotencyKey 後，才可建立 child / continuation Task。分類失敗或不明確時轉人工處置，避免 Agent 自行形成不可控 A2A 循環。
       </div>
     </section>
   );
@@ -2085,21 +2297,6 @@ type TaskPendingAction =
   | "deadLetter"
   | "restoreDeadLetter"
   | "escalate";
-
-function isTerminal(task: CoreTaskRuntimeView): boolean {
-  return ["COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT", "TIMEOUT"].includes(
-    String(task.status ?? "").toUpperCase(),
-  );
-}
-
-function shouldAllowRetry(task: CoreTaskRuntimeView): boolean {
-  const taskStatus = String(task.status ?? "").toUpperCase();
-  const dispatchStatus = String(task.dispatchStatus ?? "").toUpperCase();
-  return (
-    ["FAILED", "TIMEOUT", "CANCELLED"].includes(taskStatus) ||
-    ["DELIVERY_FAILED", "DEAD_LETTER", "RETRY_PENDING"].includes(dispatchStatus)
-  );
-}
 
 function buildTaskDiagnosticsTabs(
   input: Readonly<{
@@ -2397,7 +2594,7 @@ function buildTaskControlConsoleTabs(
               taskRequiredCapabilities: input.task.requiredCapabilities,
             })}
             title="Task 需要能力與 Agent 關係"
-            description="Task Detail 顯示 archived requiredCapabilities；R8 正式修復以 Flow-owned Rule / Capability / Agent assignment 為準。"
+            description="requiredCapabilities 僅作歷史與查詢參考；Current 派工以 Source Flow、Agent Pool、Pool Member Agent 與 Runtime Evidence 為準。"
           />
           <TaskDispatchEligibilityV2Panel
             response={input.eligibleAgentsV2}
@@ -2547,6 +2744,8 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
     movingDeadLetter,
     restoringDeadLetter,
     retryingIssueSyncActionId,
+    remediatingCommand,
+    runTaskRemediationCommand,
     retryTask,
     cancelTask,
     reassignTask,
@@ -2556,7 +2755,9 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
     retryIssueSync,
   } = useTaskDetail(taskId);
   const [pendingAction, setPendingAction] = useState<TaskPendingAction | null>(null);
+  const [pendingRemediationCommand, setPendingRemediationCommand] = useState<TaskRemediationCommandDefinition | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [remediationCommandAudits, setRemediationCommandAudits] = useState<CoreTaskCommandAudit[]>([]);
 
   if (loading)
     return (
@@ -2578,15 +2779,48 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
     evidence: data.dispatchEvidence,
     runtimeVerification: data.runtimeVerification,
   });
+  const taskDiagnosisReadModel = buildTaskDiagnosisReadModel({
+    task,
+    diagnosis,
+    dispatchEvidence: data.dispatchEvidence,
+    runtimeVerification: data.runtimeVerification,
+    dispatchRequests: data.dispatchRequests,
+    dispatchLedger: data.dispatchLedger,
+    callbackInboxSummary: data.callbackInboxSummary,
+    timeline: data.timeline,
+    eligibleAgents: data.eligibleAgents,
+    eligibleAgentsV2: data.eligibleAgentsV2,
+    issueTracking: task.issueTracking ?? data.row.task.issueTracking,
+    externalIssueDedup: data.issueDedup,
+    remediationCommandAudits,
+  });
+  const allowedRemediationCommands = deriveAllowedTaskRemediationCommands(task, taskDiagnosisReadModel);
+  const openRemediationCommand = (commandType: CoreTaskRemediationCommandType) => {
+    const command = allowedRemediationCommands.find((candidate) => candidate.commandType === commandType);
+    if (command) setPendingRemediationCommand(command);
+  };
 
   function runDispatchOperatorCommand(command: DispatchOperatorCommand) {
     if (command === "triggerRecoveryNow") setPendingAction("triggerRecovery");
-    else if (command === "manualRetry") setPendingAction("retry");
-    else if (command === "escalate") setPendingAction("escalate");
-    else if (command === "deadLetter") setPendingAction("deadLetter");
+    else if (command === "manualRetry") openRemediationCommand("RETRY_TASK");
+    else if (command === "escalate") openRemediationCommand("MOVE_TO_MANUAL_QUEUE");
+    else if (command === "deadLetter") openRemediationCommand("IGNORE_TASK");
   }
 
   async function executePendingAction(values: TaskActionDialogValues) {
+    if (pendingRemediationCommand) {
+      const result = await runTaskRemediationCommand(buildTaskRemediationCommandRequest({
+        task,
+        commandType: pendingRemediationCommand.commandType as CoreTaskRemediationCommandType,
+        reason: values.reason,
+        targetAgentId: values.targetAgentId,
+        targetPoolId: values.targetPoolId,
+      }));
+      setActionMessage(result.message);
+      setRemediationCommandAudits((existing) => [result.audit, ...existing].slice(0, 12));
+      setPendingRemediationCommand(null);
+      return;
+    }
     if (!pendingAction) return;
     const controlRequest = (risk: "MODERATE" | "HIGH"): CoreRecoveryGovernanceActionRequest => ({
       operatorId: "admin-ui",
@@ -2627,36 +2861,9 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
           <p className="mt-1 break-all text-sm text-slate-500">{task.taskId}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {shouldAllowRetry(task) ? (
-            <button
-              type="button"
-              onClick={() => setPendingAction("retry")}
-              disabled={retrying}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {retrying ? "重新派工中…" : "重新派工"}
-            </button>
-          ) : null}
-          {!isTerminal(task) ? (
-            <button
-              type="button"
-              onClick={() => setPendingAction("reassign")}
-              disabled={reassigning}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-            >
-              {reassigning ? "改派中…" : "改派 Agent"}
-            </button>
-          ) : null}
-          {!isTerminal(task) ? (
-            <button
-              type="button"
-              onClick={() => setPendingAction("cancel")}
-              disabled={cancelling}
-              className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-            >
-              {cancelling ? "取消中…" : "取消 Task"}
-            </button>
-          ) : null}
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-slate-500">
+            Actions are state-filtered below
+          </div>
           <RefreshButton
             refreshing={refreshing}
             lastUpdatedAt={lastUpdatedAt}
@@ -2667,12 +2874,20 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
 
       <CommandMessage message={actionMessage ?? commandMessage} />
 
+      <TaskDiagnosisReadModelPanel model={taskDiagnosisReadModel} />
+
+      <TaskRemediationActionsPanel
+        commands={allowedRemediationCommands}
+        runningCommand={remediatingCommand}
+        onCommand={setPendingRemediationCommand}
+      />
+
       <TaskPrimaryDiagnosisPanel
         task={task}
         diagnosis={diagnosis}
         retrying={retrying}
-        allowRetry={shouldAllowRetry(task)}
-        onRetry={() => setPendingAction("retry")}
+        allowRetry={false}
+        onRetry={() => setPendingRemediationCommand(allowedRemediationCommands.find((command) => command.commandType === 'REEVALUATE_ROUTING') ?? allowedRemediationCommands[0] ?? null)}
       />
 
       <TaskA2AEvidenceChainPanel
@@ -2724,7 +2939,7 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
                       retrying,
           retryingIssueSyncActionId: retryingIssueSyncActionId ?? undefined,
           onRetryIssueSync: retryIssueSync,
-          onRetryDispatch: () => setPendingAction("retry"),
+          onRetryDispatch: () => openRemediationCommand("RETRY_DELIVERY"),
           onDispatchOperatorCommand: runDispatchOperatorCommand,
           onTriggerRecoveryNow: () => setPendingAction("triggerRecovery"),
           onMoveToDeadLetter: () => setPendingAction("deadLetter"),
@@ -2732,8 +2947,9 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
         })}
       />
       <TaskActionDialog
-        open={pendingAction !== null}
+        open={pendingAction !== null || pendingRemediationCommand !== null}
         title={
+          pendingRemediationCommand ? pendingRemediationCommand.label :
           pendingAction === "cancel" ? "取消 Task" :
           pendingAction === "reassign" ? "改派 Agent" :
           pendingAction === "triggerRecovery" ? "立即執行 Recovery" :
@@ -2742,13 +2958,14 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
           pendingAction === "escalate" ? "升級人工處理" : "重新派工"
         }
         target={task.taskId}
-        description="所有操作都由 Core 權威狀態機執行，原因與結果會寫入 Task timeline。"
-        confirmLabel={pendingAction === "cancel" ? "確認取消" : pendingAction === "deadLetter" ? "確認移至 Dead Letter" : pendingAction === "restoreDeadLetter" ? "確認還原" : pendingAction === "escalate" ? "確認升級" : pendingAction === "reassign" ? "確認改派" : "確認執行"}
-        tone={pendingAction === "cancel" || pendingAction === "deadLetter" ? "danger" : "warning"}
-        isRunning={retrying || cancelling || reassigning || triggeringRecovery || movingDeadLetter || restoringDeadLetter}
-        allowTargetAgent={pendingAction === "reassign"}
-        requiredPhrase={pendingAction === "deadLetter" || pendingAction === "restoreDeadLetter" ? HIGH_RISK_CONFIRMATION : pendingAction === "triggerRecovery" || pendingAction === "escalate" ? MODERATE_CONFIRMATION : undefined}
-        onCancel={() => setPendingAction(null)}
+        description={pendingRemediationCommand ? `${pendingRemediationCommand.description}。Core 會檢查狀態前置條件、idempotency key、expectedTaskVersion，並回傳 before/after audit。` : "所有操作都由 Core 權威狀態機執行，原因與結果會寫入 Task timeline。"}
+        confirmLabel={pendingRemediationCommand ? "確認執行 Command" : pendingAction === "cancel" ? "確認取消" : pendingAction === "deadLetter" ? "確認移至 Dead Letter" : pendingAction === "restoreDeadLetter" ? "確認還原" : pendingAction === "escalate" ? "確認升級" : pendingAction === "reassign" ? "確認改派" : "確認執行"}
+        tone={pendingRemediationCommand?.tone === "danger" || pendingAction === "cancel" || pendingAction === "deadLetter" ? "danger" : "warning"}
+        isRunning={Boolean(remediatingCommand) || retrying || cancelling || reassigning || triggeringRecovery || movingDeadLetter || restoringDeadLetter}
+        allowTargetAgent={pendingRemediationCommand?.requiredPayload === "targetAgentId" || pendingAction === "reassign"}
+        allowTargetPool={pendingRemediationCommand?.requiredPayload === "targetPoolId"}
+        requiredPhrase={pendingRemediationCommand?.requiredPhrase ?? (pendingAction === "deadLetter" || pendingAction === "restoreDeadLetter" ? HIGH_RISK_CONFIRMATION : pendingAction === "triggerRecovery" || pendingAction === "escalate" ? MODERATE_CONFIRMATION : undefined)}
+        onCancel={() => { setPendingAction(null); setPendingRemediationCommand(null); }}
         onConfirm={executePendingAction}
       />
     </div>

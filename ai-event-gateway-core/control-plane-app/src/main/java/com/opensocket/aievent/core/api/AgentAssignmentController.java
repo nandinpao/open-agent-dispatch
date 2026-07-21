@@ -12,11 +12,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.opensocket.aievent.core.agent.assignment.AgentAssignmentService;
+import com.opensocket.aievent.core.agent.assignment.AgentAdvisoryRecommendation;
+import com.opensocket.aievent.core.agent.assignment.AgentAdvancedSelectionStrategyContract;
+import com.opensocket.aievent.core.agent.assignment.AgentAdvisoryRecommendationDecisionCommand;
 import com.opensocket.aievent.core.agent.assignment.AgentCapabilityAssignment;
 import com.opensocket.aievent.core.agent.assignment.AgentCapabilityCatalog;
 import com.opensocket.aievent.core.agent.assignment.AgentCapabilityCommand;
 import com.opensocket.aievent.core.agent.assignment.AgentRuntimeBinding;
 import com.opensocket.aievent.core.agent.assignment.AgentRuntimeFeatureCommand;
+import com.opensocket.aievent.core.agent.assignment.AgentPoolCapabilityPolicy;
+import com.opensocket.aievent.core.agent.assignment.AgentQualityMetricsDaily;
+import com.opensocket.aievent.core.agent.assignment.AgentQualityMetricsWindow;
+import com.opensocket.aievent.core.agent.assignment.RuntimeQualityMetricsDaily;
+import com.opensocket.aievent.core.agent.assignment.SupplyProfileQualitySnapshot;
 import com.opensocket.aievent.core.agent.assignment.AgentRuntimeFeatureObservation;
 import com.opensocket.aievent.core.agent.assignment.AgentRuntimeFeatureTrust;
 import com.opensocket.aievent.core.agent.assignment.DispatchPolicy;
@@ -120,6 +128,128 @@ public class AgentAssignmentController {
                                                                      @RequestBody(required = false) DispatchPolicyScoringRule request) {
         try {
             return service.upsertDispatchPolicyScoringRule(policyCode, request == null ? new DispatchPolicyScoringRule() : request);
+        } catch (IllegalArgumentException ex) {
+            throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+
+
+    @GetMapping("/selection-strategies/advanced/contracts")
+    public List<AgentAdvancedSelectionStrategyContract> advancedSelectionStrategyContracts() {
+        return service.advancedSelectionStrategyContracts();
+    }
+
+    @GetMapping("/agent-pool-policies/capabilities")
+    public List<AgentPoolCapabilityPolicy> poolCapabilityPolicies(@RequestParam(required = false) String tenantId,
+                                                                  @RequestParam(required = false) String targetPoolId,
+                                                                  @RequestParam(defaultValue = "200") int limit) {
+        return service.searchAgentPoolCapabilityPolicies(tenantId, targetPoolId, limit);
+    }
+
+    @PutMapping("/agent-pool-policies/capabilities/{targetPoolId}")
+    public AgentPoolCapabilityPolicy upsertPoolCapabilityPolicy(@PathVariable String targetPoolId,
+                                                                @RequestBody(required = false) AgentPoolCapabilityPolicy request,
+                                                                @RequestParam(required = false) String tenantId) {
+        try {
+            AgentPoolCapabilityPolicy body = request == null ? new AgentPoolCapabilityPolicy() : request;
+            body.setTenantId(tenantId == null || tenantId.isBlank() ? body.getTenantId() : tenantId);
+            body.setTargetPoolId(targetPoolId);
+            return service.upsertAgentPoolCapabilityPolicy(body);
+        } catch (IllegalArgumentException ex) {
+            throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+    @GetMapping("/quality/agents/{agentId}/daily")
+    public List<AgentQualityMetricsDaily> agentQualityDaily(@PathVariable String agentId,
+                                                            @RequestParam(required = false) String tenantId,
+                                                            @RequestParam(defaultValue = "90") int limit) {
+        return service.findAgentQualityDaily(tenantId, agentId, limit);
+    }
+
+    @GetMapping("/quality/agents/{agentId}/windows")
+    public List<AgentQualityMetricsWindow> agentQualityWindows(@PathVariable String agentId,
+                                                               @RequestParam(required = false) String tenantId,
+                                                               @RequestParam(defaultValue = "24h") String metricWindow,
+                                                               @RequestParam(defaultValue = "30") int limit) {
+        return service.findAgentQualityWindows(tenantId, agentId, metricWindow, limit);
+    }
+
+    @PostMapping("/quality/agents/{agentId}/windows")
+    public AgentQualityMetricsWindow upsertAgentQualityWindow(@PathVariable String agentId,
+                                                              @RequestBody(required = false) AgentQualityMetricsWindow request,
+                                                              @RequestParam(required = false) String tenantId) {
+        try {
+            AgentQualityMetricsWindow body = request == null ? new AgentQualityMetricsWindow() : request;
+            body.setTenantId(tenantId == null || tenantId.isBlank() ? body.getTenantId() : tenantId);
+            body.setAgentId(agentId);
+            return service.upsertAgentQualityWindow(body);
+        } catch (IllegalArgumentException ex) {
+            throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+    @GetMapping("/quality/runtime/{runtimeId}/daily")
+    public List<RuntimeQualityMetricsDaily> runtimeQualityDaily(@PathVariable String runtimeId,
+                                                                @RequestParam(required = false) String tenantId,
+                                                                @RequestParam(defaultValue = "90") int limit) {
+        return service.findRuntimeQualityDaily(tenantId, runtimeId, limit);
+    }
+
+    @GetMapping("/quality/supply-profiles")
+    public List<SupplyProfileQualitySnapshot> supplyProfileQualitySnapshots(@RequestParam(required = false) String tenantId,
+                                                                            @RequestParam(defaultValue = "24h") String metricWindow,
+                                                                            @RequestParam(required = false) String agentId,
+                                                                            @RequestParam(required = false) String runtimeId,
+                                                                            @RequestParam(defaultValue = "500") int limit) {
+        return service.searchSupplyProfileQualitySnapshots(tenantId, agentId, runtimeId, metricWindow, limit);
+    }
+
+    @GetMapping("/supply-profiles/{profileCode}/quality-snapshot")
+    public SupplyProfileQualitySnapshot supplyProfileQualitySnapshot(@PathVariable String profileCode,
+                                                                     @RequestParam(required = false) String tenantId,
+                                                                     @RequestParam(defaultValue = "24h") String metricWindow) {
+        return service.getSupplyProfileQualitySnapshot(tenantId, profileCode, metricWindow);
+    }
+
+
+    @GetMapping("/recommendations/advisory")
+    public List<AgentAdvisoryRecommendation> advisoryRecommendations(@RequestParam(required = false) String tenantId,
+                                                                     @RequestParam(required = false) String targetPoolId,
+                                                                     @RequestParam(required = false) String agentId,
+                                                                     @RequestParam(required = false) String status,
+                                                                     @RequestParam(defaultValue = "24h") String evidenceWindow,
+                                                                     @RequestParam(defaultValue = "100") int limit) {
+        return service.searchAdvisoryRecommendations(tenantId, targetPoolId, agentId, status, evidenceWindow, limit);
+    }
+
+    @PostMapping("/recommendations/advisory/generate")
+    public List<AgentAdvisoryRecommendation> generateAdvisoryRecommendations(@RequestParam(required = false) String tenantId,
+                                                                            @RequestParam(required = false) String targetPoolId,
+                                                                            @RequestParam(required = false) String agentId,
+                                                                            @RequestParam(defaultValue = "24h") String evidenceWindow,
+                                                                            @RequestParam(defaultValue = "100") int limit) {
+        return service.generateAdvisoryRecommendations(tenantId, targetPoolId, agentId, evidenceWindow, limit);
+    }
+
+    @PostMapping("/recommendations/advisory/{recommendationId}/accept")
+    public AgentAdvisoryRecommendation acceptAdvisoryRecommendation(@PathVariable String recommendationId,
+                                                                    @RequestBody(required = false) AgentAdvisoryRecommendationDecisionCommand request,
+                                                                    @RequestParam(required = false) String tenantId) {
+        try {
+            return service.acceptAdvisoryRecommendation(tenantId, recommendationId, request == null ? new AgentAdvisoryRecommendationDecisionCommand() : request);
+        } catch (IllegalArgumentException ex) {
+            throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+    @PostMapping("/recommendations/advisory/{recommendationId}/reject")
+    public AgentAdvisoryRecommendation rejectAdvisoryRecommendation(@PathVariable String recommendationId,
+                                                                    @RequestBody(required = false) AgentAdvisoryRecommendationDecisionCommand request,
+                                                                    @RequestParam(required = false) String tenantId) {
+        try {
+            return service.rejectAdvisoryRecommendation(tenantId, recommendationId, request == null ? new AgentAdvisoryRecommendationDecisionCommand() : request);
         } catch (IllegalArgumentException ex) {
             throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, ex.getMessage());
         }

@@ -28,6 +28,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.opensocket.aievent.core.api.StandardApiErrorCode;
+import com.opensocket.aievent.core.api.StandardApiException;
 import com.opensocket.aievent.core.routing.governance.CapabilityRequirementMode;
 import com.opensocket.aievent.core.routing.governance.CandidatePoolMode;
 import com.opensocket.aievent.core.task.TaskRepository;
@@ -35,6 +37,7 @@ import com.opensocket.aievent.core.task.TaskRepository;
 @Service
 public class DispatchFlowManagementService {
     private static final Logger log = LoggerFactory.getLogger(DispatchFlowManagementService.class);
+    private static final Set<String> SUPPORTED_POOL_SELECTION_STRATEGIES = Set.of("LOWEST_LOAD", "WEIGHTED_SCORE", "MANUAL_ONLY");
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
 
@@ -65,6 +68,8 @@ public class DispatchFlowManagementService {
                     p.status,
                     p.description,
                     p.metadata_json,
+                    p.version,
+                    p.updated_by,
                     p.updated_at,
                     coalesce((
                         select count(*)::int
@@ -117,6 +122,8 @@ public class DispatchFlowManagementService {
                         p.status,
                         p.description,
                         p.metadata_json,
+                        p.version,
+                        p.updated_by,
                         p.updated_at,
                         coalesce((
                             select count(*)::int
@@ -150,8 +157,15 @@ public class DispatchFlowManagementService {
 
     @Transactional
     public AgentPoolView createOrUpdateAgentPool(AgentPoolView request) {
+        return createOrUpdateAgentPool(request, request == null ? null : request.getVersion());
+    }
+
+    @Transactional
+    public AgentPoolView createOrUpdateAgentPool(AgentPoolView request, Integer expectedVersion) {
         AgentPoolView normalized = normalizeAgentPool(request);
         acquirePoolLock(normalized.getTenantId(), normalized.getPoolId());
+        AgentPoolView existing = findAgentPool(normalized.getTenantId(), normalized.getPoolId()).orElse(null);
+        assertExpectedVersion("Agent Pool", normalized.getPoolId(), expectedVersion, existing == null ? null : existing.getVersion());
         validateAgentPoolMembers(normalized);
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("tenantId", normalized.getTenantId())
@@ -163,8 +177,9 @@ public class DispatchFlowManagementService {
                 .addValue("selectionStrategy", normalized.getSelectionStrategy())
                 .addValue("status", normalized.getStatus())
                 .addValue("description", normalized.getDescription())
-                .addValue("metadataJson", writeJson(normalized.getMetadata()));
-        jdbc.update("""
+                .addValue("metadataJson", writeJson(normalized.getMetadata()))
+                .addValue("expectedVersion", expectedVersion);
+        int poolRows = jdbc.update("""
                 insert into agent_pools (
                     tenant_id, pool_id, pool_code, pool_name, source_system,
                     pool_type, selection_strategy, status, description, metadata_json, created_at, updated_at
@@ -182,7 +197,11 @@ public class DispatchFlowManagementService {
                     description = excluded.description,
                     metadata_json = excluded.metadata_json,
                     updated_at = now()
+                where agent_pools.version = :expectedVersion
                 """, params);
+        if (existing != null && poolRows == 0) {
+            throwVersionConflict("Agent Pool", normalized.getPoolId(), expectedVersion, existing.getVersion());
+        }
         jdbc.update("delete from agent_pool_members where tenant_id = :tenantId and pool_id = :poolId", params);
         for (AgentPoolMemberView member : normalized.getMembers()) {
             writeAgentPoolMember(normalized, member);
@@ -230,6 +249,8 @@ public class DispatchFlowManagementService {
                     f.default_candidate_pool_mode,
                     f.default_routing_strategy,
                     f.metadata_json,
+                    f.version,
+                    f.updated_by,
                     f.updated_at,
                     coalesce(sum(case when upper(coalesce(p.event_stage, 'EXTERNAL')) = 'EXTERNAL' then 1 else 0 end), 0)::int as external_rule_count,
                     coalesce(sum(case when upper(coalesce(p.event_stage, 'EXTERNAL')) = 'A2A' then 1 else 0 end), 0)::int as a2a_rule_count,
@@ -249,7 +270,7 @@ public class DispatchFlowManagementService {
                 group by f.tenant_id, f.flow_id, f.flow_code, f.flow_name, f.source_system,
                          f.flow_type, f.default_pool_id, f.status, f.description, f.default_capability_requirement_mode,
                                   f.default_required_operation, f.default_side_effect_level,
-                                  f.default_candidate_pool_mode, f.default_routing_strategy, f.metadata_json, f.updated_at
+                                  f.default_candidate_pool_mode, f.default_routing_strategy, f.metadata_json, f.version, f.updated_by, f.updated_at
                 order by f.updated_at desc, f.flow_code asc
                 """);
         try {
@@ -286,6 +307,8 @@ public class DispatchFlowManagementService {
                     f.default_candidate_pool_mode,
                     f.default_routing_strategy,
                     f.metadata_json,
+                    f.version,
+                    f.updated_by,
                     f.updated_at,
                     coalesce(sum(case when upper(coalesce(p.event_stage, 'EXTERNAL')) = 'EXTERNAL' then 1 else 0 end), 0)::int as external_rule_count,
                     coalesce(sum(case when upper(coalesce(p.event_stage, 'EXTERNAL')) = 'A2A' then 1 else 0 end), 0)::int as a2a_rule_count,
@@ -306,7 +329,7 @@ public class DispatchFlowManagementService {
                  group by f.tenant_id, f.flow_id, f.flow_code, f.flow_name, f.source_system,
                           f.flow_type, f.default_pool_id, f.status, f.description, f.default_capability_requirement_mode,
                           f.default_required_operation, f.default_side_effect_level,
-                          f.default_candidate_pool_mode, f.default_routing_strategy, f.metadata_json, f.updated_at
+                          f.default_candidate_pool_mode, f.default_routing_strategy, f.metadata_json, f.version, f.updated_by, f.updated_at
                  order by f.updated_at desc, f.flow_code asc
                 """, params, FLOW_ROW_MAPPER);
         flows.forEach(this::attachChildren);
@@ -391,6 +414,8 @@ public class DispatchFlowManagementService {
                         f.default_candidate_pool_mode,
                         f.default_routing_strategy,
                         f.metadata_json,
+                        f.version,
+                        f.updated_by,
                         f.updated_at,
                         coalesce(sum(case when upper(coalesce(p.event_stage, 'EXTERNAL')) = 'EXTERNAL' then 1 else 0 end), 0)::int as external_rule_count,
                         coalesce(sum(case when upper(coalesce(p.event_stage, 'EXTERNAL')) = 'A2A' then 1 else 0 end), 0)::int as a2a_rule_count,
@@ -405,7 +430,7 @@ public class DispatchFlowManagementService {
                     group by f.tenant_id, f.flow_id, f.flow_code, f.flow_name, f.source_system,
                              f.flow_type, f.default_pool_id, f.status, f.description, f.default_capability_requirement_mode,
                                       f.default_required_operation, f.default_side_effect_level,
-                                      f.default_candidate_pool_mode, f.default_routing_strategy, f.metadata_json, f.updated_at
+                                      f.default_candidate_pool_mode, f.default_routing_strategy, f.metadata_json, f.version, f.updated_by, f.updated_at
                     """, params, FLOW_ROW_MAPPER);
             attachChildren(flow);
             return Optional.of(flow);
@@ -417,20 +442,30 @@ public class DispatchFlowManagementService {
     /**
      * Saves the complete Dispatch Flow aggregate in one transaction.
      *
-     * <p>The request is authoritative for Flow-owned Rules, required Capabilities, and Agent
-     * selections. Existing children that are not present in the request are removed in the same
-     * transaction. A failure in any child write rolls the parent and every child back.</p>
+     * <p>The request is authoritative for Flow-owned Rules. Required Capability rows and direct
+     * Flow Agent selections are legacy compatibility references under the Agent Pool-first model;
+     * standard UI requests marked with {@code legacyChildrenPreserved=true} retain existing legacy
+     * child rows when they are not explicitly supplied. This prevents a normal Source Flow edit from
+     * silently deleting historical Capability/Profile-era configuration.</p>
      */
     @Transactional
     public DispatchFlowView createOrUpdateFlow(DispatchFlowView request) {
+        return createOrUpdateFlow(request, request == null ? null : request.getVersion());
+    }
+
+    @Transactional
+    public DispatchFlowView createOrUpdateFlow(DispatchFlowView request, Integer expectedVersion) {
         DispatchFlowView normalized = normalizeFlowAggregate(request);
-        validateAggregate(normalized);
 
         MapSqlParameterSource identity = params(normalized.getTenantId(), normalized.getFlowId());
         acquireAggregateLock(normalized.getTenantId(), normalized.getFlowId());
-        writeFlow(normalized);
+        DispatchFlowView existing = findFlow(normalized.getTenantId(), normalized.getFlowId()).orElse(null);
+        assertExpectedVersion("Source Flow", normalized.getFlowId(), expectedVersion, existing == null ? null : existing.getVersion());
+        preserveLegacyChildrenWhenRequested(normalized, existing);
+        validateAggregate(normalized);
+        writeFlow(normalized, expectedVersion, existing);
 
-        // Full replacement semantics prevent half-configured Flows and stale Runtime candidates.
+        // Replace current Flow-owned rows after applying preserve-but-ignore semantics for legacy references.
         jdbc.update("delete from flow_agent_assignments where tenant_id = :tenantId and flow_id = :flowId", identity);
         jdbc.update("delete from flow_required_capabilities where tenant_id = :tenantId and flow_id = :flowId", identity);
         jdbc.update("delete from dispatch_policies where tenant_id = :tenantId and flow_id = :flowId", identity);
@@ -453,13 +488,61 @@ public class DispatchFlowManagementService {
                 "Dispatch Flow configuration changed: " + normalized.getFlowId());
         log.info("dispatch_flow_configuration_tasks_awakened tenantId={} flowId={} sourceSystem={} taskCount={}",
                 normalized.getTenantId(), normalized.getFlowId(), normalized.getSourceSystem(), awakened);
-        log.info("dispatch_flow_aggregate_saved tenantId={} flowId={} flowCode={} sourceSystem={} ruleCount={} capabilityCount={} agentCount={} transactionMode=FULL_REPLACEMENT",
+        log.info("dispatch_flow_aggregate_saved tenantId={} flowId={} flowCode={} sourceSystem={} ruleCount={} capabilityCount={} agentCount={} transactionMode=FLOW_RULE_REPLACEMENT_LEGACY_CHILDREN_PRESERVED",
                 normalized.getTenantId(), normalized.getFlowId(), normalized.getFlowCode(), normalized.getSourceSystem(),
                 normalized.getRules().size(), normalized.getRequiredSkills().size(), normalized.getAgents().size());
         return saved;
     }
 
-    private void writeFlow(DispatchFlowView normalized) {
+    private void assertExpectedVersion(String entityType, String entityId, Integer expectedVersion, Integer currentVersion) {
+        if (currentVersion == null) {
+            return;
+        }
+        if (expectedVersion == null) {
+            throw new StandardApiException(StandardApiErrorCode.RESOURCE_VERSION_CONFLICT,
+                    entityType + " requires expectedVersion / If-Match before update: " + entityId);
+        }
+        if (!expectedVersion.equals(currentVersion)) {
+            throwVersionConflict(entityType, entityId, expectedVersion, currentVersion);
+        }
+    }
+
+    private void throwVersionConflict(String entityType, String entityId, Integer expectedVersion, Integer currentVersion) {
+        throw new StandardApiException(StandardApiErrorCode.RESOURCE_VERSION_CONFLICT,
+                entityType + " was updated by another administrator. Reload before saving again. entityId=" + entityId
+                        + ", expectedVersion=" + expectedVersion + ", currentVersion=" + currentVersion);
+    }
+
+    private void preserveLegacyChildrenWhenRequested(DispatchFlowView normalized, DispatchFlowView existing) {
+        if (existing == null || !metadataFlag(normalized, "legacyChildrenPreserved")) {
+            return;
+        }
+        if (normalized.getRequiredSkills().isEmpty() && !existing.getRequiredSkills().isEmpty()) {
+            List<DispatchFlowRequiredSkillView> preservedCapabilities = new ArrayList<>();
+            for (DispatchFlowRequiredSkillView existingCapability : existing.getRequiredSkills()) {
+                preservedCapabilities.add(normalizeCapability(normalized.getTenantId(), normalized.getFlowId(), existingCapability));
+            }
+            normalized.setRequiredSkills(preservedCapabilities);
+            log.info("dispatch_flow_legacy_required_capabilities_preserved tenantId={} flowId={} count={}",
+                    normalized.getTenantId(), normalized.getFlowId(), preservedCapabilities.size());
+        }
+        if (normalized.getAgents().isEmpty() && !existing.getAgents().isEmpty()) {
+            List<DispatchFlowAgentView> preservedAgents = new ArrayList<>();
+            for (DispatchFlowAgentView existingAgent : existing.getAgents()) {
+                preservedAgents.add(normalizeAgent(normalized.getTenantId(), normalized.getFlowId(), existingAgent));
+            }
+            normalized.setAgents(preservedAgents);
+            log.info("dispatch_flow_legacy_agents_preserved tenantId={} flowId={} count={}",
+                    normalized.getTenantId(), normalized.getFlowId(), preservedAgents.size());
+        }
+    }
+
+    private boolean metadataFlag(DispatchFlowView flow, String key) {
+        Object value = flow == null ? null : flow.getMetadata().get(key);
+        return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
+    }
+
+    private void writeFlow(DispatchFlowView normalized, Integer expectedVersion, DispatchFlowView existing) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("tenantId", normalized.getTenantId())
                 .addValue("flowId", normalized.getFlowId())
@@ -475,8 +558,9 @@ public class DispatchFlowManagementService {
                 .addValue("defaultSideEffectLevel", normalized.getDefaultSideEffectLevel())
                 .addValue("defaultCandidatePoolMode", normalized.getDefaultCandidatePoolMode())
                 .addValue("defaultRoutingStrategy", normalized.getDefaultRoutingStrategy())
-                .addValue("metadataJson", writeJson(normalized.getMetadata()));
-        jdbc.update("""
+                .addValue("metadataJson", writeJson(normalized.getMetadata()))
+                .addValue("expectedVersion", expectedVersion);
+        int flowRows = jdbc.update("""
                 insert into dispatch_flows (
                     tenant_id, flow_id, flow_code, flow_name, source_system,
                     flow_type, default_pool_id, status, description, default_capability_requirement_mode,
@@ -503,7 +587,11 @@ public class DispatchFlowManagementService {
                     default_routing_strategy = excluded.default_routing_strategy,
                     metadata_json = excluded.metadata_json,
                     updated_at = now()
+                where dispatch_flows.version = :expectedVersion
                 """, params);
+        if (existing != null && flowRows == 0) {
+            throwVersionConflict("Source Flow", normalized.getFlowId(), expectedVersion, existing.getVersion());
+        }
     }
 
     private DispatchFlowRuleView writeRule(DispatchFlowRuleView rule) {
@@ -539,8 +627,8 @@ public class DispatchFlowManagementService {
                 .addValue("handoffMode", normalizeNullable(rule.getHandoffMode()))
                 .addValue("issuePolicyId", rule.getIssuePolicyId())
                 .addValue("metadataJson", writeJson(Map.of(
-                        "p1DbBackedCrud", true,
-                        "phase32bTargetPoolPersistence", true,
+                        "configurationSource", "DB_BACKED_FLOW_RULE",
+                        "routingModel", "AGENT_POOL_FIRST",
                         "priority", rule.getPriority() == null ? 100 : rule.getPriority())));
         jdbc.update("""
                 insert into dispatch_policies (
@@ -741,6 +829,8 @@ public class DispatchFlowManagementService {
                          limit 1
                     ), 'UNKNOWN') as runtime_status,
                     m.metadata_json,
+                    m.version,
+                    m.updated_by,
                     m.updated_at
                   from agent_pool_members m
                   join agent_pools p
@@ -769,7 +859,7 @@ public class DispatchFlowManagementService {
         pool.setPoolName(firstNonBlank(pool.getPoolName(), pool.getPoolCode().replace('_', ' ')));
         pool.setSourceSystem(source);
         pool.setPoolType(normalizeCode(firstNonBlank(pool.getPoolType(), "RESOLUTION")));
-        pool.setSelectionStrategy(normalizeCode(firstNonBlank(pool.getSelectionStrategy(), "LOWEST_LOAD")));
+        pool.setSelectionStrategy(normalizeSupportedPoolSelectionStrategy(pool.getSelectionStrategy()));
         pool.setStatus(normalizeCode(firstNonBlank(pool.getStatus(), "ACTIVE")));
         List<AgentPoolMemberView> members = new ArrayList<>();
         for (AgentPoolMemberView rawMember : pool.getMembers()) {
@@ -842,7 +932,7 @@ public class DispatchFlowManagementService {
             validateChildIdentity(flow, rule.getTenantId(), rule.getFlowId(), "rule");
             if (blank(rule.getSourceSystem())) rule.setSourceSystem(flow.getSourceSystem());
             DispatchFlowRuleView normalizedRule = normalizeRule(flow.getTenantId(), flow.getFlowId(), rule);
-            // Phase 32-G: the standard setting UI routes to Agent Pool / Work Queue first.
+            // Current standard setting UI routes to Agent Pool / Work Queue first.
             normalizedRule.setCandidatePoolMode(CandidatePoolMode.SOURCE_SYSTEM_POOL.name());
             rules.add(normalizedRule);
         }
@@ -864,8 +954,13 @@ public class DispatchFlowManagementService {
         }
         flow.setAgents(agents);
         flow.setDefaultCandidatePoolMode(CandidatePoolMode.SOURCE_SYSTEM_POOL.name());
-        synchronizeAgentSelections(flow);
-        synchronizeFlowRequiredCapabilities(flow);
+        if (metadataFlag(flow, "legacyChildrenPreserved")) {
+            suppressLegacyAgentGates(flow);
+            suppressLegacyCapabilityGates(flow);
+        } else {
+            synchronizeAgentSelections(flow);
+            synchronizeFlowRequiredCapabilities(flow);
+        }
         flow.setDefaultCapabilityRequirementMode(flow.getRules().stream()
                 .anyMatch(rule -> CapabilityRequirementMode.EXPLICIT.name().equals(rule.getCapabilityRequirementMode()))
                 ? CapabilityRequirementMode.EXPLICIT.name()
@@ -1002,6 +1097,21 @@ public class DispatchFlowManagementService {
             if (isActive(flow.getStatus()) && !approved) {
                 throw new IllegalArgumentException("ACTIVE Dispatch Flow Agent must be enabled and approved: " + agent.getAgentId());
             }
+        }
+    }
+
+    private void suppressLegacyAgentGates(DispatchFlowView flow) {
+        for (DispatchFlowAgentView agent : flow.getAgents()) {
+            if (blank(agent.getAssignmentStatus())) agent.setAssignmentStatus("LEGACY_REFERENCE");
+            if (blank(agent.getRuntimeStatus())) agent.setRuntimeStatus("REFERENCE_ONLY");
+            if (blank(agent.getReadinessStatus())) agent.setReadinessStatus("NOT_EVALUATED");
+        }
+    }
+
+    private void suppressLegacyCapabilityGates(DispatchFlowView flow) {
+        for (DispatchFlowRuleView rule : flow.getRules()) {
+            rule.setCapabilityRequirementMode(CapabilityRequirementMode.NONE.name());
+            rule.setRequestedSkill(null);
         }
     }
 
@@ -1342,6 +1452,8 @@ public class DispatchFlowManagementService {
         pool.setMemberCount(rs.getInt("member_count"));
         pool.setAvailableAgentCount(rs.getInt("available_agent_count"));
         pool.setMetadata(readMap(rs.getString("metadata_json")));
+        pool.setVersion(rs.getInt("version"));
+        pool.setUpdatedBy(rs.getString("updated_by"));
         pool.setUpdatedAt(offset(rs, "updated_at"));
         return pool;
     };
@@ -1359,6 +1471,8 @@ public class DispatchFlowManagementService {
         member.setApprovalStatus(rs.getString("approval_status"));
         member.setRuntimeStatus(rs.getString("runtime_status"));
         member.setMetadata(readMap(rs.getString("metadata_json")));
+        member.setVersion(rs.getInt("version"));
+        member.setUpdatedBy(rs.getString("updated_by"));
         member.setUpdatedAt(offset(rs, "updated_at"));
         return member;
     };
@@ -1415,6 +1529,8 @@ public class DispatchFlowManagementService {
         flow.setAgentCount(rs.getInt("agent_count"));
         flow.setLastTestStatus("NOT_RUN");
         flow.setMetadata(readMap(rs.getString("metadata_json")));
+        flow.setVersion(rs.getInt("version"));
+        flow.setUpdatedBy(rs.getString("updated_by"));
         flow.setUpdatedAt(offset(rs, "updated_at"));
         return flow;
     };
@@ -1516,6 +1632,15 @@ public class DispatchFlowManagementService {
         return requireNonBlank(value, "tenantId").trim();
     }
 
+    private static String normalizeSupportedPoolSelectionStrategy(String strategy) {
+        String normalized = normalizeCode(firstNonBlank(strategy, "LOWEST_LOAD"));
+        if (SUPPORTED_POOL_SELECTION_STRATEGIES.contains(normalized)) {
+            return normalized;
+        }
+        log.warn("unsupported_agent_pool_selection_strategy_normalized rawSelectionStrategy={} normalizedSelectionStrategy=LOWEST_LOAD selectionStrategyContract=SUPPORTED_POOL_STRATEGY", strategy);
+        return "LOWEST_LOAD";
+    }
+
     private static String normalizeCode(String value) {
         if (blank(value)) return null;
         return value.trim().replace('-', '_').replace('.', '_').replace(' ', '_').toUpperCase(Locale.ROOT);
@@ -1528,8 +1653,8 @@ public class DispatchFlowManagementService {
     /**
      * Preserve database identities such as agent_pools.pool_id.
      *
-     * Phase 32 introduced Source Flow -> Agent Pool routing, where defaultPoolId
-     * and targetPoolId are foreign-key-like IDs, not business codes. They must not
+     * Source Flow -> Agent Pool routing uses defaultPoolId and targetPoolId
+     * as foreign-key-like IDs, not business codes. They must not
      * be normalized through normalizeCode(), because that converts
      * `pool-...` into `POOL_...` and makes the routing repository unable to find
      * the active pool at assignment time.

@@ -3,7 +3,7 @@ package com.opensocket.aievent.core.api;
 /**
  * Standard error codes for Core HTTP management/business APIs.
  *
- * <p>Stage 8-F0f restores HTTP semantics for error envelopes: clients still receive
+ * <p>The current API contract restores HTTP semantics for error envelopes: clients still receive
  * the stable {@code code/message/data/timestamp} body, but non-OK envelopes must
  * no longer be hidden behind HTTP 200.</p>
  */
@@ -14,6 +14,7 @@ public enum StandardApiErrorCode {
     FORBIDDEN("FORBIDDEN", "Access is forbidden."),
     NOT_FOUND("NOT_FOUND", "Resource not found."),
     CONFLICT("CONFLICT", "Resource conflict."),
+    RESOURCE_VERSION_CONFLICT("RESOURCE_VERSION_CONFLICT", "The resource has been updated by another user."),
     METHOD_NOT_ALLOWED("METHOD_NOT_ALLOWED", "HTTP method is not allowed for this endpoint."),
     INVALID_STATE("INVALID_STATE", "Invalid state."),
     TIMEOUT("TIMEOUT", "Operation timed out."),

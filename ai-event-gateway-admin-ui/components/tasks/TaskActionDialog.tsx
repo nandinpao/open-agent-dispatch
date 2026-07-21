@@ -7,6 +7,7 @@ export interface TaskActionDialogValues {
   reason: string;
   confirmationPhrase?: string;
   targetAgentId?: string;
+  targetPoolId?: string;
 }
 
 
@@ -38,6 +39,7 @@ interface TaskActionDialogProps {
   minimumReasonLength?: number;
   requiredPhrase?: string;
   allowTargetAgent?: boolean;
+  allowTargetPool?: boolean;
   onConfirm: (values: TaskActionDialogValues) => void | Promise<void>;
   onCancel: () => void;
 }
@@ -54,18 +56,21 @@ export function TaskActionDialog({
   minimumReasonLength = 12,
   requiredPhrase,
   allowTargetAgent = false,
+  allowTargetPool = false,
   onConfirm,
   onCancel,
 }: Readonly<TaskActionDialogProps>) {
   const [reason, setReason] = useState('');
   const [confirmationPhrase, setConfirmationPhrase] = useState('');
   const [targetAgentId, setTargetAgentId] = useState('');
+  const [targetPoolId, setTargetPoolId] = useState('');
 
   useEffect(() => {
     if (!open) {
       setReason('');
       setConfirmationPhrase('');
       setTargetAgentId('');
+      setTargetPoolId('');
     }
   }, [open]);
 
@@ -93,6 +98,7 @@ export function TaskActionDialog({
           reason: reason.trim(),
           confirmationPhrase: confirmationPhrase.trim() || undefined,
           targetAgentId: targetAgentId.trim() || undefined,
+          targetPoolId: targetPoolId.trim() || undefined,
         });
       }}
     >
@@ -109,6 +115,18 @@ export function TaskActionDialog({
               value={targetAgentId}
               onChange={(event) => setTargetAgentId(event.target.value)}
               placeholder="留空時由目前 Dispatch Flow 重新選擇"
+              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            />
+          </label>
+        ) : null}
+
+        {allowTargetPool ? (
+          <label className="block text-sm font-semibold text-slate-700">
+            目標工作池 Pool ID（必填）
+            <input
+              value={targetPoolId}
+              onChange={(event) => setTargetPoolId(event.target.value)}
+              placeholder="例如 default-processing-pool"
               className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             />
           </label>

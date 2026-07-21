@@ -23,6 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.opensocket.aievent.core.assignment.TaskAssignmentService;
 import com.opensocket.aievent.core.callback.CallbackInboxService;
 import com.opensocket.aievent.core.dispatch.DispatchAttemptHistoryService;
 import com.opensocket.aievent.core.dispatch.DispatchAttemptLedgerService;
@@ -33,6 +34,7 @@ import com.opensocket.aievent.core.dispatch.ExecutionOperationalQuery;
 import com.opensocket.aievent.core.dispatch.TaskFailureQueueService;
 import com.opensocket.aievent.core.lifecycle.TaskLifecycleService;
 import com.opensocket.aievent.core.task.TaskOperationalQuery;
+import com.opensocket.aievent.core.task.TaskOrchestrationFacade;
 import com.opensocket.aievent.core.task.TaskRecord;
 import com.opensocket.aievent.core.task.TaskStatus;
 import com.opensocket.aievent.core.timeline.AdminFailureQueueResponse;
@@ -42,6 +44,8 @@ import com.opensocket.aievent.core.timeline.DispatchTimelineService;
 class CoreAdminTaskFacadeControllerMockMvcTest {
     private TaskOperationalQuery taskQuery;
     private TaskLifecycleService taskLifecycleService;
+    private TaskOrchestrationFacade taskOrchestrationFacade;
+    private TaskAssignmentService taskAssignmentService;
     private ExecutionOperationalQuery executionQuery;
     private DispatchRequestService dispatchRequestService;
     private DispatchAttemptHistoryService attemptHistoryService;
@@ -55,6 +59,8 @@ class CoreAdminTaskFacadeControllerMockMvcTest {
     void setUp() {
         taskQuery = mock(TaskOperationalQuery.class);
         taskLifecycleService = mock(TaskLifecycleService.class);
+        taskOrchestrationFacade = mock(TaskOrchestrationFacade.class);
+        taskAssignmentService = mock(TaskAssignmentService.class);
         executionQuery = mock(ExecutionOperationalQuery.class);
         dispatchRequestService = mock(DispatchRequestService.class);
         attemptHistoryService = mock(DispatchAttemptHistoryService.class);
@@ -66,6 +72,8 @@ class CoreAdminTaskFacadeControllerMockMvcTest {
                 .standaloneSetup(new CoreAdminTaskFacadeController(
                         taskQuery,
                         taskLifecycleService,
+                        taskOrchestrationFacade,
+                        taskAssignmentService,
                         executionQuery,
                         dispatchRequestService,
                         attemptHistoryService,

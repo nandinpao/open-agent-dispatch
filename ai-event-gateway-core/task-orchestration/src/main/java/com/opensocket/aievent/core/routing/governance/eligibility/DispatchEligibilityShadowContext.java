@@ -10,7 +10,7 @@ import com.opensocket.aievent.core.agent.governance.AgentProfile;
 import com.opensocket.aievent.core.routing.governance.TaskRequirementEvidence;
 import com.opensocket.aievent.core.task.TaskRecord;
 
-/** Fully hydrated input for the Stage 8 direct-dispatch Agent eligibility checks. */
+/** Fully hydrated input for the current direct-dispatch Agent eligibility checks. */
 public class DispatchEligibilityShadowContext {
     private TaskRecord task;
     private TaskRequirementEvidence requirement;

@@ -3,6 +3,7 @@ package com.opensocket.aievent.core.dispatch.flow;
 /** Runtime lookup criteria for Flow-owned Dispatch Rule matching. */
 public class FlowRuleRuntimeQuery {
     private String tenantId;
+    private String flowId;
     private String sourceSystem;
     private String originSourceSystem;
     private String targetSystem;
@@ -14,6 +15,8 @@ public class FlowRuleRuntimeQuery {
 
     public String getTenantId() { return tenantId; }
     public void setTenantId(String tenantId) { this.tenantId = tenantId; }
+    public String getFlowId() { return flowId; }
+    public void setFlowId(String flowId) { this.flowId = flowId; }
     public String getSourceSystem() { return sourceSystem; }
     public void setSourceSystem(String sourceSystem) { this.sourceSystem = sourceSystem; }
     public String getOriginSourceSystem() { return originSourceSystem; }

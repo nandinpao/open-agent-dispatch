@@ -11,7 +11,7 @@ export interface ParsedDispatchUserFacingError {
 }
 
 const technicalMarker = "Technical details:";
-const emptyReason = "No clear dispatch blocking reason has been reported yet.";
+const emptyReason = "目前沒有明確阻擋原因。";
 
 const OPERATOR_REASON_BY_CODE: Record<
   string,
@@ -19,22 +19,22 @@ const OPERATOR_REASON_BY_CODE: Record<
 > = {
   NO_CANDIDATE: {
     message:
-      "No agent matched the effective capabilities and dispatch conditions.",
+      "No eligible Agent was found in the resolved Agent Pool.",
     nextAction:
-      "Check effective capabilities approved in Core, approved Dispatch Flow Agent selection, dispatch rules, runtime connection, and agent capacity.",
+      "Check the matched Source Flow, target Agent Pool, active Pool members, runtime connection, capacity, credential, and backoff state.",
     runbookRef: "runbooks/dispatch/no-matching-agent",
   },
   DISPATCH_ELIGIBILITY_WAITING: {
-    message: "Dispatch eligibility is waiting on one or more required gates.",
+    message: "Dispatch eligibility is waiting on one or more Current routing conditions.",
     nextAction:
-      "Fix the first missing gate: Dispatch Flow Agent selection, dispatch rule, Core capability approval, runtime connection/capacity, or selected agent.",
+      "Fix the first missing condition: Source Flow, target Agent Pool, active Pool member, runtime connection, capacity, credential, or backoff.",
     runbookRef: "runbooks/dispatch/eligibility-waiting",
   },
   SERVICE_SCOPE_PENDING: {
     message:
-      "The selected agent has the capability contract, but its Agent Dispatch Flow Agent assignment is still pending approval.",
+      "This is a legacy service-scope status. Current routing requires an approved Agent that is an active member of the target Agent Pool.",
     nextAction:
-      "Approve the Agent Dispatch Flow Agent assignment, then re-run dispatch readiness or retry assignment.",
+      "Review the Agent management status and target Agent Pool membership, then retry routing.",
     runbookRef: "runbooks/dispatch/service-scope-pending",
   },
   RUNTIME_BINDING_MISSING: {
@@ -67,16 +67,16 @@ const OPERATOR_REASON_BY_CODE: Record<
   },
   RUNTIME_CAPABILITY_MISSING: {
     message:
-      "The dispatch capability was not approved in Core/Admin UI or the Agent lacks an active Dispatch Flow Agent selection.",
+      "This is a legacy capability blocker. Capability is reference-only in Current routing.",
     nextAction:
-      "Approve the effective capabilities in Core/Admin UI and confirm the runtime is connected with capacity. Runtime capability self-reporting is diagnostic only.",
+      "Review the matched Source Flow, target Agent Pool, Pool membership, runtime connection, capacity, credential, and backoff. Capability data remains diagnostic only.",
     runbookRef: "runbooks/dispatch/admin-managed-capability-missing",
   },
   DISPATCH_RULE_MISSING: {
     message:
-      "The agent has Dispatch Flow Agent selection, but no active dispatch rule grants this task.",
+      "No active Source Flow rule or Default Agent Pool resolved this task.",
     nextAction:
-      "Apply or activate a dispatch rule for the active Agent Dispatch Flow Agent assignment.",
+      "Activate the Source Flow and configure either a matching rule target Pool or a Default Agent Pool.",
     runbookRef: "runbooks/dispatch/dispatch-rule-missing",
   },
   ASSIGNMENT_NOT_CREATED: {
@@ -95,9 +95,9 @@ const OPERATOR_REASON_BY_CODE: Record<
   },
   EFFECTIVE_CAPABILITY_NOT_RESOLVED: {
     message:
-      "The raw task requirement was not converted into effective dispatch capabilities.",
+      "The task could not be resolved to the Current Source Flow and Agent Pool model.",
     nextAction:
-      "Fix the task definition or dispatch contract mapping before retrying assignment.",
+      "Fix sourceSystem, Source Flow, rule/default Pool configuration, then retry routing.",
     runbookRef: "runbooks/dispatch/effective-capability-contract",
   },
 };

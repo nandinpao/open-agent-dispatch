@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { coreAdminApi } from '@/lib/api/coreAdminApi';
+import { ApiError } from '@/lib/api/client';
 import type {
   CoreAgentCapabilityCatalog,
   CoreAgentPoolView,
@@ -36,6 +37,9 @@ type FlowEditorState = {
   targetPoolId: string;
   agentIds: string[];
   capabilityCodes: string[];
+  version?: number;
+  updatedAt?: string;
+  updatedBy?: string;
 };
 
 const inputClass = 'mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-100';
@@ -72,6 +76,43 @@ function requiredCapabilityName(capability: CoreDispatchFlowRequiredCapabilityVi
   return capability.capabilityName ?? capability.skillName ?? requiredCapabilityCode(capability);
 }
 
+function asRequiredSkill(capability: CoreDispatchFlowRequiredCapabilityView, tenantId: string, flowId: string): CoreDispatchFlowRequiredCapabilityView {
+  const capabilityCode = capability.capabilityCode ?? capability.skillCode;
+  const capabilityName = capability.capabilityName ?? capability.skillName;
+  const capabilityKind = capability.capabilityKind ?? capability.skillKind;
+  const openClawCapability = capability.openClawCapability ?? capability.openClawSkill;
+  return {
+    ...capability,
+    tenantId: capability.tenantId ?? tenantId,
+    flowId: capability.flowId ?? flowId,
+    capabilityCode,
+    capabilityName,
+    capabilityKind,
+    openClawCapability,
+    skillCode: capability.skillCode ?? capabilityCode,
+    skillName: capability.skillName ?? capabilityName,
+    skillKind: capability.skillKind ?? capabilityKind,
+    openClawSkill: capability.openClawSkill ?? openClawCapability,
+  };
+}
+
+function preservedLegacyRequiredSkills(flow: CoreDispatchFlowView | undefined | null, tenantId: string, flowId: string): CoreDispatchFlowRequiredCapabilityView[] {
+  const legacyRows = (flow?.requiredSkills?.length ? flow.requiredSkills : flow?.requiredCapabilities) ?? [];
+  return legacyRows.map((capability) => asRequiredSkill(capability, tenantId, flowId));
+}
+
+function preservedLegacyAgents(flow: CoreDispatchFlowView | undefined | null, tenantId: string, flowId: string): CoreDispatchFlowAgentView[] {
+  return (flow?.agents ?? []).map((agent) => ({
+    ...agent,
+    tenantId: agent.tenantId ?? tenantId,
+    flowId: agent.flowId ?? flowId,
+  }));
+}
+
+function hasLegacyRoutingReference(flow?: CoreDispatchFlowView | null): boolean {
+  return requiredCapabilities(flow).length > 0 || (flow?.agents?.length ?? 0) > 0;
+}
+
 function isActiveStatus(status?: string | null): boolean {
   const normalized = String(status ?? '').trim().toUpperCase();
   return normalized === 'ACTIVE' || normalized === 'ENABLED';
@@ -105,6 +146,9 @@ function editorFromFlow(flow?: CoreDispatchFlowView | null, preferredAgentId?: s
     targetPoolId: rule?.targetPoolId ?? flow?.defaultPoolId ?? '',
     agentIds: unique([...(flow?.agents ?? []).map((agent) => agent.agentId), preferredAgentId]),
     capabilityCodes: unique(requiredCapabilities(flow).filter((capability) => capability.required !== false).map(requiredCapabilityCode)),
+    version: flow?.version,
+    updatedAt: flow?.updatedAt,
+    updatedBy: flow?.updatedBy,
   };
 }
 
@@ -146,6 +190,7 @@ function FlowListItem({ flow, active, onSelect }: Readonly<{ flow: CoreDispatchF
         <span className="rounded-full bg-slate-100 px-2 py-1">事件條件 {flow.rules?.length ?? flow.externalRuleCount ?? 0}</span>
         <span className="rounded-full bg-slate-100 px-2 py-1">Default Pool {flow.defaultPoolId ? '1' : '0'}</span>
         <span className="rounded-full bg-slate-100 px-2 py-1">能力標籤參考 {requiredCapabilities(flow).length || flow.capabilityCount || flow.skillCount || 0}</span>
+        <span className="rounded-full bg-slate-100 px-2 py-1">v{flow.version ?? '-'}</span>
       </div>
     </button>
   );
@@ -170,7 +215,7 @@ function FlowDetail({
     return (
       <EmptyState
         title="尚未選擇派工流程"
-        description="從左側選擇既有 Source Flow，或建立第一個派工流程。Phase 32-G 標準操作只設定來源系統、預設 Pool 與已知事件 Pool override；Capability 僅作能力標籤參考。"
+        description="從左側選擇既有 Source Flow，或建立第一個派工流程。標準操作只設定來源系統、預設 Pool 與已知事件 Pool override；Capability 僅作能力標籤參考。"
         action={<Button tone="primary" onClick={onCreate}>建立派工流程</Button>}
       />
     );
@@ -201,7 +246,7 @@ function FlowDetail({
         </div>
         {complex ? (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            這個流程包含多個事件階段。Stage 5 新手表單不會覆寫進階規則，因此目前只提供檢視，避免儲存時破壞既有流程。
+            這個流程包含多個事件階段。標準新手表單不會覆寫進階規則，因此目前只提供檢視，避免儲存時破壞既有流程。
           </div>
         ) : null}
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -276,9 +321,37 @@ function FlowDetail({
         <h3 className="mt-1 text-lg font-black">僅供查詢，不阻擋派單</h3>
         <div className="mt-4 flex flex-wrap gap-2">
           {requiredCapabilities(flow).map((capability) => <span key={capability.id ?? `${capability.ruleId}-${requiredCapabilityCode(capability)}`} className="rounded-full bg-blue-50 px-3 py-1.5 text-sm font-black text-blue-800">{requiredCapabilityName(capability)}</span>)}
-          {!requiredCapabilities(flow).length ? <span className="text-sm text-slate-500">Phase 32-A 標準流程不要求 Capability；派單由 Source Flow / Agent Pool 模型承接。</span> : null}
+          {!requiredCapabilities(flow).length ? <span className="text-sm text-slate-500">標準流程不要求 Capability；派單由 Source Flow / Agent Pool 模型承接。</span> : null}
         </div>
       </section>
+
+      {hasLegacyRoutingReference(flow) ? (
+        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="text-xs font-black uppercase tracking-wide text-amber-700">Legacy Routing Reference</div>
+          <h3 className="mt-1 text-lg font-black text-amber-950">已保留的舊版設定（只讀）</h3>
+          <p className="mt-2 text-sm leading-6 text-amber-900">
+            標準 Source Flow / Agent Pool 模型不使用這些欄位做第一版派單 gate；儲存流程時會保留它們，避免一般編輯動作默默刪除歷史設定。正式轉換會在後續 Legacy migration 階段處理。
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-amber-200 bg-white/70 p-4">
+              <div className="text-xs font-black text-amber-700">Required Capabilities / Skills</div>
+              <div className="mt-1 text-2xl font-black text-amber-950">{requiredCapabilities(flow).length}</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {requiredCapabilities(flow).slice(0, 8).map((capability) => <span key={capability.id ?? `${capability.ruleId}-${requiredCapabilityCode(capability)}`} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900">{requiredCapabilityCode(capability)}</span>)}
+                {requiredCapabilities(flow).length > 8 ? <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900">+{requiredCapabilities(flow).length - 8}</span> : null}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-white/70 p-4">
+              <div className="text-xs font-black text-amber-700">Direct Flow Agents</div>
+              <div className="mt-1 text-2xl font-black text-amber-950">{flow.agents?.length ?? 0}</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(flow.agents ?? []).slice(0, 8).map((agent) => <span key={agent.id ?? agent.agentId} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900">{agent.agentName ?? agent.agentId}</span>)}
+                {(flow.agents?.length ?? 0) > 8 ? <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900">+{(flow.agents?.length ?? 0) - 8}</span> : null}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -322,7 +395,8 @@ function FlowEditorDialog({
           <div>
             <div className="text-xs font-black uppercase tracking-wide text-purple-700">Dispatch Flow Setup</div>
             <h2 className="mt-1 text-xl font-black text-slate-950">{editor.flowId ? '編輯派工流程' : '建立派工流程'}</h2>
-            <p className="mt-1 text-sm text-slate-600">Phase 32-G 只設定來源系統、預設 Agent Pool 與已知事件 Pool override。Capability 是 Agent 能力標籤與後台查詢參考，不是第一版派單 gate。</p>
+            {editor.version ? <div className="mt-1 text-xs font-bold text-slate-500">版本 {editor.version} · 最後更新 {editor.updatedAt ?? '-'}{editor.updatedBy ? ` · ${editor.updatedBy}` : ''}</div> : null}
+            <p className="mt-1 text-sm text-slate-600">標準派工流程只設定來源系統、預設 Agent Pool 與已知事件 Pool override。Capability 是 Agent 能力標籤與後台查詢參考，不是第一版派單 gate。</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-black text-slate-600 hover:bg-slate-50" aria-label="關閉">×</button>
         </div>
@@ -358,9 +432,9 @@ function FlowEditorDialog({
                 來源系統必須先在「來源系統」頁建立；建立 Flow 不會偷偷建立來源主檔。
                 <Link href="/source-systems" className="ml-1 font-black text-blue-700 hover:underline">前往新增來源</Link>
               </div>
-              <label className={labelClass}>物件類型<input list="stage5-object-types" className={inputClass} value={editor.objectType} onChange={(event) => onChange({ objectType: normalizeCode(event.target.value) || '*' })} placeholder="選擇既有值或輸入新值" /><datalist id="stage5-object-types">{objectTypes.map((value) => <option key={value} value={value} />)}</datalist></label>
-              <label className={labelClass}>事件類型<span className="text-slate-400">（選填；空白會進預設 Pool）</span><input list="stage5-event-types" className={inputClass} value={editor.eventType} onChange={(event) => onChange({ eventType: normalizeCode(event.target.value) })} placeholder="空白代表 UNKNOWN / 未分類" /><datalist id="stage5-event-types">{eventTypes.map((value) => <option key={value} value={value} />)}</datalist></label>
-              <label className={labelClass}>錯誤代碼（選填）<input list="stage5-error-codes" className={inputClass} value={editor.errorCode === '*' ? '' : editor.errorCode} onChange={(event) => onChange({ errorCode: normalizeCode(event.target.value) || '*' })} placeholder="全部或指定代碼" /><datalist id="stage5-error-codes">{errorCodes.map((value) => <option key={value} value={value} />)}</datalist></label>
+              <label className={labelClass}>物件類型<input list="dispatch-object-types" className={inputClass} value={editor.objectType} onChange={(event) => onChange({ objectType: normalizeCode(event.target.value) || '*' })} placeholder="選擇既有值或輸入新值" /><datalist id="dispatch-object-types">{objectTypes.map((value) => <option key={value} value={value} />)}</datalist></label>
+              <label className={labelClass}>事件類型<span className="text-slate-400">（選填；空白會進預設 Pool）</span><input list="dispatch-event-types" className={inputClass} value={editor.eventType} onChange={(event) => onChange({ eventType: normalizeCode(event.target.value) })} placeholder="空白代表 UNKNOWN / 未分類" /><datalist id="dispatch-event-types">{eventTypes.map((value) => <option key={value} value={value} />)}</datalist></label>
+              <label className={labelClass}>錯誤代碼（選填）<input list="dispatch-error-codes" className={inputClass} value={editor.errorCode === '*' ? '' : editor.errorCode} onChange={(event) => onChange({ errorCode: normalizeCode(event.target.value) || '*' })} placeholder="全部或指定代碼" /><datalist id="dispatch-error-codes">{errorCodes.map((value) => <option key={value} value={value} />)}</datalist></label>
               <label className={labelClass}>嚴重度<select className={inputClass} value={editor.severity} onChange={(event) => onChange({ severity: event.target.value })}><option value="ANY">全部</option><option value="LOW">低</option><option value="MEDIUM">中</option><option value="HIGH">高</option><option value="CRITICAL">重大</option></select></label>
             </div>
           </section>
@@ -391,7 +465,7 @@ function FlowEditorDialog({
           <section className="rounded-3xl border border-slate-200 bg-white p-5">
             <div className="text-xs font-black uppercase tracking-wide text-slate-500">4. 能力標籤參考</div>
             <h3 className="mt-1 text-lg font-black">Capability 不作為第一版派單 gate</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Phase 32-G 將 Capability 固定為 Agent 能力標籤、查詢與未來治理參考。標準派單先由 Source Flow 決定目標 Agent Pool，再由 Pool 選 Agent；本表單不建立必要能力條件。</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Capability 固定為 Agent 能力標籤、查詢與未來治理參考。標準派單先由 Source Flow 決定目標 Agent Pool，再由 Pool 選 Agent；本表單不建立必要能力條件。</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {capabilities.map((capability) => (
                 <div key={capability.capabilityCode} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -412,6 +486,13 @@ function FlowEditorDialog({
       </div>
     </div>
   );
+}
+
+function optimisticConflictMessage(caught: unknown): string | null {
+  if (caught instanceof ApiError && (caught.code === 'RESOURCE_VERSION_CONFLICT' || caught.status === 409)) {
+    return '此派工流程已被其他管理員更新。請重新載入後比較差異，確認後再儲存。';
+  }
+  return null;
 }
 
 export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ initialQuery?: InitialContractQuery }> = {}) {
@@ -596,7 +677,7 @@ export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ init
       const condition = { ...(existingRule?.condition ?? {}) } as Record<string, unknown>;
       if (editor.severity === 'ANY') delete condition.severity;
       else condition.severity = editor.severity;
-      condition.phase32gAgentPoolFirst = true;
+      condition.routingModel = 'AGENT_POOL_FIRST';
 
       const beginnerRule: CoreDispatchFlowRuleView = {
         ...existingRule,
@@ -626,10 +707,11 @@ export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ init
         enabled: editor.status === 'ACTIVE',
       };
       const otherRules = (base?.rules ?? []).filter((rule) => rule.ruleId !== existingRule?.ruleId);
-      // Phase 32-G: Source Flow points to Agent Pool. Direct Flow Agent selections are legacy compatibility only.
-      // The standard setting UI does not require direct Agent selection and does not create Capability gates.
-      const selectedRequiredCapabilities: CoreDispatchFlowRequiredCapabilityView[] = [];
-      const selectedAgents: CoreDispatchFlowAgentView[] = [];
+      // Source Flow points to Agent Pool. Direct Flow Agent selections and required capabilities are
+      // legacy compatibility references only. The standard editor must preserve them but not create
+      // new gates or silently delete existing child rows.
+      const legacyRequiredSkills = preservedLegacyRequiredSkills(base, tenantId, flowId);
+      const legacyAgents = preservedLegacyAgents(base, tenantId, flowId);
 
       const payload: CoreDispatchFlowView = {
         ...(base ?? {}),
@@ -638,6 +720,9 @@ export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ init
         flowCode,
         flowName: editor.flowName.trim(),
         description: editor.description.trim(),
+        version: editor.version,
+        updatedAt: editor.updatedAt,
+        updatedBy: editor.updatedBy,
         sourceSystem,
         status: editor.status,
         flowType: 'SOURCE_FLOW',
@@ -645,16 +730,16 @@ export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ init
         defaultCandidatePoolMode: 'SOURCE_SYSTEM_POOL',
         defaultRoutingStrategy: 'LOWEST_LOAD',
         rules: [beginnerRule, ...otherRules],
-        requiredCapabilities: selectedRequiredCapabilities,
-        requiredSkills: selectedRequiredCapabilities.map((capability: CoreDispatchFlowRequiredCapabilityView) => ({
-          ...capability,
-          skillCode: capability.capabilityCode ?? capability.skillCode,
-          skillName: capability.capabilityName ?? capability.skillName,
-          skillKind: capability.capabilityKind ?? capability.skillKind,
-          openClawSkill: capability.openClawCapability ?? capability.openClawSkill,
-        })),
-        agents: selectedAgents,
-        metadata: { ...(base?.metadata ?? {}), phase32gAgentPoolFirst: true, phase32aCapabilityReferenceOnly: true, standardEntry: 'SOURCE_FLOW_AGENT_POOL' },
+        requiredCapabilities: legacyRequiredSkills,
+        requiredSkills: legacyRequiredSkills,
+        agents: legacyAgents,
+        metadata: {
+          ...(base?.metadata ?? {}),
+          routingModel: 'AGENT_POOL_FIRST',
+          capabilityReferenceOnly: true,
+          standardEntry: 'SOURCE_FLOW_AGENT_POOL',
+          legacyChildrenPreserved: true,
+        },
       };
 
       const saved = editor.flowId
@@ -667,7 +752,14 @@ export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ init
       await selectFlow(saved.flowId);
     } catch (caught) {
       console.error('Failed to save Dispatch Flow', caught);
-      setError(caught instanceof Error ? caught.message : '儲存派工流程失敗。');
+      const conflict = optimisticConflictMessage(caught);
+      if (conflict) {
+        setError(conflict);
+        await reload();
+        if (editor.flowId) await selectFlow(editor.flowId);
+      } else {
+        setError(caught instanceof Error ? caught.message : '儲存派工流程失敗。');
+      }
     } finally {
       setBusy(false);
     }
@@ -678,11 +770,25 @@ export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ init
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="text-xs font-black uppercase tracking-wide text-purple-700">Dispatch Flows</div>
-            <h1 className="mt-1 text-2xl font-black text-slate-950">派工流程</h1>
-            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">唯一的派工設定入口。Phase 32-A 開始收斂為 Source Flow / Agent Pool 模型：Flow 是派單流程，Capability 只是 Agent 能力標籤與後台查詢參考，不作為第一版 routing gate。</p>
+            <div className="text-xs font-black uppercase tracking-wide text-purple-700">Dispatch Setup</div>
+            <h1 className="mt-1 text-2xl font-black text-slate-950">派工設定</h1>
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">唯一的 Current setup 入口。請依序完成：來源系統 → Source Flow → Agent Pool → Pool Member Agent。Capability 只是 Agent 能力標籤與後台查詢參考，不作為第一版 routing gate。</p>
           </div>
-          <Button tone="primary" onClick={() => openCreate(queryValue(initialQuery, 'agentId'))} disabled={!tenantId.trim()}>建立派工流程</Button>
+          <Button tone="primary" onClick={() => openCreate(queryValue(initialQuery, 'agentId'))} disabled={!tenantId.trim()}>建立 Source Flow</Button>
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-4">
+          {[
+            ['1', '來源系統', '事件從哪個企業系統進來。'],
+            ['2', 'Source Flow', '每個來源至少一條預設派工流程。'],
+            ['3', 'Agent Pool', 'Flow 指到預設 Pool，Rule 可覆蓋到其他 Pool。'],
+            ['4', 'Pool Member Agent', 'Agent 加入 Pool 後才成為可選候選。'],
+          ].map(([step, title, description]) => (
+            <div key={step} className="rounded-2xl border border-purple-100 bg-purple-50 p-4">
+              <div className="text-xs font-black text-purple-700">Current setup step {step}</div>
+              <div className="mt-1 text-sm font-black text-slate-950">{title}</div>
+              <div className="mt-1 text-xs leading-5 text-slate-600">{description}</div>
+            </div>
+          ))}
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs font-black text-slate-500">全部流程</div><div className="mt-1 text-2xl font-black">{flows.length}</div></div>
@@ -693,14 +799,14 @@ export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ init
 
       {message ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">{message}</div> : null}
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-900">{error}</div> : null}
-      {!tenantId.trim() ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">請先從上方選擇 Workspace，系統才會載入該企業的來源、Agent、能力標籤參考與派工流程。</div> : null}
+      {!tenantId.trim() ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">請先從上方選擇 Workspace，系統才會載入該企業的來源、Agent Pool、Pool Member Agent、能力標籤參考與派工設定。</div> : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(280px,0.8fr)_minmax(0,2fr)]">
         <aside className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3 px-1 pb-3"><h2 className="font-black text-slate-950">流程清單</h2><Button size="xs" onClick={() => void reload()} disabled={loading}>{loading ? '載入中' : '重新整理'}</Button></div>
+          <div className="flex items-center justify-between gap-3 px-1 pb-3"><h2 className="font-black text-slate-950">Source Flow 清單</h2><Button size="xs" onClick={() => void reload()} disabled={loading}>{loading ? '載入中' : '重新整理'}</Button></div>
           <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
             {flows.map((flow) => <FlowListItem key={flow.flowId} flow={flow} active={selectedFlow?.flowId === flow.flowId} onSelect={() => void selectFlow(flow.flowId)} />)}
-            {!flows.length && !loading ? <EmptyState title="尚無派工流程" description="建立第一個來源中立的派工流程。" compact /> : null}
+            {!flows.length && !loading ? <EmptyState title="尚無 Source Flow" description="建立第一個來源系統的預設 Flow，並指向 Agent Pool。" compact /> : null}
           </div>
         </aside>
         <section>
@@ -734,4 +840,4 @@ export function DispatchContractBuilderConsole({ initialQuery }: Readonly<{ init
   );
 }
 
-// Historical phase verifiers inspect source tokens only. These markers are not rendered and do not define the active product workflow.
+// Historical verifiers inspect source tokens only. These markers are not rendered and do not define the active product workflow.

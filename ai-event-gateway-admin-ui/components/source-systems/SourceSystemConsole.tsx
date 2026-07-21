@@ -121,7 +121,7 @@ function SourceSystemEditor({
             <textarea className={`${inputClass} min-h-28`} value={editor.description ?? ''} onChange={(event) => onChange({ description: event.target.value })} placeholder="說明此來源代表哪個事件入口。不要填派工角色、能力或 Agent 覆蓋規則。" />
           </label>
           <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
-            建立來源後，請到「派工流程」選擇此來源並設定事件條件與處理 Agent。建立來源本身不會自動派工。
+            建立來源後，請到「派工設定」建立 Source Flow，選擇預設 Agent Pool，再把 Agent 加入 Pool。建立來源本身不會自動派工。
           </div>
         </div>
         <div className="flex justify-end gap-2 rounded-b-3xl border-t border-slate-200 bg-slate-50 px-6 py-4">
@@ -259,7 +259,7 @@ export function SourceSystemConsole() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-lg font-black text-slate-950">企業來源主檔</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">這裡只維護來源主檔。派工條件、處理 Agent 與特殊能力請到「派工流程」設定。</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">這裡只維護來源主檔。派工條件、預設 Agent Pool、Rule override 與 Pool Member Agent 請到「派工設定」設定。</p>
           </div>
           <Button size="sm" onClick={openCreate}>新增來源</Button>
         </div>
@@ -267,7 +267,7 @@ export function SourceSystemConsole() {
         {loading ? <div className="mt-5"><LoadingBox label="載入來源系統..." /></div> : null}
         {!loading && !rows.length ? (
           <div className="mt-5">
-            <EmptyState title="尚無來源系統" description="請先建立第一個企業來源，再到派工流程選擇它並設定事件條件與 Agent。" />
+            <EmptyState title="尚無來源系統" description="請先建立第一個企業來源，再到派工設定建立 Source Flow、選擇 Agent Pool 並加入 Pool Member Agent。" />
           </div>
         ) : null}
 

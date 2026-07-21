@@ -175,7 +175,7 @@ export function deriveRuntimeDiagnostics(input: {
   }
 
   if (!input.runtimeCapabilityProfile && (input.runtimeCapabilityItems ?? []).length === 0) {
-    issues.push({ severity: 'WARN', code: 'NO_REPORTED_CAPABILITY_PROFILE', message: 'Core 尚未取得 Agent runtime capability profile；advanced policy diagnostics 資料不足，實際派工仍需檢查 Dispatch Flow / Flow Agent approval。' });
+    issues.push({ severity: 'WARN', code: 'NO_REPORTED_CAPABILITY_PROFILE', message: 'Core 尚未取得 Agent runtime capability profile；Capability 診斷資料不足，但實際派工仍以 Source Flow、Agent Pool、Pool Member Agent 與 Runtime Eligibility 為準。' });
   }
 
   const missingApproved = difference(approvedCapabilityCodes, reportedValues);
@@ -185,7 +185,7 @@ export function deriveRuntimeDiagnostics(input: {
 
   const disabledButReported = intersection(disabledCapabilityCodes, reportedValues);
   if (disabledButReported.length > 0) {
-    issues.push({ severity: 'ERROR', code: 'DISABLED_CAPABILITY_REPORTED', message: `Core 已停用但 runtime 仍回報：${disabledButReported.join(', ')}` });
+    issues.push({ severity: 'INFO', code: 'DISABLED_CAPABILITY_REPORTED', message: `Core 已停用但 runtime 仍回報以下 Capability 標籤（僅診斷，不阻擋 Current 派工）：${disabledButReported.join(', ')}` });
   }
 
   if (approvedTaskTypes.length > 0) {

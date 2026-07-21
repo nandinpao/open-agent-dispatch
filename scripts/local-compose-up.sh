@@ -125,6 +125,13 @@ if ! docker compose -p "${PROJECT_NAME}" "${args[@]}"; then
     echo "========== core-db-migrate/postgres diagnostics ==========" >&2
     tail -n 240 "${CI_OUTPUT_DIR}/logs/core-db-migrate-failure.log" >&2 || true
     echo "=========================================================" >&2
+    if grep -q "Migration checksum mismatch" "${CI_OUTPUT_DIR}/logs/core-db-migrate-failure.log"; then
+      echo "" >&2
+      echo "[ERROR] Flyway detected an applied migration whose file content changed." >&2
+      echo "[ERROR] Do not run Flyway repair unless a schema-history-only update was explicitly reviewed and approved." >&2
+      echo "[ACTION] For this disposable local development database, run: make cd-local-reset-db" >&2
+      echo "[ACTION] Equivalent two-step command: make reset-local-db && make cd-local" >&2
+    fi
   fi
   fail "local compose startup failed; inspect the migration diagnostics above"
 fi

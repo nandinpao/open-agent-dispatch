@@ -6,7 +6,7 @@ function buildSuggestion(task: GatewayTaskDetail): string {
   if (!task.failureReason) return '目前沒有失敗原因；先檢查 trace timeline 是否停在 routing、assignment 或 agent processing。';
   const reason = task.failureReason.toLowerCase();
   if (reason.includes('timeout')) return '建議先檢查 Agent heartbeat、平均延遲、MCP/tool-call timeout 設定，再決定是否 retry。';
-  if (reason.includes('capability')) return '建議檢查 Agent capability registry 是否包含此 action，或調整 routing rule。';
+  if (reason.includes('capability')) return 'Capability 目前是 reference-only / diagnostic-only 線索；請先檢查 Current Source Flow / Agent Pool 設定、Pool membership 與 Runtime eligibility，再用 capability registry 輔助追查。';
   if (reason.includes('disconnect')) return '建議先確認 Agent 是否自動重連成功，再執行 retry，避免再次指派到離線節點。';
   return '建議先查看 Task Logs 與 request payload，確認是否為資料格式、權限或 Agent runtime 錯誤。';
 }
@@ -35,6 +35,10 @@ export function FailureAnalysisPanel({ task }: Readonly<{ task: GatewayTaskDetai
           <div className="text-xs font-semibold text-slate-400">Agent</div>
           <div className="mt-1 break-all text-sm font-bold text-slate-800">{task.assignedAgentId ?? '-'}</div>
         </div>
+      </div>
+      <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
+        <div className="text-xs font-black uppercase tracking-wide text-indigo-700">Diagnostic-only legacy fields</div>
+        <p className="mt-1 leading-6">Capability-related failure text is retained as troubleshooting evidence. Current routing setup should be checked through Source Flow, Agent Pool, Pool membership and runtime eligibility first.</p>
       </div>
       <div className="mt-4 rounded-xl bg-white p-4">
         <div className="text-xs font-semibold text-slate-400">Failure Reason</div>

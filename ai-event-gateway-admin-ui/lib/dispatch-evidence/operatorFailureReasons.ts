@@ -204,11 +204,11 @@ export function normalizeOperatorDispatchFailureReason(
   ) {
     return {
       code: "NO_MATCHING_AGENT",
-      title: "No Flow-selected Agent matched the required capabilities",
+      title: "No eligible Agent was found in the resolved Agent Pool",
       message:
-        "Core resolved required capabilities from the Dispatch Flow, but no Flow-selected online and eligible Agent matched them.",
+        "Core resolved a Source Flow and Agent Pool, but no active Pool member passed Runtime Eligibility.",
       nextAction:
-        "Check Dispatch Flow Agent selection, optional required capability approval, runtime connection, and capacity for candidate Agents.",
+        "Check the target Agent Pool, active members, runtime connection, capacity, credential, and backoff for candidate Agents.",
       tone: "danger",
       technicalCodes: unique([...technicalCodes, "NO_CANDIDATE"]),
       actions: [
@@ -216,12 +216,12 @@ export function normalizeOperatorDispatchFailureReason(
           label: "Open agents",
           href: "/agents",
           description:
-            "Find candidates and compare Core approval, runtime report, and dispatch usable status.",
+            "Find Pool members and compare approval, runtime, capacity, credential, and backoff status.",
         },
         {
           label: "Open Dispatch Flows",
           href: dispatchFlowsHref(),
-          description: "Review Flow Agent selection and optional required capabilities.",
+          description: "Review Source Flow, rule/default Pool, and Pool membership.",
         },
       ],
     };

@@ -117,7 +117,7 @@ export function buildDispatchOperatorActions(
           label: "Open Dispatch Flows",
           href: "/dispatch-flows",
           tone: "primary",
-          description: "Preview effective capabilities and candidate blockers.",
+          description: "Review the matched Source Flow, target Agent Pool, Pool members, and candidate blockers.",
         },
         {
           id: "open-agents",
@@ -125,7 +125,7 @@ export function buildDispatchOperatorActions(
           href: "/agents",
           tone: "secondary",
           description:
-            "Compare Core approval, runtime report, Dispatch Flow Agent selection, and capacity.",
+            "Compare Agent approval, Pool membership, runtime connection, capacity, credential, and backoff.",
         },
       );
       break;
@@ -179,11 +179,11 @@ export function buildDispatchOperatorActions(
       actions.push(
         {
           id: "open-dispatch-flows",
-          label: "Create / Fix Dispatch Flow Rule",
+          label: "開啟派工設定",
           href: "/dispatch-flows",
           tone: "primary",
           description:
-            "建立或啟用 matched Dispatch Flow 的 Flow-owned Rule。",
+            "建立或啟用符合事件條件的 Source Flow，並確認預設或規則目標 Agent Pool。",
         },
         {
           id: "open-flow-agents",
@@ -260,10 +260,10 @@ export function buildDispatchOperatorActions(
       actions.push(
         {
           id: "open-dispatch-flows",
-          label: "Create / Fix Dispatch Flow Rule",
+          label: "開啟派工設定",
           href: "/dispatch-flows",
           tone: "primary",
-          description: "建立或修復 Flow-owned Rule，讓 task 產生 matchedFlowId / matchedRuleId / routingPath=FLOW_RULE。",
+          description: "建立或修復 Source Flow，並確認預設或規則目標 Agent Pool。",
         },
         {
           id: "open-task-detail",
@@ -278,10 +278,10 @@ export function buildDispatchOperatorActions(
       actions.push(
         {
           id: "open-flow-capabilities",
-          label: "Configure Optional Capability",
+          label: "Review Current Dispatch Setup",
           href: "/dispatch-flows?panel=capabilities",
           tone: "primary",
-          description: "若此 Flow 需要特殊能力，請在「特殊能力（選填）」設定 Required Capability；一般派工保持空白。",
+          description: "此為舊 Capability blocker；Current 派工請確認 Source Flow、目標 Agent Pool、Pool Member Agent 與 Runtime Eligibility。",
         },
       );
       break;
@@ -289,28 +289,28 @@ export function buildDispatchOperatorActions(
       actions.push(
         {
           id: "open-flow-agents",
-          label: "Assign Agent on Flow",
+          label: "Configure Agent Pool Members",
           href: "/dispatch-flows?panel=agents",
           tone: "primary",
-          description: "在 matched Dispatch Flow 指派並核准至少一個 Agent。",
+          description: "在 matched Source Flow 的目標 Agent Pool 加入至少一個啟用中的 Agent。",
         },
       );
       break;
     case "AGENT_REQUIRED_CAPABILITY_MISSING":
       actions.push(
         {
-          id: "assign-required-capability",
-          label: "Assign Required Capability",
-          href: "/dispatch-flows?panel=agents&focus=required-capability",
+          id: "review-current-pool-members",
+          label: "Review Agent Pool Members",
+          href: "/dispatch-flows?panel=pools",
           tone: "primary",
-          description: "將 Required Capability 指派給已選 Agent，並完成 approve。",
+          description: "此為舊 Capability blocker；請確認目標 Agent Pool 有啟用中的成員。",
         },
         {
           id: "open-agent",
           label: context.agentId ? "Open Agent" : "Open Agents",
           href: agentLink(context.agentId),
           tone: "secondary",
-          description: "檢查 Agent 的 approved Capability assignment。",
+          description: "檢查 Agent 管理狀態、所屬工作池與 Runtime Eligibility。",
         },
       );
       break;
@@ -321,7 +321,7 @@ export function buildDispatchOperatorActions(
           label: "Open Dispatch Flows",
           href: "/dispatch-flows",
           tone: "primary",
-          description: "正式派工以 Flow-owned Rule / optional Required Capability / Agent assignment 為準。",
+          description: "正式派工以 Source Flow、Rule override／Default Agent Pool 與 Pool Member Agent 為準。",
         },
         {
           id: "open-flow-dry-run",
@@ -337,19 +337,19 @@ export function buildDispatchOperatorActions(
     case "DISPATCH_AGENT_CAPABILITY_REVOKED":
       actions.push(
         {
-          id: "open-capabilities",
-          label: "Assign Required Capability",
-          href: "/dispatch-flows?panel=agents&focus=required-capability",
+          id: "review-current-dispatch-setup",
+          label: "Review Current Dispatch Setup",
+          href: "/dispatch-flows",
           tone: "primary",
           description:
-            "確認 Flow Agent 是否取得 Required Capability。",
+            "Capability 只作參考；請確認 Source Flow、Agent Pool、Pool Member Agent 與 Runtime Eligibility。",
         },
         {
           id: "open-agent-capabilities",
-          label: context.agentId ? "Open Agent Capabilities" : "Open Agents",
+          label: context.agentId ? "Open Agent Detail" : "Open Agents",
           href: agentLink(context.agentId),
           tone: "secondary",
-          description: "核准或重新指派 Agent Required Capability。",
+          description: "檢查 Agent 管理狀態、工作池 membership 與 Runtime。",
         },
       );
       break;
@@ -377,19 +377,19 @@ export function buildDispatchOperatorActions(
     case "DISPATCH_AGENT_PROFILE_MISSING":
       actions.push(
         {
-          id: "open-agent-Flow Agent approval",
-          label: "Open Flow Agent Assignment",
+          id: "open-agent-management",
+          label: "Open Agent Detail",
           href: agentLink(context.agentId),
           tone: "primary",
           description:
-            "檢查 Flow Agent assignment、approval 與 optional Required Capability。",
+            "檢查 Agent 是否存在、已核准、enabled，且 Credential 與 Runtime 狀態正常。",
         },
         {
           id: "open-dispatch-flows",
           label: "Open Dispatch Flows",
           href: "/dispatch-flows?panel=agents",
           tone: "secondary",
-          description: "確認 Agent 是否在 matched Dispatch Flow 內被指派與核准。",
+          description: "確認 Agent 是否已加入 matched Source Flow 的目標 Agent Pool。",
         },
       );
       break;

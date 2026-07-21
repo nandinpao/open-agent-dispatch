@@ -19,7 +19,7 @@ import com.opensocket.aievent.core.routing.governance.TaskRequirementEvidence;
 import com.opensocket.aievent.core.task.TaskRecord;
 
 /**
- * Stage 8 direct-dispatch Agent eligibility evaluator.
+ * Current direct-dispatch Agent eligibility evaluator.
  *
  * The standard path is intentionally small: required Capability only when the
  * Flow Rule asks for it, Agent profile/credential approval, runtime readiness,

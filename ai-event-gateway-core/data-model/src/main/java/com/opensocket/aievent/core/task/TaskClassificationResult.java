@@ -2,9 +2,21 @@ package com.opensocket.aievent.core.task;
 
 import com.opensocket.aievent.core.assignment.AssignmentDecisionResult;
 
-/** Result of applying a Phase 32-E TRIAGE classification result. */
+/** Result of applying an A2A TRIAGE classification result. */
 public record TaskClassificationResult(
         String parentTaskId,
+        String rootTaskId,
+        String correlationId,
+        String classificationVersion,
+        String idempotencyKey,
+        int a2aDepth,
+        int maxA2ADepth,
+        boolean cycleDetected,
+        boolean coreOwnedTaskCreation,
+        boolean agentCreatedTask,
+        boolean manualReviewRequired,
+        String nextAction,
+        String governanceReason,
         String parentStatus,
         String classificationStatus,
         String classificationResultJson,
@@ -27,10 +39,32 @@ public record TaskClassificationResult(
     public static TaskClassificationResult of(TaskRecord parent,
                                               TaskRecord resolution,
                                               boolean created,
-                                              AssignmentDecisionResult assignment) {
+                                              AssignmentDecisionResult assignment,
+                                              String rootTaskId,
+                                              String correlationId,
+                                              String classificationVersion,
+                                              String idempotencyKey,
+                                              int a2aDepth,
+                                              int maxA2ADepth,
+                                              boolean cycleDetected,
+                                              boolean manualReviewRequired,
+                                              String nextAction,
+                                              String governanceReason) {
         AssignmentDecisionResult a = assignment == null ? AssignmentDecisionResult.none("Resolution assignment not evaluated") : assignment;
         return new TaskClassificationResult(
                 parent == null ? null : parent.getTaskId(),
+                rootTaskId,
+                correlationId,
+                classificationVersion,
+                idempotencyKey,
+                a2aDepth,
+                maxA2ADepth,
+                cycleDetected,
+                true,
+                false,
+                manualReviewRequired,
+                nextAction,
+                governanceReason,
                 parent == null || parent.getStatus() == null ? null : parent.getStatus().name(),
                 parent == null ? null : parent.getClassificationStatus(),
                 parent == null ? null : parent.getClassificationResultJson(),
@@ -49,5 +83,14 @@ public record TaskClassificationResult(
                 a.selectedAgentId(),
                 a.assignmentStatus(),
                 a.reason());
+    }
+
+    public static TaskClassificationResult of(TaskRecord parent,
+                                              TaskRecord resolution,
+                                              boolean created,
+                                              AssignmentDecisionResult assignment) {
+        String rootTaskId = parent == null ? null : (parent.getParentTaskId() == null || parent.getParentTaskId().isBlank() ? parent.getTaskId() : parent.getParentTaskId());
+        return of(parent, resolution, created, assignment, rootTaskId, parent == null ? null : parent.getCorrelationId(),
+                "A2A_CLASSIFICATION_V1", null, 0, 3, false, false, created ? "ASSIGN_CHILD_TASK" : "NO_CHILD_TASK", "Legacy factory fallback");
     }
 }

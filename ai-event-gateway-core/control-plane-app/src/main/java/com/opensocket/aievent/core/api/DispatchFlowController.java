@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -106,12 +107,14 @@ public class DispatchFlowController {
     @PutMapping("/agent-pools/{poolId}")
     public AgentPoolView updateAgentPool(@PathVariable String poolId,
                                          @RequestBody AgentPoolView request,
-                                         @RequestParam String tenantId) {
+                                         @RequestParam String tenantId,
+                                         @RequestHeader(value = "If-Match", required = false) String ifMatch) {
         try {
             requireTenantMatch(tenantId, request == null ? null : request.getTenantId());
             request.setTenantId(tenantId);
             request.setPoolId(poolId);
-            return dispatchFlowManagementService.createOrUpdateAgentPool(request);
+            Integer expectedVersion = expectedVersion(ifMatch, request.getVersion(), "Agent Pool");
+            return dispatchFlowManagementService.createOrUpdateAgentPool(request, expectedVersion);
         } catch (IllegalArgumentException ex) {
             throw dispatchFlowMutationException(ex);
         }
@@ -124,7 +127,7 @@ public class DispatchFlowController {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("poolId", poolId);
         response.put("status", "RETIRED");
-        response.put("mode", "PHASE32G_AGENT_POOL_ADMIN_UI");
+        response.put("mode", "SOURCE_FLOW_AGENT_POOL_ADMIN_UI");
         return response;
     }
 
@@ -144,12 +147,14 @@ public class DispatchFlowController {
     @PutMapping("/{flowId}")
     public DispatchFlowView update(@PathVariable String flowId,
                                    @RequestBody DispatchFlowView request,
-                                   @RequestParam String tenantId) {
+                                   @RequestParam String tenantId,
+                                   @RequestHeader(value = "If-Match", required = false) String ifMatch) {
         try {
             requireTenantMatch(tenantId, request == null ? null : request.getTenantId());
             request.setTenantId(tenantId);
             request.setFlowId(flowId);
-            return dispatchFlowManagementService.createOrUpdateFlow(request);
+            Integer expectedVersion = expectedVersion(ifMatch, request.getVersion(), "Source Flow");
+            return dispatchFlowManagementService.createOrUpdateFlow(request, expectedVersion);
         } catch (IllegalArgumentException ex) {
             throw dispatchFlowMutationException(ex);
         }
@@ -167,7 +172,7 @@ public class DispatchFlowController {
     }
 
     /**
-     * Stage 5 real test event. This is not a readiness simulator: the request is
+     * Real Source Flow test event. This is not a readiness simulator: the request is
      * generated from the persisted Flow and enters the same EventIntakeApplicationService
      * used by /api/events/intake, creating a real Event, Task, routing decision,
      * assignment, dispatch request, and callback lifecycle when the runtime is available.
@@ -189,27 +194,36 @@ public class DispatchFlowController {
                 .filter(candidate -> Boolean.TRUE.equals(candidate.getEnabled()))
                 .filter(candidate -> blank(candidate.getEventStage()) || "EXTERNAL".equalsIgnoreCase(candidate.getEventStage()))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "The Dispatch Flow has no active EXTERNAL event rule."));
-        // Phase 32-G: Source Flow test events may intentionally omit eventType.
-        // Missing or wildcard eventType is normalized to UNKNOWN and should route to the default Pool.
+                .orElse(null);
+        // Source Flow default Pool is a valid Current routing entry even when the
+        // administrator has not created any special classification Rule. The real
+        // test event must therefore be able to exercise SOURCE_DEFAULT instead of
+        // forcing operators to create an artificial catch-all rule.
 
         String runId = UUID.randomUUID().toString();
         EventIntakeRequest request = new EventIntakeRequest();
         request.setTenantId(tenantId);
-        String sourceSystem = firstNonBlank(rule.getSourceSystem(), flow.getSourceSystem());
+        String sourceSystem = firstNonBlank(rule == null ? null : rule.getSourceSystem(), flow.getSourceSystem());
         if (blank(sourceSystem)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "The Dispatch Flow must select a Source System before sending a real test event.");
         }
         request.setSourceSystem(sourceSystem);
         request.setEventStage("EXTERNAL");
-        request.setObjectType(wildcardValue(rule.getObjectType(), "STAGE5_TEST_OBJECT"));
+        request.setObjectType(firstNonBlank(
+                stringValue(overrides, "objectType"),
+                rule == null ? null : wildcardValue(rule.getObjectType(), null),
+                "STAGE5_TEST_OBJECT"));
         request.setObjectId(firstNonBlank(stringValue(overrides, "objectId"), "TEST-" + runId));
-        request.setEventType(wildcardValue(rule.getEventType(), null));
-        request.setErrorCode(wildcardValue(rule.getErrorCode(), null));
-        request.setSeverity(firstNonBlank(stringValue(overrides, "severity"), conditionString(rule, "severity"), "MEDIUM"));
+        request.setEventType(firstNonBlank(
+                stringValue(overrides, "eventType"),
+                rule == null ? null : wildcardValue(rule.getEventType(), null)));
+        request.setErrorCode(firstNonBlank(
+                stringValue(overrides, "errorCode"),
+                rule == null ? null : wildcardValue(rule.getErrorCode(), null)));
+        request.setSeverity(firstNonBlank(stringValue(overrides, "severity"), rule == null ? null : conditionString(rule, "severity"), "MEDIUM"));
         request.setMessage(firstNonBlank(stringValue(overrides, "message"), "OpenDispatch real test event for Flow " + flow.getFlowName()));
         request.setOccurredAt(OffsetDateTime.now());
-        request.setCorrelationId(firstNonBlank(stringValue(overrides, "correlationId"), "stage5-test-" + runId));
+        request.setCorrelationId(firstNonBlank(stringValue(overrides, "correlationId"), "source-flow-test-" + runId));
         request.setSiteId(stringValue(overrides, "siteId"));
         request.setPlantId(stringValue(overrides, "plantId"));
         Map<String, Object> attributes = new LinkedHashMap<>();
@@ -221,7 +235,8 @@ public class DispatchFlowController {
         attributes.put("testRunId", runId);
         attributes.put("flowId", flow.getFlowId());
         attributes.put("flowCode", flow.getFlowCode());
-        attributes.put("ruleId", rule.getRuleId());
+        attributes.put("ruleId", rule == null ? "SOURCE_DEFAULT" : rule.getRuleId());
+        attributes.put("routingEntry", rule == null ? "SOURCE_DEFAULT_POOL" : "FLOW_RULE");
         attributes.put("initiatedFrom", "DISPATCH_FLOW_DETAIL");
         request.setAttributes(attributes);
         return eventIntakeApplicationService.intake(request);
@@ -275,7 +290,7 @@ public class DispatchFlowController {
     }
 
     /**
-     * Stage 3 removes partial Flow mutation. Submit the complete aggregate through
+     * The current aggregate contract removes partial Flow mutation. Submit the complete aggregate through
      * PUT /admin/dispatch-flows/{flowId} so Rule, Agent, and Capability changes commit together.
      */
     @Deprecated(forRemoval = true)
@@ -385,6 +400,34 @@ public class DispatchFlowController {
                                                 @RequestBody(required = false) Map<String, Object> payload,
                                                 @RequestParam String tenantId) {
         return skeletonTraceChain(flowId, tenantId, "CHAIN");
+    }
+
+    private Integer expectedVersion(String ifMatch, Integer bodyVersion, String entityType) {
+        Integer headerVersion = parseIfMatchVersion(ifMatch);
+        Integer resolved = headerVersion != null ? headerVersion : bodyVersion;
+        if (resolved == null || resolved < 1) {
+            throw new StandardApiException(StandardApiErrorCode.RESOURCE_VERSION_CONFLICT,
+                    entityType + " update requires expectedVersion in the request body or If-Match header.");
+        }
+        return resolved;
+    }
+
+    private Integer parseIfMatchVersion(String ifMatch) {
+        if (ifMatch == null || ifMatch.isBlank()) {
+            return null;
+        }
+        String normalized = ifMatch.trim();
+        if (normalized.startsWith("W/")) normalized = normalized.substring(2).trim();
+        normalized = normalized.replace("\"", "").replace("'", "").trim();
+        if (normalized.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(normalized);
+        } catch (NumberFormatException ex) {
+            throw new StandardApiException(StandardApiErrorCode.RESOURCE_VERSION_CONFLICT,
+                    "If-Match must contain the numeric configuration version.");
+        }
     }
 
     private void requireTenantMatch(String requestTenantId, String bodyTenantId) {

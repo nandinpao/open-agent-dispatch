@@ -142,7 +142,7 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <TableCard title="Peer Relation / Heartbeat" description="Cluster peer relation、state sync 與 heartbeat 狀態。Heartbeat 來源為後端 P3.9 cluster state pull 成功時間。">
+        <TableCard title="Peer Relation / Heartbeat" description="Cluster peer relation、state sync 與 heartbeat 狀態。Heartbeat 來源為後端 cluster state pull 的最近成功時間。">
           {node.peers.length === 0 ? (
             <div className="p-4 text-sm text-slate-500">目前 API 尚未回傳此節點的 peer relation / heartbeat payload。</div>
           ) : (

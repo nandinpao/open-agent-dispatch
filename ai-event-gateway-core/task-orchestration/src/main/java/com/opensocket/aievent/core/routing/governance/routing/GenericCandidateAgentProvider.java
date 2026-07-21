@@ -14,7 +14,7 @@ import com.opensocket.aievent.core.routing.governance.TaskRequirementEvidence;
 import com.opensocket.aievent.core.task.TaskRecord;
 
 /**
- * Stage 8 direct-dispatch candidate provider.
+ * Current direct-dispatch candidate provider.
  *
  * Candidates are read only from Flow Agent Assignments. There is deliberately no
  * source pool, default pool, capability pool, action-grant pool, or fallback path.

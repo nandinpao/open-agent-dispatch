@@ -22,6 +22,7 @@ export function AdminUiModeNotice({
           <div>
             <div className="font-black text-slate-900">{title}</div>
             <p className="mt-1 leading-6">{description}</p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">介面模式只控制導覽與資訊密度，不會授予 API 權限；實際讀取與操作仍由後端 RBAC 驗證。</p>
           </div>
           <div className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-600">
             Visible in {requiredOption.shortLabel} Mode
@@ -37,7 +38,7 @@ export function AdminUiModeNotice({
         <div>
           <div className="font-black">{title}</div>
           <p className="mt-1 leading-6">{description}</p>
-          <p className="mt-1 text-xs font-bold text-amber-800">This page is hidden from the default navigation in Basic Mode to keep daily operations simple.</p>
+          <p className="mt-2 text-xs font-bold text-amber-800">此頁只是在目前模式下隱藏；切換模式不會增加權限。實際讀取與操作仍由後端 RBAC 驗證。</p>
         </div>
         <button
           type="button"

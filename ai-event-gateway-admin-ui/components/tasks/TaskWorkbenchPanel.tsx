@@ -64,7 +64,7 @@ export function TaskWorkbenchPanel({ row, onRetryIssueSync, retryingIssueSyncAct
           <h2 className="text-sm font-bold text-slate-900">Agent 執行摘要</h2>
           <div className="mt-3 space-y-2 text-sm text-slate-700">
             <div><span className="font-semibold text-slate-500">處理 Agent：</span>{task.assignedAgentId ? <Link href={`/agents/${encodeURIComponent(task.assignedAgentId)}`} className="font-semibold text-blue-600 hover:text-blue-700">{display.assignedAgentLabel}</Link> : display.assignedAgentLabel}</div>
-            <div><span className="font-semibold text-slate-500">需要能力：</span>{display.requiredCapabilityLabel}</div>
+            <div><span className="font-semibold text-slate-500">Capability 標籤（參考）：</span>{display.requiredCapabilityLabel}</div>
             <div><span className="font-semibold text-slate-500">目前狀態：</span>{display.businessStatus}</div>
           </div>
           <div className="mt-4 rounded-lg bg-white p-3 text-sm text-slate-700">

@@ -10,7 +10,7 @@ import { mergeAgentDashboardRows, summarizeRuntimes } from '@/lib/dashboard/agen
 import { runtimeToEnrollmentRequest } from '@/lib/agents/enrollmentWorkflow';
 import { appendManualDisconnectNotice } from '@/lib/runtime/rejectedConnectionSemantics';
 import type { CommandResult } from '@/lib/types/admin';
-import type { AgentEnrollmentApprovalRequest, AgentProfileUpdateRequest, AgentSecurityEvent, CoreAgentProfile, CoreAgentRuntimeCapabilityItem, CoreAgentRuntimeCapabilityProfile, CoreAgentRuntimeDescriptor, CoreAgentRuntimeLoadSnapshot, CoreAgentCapabilityAssignment, CoreAgentCapabilityCommand, CoreAgentRuntimeFeatureObservation, CoreAgentRuntimeFeatureTrust, CoreAgentRuntimeFeatureCommand, CoreAgentDispatchEligibility, CoreTaskRuntimeView, CoreAgentSecurityEnforcementPolicy, CoreAgentSecurityEnforcementPolicyUpdateRequest, CoreAgentSkillDefinition, CoreRecoveryGovernanceActionRequest, CoreAgentRemediationProposal, CoreAgentRemediationProposalRequest, CoreAgentRemediationWorkflow, CoreAgentRemediationWorkflowCreateRequest, CoreAgentRemediationWorkflowDecisionRequest, CoreAgentSetupReadinessResponse, CoreAgentOperationalView, CoreAgentLatestAuthFailureResponse, CoreAgentConnectionRepairActionsResponse, CoreAgentRuntimeBinding, CoreRuntimeResource, CoreAgentPoolView, CoreDispatchFlowView } from '@/lib/types/core';
+import type { AgentEnrollmentApprovalRequest, AgentProfileUpdateRequest, AgentSecurityEvent, CoreAgentProfile, CoreAgentRuntimeCapabilityItem, CoreAgentRuntimeCapabilityProfile, CoreAgentRuntimeDescriptor, CoreAgentRuntimeLoadSnapshot, CoreAgentCapabilityAssignment, CoreAgentCapabilityCatalog, CoreAgentCapabilityCommand, CoreAgentCertificationRun, CoreAgentRuntimeFeatureObservation, CoreAgentRuntimeFeatureTrust, CoreAgentRuntimeFeatureCommand, CoreAgentDispatchEligibility, CoreTaskRuntimeView, CoreAgentSecurityEnforcementPolicy, CoreAgentSecurityEnforcementPolicyUpdateRequest, CoreAgentSkillDefinition, CoreRecoveryGovernanceActionRequest, CoreAgentRemediationProposal, CoreAgentRemediationProposalRequest, CoreAgentRemediationWorkflow, CoreAgentRemediationWorkflowCreateRequest, CoreAgentRemediationWorkflowDecisionRequest, CoreAgentSetupReadinessResponse, CoreAgentOperationalView, CoreAgentLatestAuthFailureResponse, CoreAgentConnectionRepairActionsResponse, CoreAgentRuntimeBinding, CoreRuntimeResource, CoreAgentPoolView, CoreDispatchFlowView, CoreAgentQualityMetricsWindow } from '@/lib/types/core';
 import type { AgentDashboardRow } from '@/lib/types/dashboard';
 import type { NettyAgentRuntime } from '@/lib/types/nettyRuntime';
 import { usePollingResource } from '@/hooks/usePollingResource';
@@ -26,6 +26,9 @@ export interface AgentDetailBundle {
   dispatchFlows: CoreDispatchFlowView[];
   agentPools: CoreAgentPoolView[];
   capabilityAssignments: CoreAgentCapabilityAssignment[];
+  capabilityCatalog: CoreAgentCapabilityCatalog[];
+  certificationRuns: CoreAgentCertificationRun[];
+  agentQualityWindows: CoreAgentQualityMetricsWindow[];
   runtimeFeatureObservations: CoreAgentRuntimeFeatureObservation[];
   runtimeFeatureTrusts: CoreAgentRuntimeFeatureTrust[];
   dispatchEligibility?: CoreAgentDispatchEligibility;
@@ -105,6 +108,33 @@ function mockBundle(agentId: string): AgentDetailBundle {
     dispatchFlows: [],
     agentPools: [],
     capabilityAssignments: [],
+    capabilityCatalog: [],
+    certificationRuns: [],
+    agentQualityWindows: [{
+      agentId,
+      metricWindow: '24h',
+      successRate: 0.98,
+      failureRate: 0.02,
+      timeoutRate: 0.01,
+      ackTimeoutRate: 0.01,
+      resultFailureRate: 0.01,
+      retryRate: 0.03,
+      manualReassignmentRate: 0,
+      avgCompletionLatencyMs: 42000,
+      p95CompletionLatencyMs: 92000,
+      recentHealthScore: 96,
+      sampleSize: 128,
+      minimumSample: 30,
+      observationWindow: '24h',
+      decayWindow: '7d',
+      responsibilityScope: 'AGENT',
+      observationOnly: true,
+      selectionImpact: 'NONE',
+      qualityGrade: 'A',
+      calculatedAt: new Date().toISOString(),
+      source: 'MOCK_OBSERVATION',
+      metadata: { phase9b: 'Agent Quality Observation', observationOnly: true, selectionImpact: 'NONE' },
+    }],
     runtimeFeatureObservations: [],
     runtimeFeatureTrusts: [],
     dispatchEligibility: {
@@ -174,7 +204,7 @@ export function useAgentDetail(agentId: string) {
       ? String(preloadedProfileResult.value.tenantId ?? '').trim()
       : '';
 
-    const [profilesResult, operationalViewResult, setupReadinessResult, latestAuthFailureResult, connectionRepairActionsResult, runtimeBindingsResult, runtimeAgentsResult, tasksResult, securityEventsResult, runtimeCapabilityProfileResult, runtimeDescriptorResult, runtimeCapabilityItemsResult, runtimeLoadResult, capabilityAssignmentsResult, runtimeFeatureObservationsResult, runtimeFeatureTrustsResult, securityPolicyResult, skillDefinitionsResult, remediationProposalResult, remediationWorkflowsResult] = await Promise.allSettled([
+    const [profilesResult, operationalViewResult, setupReadinessResult, latestAuthFailureResult, connectionRepairActionsResult, runtimeBindingsResult, runtimeAgentsResult, tasksResult, securityEventsResult, runtimeCapabilityProfileResult, runtimeDescriptorResult, runtimeCapabilityItemsResult, runtimeLoadResult, capabilityAssignmentsResult, capabilityCatalogResult, certificationRunsResult, runtimeFeatureObservationsResult, runtimeFeatureTrustsResult, securityPolicyResult, skillDefinitionsResult, remediationProposalResult, remediationWorkflowsResult, agentQualityWindowsResult] = await Promise.allSettled([
       preloadedProfileResult.status === 'fulfilled'
         ? Promise.resolve(preloadedProfileResult.value)
         : Promise.reject(preloadedProfileResult.reason),
@@ -221,6 +251,14 @@ export function useAgentDetail(agentId: string) {
         if (isNotFoundOrUnsupportedApiError(error)) return [];
         throw error;
       }),
+      scopedTenantId ? coreAdminApi.getCapabilities('ACTIVE', undefined, scopedTenantId).catch((error) => {
+        if (isNotFoundOrUnsupportedApiError(error)) return [];
+        throw error;
+      }) : Promise.resolve([]),
+      coreAdminApi.getAgentCertifications(agentId).catch((error) => {
+        if (isNotFoundOrUnsupportedApiError(error)) return [];
+        throw error;
+      }),
       coreAdminApi.getAgentRuntimeFeatureObservations(agentId).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return [];
         throw error;
@@ -242,6 +280,10 @@ export function useAgentDetail(agentId: string) {
         throw error;
       }),
       coreAdminApi.listAgentRemediationWorkflows(agentId).catch((error) => {
+        if (isNotFoundOrUnsupportedApiError(error)) return [];
+        throw error;
+      }),
+      coreAdminApi.getAgentQualityWindows(agentId, '24h', scopedTenantId, 8).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return [];
         throw error;
       })
@@ -270,6 +312,9 @@ export function useAgentDetail(agentId: string) {
     const runtimeCapabilityItems = runtimeCapabilityItemsResult.status === 'fulfilled' ? runtimeCapabilityItemsResult.value : [];
     const runtimeLoad = runtimeLoadResult.status === 'fulfilled' ? runtimeLoadResult.value : undefined;
     const capabilityAssignments = capabilityAssignmentsResult.status === 'fulfilled' ? capabilityAssignmentsResult.value : [];
+    const capabilityCatalog = capabilityCatalogResult.status === 'fulfilled' ? capabilityCatalogResult.value : [];
+    const certificationRuns = certificationRunsResult.status === 'fulfilled' ? certificationRunsResult.value : [];
+    const agentQualityWindows = agentQualityWindowsResult.status === 'fulfilled' ? agentQualityWindowsResult.value : [];
     const runtimeFeatureObservations = runtimeFeatureObservationsResult.status === 'fulfilled' ? runtimeFeatureObservationsResult.value : [];
     const runtimeFeatureTrusts = runtimeFeatureTrustsResult.status === 'fulfilled' ? runtimeFeatureTrustsResult.value : [];
     const dispatchEligibility = undefined;
@@ -316,6 +361,9 @@ export function useAgentDetail(agentId: string) {
       dispatchFlows,
       agentPools,
       capabilityAssignments,
+      capabilityCatalog,
+      certificationRuns,
+      agentQualityWindows,
       runtimeFeatureObservations,
       runtimeFeatureTrusts,
       dispatchEligibility,
@@ -342,6 +390,9 @@ export function useAgentDetail(agentId: string) {
         coreConnectionRepairActions: settledError(connectionRepairActionsResult),
         coreRuntimeBindings: settledError(runtimeBindingsResult),
         coreCapabilityAssignments: settledError(capabilityAssignmentsResult),
+        coreCapabilityCatalog: settledError(capabilityCatalogResult),
+        coreAgentCertifications: settledError(certificationRunsResult),
+        coreAgentQualityObservation: settledError(agentQualityWindowsResult),
         coreDispatchFlows: settledError(dispatchFlowsResult),
         coreAgentPools: settledError(agentPoolsResult),
       }

@@ -520,6 +520,8 @@ export interface CoreDispatchPolicy {
 
 export type CoreAgentCapabilityCatalogStatus = "DRAFT" | "ACTIVE" | "DISABLED" | "RETIRED" | "NEEDS_REVIEW" | string;
 
+// Phase 4-4: Capability catalog is reference-only metadata for Current dispatch setup.
+// It supports search, audit and diagnostics; routing changes belong to Source Flow / Agent Pool configuration.
 export interface CoreAgentCapabilityCatalog {
   tenantId?: string;
   capabilityId?: string;
@@ -542,6 +544,11 @@ export interface CoreAgentCapabilityCatalog {
   status?: CoreAgentCapabilityCatalogStatus;
   version?: number;
   ownerTeam?: string;
+  capabilitySource?: string;
+  certificationRef?: string;
+  lastReportedAt?: string;
+  referenceOnly?: boolean;
+  routingGate?: boolean;
   requiresApproval?: boolean;
   requiresCertification?: boolean;
   requiresRuntimeProbe?: boolean;
@@ -574,6 +581,7 @@ export interface CoreAssignmentProfileCapabilityBinding {
 
 export type CoreAgentCapabilityAssignmentStatus = "DECLARED" | "PENDING_APPROVAL" | "APPROVED" | "SUSPENDED" | "REVOKED" | "EXPIRED" | "REJECTED" | string;
 
+// Phase 4-4: Agent capability assignments are reference-only labels / diagnostic evidence in the Current model.
 export interface CoreAgentCapabilityAssignment {
   tenantId?: string;
   assignmentId?: string;
@@ -582,6 +590,9 @@ export interface CoreAgentCapabilityAssignment {
   capabilityName?: string;
   status?: CoreAgentCapabilityAssignmentStatus;
   source?: string;
+  capabilityVersion?: string;
+  lastReportedAt?: string;
+  certificationRef?: string;
   requestedBy?: string;
   requestedAt?: string;
   approvedBy?: string;
@@ -614,6 +625,93 @@ export interface CoreAgentCapabilityCommand {
 
 
 
+
+
+export interface CoreAdvancedSelectionStrategyContract {
+  strategyCode: string;
+  displayName?: string;
+  status?: 'CONTRACT_ONLY' | 'READY_FOR_IMPLEMENTATION' | 'ENABLED' | string;
+  productionEnabled?: boolean;
+  simulationRequired?: boolean;
+  simulationSupportStatus?: string;
+  formula?: string;
+  stateStorage?: string;
+  concurrencyDefinition?: string;
+  fallbackStrategy?: string;
+  assignmentEvidenceContract?: string;
+  uiExplanation?: string;
+  requiredReadinessChecks?: string[];
+  localityDimensions?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export type CoreAgentPoolCapabilityPolicyMatchMode = 'ANY' | 'ALL' | string;
+export type CoreAgentPoolCapabilityPolicyEnforcementMode = 'ADVISORY' | 'REQUIRED' | string;
+
+export interface CoreAgentPoolCapabilityPolicy {
+  tenantId?: string;
+  policyId?: string;
+  targetPoolId: string;
+  targetPoolName?: string;
+  requiredCapabilities?: string[];
+  matchMode?: CoreAgentPoolCapabilityPolicyMatchMode;
+  enforcementMode?: CoreAgentPoolCapabilityPolicyEnforcementMode;
+  advisoryOnly?: boolean;
+  explicitPoolPolicy?: boolean;
+  routingGate?: boolean;
+  riskLevel?: string;
+  riskWarning?: string;
+  simulationImpact?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CoreAgentAdvisoryRecommendationType =
+  | 'ADD_AGENT_TO_POOL'
+  | 'ADJUST_AGENT_WEIGHT'
+  | 'INCREASE_POOL_CAPACITY'
+  | 'POOL_CAPACITY_RISK'
+  | string;
+
+export type CoreAgentAdvisoryRecommendationStatus = 'OPEN' | 'ACCEPTED' | 'REJECTED' | 'SUPERSEDED' | string;
+
+export interface CoreAgentAdvisoryRecommendation {
+  tenantId?: string;
+  recommendationId: string;
+  recommendationType: CoreAgentAdvisoryRecommendationType;
+  status?: CoreAgentAdvisoryRecommendationStatus;
+  targetPoolId?: string;
+  targetAgentId?: string;
+  capabilityCode?: string;
+  evidenceWindow?: string;
+  confidence?: number | string;
+  reason?: string;
+  suggestedChange?: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
+  decisionAudit?: Record<string, unknown>;
+  advisoryOnly?: boolean;
+  autoApply?: boolean;
+  routingImpact?: 'NONE' | string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  acceptedBy?: string;
+  acceptedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  decisionReason?: string;
+}
+
+export interface CoreAgentAdvisoryRecommendationDecisionCommand {
+  tenantId?: string;
+  operatorId?: string;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface CoreAgentQualityMetricsWindow {
   tenantId?: string;
   metricId?: string;
@@ -637,6 +735,19 @@ export interface CoreAgentQualityMetricsWindow {
   riskPenalty?: number | string;
   score?: number | string;
   sampleSize?: number;
+  /** Phase 9B: observation-only quality fields. These support UI/operator visibility only and must not feed Selection Strategy. */
+  p95CompletionLatencyMs?: number;
+  ackTimeoutRate?: number | string;
+  resultFailureRate?: number | string;
+  retryRate?: number | string;
+  manualReassignmentRate?: number | string;
+  recentHealthScore?: number | string;
+  observationWindow?: string;
+  minimumSample?: number;
+  decayWindow?: string;
+  responsibilityScope?: 'AGENT' | 'UPSTREAM_PAYLOAD' | 'SYSTEM_CONFIGURATION' | 'UNKNOWN' | string;
+  observationOnly?: boolean;
+  selectionImpact?: 'NONE' | string;
   calculatedAt?: string;
   source?: string;
   metadata?: Record<string, unknown>;
@@ -832,6 +943,7 @@ export interface CoreAssignmentProfilePolicyBinding {
   updatedAt?: string;
 }
 
+// Phase 4-4: Assignment Profile is a legacy/governance type. Do not use it as the Current Source Flow / Agent Pool setup model.
 export interface CoreAgentAssignmentProfile {
   tenantId?: string;
   profileId?: string;
@@ -1055,6 +1167,7 @@ export interface CoreEligibleAgentCandidate {
   checks?: CoreDispatchEligibilityCheck[];
 }
 
+// Phase 4-4: Eligible-agents responses are diagnostic-only. Current operator setup uses Source Flow / Agent Pool and routing evidence.
 export interface CoreTaskEligibleAgentsResponse {
   taskId?: string;
   requirements?: CoreTaskDispatchRequirements;
@@ -1545,6 +1658,25 @@ export interface CoreTaskIssueTracking {
   [key: string]: unknown;
 }
 
+
+export interface CoreTaskIssueDedupSummary {
+  activeIssueKey: string;
+  issueType: string;
+  issueScope?: string;
+  activeStatus: 'ACTIVE' | 'AUTO_RESOLVED' | 'REVIEW_REQUIRED' | 'NOT_REQUIRED';
+  syncStatus?: string;
+  externalIssueId?: string;
+  externalIssueUrl?: string;
+  occurrenceCount: number;
+  firstOccurredAt?: string;
+  lastOccurredAt?: string;
+  autoResolutionPolicy: 'RECOVERABLE_AUTO_RESOLVE_ON_COMPLETION' | 'GOVERNANCE_REVIEW_REQUIRED' | 'NO_ACTIVE_ISSUE_REQUIRED';
+  governanceReviewRequired: boolean;
+  dedupRule: 'taskId + issueType + issueScope + activeStatus';
+  repeatedOccurrenceBehavior: 'Update occurrenceCount and lastOccurredAt; do not create duplicate active Issue.';
+  summary: string;
+}
+
 export interface CoreTaskRuntimeSnapshot {
   tasks: CoreTaskRecord[];
   dispatchRequests: CoreDispatchRequest[];
@@ -1634,6 +1766,64 @@ export interface CoreTaskRuntimeView {
   userFacingDispatchError?: CoreDispatchUserFacingError;
   issueTracking?: CoreTaskIssueTracking;
   payload?: unknown;
+}
+
+
+export type CoreTaskRemediationCommandType =
+  | 'REEVALUATE_ROUTING'
+  | 'ASSIGN_AGENT'
+  | 'CHANGE_POOL'
+  | 'MOVE_TO_MANUAL_QUEUE'
+  | 'RETRY_DELIVERY'
+  | 'RETRY_TASK'
+  | 'CANCEL_TASK'
+  | 'IGNORE_TASK';
+
+export interface CoreTaskRemediationCommandRequest {
+  commandType: CoreTaskRemediationCommandType;
+  expectedTaskVersion?: number;
+  idempotencyKey: string;
+  reason: string;
+  operatorId?: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface CoreTaskCommandSnapshot {
+  taskId?: string;
+  status?: string;
+  matchedFlowId?: string;
+  matchedRuleId?: string;
+  targetPoolId?: string;
+  lifecycleReason?: string;
+  dispatchRetryReason?: string;
+  updatedAt?: string;
+  version: number;
+}
+
+export interface CoreTaskCommandAudit {
+  operatorId: string;
+  timestamp: string;
+  commandType: CoreTaskRemediationCommandType;
+  reason: string;
+  beforeState: CoreTaskCommandSnapshot;
+  afterState: CoreTaskCommandSnapshot;
+  idempotencyKey: string;
+  expectedTaskVersion?: number;
+  resultingTaskVersion: number;
+  evidencePolicy: string;
+}
+
+export interface CoreTaskRemediationCommandResult {
+  success: boolean;
+  message: string;
+  timestamp: string;
+  taskId: string;
+  commandType: CoreTaskRemediationCommandType;
+  allowedCommandsAfter: CoreTaskRemediationCommandType[];
+  audit: CoreTaskCommandAudit;
+  task: CoreTaskRuntimeView;
+  effect?: unknown;
+  idempotentReplay: boolean;
 }
 
 export interface CoreAdapterAction {
@@ -2604,6 +2794,7 @@ export interface CoreTaskDispatchContractResolveRequest {
   payloadMetadata?: Record<string, unknown>;
 }
 
+// Phase 4-4: Task dispatch-contract resolution is legacy/reference evidence; prefer Current Source Flow / Agent Pool dry-run.
 export interface CoreTaskDispatchContractResolveResult {
   taxonomyVersion?: string;
   taskType?: string;
@@ -2848,6 +3039,7 @@ export interface CoreTaskCaseTimelineStepView {
 export interface CoreTaskCaseTimelineView {
   taskId: string;
   parentTaskId?: string;
+  rootTaskId?: string;
   childTaskIds?: string[];
   correlationId?: string;
   matchedFlowId?: string;
@@ -3164,6 +3356,7 @@ export interface CoreDispatchContractReadinessRequest {
   metadata?: Record<string, unknown>;
 }
 
+// Phase 4-4: Dispatch-contract readiness is a legacy repair/readiness surface, not the Current setup API.
 export interface CoreDispatchContractReadinessResponse {
   tenantId: string;
   sourceSystem: string;
@@ -3482,6 +3675,67 @@ export interface CoreDispatchFlowReadinessResponse {
   generatedAt?: string;
 }
 
+
+export interface CoreDispatchSimulationRequest {
+  tenantId?: string;
+  flowId?: string;
+  sourceSystem?: string;
+  originSourceSystem?: string;
+  targetSystem?: string;
+  eventStage?: CoreDispatchEventStage | string;
+  objectType?: string;
+  eventType?: string;
+  errorCode?: string;
+  severity?: string;
+  message?: string;
+  siteId?: string;
+  plantId?: string;
+  attributes?: Record<string, unknown>;
+  includeRuntimeSnapshot?: boolean;
+}
+
+export interface CoreDispatchSimulationCandidateView {
+  agentId?: string;
+  status?: string;
+  score?: number;
+  eligible?: boolean;
+  selected?: boolean;
+  blockingReasons?: string[];
+  reason?: string;
+  scoreBreakdown?: Record<string, unknown>;
+}
+
+export interface CoreDispatchSimulationResponse {
+  tenantId?: string;
+  sourceSystem?: string;
+  eventStage?: CoreDispatchEventStage | string;
+  objectType?: string;
+  eventType?: string;
+  errorCode?: string;
+  matchedFlowId?: string;
+  matchedRuleId?: string;
+  resolutionType?: string;
+  targetPoolId?: string;
+  targetPoolCode?: string;
+  selectionStrategy?: string;
+  poolMemberCount?: number;
+  candidateAgentCount?: number;
+  eligibleAgentCount?: number;
+  selectedAgentId?: string;
+  manualOnly?: boolean;
+  dispatchable?: boolean;
+  status?: string;
+  summary?: string;
+  blockerCode?: string;
+  blockerReason?: string;
+  sideEffectFree?: boolean;
+  createdArtifacts?: string[];
+  candidateEvidence?: CoreDispatchSimulationCandidateView[];
+  blockedCandidates?: CoreDispatchSimulationCandidateView[];
+  diagnostics?: Record<string, unknown>;
+  generatedAt?: string;
+}
+
 export interface CoreDispatchFlowRuleView {
   tenantId?: string;
   ruleId?: string;
@@ -3555,6 +3809,8 @@ export interface CoreAgentPoolView {
   availableAgentCount?: number;
   members?: CoreAgentPoolMemberView[];
   metadata?: Record<string, unknown>;
+  version?: number;
+  updatedBy?: string;
   updatedAt?: string;
 }
 
@@ -3570,6 +3826,8 @@ export interface CoreAgentPoolMemberView {
   approvalStatus?: string;
   runtimeStatus?: string;
   metadata?: Record<string, unknown>;
+  version?: number;
+  updatedBy?: string;
   updatedAt?: string;
 }
 
@@ -3683,6 +3941,20 @@ export interface CoreEventIntakeDecisionResponse {
 
 
 
+export interface CoreTaskA2AClassificationFlowContract {
+  modelVersion?: string;
+  coreOwnedTaskCreation?: boolean;
+  agentCanCreateTask?: boolean;
+  cycleDetectionRequired?: boolean;
+  idempotencyRequired?: boolean;
+  defaultMaxA2ADepth?: number;
+  childTaskCreationAuthority?: string;
+  unclearClassificationFallback?: string;
+  requiredRequestFields?: string[];
+  governanceFields?: string[];
+  childTaskRules?: string[];
+}
+
 export interface CoreTaskClassificationRequest {
   classificationStatus?: 'CLASSIFIED' | 'UNCLASSIFIED' | 'CLASSIFICATION_FAILED' | string;
   sourceSystem?: string;
@@ -3694,10 +3966,28 @@ export interface CoreTaskClassificationRequest {
   reason?: string;
   recommendedPoolCode?: string;
   createResolutionTask?: boolean;
+  parentTaskId?: string;
+  rootTaskId?: string;
+  correlationId?: string;
+  classificationVersion?: string;
+  maxA2ADepth?: number;
+  idempotencyKey?: string;
 }
 
 export interface CoreTaskClassificationResult {
   parentTaskId?: string;
+  rootTaskId?: string;
+  correlationId?: string;
+  classificationVersion?: string;
+  idempotencyKey?: string;
+  a2aDepth?: number;
+  maxA2ADepth?: number;
+  cycleDetected?: boolean;
+  coreOwnedTaskCreation?: boolean;
+  agentCreatedTask?: boolean;
+  manualReviewRequired?: boolean;
+  nextAction?: string;
+  governanceReason?: string;
   parentStatus?: string;
   classificationStatus?: string;
   classificationResultJson?: string;
@@ -3782,5 +4072,7 @@ export interface CoreDispatchFlowView {
   requiredSkills?: CoreDispatchFlowRequiredSkillView[];
   agents?: CoreDispatchFlowAgentView[];
   metadata?: Record<string, unknown>;
+  version?: number;
+  updatedBy?: string;
   updatedAt?: string;
 }

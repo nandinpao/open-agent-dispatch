@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { adminPrimaryNavigation, type AdminNavigationItem } from '@/lib/navigation/adminInformationArchitecture';
 import { useI18n } from '@/hooks/useI18n';
+import { WorkspaceTenantSelector } from '@/components/auth/WorkspaceTenantSelector';
 
 interface SidebarProps {
   open: boolean;
@@ -51,13 +52,17 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold text-slate-200 hover:bg-white/10 lg:hidden" aria-label={t('nav.closeNavigation')}>×</button>
         </div>
 
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 md:hidden">
+          <WorkspaceTenantSelector className="w-full" />
+        </div>
+
         <nav className="mt-6 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1" aria-label={t('nav.mainNavigation')}>
           {adminPrimaryNavigation.map((item) => <NavigationLink key={item.href} item={item} onNavigate={onClose} />)}
         </nav>
 
         <div className="flex-none border-t border-white/10 pt-4 text-xs leading-5 text-slate-400">
-          <div className="font-black text-cyan-200">標準操作流程</div>
-          <div className="mt-1">來源系統 → 派工流程 → Agent → Task。所有派工設定只從派工流程進入。</div>
+          <div className="font-black text-cyan-200">Current setup path</div>
+          <div className="mt-1">來源系統 → 派工設定 → Source Flow → Agent Pool → Pool Member Agent。Task 只依這條標準鏈追查。</div>
         </div>
       </aside>
     </>
