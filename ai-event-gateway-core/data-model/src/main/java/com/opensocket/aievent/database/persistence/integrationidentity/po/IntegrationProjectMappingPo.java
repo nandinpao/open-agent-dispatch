@@ -1,0 +1,7 @@
+package com.opensocket.aievent.database.persistence.integrationidentity.po;
+import java.time.OffsetDateTime; import lombok.*;
+@Getter @Setter @NoArgsConstructor
+public class IntegrationProjectMappingPo {
+ private String tenantId,mappingId,connectionId,departmentId,groupId,serviceDomainId,sourceSystemId,taskType,externalProjectId,externalProjectKey,externalIssueType,externalTrackerId,readPrincipalId,createPrincipalId,commentPrincipalId,updatePrincipalId,relationPrincipalId,webhookPrincipalId,permissionProfileId,contextPolicyId,resultSharingPolicyId,providerWriteIdentityPolicy,mappingStatus,lifecycleStatus,summaryTemplate,descriptionTemplate,requiredFieldsJson,customFieldMappingsJson,transitionMappingsJson,commentPolicy,linkPolicy,metadataSnapshotId,metadataSchemaHash;
+ private int resolutionPriority,mappingVersion; private Integer supersedesMappingVersion; private boolean defaultMapping,enabled; private long version; private OffsetDateTime validatedAt,publishedAt,createdAt,updatedAt;
+}

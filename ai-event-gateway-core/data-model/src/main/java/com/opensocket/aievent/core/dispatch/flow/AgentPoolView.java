@@ -8,8 +8,9 @@ import java.util.Map;
 /**
  * API model for Agent Pool / Work Queue persistence.
  *
- * <p>Pools are the first-version dispatch target. Capability remains Agent
- * metadata only and is not represented as a required routing gate here.</p>
+ * <p>The Pool defines the candidate search boundary. Canonical Required Capability
+ * is a separate blocking Agent eligibility gate; Pool membership alone never
+ * proves that an Agent is qualified for a Task.</p>
  */
 public class AgentPoolView {
     private String tenantId;
@@ -17,6 +18,8 @@ public class AgentPoolView {
     private String poolCode;
     private String poolName;
     private String sourceSystem;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
     private String poolType = "RESOLUTION";
     private String selectionStrategy = "LOWEST_LOAD";
     private String status = "ACTIVE";
@@ -39,6 +42,10 @@ public class AgentPoolView {
     public void setPoolName(String poolName) { this.poolName = poolName; }
     public String getSourceSystem() { return sourceSystem; }
     public void setSourceSystem(String sourceSystem) { this.sourceSystem = sourceSystem; }
+    public String getOwnerDepartmentId() { return ownerDepartmentId; }
+    public void setOwnerDepartmentId(String ownerDepartmentId) { this.ownerDepartmentId = ownerDepartmentId; }
+    public String getOwnerGroupId() { return ownerGroupId; }
+    public void setOwnerGroupId(String ownerGroupId) { this.ownerGroupId = ownerGroupId; }
     public String getPoolType() { return poolType; }
     public void setPoolType(String poolType) { this.poolType = poolType; }
     public String getSelectionStrategy() { return selectionStrategy; }

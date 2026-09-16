@@ -1,0 +1,92 @@
+{
+  "properties": [
+    {
+      "name": "aeg.iam.persistence.department-max-depth",
+      "type": "java.lang.Integer",
+      "defaultValue": 10,
+      "description": "Maximum supported Department hierarchy depth. Values above 10 are rejected."
+    },
+    {
+      "name": "aeg.iam.persistence.role-validation-enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Fail startup when the runtime database role is not the expected non-owner, non-BYPASSRLS role."
+    },
+    {
+      "name": "aeg.iam.persistence.expected-runtime-role",
+      "type": "java.lang.String",
+      "defaultValue": "opendispatch_runtime",
+      "description": "Expected PostgreSQL runtime login role used by control-plane-app."
+    },
+    {
+      "name": "aeg.iam.authentication.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enable the Phase 1A-3 database-backed authentication application services. Disabled until IAM API integration is complete."
+    },
+    {
+      "name": "aeg.iam.authentication.mfa-key-id",
+      "type": "java.lang.String",
+      "defaultValue": "iam-mfa-v1",
+      "description": "Identifier persisted with AES-GCM protected TOTP secrets to support controlled key rotation."
+    },
+    {
+      "name": "aeg.iam.authentication.mfa-master-key-base64",
+      "type": "java.lang.String",
+      "description": "Base64-encoded 32-byte AES-256 key used only when Phase 1A-3 authentication is enabled."
+    },
+    {
+      "name": "aeg.iam.authentication.secret-pepper-base64",
+      "type": "java.lang.String",
+      "description": "Base64-encoded secret of at least 32 bytes used to HMAC recovery and one-time secrets."
+    },
+    {
+      "name": "aeg.iam.authentication.totp-window",
+      "type": "java.lang.Integer",
+      "defaultValue": 1,
+      "description": "Accepted TOTP time-step drift on either side of the current step. Allowed range is 0 through 2."
+    },
+    {
+      "name": "aeg.iam.rbac.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enable the Phase 1A-4 RBAC decision engine and shadow foundation. Existing business API enforcement remains legacy until later phases."
+    },
+    {
+      "name": "aeg.iam.rbac.cache-maximum-size",
+      "type": "java.lang.Long",
+      "defaultValue": 10000,
+      "description": "Maximum local authorization grant cache entries."
+    },
+    {
+      "name": "aeg.iam.rbac.cache-ttl",
+      "type": "java.time.Duration",
+      "defaultValue": "30s",
+      "description": "Short safety-net TTL for local authorization grants."
+    },
+    {
+      "name": "aeg.iam.rbac.invalidation-channel",
+      "type": "java.lang.String",
+      "defaultValue": "opendispatch:iam:cache-invalidation",
+      "description": "Redis Pub/Sub fast-path channel for post-commit IAM cache invalidation."
+    },
+    {
+      "name": "aeg.iam.rbac.shadow-match-sampling-rate",
+      "type": "java.lang.Double",
+      "defaultValue": 0.01,
+      "description": "Sampling rate for matching legacy/new authorization decisions. Mismatches are always critical."
+    },
+    {
+      "name": "aeg.iam.rbac.shadow-sample-queue-capacity",
+      "type": "java.lang.Integer",
+      "defaultValue": 4096,
+      "description": "Bounded in-memory queue capacity for sampled matching Shadow Decisions."
+    },
+    {
+      "name": "aeg.iam.rbac.shadow-max-metadata-entries",
+      "type": "java.lang.Integer",
+      "defaultValue": 16,
+      "description": "Maximum sanitized metadata entries retained per Shadow Decision."
+    }
+  ]
+}

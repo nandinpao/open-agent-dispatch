@@ -1,0 +1,4 @@
+package com.opensocket.aievent.core.capability;
+import java.time.OffsetDateTime;import java.util.List;import java.util.Map;
+/** Aggregated evidence proposing a reusable fast-path plan. Candidate is not executable authority. */
+public record RoutingPatternCandidate(String candidateId,String tenantId,String problemSignature,String signatureVersion,String classification,List<String> capabilityKeys,Map<String,Object> planTemplate,int sampleCount,double successRate,double humanAcceptanceRate,Long p95LatencyMs,String status,List<String> evidenceCaseIds,OffsetDateTime firstObservedAt,OffsetDateTime lastObservedAt){public RoutingPatternCandidate{capabilityKeys=capabilityKeys==null?List.of():List.copyOf(capabilityKeys);evidenceCaseIds=evidenceCaseIds==null?List.of():List.copyOf(evidenceCaseIds);planTemplate=planTemplate==null?Map.of():Map.copyOf(planTemplate);}}

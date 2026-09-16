@@ -6,9 +6,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,10 +22,26 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.opensocket.aievent.core.action.AdapterAction;
+import com.opensocket.aievent.core.action.AdapterActionRepository;
+import com.opensocket.aievent.core.action.AdapterType;
+import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRecord;
+import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRepository;
 import com.opensocket.aievent.core.callback.CallbackInboxEntry;
+import com.opensocket.aievent.core.api.security.ServerActorAuthority;
+import com.opensocket.aievent.core.iam.api.idempotency.IamIdempotencyExecutor;
 import com.opensocket.aievent.core.callback.CallbackInboxService;
 import com.opensocket.aievent.core.callback.CallbackInboxSummary;
+import com.opensocket.aievent.core.a2a.A2AParentAggregation;
+import com.opensocket.aievent.core.a2a.A2AParentAggregationRepository;
+import com.opensocket.aievent.core.a2a.A2ARequest;
+import com.opensocket.aievent.core.a2a.A2ARequestRepository;
+import com.opensocket.aievent.core.a2a.A2AResult;
+import com.opensocket.aievent.core.a2a.A2AResultProcessing;
+import com.opensocket.aievent.core.a2a.A2AResultProcessingRepository;
+import com.opensocket.aievent.core.a2a.A2AResultRepository;
 import com.opensocket.aievent.core.assignment.AssignmentDecisionResult;
 import com.opensocket.aievent.core.assignment.TaskAssignmentService;
 import com.opensocket.aievent.core.dispatch.DispatchAttemptHistoryRecord;
@@ -35,17 +54,28 @@ import com.opensocket.aievent.core.dispatch.ExecutionOperationalQuery;
 import com.opensocket.aievent.core.dispatch.TaskFailureQueueService;
 import com.opensocket.aievent.core.issue.TaskIssueLink;
 import com.opensocket.aievent.core.issue.TaskIssueLinkRepository;
+import com.opensocket.aievent.core.integration.issue.policy.IssuePolicyDecision;
+import com.opensocket.aievent.core.integration.issue.policy.IssuePolicyDecisionRepository;
 import com.opensocket.aievent.core.lifecycle.TaskLifecycleService;
 import com.opensocket.aievent.core.routing.RoutingDecisionRecord;
 import com.opensocket.aievent.core.task.TaskOperationalQuery;
 import com.opensocket.aievent.core.task.TaskOrchestrationFacade;
 import com.opensocket.aievent.core.task.TaskRecord;
 import com.opensocket.aievent.core.task.TaskStatus;
+import com.opensocket.aievent.core.task.evidence.TaskDispatchEvidenceView;
+import com.opensocket.aievent.core.task.evidence.TaskRuntimeVerificationView;
+import com.opensocket.aievent.core.task.journey.TaskExecutionJourneyStage;
+import com.opensocket.aievent.core.task.journey.TaskExecutionJourneyStageCode;
+import com.opensocket.aievent.core.task.journey.TaskExecutionJourneyStatus;
+import com.opensocket.aievent.core.task.journey.TaskExecutionJourneyView;
 import com.opensocket.aievent.core.task.timeline.TaskCaseTimelineStepView;
 import com.opensocket.aievent.core.task.timeline.TaskCaseTimelineView;
 import com.opensocket.aievent.core.timeline.AdminFailureQueueResponse;
 import com.opensocket.aievent.core.timeline.DispatchTimelineResponse;
 import com.opensocket.aievent.core.timeline.DispatchTimelineService;
+import com.opensocket.aievent.core.timeline.TaskExecutionJourneyService;
+import com.opensocket.aievent.core.timeline.TaskDispatchEvidenceService;
+import com.opensocket.aievent.core.timeline.TaskRuntimeVerificationService;
 
 /**
  * Admin UI facade for task and dispatch operations.
@@ -57,6 +87,8 @@ import com.opensocket.aievent.core.timeline.DispatchTimelineService;
 @RestController
 @RequestMapping("/admin")
 public class CoreAdminTaskFacadeController {
+    private static final Logger log = LoggerFactory.getLogger(CoreAdminTaskFacadeController.class);
+
     private final TaskOperationalQuery taskQuery;
     private final TaskLifecycleService taskLifecycleService;
     private final TaskOrchestrationFacade taskOrchestrationFacade;
@@ -68,10 +100,36 @@ public class CoreAdminTaskFacadeController {
     private final CallbackInboxService callbackInboxService;
     private final TaskFailureQueueService failureQueueService;
     private final DispatchTimelineService timelineService;
-    private final ConcurrentMap<String, AdminTaskRemediationCommandResult> taskRemediationIdempotencyCache = new ConcurrentHashMap<>();
+    private final TaskExecutionJourneyService executionJourneyService;
+    @Autowired(required = false)
+    private TaskDispatchEvidenceService taskDispatchEvidenceService;
+
+    @Autowired(required = false)
+    private TaskRuntimeVerificationService taskRuntimeVerificationService;
+
+    @Autowired(required = false)
+    private IamIdempotencyExecutor taskRemediationIdempotency;
 
     @Autowired(required = false)
     private TaskIssueLinkRepository taskIssueLinkRepository = TaskIssueLinkRepository.noop();
+
+    @Autowired(required = false)
+    private IssuePolicyDecisionRepository issuePolicyDecisionRepository;
+
+    @Autowired(required = false)
+    private AdapterActionRepository adapterActionRepository;
+
+    @Autowired(required = false)
+    private AdapterExecutorAuditRepository adapterExecutorAuditRepository;
+
+    @Autowired(required = false)
+    private A2ARequestRepository a2aRequestRepository;
+    @Autowired(required = false)
+    private A2AResultRepository a2aResultRepository;
+    @Autowired(required = false)
+    private A2AResultProcessingRepository a2aResultProcessingRepository;
+    @Autowired(required = false)
+    private A2AParentAggregationRepository a2aParentAggregationRepository;
 
     public CoreAdminTaskFacadeController(
             TaskOperationalQuery taskQuery,
@@ -84,7 +142,8 @@ public class CoreAdminTaskFacadeController {
             DispatchAttemptLedgerService dispatchAttemptLedgerService,
             CallbackInboxService callbackInboxService,
             TaskFailureQueueService failureQueueService,
-            DispatchTimelineService timelineService
+            DispatchTimelineService timelineService,
+            TaskExecutionJourneyService executionJourneyService
     ) {
         this.taskQuery = taskQuery;
         this.taskLifecycleService = taskLifecycleService;
@@ -97,6 +156,7 @@ public class CoreAdminTaskFacadeController {
         this.callbackInboxService = callbackInboxService;
         this.failureQueueService = failureQueueService;
         this.timelineService = timelineService;
+        this.executionJourneyService = executionJourneyService;
     }
 
     @GetMapping("/tasks/{taskId}")
@@ -108,17 +168,284 @@ public class CoreAdminTaskFacadeController {
     @GetMapping("/tasks/{taskId}/runtime-view")
     public AdminTaskRuntimeView getTaskRuntimeView(@PathVariable String taskId) {
         TaskRecord task = getTask(taskId);
+        List<DispatchRequest> dispatchRequests = executionQuery.findDispatchRequestsByTask(taskId, 100);
+        DispatchRequest latestDispatch = dispatchRequests.stream().findFirst().orElse(null);
+        TaskIssueLink issueLink = taskIssueLinkRepository.findByTaskId(taskId).orElse(null);
+        log.info("task_detail_runtime_view_loaded taskId={} taskStatus={} correlationId={} dispatchRequestId={} dispatchStatus={} agentId={} issueLinked={} dispatchRequestCount={}",
+                taskId,
+                task.getStatus(),
+                task.getCorrelationId(),
+                latestDispatch == null ? null : latestDispatch.getDispatchRequestId(),
+                latestDispatch == null ? null : latestDispatch.getStatus(),
+                latestDispatch == null ? null : latestDispatch.getAgentId(),
+                issueLink != null,
+                dispatchRequests.size());
         return new AdminTaskRuntimeView(
                 task,
-                executionQuery.findDispatchRequestsByTask(taskId, 100),
+                dispatchRequests,
                 taskQuery.findRoutingDecisionsByTask(taskId, 1).stream().findFirst().orElse(null),
-                taskIssueLinkRepository.findByTaskId(taskId).orElse(null),
+                issueLink,
                 OffsetDateTime.now(ZoneOffset.UTC)
         );
     }
 
 
 
+
+    /**
+     * Phase 6 aggregate read model for Task Detail.
+     *
+     * <p>This endpoint is a query composition boundary, not a new write authority. It calls application/query
+     * services directly (never HTTP fan-out), reports partial section failures independently, and exposes
+     * stable section revisions so the Admin UI can poll overview cheaply and refresh only changed sections.</p>
+     */
+    @GetMapping("/tasks/{taskId}/operations-view")
+    @Transactional(readOnly = true)
+    public AdminTaskOperationsView taskOperationsView(
+            @PathVariable String taskId,
+            @RequestParam(defaultValue = "overview,execution,issue,relationships") String include) {
+        TaskRecord task = getTask(taskId); // authoritative anti-enumeration/resource boundary
+        Set<String> requested = operationsIncludes(include);
+
+        TaskExecutionJourneyView journey = null;
+        AdminTaskOperationsSection overview = requested.contains("overview")
+                ? operationsSection("overview", task.getVersion(), () -> operationsOverview(task))
+                : omittedOperationsSection("overview", task.getVersion());
+
+        AdminTaskOperationsSection execution;
+        if (requested.contains("execution")) {
+            final TaskExecutionJourneyView loadedJourney;
+            try {
+                loadedJourney = executionJourneyService.journey(taskId);
+                journey = loadedJourney;
+                execution = operationsSection("execution", loadedJourney.revision(),
+                        () -> operationsExecution(task, loadedJourney));
+            } catch (RuntimeException ex) {
+                execution = unavailableOperationsSection("execution", task.getVersion(), ex);
+            }
+        } else {
+            execution = omittedOperationsSection("execution", task.getVersion());
+        }
+
+        long issueRevision = issueOperationsRevision(task);
+        AdminTaskOperationsSection issue = requested.contains("issue")
+                ? operationsSection("issue", issueRevision, () -> operationsIssue(task))
+                : omittedOperationsSection("issue", issueRevision);
+
+        AdminTaskOperationsSection relationships = requested.contains("relationships")
+                ? operationsSection("relationships", task.getVersion(), () -> operationsRelationships(task))
+                : omittedOperationsSection("relationships", task.getVersion());
+
+        long snapshotRevision = Math.max(task.getVersion(), Math.max(execution.revision(),
+                Math.max(issue.revision(), relationships.revision())));
+        return new AdminTaskOperationsView(taskId, task.getTenantId(), task.getCorrelationId(), snapshotRevision,
+                OffsetDateTime.now(ZoneOffset.UTC), overview, execution, issue, relationships);
+    }
+
+    private AdminTaskOperationsOverview operationsOverview(TaskRecord task) {
+        String taskId = task.getTaskId();
+        List<DispatchRequest> overviewDispatches = executionQuery.findDispatchRequestsByTask(taskId, 3);
+        TaskIssueLink issue = taskIssueLinkRepository.findByTaskId(taskId).orElse(null);
+        AdminTaskRuntimeView runtimeView = new AdminTaskRuntimeView(
+                task,
+                overviewDispatches,
+                taskQuery.findRoutingDecisionsByTask(taskId, 1).stream().findFirst().orElse(null),
+                issue,
+                OffsetDateTime.now(ZoneOffset.UTC));
+        DispatchRequest latest = overviewDispatches.stream().findFirst().orElse(null);
+        CallbackInboxSummary callbackSummary = callbackInboxService.summarizeTask(taskId, 3);
+        long dispatchRevision = latest == null || latest.getUpdatedAt() == null ? 0L : Math.max(0L, latest.getUpdatedAt().toInstant().toEpochMilli());
+        long callbackRevision = callbackSummary == null ? 0L
+                : (((long) callbackSummary.getTotalCallbacks()) << 32)
+                    + Integer.toUnsignedLong(String.valueOf(callbackSummary.getLatestCallbackId()).hashCode());
+        long executionRevision = Math.max(task.getVersion(), Math.max(dispatchRevision, callbackRevision));
+        long issueRevision = issueOperationsRevision(task);
+        TaskRecord parent = task.getParentTaskId() == null ? null
+                : taskQuery.findTask(task.getTenantId(), task.getParentTaskId()).orElse(null);
+        List<TaskRecord> children = taskQuery.findTaskChildren(task.getTenantId(), taskId, 500);
+        long relationshipsRevision = Math.max(task.getVersion(), Math.max(
+                parent == null ? 0L : parent.getVersion(),
+                children.stream().mapToLong(TaskRecord::getVersion).max().orElse(0L)));
+        return new AdminTaskOperationsOverview(runtimeView, task.getVersion(), executionRevision, issueRevision, relationshipsRevision);
+    }
+
+    private AdminTaskOperationsExecution operationsExecution(TaskRecord task, TaskExecutionJourneyView journey) {
+        String taskId = task.getTaskId();
+        List<DispatchRequest> dispatchRequests = executionQuery.findDispatchRequestsByTask(taskId, 100);
+        List<DispatchAttemptHistoryRecord> attemptHistory = attemptHistoryService.findByTaskId(taskId, 100);
+        List<DispatchAttemptLedger> dispatchLedger = dispatchAttemptLedgerService.findByTaskId(taskId, 100);
+        List<CallbackInboxEntry> callbacks = callbackInboxService.findByTaskId(taskId, 100);
+        CallbackInboxSummary callbackSummary = callbackInboxService.summarizeTask(taskId, 100);
+        DispatchTimelineResponse timeline = timelineService.timeline(taskId, 200);
+        TaskCaseTimelineView caseTimeline = taskCaseTimeline(task, journey);
+        List<RoutingDecisionRecord> routing = taskQuery.findRoutingDecisionsByTask(taskId, 20);
+        TaskDispatchEvidenceView evidence = taskDispatchEvidenceService == null ? null : taskDispatchEvidenceService.evidence(taskId, 200);
+        TaskRuntimeVerificationView verification = taskRuntimeVerificationService == null ? null : taskRuntimeVerificationService.verify(taskId, 90, 200);
+        return new AdminTaskOperationsExecution(journey, dispatchRequests, attemptHistory, dispatchLedger, callbacks,
+                callbackSummary, timeline, caseTimeline, routing, evidence, verification, journey.revision());
+    }
+
+    private AdminTaskOperationsIssue operationsIssue(TaskRecord task) {
+        String taskId = task.getTaskId();
+        TaskIssueLink link = taskIssueLinkRepository.findByTaskId(taskId).orElse(null);
+        IssuePolicyDecision decision = issuePolicyDecisionRepository == null ? null
+                : issuePolicyDecisionRepository.findByTaskAndPurpose(task.getTenantId(), taskId, "PRIMARY_ISSUE").orElse(null);
+        List<AdapterAction> actions = issueAdapterActions(taskId);
+        List<AdapterExecutorAuditRecord> providerExecutions = issueProviderExecutions(primaryIssueAction(actions, decision));
+        long revision = issueOperationsRevision(task, link, decision, actions, providerExecutions);
+        log.info("task_detail_issue_authority_loaded taskId={} taskIssueSyncPolicy={} taskIssueSyncPolicySource={} issueDecision={} bindingStatus={} automationStatus={} adapterActionCount={} providerExecutionCount={} issueLinked={} issueRevision={}",
+                taskId, task.getIssueSyncPolicy(), task.getIssueSyncPolicySource(),
+                decision == null ? null : decision.decision(), decision == null ? null : decision.bindingStatus(),
+                decision == null ? null : decision.automationStatus(), actions.size(), providerExecutions.size(), link != null, revision);
+        return new AdminTaskOperationsIssue(link, buildIssueDedupSummary(task, link), decision, actions, providerExecutions, revision);
+    }
+
+    private long issueOperationsRevision(TaskRecord task) {
+        TaskIssueLink link = taskIssueLinkRepository.findByTaskId(task.getTaskId()).orElse(null);
+        IssuePolicyDecision decision = issuePolicyDecisionRepository == null ? null
+                : issuePolicyDecisionRepository.findByTaskAndPurpose(task.getTenantId(), task.getTaskId(), "PRIMARY_ISSUE").orElse(null);
+        List<AdapterAction> actions = issueAdapterActions(task.getTaskId());
+        AdapterAction primaryAction = primaryIssueAction(actions, decision);
+        List<AdapterExecutorAuditRecord> providerExecutions = issueProviderExecutions(primaryAction);
+        return issueOperationsRevision(task, link, decision, actions, providerExecutions);
+    }
+
+    private long issueOperationsRevision(TaskRecord task, TaskIssueLink link, IssuePolicyDecision decision,
+            List<AdapterAction> actions, List<AdapterExecutorAuditRecord> providerExecutions) {
+        long revision = Math.max(0L, task.getVersion());
+        if (link != null) revision = Math.max(revision, Math.max(0L, link.getResourceVersion()));
+        if (decision != null) {
+            revision = Math.max(revision, Math.max(0L, decision.version()));
+            revision = Math.max(revision, epochMillis(decision.updatedAt()));
+        }
+        for (AdapterAction action : actions) {
+            revision = Math.max(revision, epochMillis(firstNonNull(action.getUpdatedAt(), action.getCompletedAt(), action.getCreatedAt())));
+        }
+        for (AdapterExecutorAuditRecord audit : providerExecutions) {
+            revision = Math.max(revision, epochMillis(audit.getCreatedAt()));
+        }
+        return revision;
+    }
+
+    private List<AdapterAction> issueAdapterActions(String taskId) {
+        if (adapterActionRepository == null) return List.of();
+        return adapterActionRepository.findByTaskId(taskId, 100).stream()
+                .filter(action -> action != null && action.getAdapterType() == AdapterType.ISSUE_TRACKING)
+                .toList();
+    }
+
+    private AdapterAction primaryIssueAction(List<AdapterAction> actions, IssuePolicyDecision decision) {
+        if (actions == null || actions.isEmpty()) return null;
+        if (decision != null && decision.adapterActionId() != null && !decision.adapterActionId().isBlank()) {
+            for (AdapterAction action : actions) {
+                if (action != null && decision.adapterActionId().equals(action.getActionId())) return action;
+            }
+        }
+        return actions.stream()
+                .filter(java.util.Objects::nonNull)
+                .max(Comparator.comparing(action -> firstNonNull(action.getUpdatedAt(), action.getCompletedAt(), action.getCreatedAt()),
+                        Comparator.nullsFirst(Comparator.naturalOrder())))
+                .orElse(null);
+    }
+
+    private List<AdapterExecutorAuditRecord> issueProviderExecutions(AdapterAction action) {
+        if (adapterExecutorAuditRepository == null || action == null) return List.of();
+        return adapterExecutorAuditRepository.findByActionId(action.getActionId(), 100).stream()
+                .sorted(Comparator.comparing(AdapterExecutorAuditRecord::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(100)
+                .toList();
+    }
+
+    @SafeVarargs
+    private static <T> T firstNonNull(T... values) {
+        if (values == null) return null;
+        for (T value : values) if (value != null) return value;
+        return null;
+    }
+
+    private static long epochMillis(OffsetDateTime value) {
+        return value == null ? 0L : Math.max(0L, value.toInstant().toEpochMilli());
+    }
+
+    private AdminTaskOperationsRelationships operationsRelationships(TaskRecord task) {
+        String rootTaskId = firstNonBlank(task.getRootTaskId(), task.getTaskId());
+        TaskRecord parent = task.getParentTaskId() == null ? null
+                : taskQuery.findTask(task.getTenantId(), task.getParentTaskId()).orElse(null);
+        List<TaskRecord> children = taskQuery.findTaskChildren(task.getTenantId(), task.getTaskId(), 500);
+        AdminTaskA2AEvidence a2a = operationsA2AEvidence(task);
+        long revision = Math.max(task.getVersion(), Math.max(
+                parent == null ? 0L : parent.getVersion(),
+                Math.max(children.stream().mapToLong(TaskRecord::getVersion).max().orElse(0L), a2a.revision())));
+        return new AdminTaskOperationsRelationships(rootTaskId, parent, children, children.size(), a2a, revision);
+    }
+
+    private AdminTaskA2AEvidence operationsA2AEvidence(TaskRecord task) {
+        if (a2aRequestRepository == null) return new AdminTaskA2AEvidence(List.of(), null, List.of(), List.of(), null, 0L);
+        String tenantId = task.getTenantId();
+        String taskId = task.getTaskId();
+        List<A2ARequest> outbound = a2aRequestRepository.findBySourceTask(tenantId, taskId, 200);
+        A2ARequest inbound = a2aRequestRepository.findByChildTask(tenantId, taskId).orElse(null);
+        List<A2AResult> results = a2aResultRepository == null ? List.of()
+                : a2aResultRepository.findByParentTask(tenantId, taskId, 200);
+        if (inbound != null && a2aResultRepository != null) {
+            A2AResult inboundResult = a2aResultRepository.findByRequest(tenantId, inbound.getRequestId()).orElse(null);
+            if (inboundResult != null && results.stream().noneMatch(value -> value.getResultId().equals(inboundResult.getResultId()))) {
+                java.util.ArrayList<A2AResult> combined = new java.util.ArrayList<>(results);
+                combined.add(inboundResult);
+                results = List.copyOf(combined);
+            }
+        }
+        List<A2AResultProcessing> processing = a2aResultProcessingRepository == null ? List.of()
+                : a2aResultProcessingRepository.findByTask(tenantId, taskId, 200);
+        A2AParentAggregation aggregation = a2aParentAggregationRepository == null ? null
+                : a2aParentAggregationRepository.findByParentTask(tenantId, taskId).orElse(null);
+        long revision = Math.max(
+                outbound.stream().mapToLong(A2ARequest::getVersion).max().orElse(0L),
+                Math.max(inbound == null ? 0L : inbound.getVersion(),
+                Math.max(results.stream().mapToLong(A2AResult::getVersion).max().orElse(0L),
+                Math.max(processing.stream().mapToLong(A2AResultProcessing::getRowVersion).max().orElse(0L),
+                        aggregation == null ? 0L : aggregation.getVersion()))));
+        return new AdminTaskA2AEvidence(outbound, inbound, results, processing, aggregation, revision);
+    }
+
+    private static Set<String> operationsIncludes(String include) {
+        Set<String> values = new LinkedHashSet<>();
+        if (include != null) {
+            for (String value : include.split(",")) {
+                String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+                if (Set.of("overview", "execution", "issue", "relationships").contains(normalized)) values.add(normalized);
+            }
+        }
+        if (values.isEmpty()) values.add("overview");
+        return Set.copyOf(values);
+    }
+
+    private <T> AdminTaskOperationsSection operationsSection(String name, long revision, Supplier<T> loader) {
+        try {
+            return new AdminTaskOperationsSection(name, "READY", Math.max(0L, revision), null, null, loader.get());
+        } catch (RuntimeException ex) {
+            return unavailableOperationsSection(name, revision, ex);
+        }
+    }
+
+    private AdminTaskOperationsSection unavailableOperationsSection(String name, long revision, RuntimeException ex) {
+        String errorCode = "TASK_OPERATIONS_" + name.toUpperCase(Locale.ROOT) + "_UNAVAILABLE";
+        log.warn("task_operations_section_unavailable taskIdSection={} errorCode={} errorClass={} safeMessage={}",
+                name, errorCode, ex.getClass().getSimpleName(), firstNonBlank(ex.getMessage(), "Section unavailable"));
+        return new AdminTaskOperationsSection(name, "UNAVAILABLE", Math.max(0L, revision), errorCode,
+                firstNonBlank(ex.getMessage(), "Section unavailable"), null);
+    }
+
+    private static AdminTaskOperationsSection omittedOperationsSection(String name, long revision) {
+        return new AdminTaskOperationsSection(name, "OMITTED", Math.max(0L, revision), null, null, null);
+    }
+
+    /** Canonical evidence-backed operational journey. This is a read model, never a write authority. */
+    @GetMapping("/tasks/{taskId}/execution-journey")
+    public TaskExecutionJourneyView taskExecutionJourney(@PathVariable String taskId) {
+        getTask(taskId); // preserve Task resource authorization/anti-enumeration behavior
+        return executionJourneyService.journey(taskId);
+    }
 
     @GetMapping("/tasks/{taskId}/issue-dedup")
     public AdminTaskIssueDedupSummary taskIssueDedup(@PathVariable String taskId) {
@@ -130,6 +457,11 @@ public class CoreAdminTaskFacadeController {
     @GetMapping("/tasks/{taskId}/case-timeline")
     public TaskCaseTimelineView taskCaseTimeline(@PathVariable String taskId) {
         TaskRecord task = getTask(taskId);
+        return taskCaseTimeline(task, executionJourneyService.journey(taskId));
+    }
+
+    private TaskCaseTimelineView taskCaseTimeline(TaskRecord task, TaskExecutionJourneyView journey) {
+        String taskId = task.getTaskId();
         String selectedAgentId = executionQuery.findDispatchRequestsByTask(taskId, 1).stream()
                 .findFirst()
                 .map(DispatchRequest::getAgentId)
@@ -137,32 +469,37 @@ public class CoreAdminTaskFacadeController {
         TaskCaseTimelineView view = new TaskCaseTimelineView();
         view.setTaskId(task.getTaskId());
         view.setParentTaskId(task.getParentTaskId());
-        view.setCorrelationId(firstNonBlank(task.getCorrelationId(), task.getIncidentId(), task.getTaskId()));
+        view.setCorrelationId(journey.correlationId());
         view.setMatchedFlowId(task.getMatchedFlowId());
         view.setMatchedRuleId(task.getMatchedRuleId());
         view.setRequestedSkill(task.getRequestedSkill());
         view.setEventStage(firstNonBlank(task.getEventStage(), "EXTERNAL"));
         view.setRoutingPath(task.getRoutingPath());
-        view.setFailureStage(p4FailureStage(task, selectedAgentId));
-        view.setFixAction(p4FixAction(task, selectedAgentId));
-        String failureStage = p4FailureStage(task, selectedAgentId);
-        String fixAction = p4FixAction(task, selectedAgentId);
-        boolean flowReady = task.getMatchedFlowId() != null && task.getMatchedRuleId() != null && "FLOW_RULE".equalsIgnoreCase(firstNonBlank(task.getRoutingPath(), ""));
-        boolean capabilityRequired = hasRequiredCapabilities(task);
-        boolean skillReady = !capabilityRequired || hasResolvedCapabilityRequirement(task);
-        boolean agentReady = selectedAgentId != null && !selectedAgentId.isBlank();
-        boolean taskCompleted = task.getStatus() != null && "COMPLETED".equalsIgnoreCase(task.getStatus().name());
+        view.setFailureStage(journey.currentStage() == null ? null : journey.currentStage().name());
+        view.setFixAction(journeyFixAction(journey));
+
+        TaskExecutionJourneyStage intake = journeyStage(journey, TaskExecutionJourneyStageCode.INTAKE);
+        TaskExecutionJourneyStage routing = journeyStage(journey, TaskExecutionJourneyStageCode.ROUTING);
+        TaskExecutionJourneyStage assignment = journeyStage(journey, TaskExecutionJourneyStageCode.ASSIGNMENT);
+        TaskExecutionJourneyStage delivery = journeyStage(journey, TaskExecutionJourneyStageCode.DELIVERY);
+        TaskExecutionJourneyStage ack = journeyStage(journey, TaskExecutionJourneyStageCode.ACK);
+        TaskExecutionJourneyStage result = journeyStage(journey, TaskExecutionJourneyStageCode.RESULT);
+        TaskExecutionJourneyStage issuePolicy = journeyStage(journey, TaskExecutionJourneyStageCode.ISSUE_POLICY);
+        TaskExecutionJourneyStage issueSync = journeyStage(journey, TaskExecutionJourneyStageCode.PROJECTION_SYNCED);
+        String failureStage = journey.currentStage() == null ? null : journey.currentStage().name();
+        String fixAction = journeyFixAction(journey);
+
         view.setSteps(List.of(
-                r8CaseTimelineStep(1, "INTAKE_EVENT", firstNonBlank(task.getEventStage(), "EXTERNAL"), task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, "PASS", failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "Event accepted by Core; Flow repair starts from eventStage/source/eventType evidence."),
-                r8CaseTimelineStep(2, "FLOW_RULE_MATCH", "FLOW_RULE_MATCH", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, flowReady ? "PASS" : "BLOCKED", failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "Formal routing requires matchedFlowId, matchedRuleId, and routingPath=FLOW_RULE."),
-                r8CaseTimelineStep(3, "SKILL_RESOLUTION", "SKILL_RESOLUTION", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, skillReady ? "PASS" : flowReady ? "BLOCKED" : "PENDING", failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "Capability is optional; TaskRecord.requiredCapabilities is the persisted task-level requirement evidence."),
-                r8CaseTimelineStep(4, "FLOW_AGENT_ASSIGNMENT", "FLOW_AGENT_ASSIGNMENT", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, agentReady ? "PASS" : skillReady ? "BLOCKED" : "PENDING", failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "Agent must be assigned from flow_agent_assignments on the matched Dispatch Flow."),
-                r8CaseTimelineStep(5, "RUNTIME_DELIVERY", "RUNTIME_DELIVERY", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, agentReady ? "PASS" : "PENDING", failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "Dispatch Request / runtime delivery is checked only after Flow evidence is complete."),
-                r8CaseTimelineStep(6, "AGENT_ACK", "AGENT_ACK", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, taskCompleted ? "PASS" : "PENDING", failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "Agent ACK is expected after gateway delivery."),
-                r8CaseTimelineStep(7, "AGENT_RESULT", "AGENT_RESULT", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, taskCompleted ? "PASS" : "PENDING", failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "Agent RESULT callback closes the task loop."),
-                r8CaseTimelineStep(8, "ISSUE_UPDATE", "ISSUE_UPDATE", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, "PENDING", failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "If an Issue policy exists, Issue sync is handled after Agent RESULT.")
+                r8CaseTimelineStep(1, "INTAKE_EVENT", firstNonBlank(task.getEventStage(), "EXTERNAL"), task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, caseStatus(intake), failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), journeySummary(intake, "Event intake evidence is unavailable."), intake),
+                r8CaseTimelineStep(2, "FLOW_RULE_MATCH", "ROUTING", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, caseStatus(routing), failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), journeySummary(routing, "Waiting for authoritative routing evidence."), routing),
+                r8CaseTimelineStep(3, "SKILL_RESOLUTION", "ROUTING", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, caseStatus(routing), failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), "Capability/rule context is shown for compatibility; canonical pass/block status comes from the ROUTING Journey stage.", routing),
+                r8CaseTimelineStep(4, "FLOW_AGENT_ASSIGNMENT", "ASSIGNMENT", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, caseStatus(assignment), failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), journeySummary(assignment, "Waiting for authoritative assignment evidence."), assignment),
+                r8CaseTimelineStep(5, "RUNTIME_DELIVERY", "DELIVERY", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, caseStatus(delivery), failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), journeySummary(delivery, "Waiting for DispatchRequest delivery evidence."), delivery),
+                r8CaseTimelineStep(6, "AGENT_ACK", "ACK", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, caseStatus(ack), failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), journeySummary(ack, "Waiting for accepted Agent ACK evidence."), ack),
+                r8CaseTimelineStep(7, "AGENT_RESULT", "RESULT", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, caseStatus(result), failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), journeySummary(result, "Waiting for accepted Agent RESULT/ERROR evidence."), result),
+                r8CaseTimelineStep(8, "ISSUE_UPDATE", "ISSUE_SYNC", task.getEventType(), task.getSourceSystem(), task.getTargetSystem(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(), task.getRoutingPath(), selectedAgentId, caseStatus(issueSync == null ? issuePolicy : issueSync), failureStage, fixAction, task.getTaskId(), task.getParentTaskId(), view.getCorrelationId(), issueJourneySummary(issuePolicy, issueSync), issueSync == null ? issuePolicy : issueSync)
         ));
-        view.setGeneratedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        view.setGeneratedAt(journey.generatedAt());
         return view;
     }
 
@@ -205,18 +542,56 @@ public class CoreAdminTaskFacadeController {
         if (request == null || request.commandType() == null || request.commandType().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "commandType is required");
         }
+        if (taskRemediationIdempotency == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "DURABLE_IDEMPOTENCY_AUTHORITY_REQUIRED");
+        }
+
         AdminTaskRemediationCommandType commandType = parseCommandType(request.commandType());
         String idempotencyKey = requiredText(request.idempotencyKey(), "idempotencyKey");
         String operatorReason = requiredText(request.reason(), "reason");
-        String operatorId = firstNonBlank(request.operatorId(), "admin-ui");
-        String cacheKey = taskId + ":" + commandType.name() + ":" + idempotencyKey;
-        AdminTaskRemediationCommandResult cached = taskRemediationIdempotencyCache.get(cacheKey);
-        if (cached != null) {
-            return cached.asReplay();
-        }
+        String operatorId = ServerActorAuthority.requireActorId();
+        ServerActorAuthority.rejectSpoofedActor(request.operatorId(), operatorId);
 
         TaskRecord before = getTask(taskId);
         verifyExpectedTaskVersion(before, request.expectedTaskVersion());
+        String tenantId = requiredText(before.getTenantId(), "task.tenantId");
+        AdminTaskRemediationIdempotencyRequest canonicalRequest = new AdminTaskRemediationIdempotencyRequest(
+                taskId,
+                commandType.name(),
+                request.expectedTaskVersion(),
+                operatorReason,
+                request.payload() == null ? Map.of() : request.payload());
+
+        IamIdempotencyExecutor.ExecutionResult<AdminTaskRemediationCommandResult> execution =
+                taskRemediationIdempotency.executeWithState(
+                        tenantId,
+                        operatorId,
+                        "ADMIN_TASK_REMEDIATION:" + commandType.name(),
+                        idempotencyKey,
+                        canonicalRequest,
+                        200,
+                        AdminTaskRemediationCommandResult.class,
+                        () -> executeTaskRemediationCommand(
+                                taskId,
+                                commandType,
+                                request.expectedTaskVersion(),
+                                idempotencyKey,
+                                operatorReason,
+                                operatorId,
+                                request.payload()));
+        return execution.replay() ? execution.value().asReplay() : execution.value();
+    }
+
+    private AdminTaskRemediationCommandResult executeTaskRemediationCommand(
+            String taskId,
+            AdminTaskRemediationCommandType commandType,
+            Long expectedTaskVersion,
+            String idempotencyKey,
+            String operatorReason,
+            String operatorId,
+            Map<String, Object> payload) {
+        TaskRecord before = getTask(taskId);
+        verifyExpectedTaskVersion(before, expectedTaskVersion);
         List<String> allowed = allowedTaskRemediationCommands(before);
         AdminTaskCommandTaskSnapshot beforeSnapshot = taskSnapshot(before);
         if (!allowed.contains(commandType.name())) {
@@ -234,7 +609,7 @@ public class CoreAdminTaskFacadeController {
         switch (commandType) {
             case REEVALUATE_ROUTING -> effect = taskLifecycleService.reassign(taskId, commandReason);
             case ASSIGN_AGENT -> {
-                String targetAgentId = payloadText(request.payload(), "targetAgentId", "agentId");
+                String targetAgentId = payloadText(payload, "targetAgentId", "agentId");
                 if (targetAgentId == null || targetAgentId.isBlank()) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload.targetAgentId is required for ASSIGN_AGENT");
                 }
@@ -245,7 +620,7 @@ public class CoreAdminTaskFacadeController {
                 effect = assignment;
             }
             case CHANGE_POOL -> {
-                String targetPoolId = payloadText(request.payload(), "targetPoolId", "poolId");
+                String targetPoolId = payloadText(payload, "targetPoolId", "poolId");
                 if (targetPoolId == null || targetPoolId.isBlank()) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload.targetPoolId is required for CHANGE_POOL");
                 }
@@ -287,11 +662,10 @@ public class CoreAdminTaskFacadeController {
                 beforeSnapshot,
                 taskSnapshot(after),
                 idempotencyKey,
-                request.expectedTaskVersion(),
+                expectedTaskVersion,
                 taskVersion(after),
-                "Original automatic routing evidence is preserved; remediation writes lifecycle/effect evidence only."
-        );
-        AdminTaskRemediationCommandResult result = new AdminTaskRemediationCommandResult(
+                "Original automatic routing evidence is preserved; remediation writes lifecycle/effect evidence only.");
+        return new AdminTaskRemediationCommandResult(
                 true,
                 "Task remediation command accepted: " + commandType.name(),
                 now.toString(),
@@ -301,10 +675,7 @@ public class CoreAdminTaskFacadeController {
                 audit,
                 after,
                 effect,
-                false
-        );
-        taskRemediationIdempotencyCache.putIfAbsent(cacheKey, result);
-        return result;
+                false);
     }
 
     @GetMapping("/tasks/{taskId}/dispatch-requests")
@@ -372,6 +743,10 @@ public class CoreAdminTaskFacadeController {
     @PostMapping("/tasks/{taskId}/retry")
     public AdminCommandResult<DispatchRequest> retryTaskLatestDispatch(@PathVariable String taskId,
                                                                        @RequestBody(required = false) AdminRetryRequest request) {
+        TaskRecord task = getTask(taskId);
+        if (task.getStatus() == TaskStatus.WAITING_HUMAN || task.getStatus() == TaskStatus.BLOCKED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Task retry is blocked while the task is held for Human/Security review.");
+        }
         DispatchRequest dispatch = latestDispatchForTask(taskId);
         DispatchRequest retried = dispatchRequestService.retry(
                 dispatch.getDispatchRequestId(),
@@ -447,7 +822,8 @@ public class CoreAdminTaskFacadeController {
 
     private void verifyExpectedTaskVersion(TaskRecord task, Long expectedTaskVersion) {
         if (expectedTaskVersion == null) {
-            return;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "expectedTaskVersion is required for Task remediation commands");
         }
         long currentVersion = taskVersion(task);
         if (currentVersion != expectedTaskVersion.longValue()) {
@@ -457,10 +833,7 @@ public class CoreAdminTaskFacadeController {
     }
 
     private long taskVersion(TaskRecord task) {
-        if (task == null || task.getUpdatedAt() == null) {
-            return 0L;
-        }
-        return task.getUpdatedAt().toInstant().toEpochMilli();
+        return task == null ? 0L : task.getVersion();
     }
 
     private List<String> allowedTaskRemediationCommands(TaskRecord task) {
@@ -612,7 +985,7 @@ public class CoreAdminTaskFacadeController {
         return fallback;
     }
 
-    private static TaskCaseTimelineStepView r8CaseTimelineStep(int sequence, String stepCode, String eventStage, String eventType, String sourceSystem, String targetSystem, String matchedFlowId, String matchedRuleId, String requestedSkill, String routingPath, String selectedAgentId, String status, String failureStage, String fixAction, String taskId, String parentTaskId, String correlationId, String message) {
+    private static TaskCaseTimelineStepView r8CaseTimelineStep(int sequence, String stepCode, String eventStage, String eventType, String sourceSystem, String targetSystem, String matchedFlowId, String matchedRuleId, String requestedSkill, String routingPath, String selectedAgentId, String status, String failureStage, String fixAction, String taskId, String parentTaskId, String correlationId, String message, TaskExecutionJourneyStage journeyStage) {
         TaskCaseTimelineStepView step = new TaskCaseTimelineStepView();
         step.setSequence(sequence);
         step.setStepCode(stepCode);
@@ -632,13 +1005,59 @@ public class CoreAdminTaskFacadeController {
         step.setParentTaskId(parentTaskId);
         step.setCorrelationId(correlationId);
         step.setMessage(message);
-        step.setOccurredAt(OffsetDateTime.now(ZoneOffset.UTC));
-        step.setDetails(Map.of(
-                "P4_TASK_DETAIL_FLOW_REPAIR_CENTER", true,
-                "formalSuccessRequires", List.of("matchedFlowId", "matchedRuleId", "routingPath=FLOW_RULE", "selectedAgentId"),
-                "capabilityRequirement", "TaskRecord.requiredCapabilities is the persisted task-level requirement evidence"
-        ));
+        step.setOccurredAt(journeyStage == null ? null : firstNonNull(journeyStage.completedAt(), journeyStage.lastChangedAt(), journeyStage.startedAt()));
+        Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("authority", "V24_TASK_EXECUTION_JOURNEY_V1");
+        if (journeyStage != null) {
+            details.put("journeyStage", journeyStage.stage().name());
+            details.put("journeyStatus", journeyStage.status().name());
+            details.put("reasonCode", journeyStage.reasonCode());
+            details.put("retryability", journeyStage.retryability().name());
+            details.put("retryAfter", journeyStage.retryAfter());
+            details.put("revision", journeyStage.revision());
+            details.put("evidenceRefs", journeyStage.evidenceRefs());
+        }
+        step.setDetails(details);
         return step;
+    }
+
+    private TaskExecutionJourneyStage journeyStage(TaskExecutionJourneyView journey, TaskExecutionJourneyStageCode code) {
+        if (journey == null || journey.stages() == null) return null;
+        return journey.stages().stream().filter(stage -> stage.stage() == code).findFirst().orElse(null);
+    }
+
+    private String caseStatus(TaskExecutionJourneyStage stage) {
+        if (stage == null || stage.status() == null) return "PENDING";
+        return switch (stage.status()) {
+            case SUCCEEDED, NOT_APPLICABLE -> "PASS";
+            case BLOCKED, FAILED_RETRYABLE, FAILED_FINAL, CONFLICT -> "BLOCKED";
+            case NOT_STARTED, PENDING, IN_PROGRESS -> "PENDING";
+        };
+    }
+
+    private String journeySummary(TaskExecutionJourneyStage stage, String fallback) {
+        return stage == null ? fallback : firstNonBlank(stage.summary(), fallback);
+    }
+
+    private String issueJourneySummary(TaskExecutionJourneyStage policy, TaskExecutionJourneyStage sync) {
+        if (policy != null && policy.status() == TaskExecutionJourneyStatus.SUCCEEDED && !policy.required()) {
+            return journeySummary(policy, "Issue policy determined that no external Issue is required.");
+        }
+        if (sync != null) return journeySummary(sync, "Waiting for canonical Issue projection synchronization evidence.");
+        return journeySummary(policy, "Waiting for Issue policy evaluation.");
+    }
+
+    private String journeyFixAction(TaskExecutionJourneyView journey) {
+        if (journey == null || journey.currentStage() == null) return null;
+        return switch (journey.currentStage()) {
+            case ROUTING -> "Run Task-level Readiness";
+            case ASSIGNMENT -> "Review Agent assignment and capacity";
+            case DELIVERY, ACK, RESULT -> "Open Agent Diagnostics";
+            case ISSUE_POLICY -> "Review Issue Policy";
+            case ISSUE_INTENT, ISSUE_MATERIALIZATION -> "Review Issue Projection";
+            case OUTBOX, PROVIDER, READBACK, PROJECTION_SYNCED -> "Open Issue Reliability / Reconciliation";
+            case INTAKE -> "Review Event Intake evidence";
+        };
     }
 
     private static String p4FailureStage(TaskRecord task, String selectedAgentId) {
@@ -677,6 +1096,37 @@ public class CoreAdminTaskFacadeController {
         return null;
     }
 
+    public record AdminTaskOperationsView(
+            String taskId, String tenantId, String correlationId, long snapshotRevision, OffsetDateTime generatedAt,
+            AdminTaskOperationsSection overview, AdminTaskOperationsSection execution,
+            AdminTaskOperationsSection issue, AdminTaskOperationsSection relationships) {}
+
+    public record AdminTaskOperationsSection(
+            String name, String status, long revision, String errorCode, String errorMessage, Object payload) {}
+
+    public record AdminTaskOperationsOverview(
+            AdminTaskRuntimeView runtimeView, long revision, long executionRevision, long issueRevision, long relationshipsRevision) {}
+
+    public record AdminTaskOperationsExecution(
+            TaskExecutionJourneyView journey, List<DispatchRequest> dispatchRequests,
+            List<DispatchAttemptHistoryRecord> attemptHistory, List<DispatchAttemptLedger> dispatchLedger,
+            List<CallbackInboxEntry> callbackInbox, CallbackInboxSummary callbackInboxSummary,
+            DispatchTimelineResponse timeline, TaskCaseTimelineView caseTimeline,
+            List<RoutingDecisionRecord> routingDecisions, TaskDispatchEvidenceView dispatchEvidence,
+            TaskRuntimeVerificationView runtimeVerification, long revision) {}
+
+    public record AdminTaskOperationsIssue(
+            TaskIssueLink issueTracking, AdminTaskIssueDedupSummary issueDedup, IssuePolicyDecision issuePolicyDecision,
+            List<AdapterAction> adapterActions, List<AdapterExecutorAuditRecord> providerExecutions, long revision) {}
+
+    public record AdminTaskA2AEvidence(
+            List<A2ARequest> outboundRequests, A2ARequest inboundRequest, List<A2AResult> results,
+            List<A2AResultProcessing> resultProcessing, A2AParentAggregation parentAggregation, long revision) {}
+
+    public record AdminTaskOperationsRelationships(
+            String rootTaskId, TaskRecord parentTask, List<TaskRecord> childTasks, int directChildCount,
+            AdminTaskA2AEvidence a2a, long revision) {}
+
     public record AdminReasonRequest(String reason) {}
     public record AdminRetryRequest(String reason, Boolean resetAttempts, Boolean immediate) {}
     public record AdminTaskRuntimeView(TaskRecord task, List<DispatchRequest> dispatchRequests, RoutingDecisionRecord latestRoutingDecision, TaskIssueLink issueTracking, OffsetDateTime generatedAt) {}
@@ -691,6 +1141,13 @@ public class CoreAdminTaskFacadeController {
         CANCEL_TASK,
         IGNORE_TASK
     }
+
+    public record AdminTaskRemediationIdempotencyRequest(
+            String taskId,
+            String commandType,
+            Long expectedTaskVersion,
+            String reason,
+            Map<String, Object> payload) {}
 
     public record AdminTaskRemediationCommandRequest(
             String commandType,

@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>control-plane-parent</artifactId>
-        <version>1.0.0-p25.7.4-p5-callback-transition-governance-fix</version>
+        <version>0.8.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>agent-control</artifactId>
@@ -18,6 +18,10 @@
         <dependency>
             <groupId>com.opensocket</groupId>
             <artifactId>data-model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>security-principal-contracts</artifactId>
         </dependency>
         <dependency>
             <groupId>tools.jackson.core</groupId>

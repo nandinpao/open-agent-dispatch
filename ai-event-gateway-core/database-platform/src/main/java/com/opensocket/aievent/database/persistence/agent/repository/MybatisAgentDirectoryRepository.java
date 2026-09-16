@@ -10,7 +10,7 @@ import com.opensocket.aievent.core.agent.AgentQuery;
 import com.opensocket.aievent.core.agent.AgentSnapshot;
 import com.opensocket.aievent.core.agent.AgentStatus;
 import com.opensocket.aievent.database.persistence.agent.dao.AgentDirectoryDao;
-import com.opensocket.aievent.database.persistence.agent.po.AgentSnapshotPo;
+
 import com.opensocket.aievent.database.persistence.agent.converter.AgentDirectoryPersistenceConverter;
 
 

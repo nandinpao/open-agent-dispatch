@@ -1,0 +1,14 @@
+package com.opensocket.aievent.core.integration.issue;
+import java.time.*; import java.util.*;
+import org.springframework.scheduling.annotation.Scheduled;
+/** Claims due outbox work by tenant and executes it through a scoped Provider gateway. */
+@Deprecated(forRemoval = true)
+public class IssueSyncWorker {
+ private final IssueSyncRepository repository; private final IssueProjectionService service; private final List<IssueSyncProviderGateway> gateways;
+ private final String workerId="issue-sync-worker-"+UUID.randomUUID();
+ public IssueSyncWorker(IssueSyncRepository repository,IssueProjectionService service,List<IssueSyncProviderGateway> gateways){this.repository=repository;this.service=service;this.gateways=gateways.stream().sorted(Comparator.comparingInt(IssueSyncProviderGateway::priority)).toList();}
+ @Scheduled(fixedDelayString="${integration-sync.worker-interval-ms:5000}")
+ public void scheduledRun(){runOnce(50);}
+ public int runOnce(int limit){int processed=0;OffsetDateTime now=OffsetDateTime.now(ZoneOffset.UTC);for(String tenant:repository.listDueTenants(now,Math.max(1,limit))){for(IntegrationOutboxEntry item:service.claimDue(tenant,workerId,Math.max(1,limit-processed))){execute(item);processed++;if(processed>=limit)return processed;}}return processed;}
+ private void execute(IntegrationOutboxEntry item){Optional<IssueSyncProviderGateway> selected=gateways.stream().filter(g->g.supports(item)).findFirst();if(selected.isEmpty()){service.skipNotConfigured(item.tenantId(),item.outboxId(),workerId,IssueSyncReasonCode.ISSUE_PROVIDER_NOT_CONFIGURED.name(),"No governed Issue Provider gateway supports this projection. Historical outbox work was converged as SKIPPED instead of retried.");return;}IssueSyncProviderGateway gateway=selected.get();if(gateway.mode()!=null&&gateway.mode().toUpperCase(Locale.ROOT).startsWith("UNAVAILABLE")){service.skipNotConfigured(item.tenantId(),item.outboxId(),workerId,IssueSyncReasonCode.ISSUE_PROVIDER_NOT_CONFIGURED.name(),"Issue Provider gateway is not configured for this deployment; projection skipped without retry.");return;}try{service.startAttempt(item.tenantId(),item.outboxId(),workerId);}catch(RuntimeException ex){service.deferClaim(item.tenantId(),item.outboxId(),workerId,"INTEGRATION_CIRCUIT_OPEN",ex.getMessage());return;}try{ProviderSyncResult result=gateway.execute(item);if(result!=null&&result.success())service.complete(item.tenantId(),item.outboxId(),workerId,result);else service.fail(item.tenantId(),item.outboxId(),workerId,result==null?ProviderSyncResult.failure(true,502,"EMPTY_PROVIDER_RESPONSE","Provider gateway returned no result."):result);}catch(RuntimeException ex){service.fail(item.tenantId(),item.outboxId(),workerId,ProviderSyncResult.failure(true,null,"ISSUE_PROVIDER_EXECUTION_FAILED",ex.getMessage()));}}
+}

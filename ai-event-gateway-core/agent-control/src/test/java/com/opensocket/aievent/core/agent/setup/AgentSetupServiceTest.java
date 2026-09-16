@@ -304,6 +304,9 @@ class AgentSetupServiceTest {
         request.setAgentId("Redmine Agent 001");
         request.setAgentName("Redmine Issue Agent");
         request.setOwnerTeam("ops");
+        request.setOwnerDepartmentId("dept-test");
+        request.setBusinessOwnerUserId("user-owner");
+        request.setResponsibilityRoleId("role-agent-runtime");
         request.setPurpose("ISSUE_TRACKING");
         request.setRuntimeType("Docker");
         request.setGatewayUrl("http://127.0.0.1:18081");
@@ -375,6 +378,9 @@ class AgentSetupServiceTest {
         command.setAgentName("Redmine Issue Agent");
         command.setAgentType("ISSUE_TRACKING");
         command.setOwnerTeam("ops");
+        command.setOwnerDepartmentId("dept-test");
+        command.setBusinessOwnerUserId("user-owner");
+        command.setResponsibilityRoleId("role-agent-runtime");
         return command;
     }
 

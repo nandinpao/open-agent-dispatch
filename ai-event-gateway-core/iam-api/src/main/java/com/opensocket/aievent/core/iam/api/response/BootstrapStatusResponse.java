@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.response;import java.util.Set;public record BootstrapStatusResponse(String status,long version,Set<String> completedSteps,boolean bootstrapApiOpen){public BootstrapStatusResponse{completedSteps=completedSteps==null?Set.of():Set.copyOf(completedSteps);}}

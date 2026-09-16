@@ -1,0 +1,43 @@
+package com.opensocket.aievent.core.iam.rbac.application.port.in;
+import com.opensocket.aievent.core.iam.rbac.application.command.entrypoint.*;
+import com.opensocket.aievent.core.iam.rbac.application.command.manifest.RegisterApplicationPermissionManifestCommand;
+import com.opensocket.aievent.core.iam.rbac.application.command.shadow.*;
+import com.opensocket.aievent.core.iam.rbac.domain.entrypoint.*;
+import com.opensocket.aievent.core.iam.rbac.domain.manifest.*;
+import com.opensocket.aievent.core.iam.rbac.domain.shadow.*;
+import java.util.List;
+public interface EntryPointAuthorityAdministrationPort {
+ List<EntryPointAuthorityRecord> entries(String text,String state,String ownerModule,int limit);
+ EntryPointBurnDownSummary summary();
+ List<LegacyAuthorityMapping> mappings(String status,int limit);
+ List<EntryPointBypass> bypasses(String status,int limit);
+ EntryPointAuthorityRecord updateEntryPoint(UpdateEntryPointAuthorityCommand command);
+ LegacyAuthorityMapping updateMapping(UpdateLegacyAuthorityMappingCommand command);
+ EntryPointBypass createBypass(CreateEntryPointBypassCommand command);
+ EntryPointBypass revokeBypass(RevokeEntryPointBypassCommand command);
+ List<ApplicationPermissionManifest> manifests(int limit);
+ ApplicationPermissionManifest manifest(String manifestId);
+ List<ApplicationPermissionManifestEntry> manifestEntries(String manifestId,String driftStatus,int limit);
+ PermissionManifestDriftSummary manifestDrift(String manifestId);
+ List<PermissionCoverageEvidence> coverageEvidence(int limit);
+ ApplicationPermissionManifest registerManifest(RegisterApplicationPermissionManifestCommand command);
+ List<ShadowObservation> shadowObservations(String tenantId,String domainCode,String category,int limit);
+ ShadowObservationSummary shadowSummary(String tenantId,String domainCode);
+ List<ShadowMismatchCase> mismatchCases(String tenantId,String domainCode,String status,int limit);
+ ShadowMismatchCase createMismatchCase(CreateMismatchCaseCommand command);
+ ShadowMismatchCase updateMismatchCase(UpdateMismatchCaseCommand command);
+ ShadowMismatchWaiver createMismatchWaiver(CreateMismatchWaiverCommand command);
+ ShadowRegressionEvidence addRegressionEvidence(AddRegressionEvidenceCommand command);
+ List<DomainReadinessEvidence> domainReadiness(String tenantId,String domainCode,int limit);
+ DomainReadinessEvidence evaluateDomainReadiness(EvaluateDomainReadinessCommand command);
+ List<Phase6EligibilityEvidence> phase6Eligibility(String tenantId,int limit);
+ Phase6EligibilityEvidence evaluatePhase6Eligibility(EvaluatePhase6EligibilityCommand command);
+ ShadowPipelineReadiness shadowPipelineReadiness();
+ ShadowStorageReadiness shadowStorageReadiness();
+ List<ShadowRetentionRun> shadowRetentionRuns(int limit);
+ String processShadowPipeline(String workerId,int batchSize,String actorId,String correlationId,String auditReason);
+ ShadowRetentionRun runShadowRetention(RunShadowRetentionCommand command);
+ List<Phase5RuntimeCertificationEvidence> phase5RuntimeCertificationEvidence(int limit);
+ Phase5RuntimeCertificationEvidence generatePhase5RuntimeCertificationEvidence(GeneratePhase5RuntimeCertificationCommand command);
+
+}

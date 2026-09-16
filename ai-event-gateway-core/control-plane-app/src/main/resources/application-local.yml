@@ -22,7 +22,7 @@ pg:
     isDefault: ${PG_SINGLE_IS_DEFAULT:true}
     driver-class-name: ${PG_SINGLE_DRIVER_CLASS_NAME:org.postgresql.Driver}
     hikari:
-      minimum-idle: ${PG_SINGLE_HIKARI_MINIMUM_IDLE:2}
+      minimum-idle: ${PG_SINGLE_HIKARI_MINIMUM_IDLE:0}
       maximum-pool-size: ${PG_SINGLE_HIKARI_MAXIMUM_POOL_SIZE:10}
       connection-timeout: ${PG_SINGLE_HIKARI_CONNECTION_TIMEOUT:30000}
       idle-timeout: ${PG_SINGLE_HIKARI_IDLE_TIMEOUT:30000}
@@ -33,9 +33,11 @@ pg:
     # Required by SharedUtility DatabaseClusterConfig -> MapperScanRegistrar.
     base-packages:
       - com.opensocket.aievent.database.persistence
+      - com.opensocket.aievent.core.iam.persistence.dao
     # Required by SharedUtility MybatisConfig -> MapperScannerConfigurer.
     mapper-scan-packages:
       - com.opensocket.aievent.database.persistence
+      - com.opensocket.aievent.core.iam.persistence.dao
     configuration:
       map-underscore-to-camel-case: true
       default-statement-timeout: ${PG_MYBATIS_STATEMENT_TIMEOUT:10}
@@ -43,6 +45,7 @@ pg:
       log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
     type-aliases-package:
       - com.opensocket.aievent.database.persistence
+      - com.opensocket.aievent.core.iam.persistence.dao
     mapper-locations:
       - classpath*:mybatis/postgresql/**/*.xml
 
@@ -102,6 +105,28 @@ redis:
         max-rounds: ${REDIS_STREAM_AUTOCLAIM_MAX_ROUNDS:5}
 
 core:
+  api-contract:
+    enforcement: AUDIT
+    require-idempotency: true
+    require-correlation-id: true
+    require-expected-version: true
+    require-actor-identity: true
+    require-audit-reason: true
+  audit-evidence:
+    store: MEMORY
+  # Phase 0P profile security policy. Local is the only profile that may default fail-open.
+  security:
+    internal:
+      enabled: ${CORE_INTERNAL_SECURITY_ENABLED:false}
+      allow-legacy-token-header: ${CORE_INTERNAL_ALLOW_LEGACY_TOKEN_HEADER:true}
+      protect-api-mutations: ${CORE_INTERNAL_PROTECT_API_MUTATIONS:false}
+      permit-actuator-health-info: ${CORE_INTERNAL_PERMIT_ACTUATOR_HEALTH_INFO:true}
+    admin:
+      enabled: ${CORE_ADMIN_AUTH_ENABLED:false}
+      cookie-secure: ${CORE_ADMIN_SESSION_COOKIE_SECURE:false}
+      cookie-same-site: ${CORE_ADMIN_SESSION_COOKIE_SAME_SITE:lax}
+      bootstrap:
+        enabled: ${CORE_ADMIN_BOOTSTRAP_ENABLED:true}
   outbox:
     store: ${CORE_OUTBOX_STORE:MYBATIS}
     dispatcher-enabled: ${CORE_OUTBOX_DISPATCHER_ENABLED:true}
@@ -152,7 +177,7 @@ task:
     scanner-enabled: ${TASK_DISPATCH_RECOVERY_SCANNER_ENABLED:true}
     interval-ms: ${TASK_DISPATCH_RECOVERY_INTERVAL_MS:5000}
     max-batch-size: ${TASK_DISPATCH_RECOVERY_MAX_BATCH_SIZE:50}
-    max-attempts: ${TASK_DISPATCH_RECOVERY_MAX_ATTEMPTS:0}
+    max-attempts: ${TASK_DISPATCH_RECOVERY_MAX_ATTEMPTS:5}
     initial-delay: ${TASK_DISPATCH_RECOVERY_INITIAL_DELAY:30s}
     max-delay: ${TASK_DISPATCH_RECOVERY_MAX_DELAY:10m}
     claim-lease: ${TASK_DISPATCH_RECOVERY_CLAIM_LEASE:30s}
@@ -201,8 +226,8 @@ routing:
   generic-authoritative-maximum-selection-difference-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_SELECTION_DIFFERENCE_RATE:0.20}
   generic-authoritative-auto-rollback-enabled: ${ROUTING_GENERIC_AUTHORITATIVE_AUTO_ROLLBACK_ENABLED:true}
   persisted-legacy-evidence-recovery-enabled: ${ROUTING_PERSISTED_LEGACY_EVIDENCE_RECOVERY_ENABLED:false}
-  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:true}
-  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:true}
+  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:false}
+  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:false}
   require-v2-score-breakdown-in-enforce: ${ROUTING_REQUIRE_V2_SCORE_BREAKDOWN_IN_ENFORCE:true}
   legacy-profile-eligibility-disabled-in-enforce: ${ROUTING_LEGACY_PROFILE_ELIGIBILITY_DISABLED_IN_ENFORCE:true}
   eligibility-engine-mode: ${ROUTING_ELIGIBILITY_ENGINE_MODE:SHADOW}
@@ -249,8 +274,76 @@ adapter-executor:
     jira-mock-enabled: ${JIRA_EXECUTOR_MOCK_ENABLED:true}
     redmine-mock-enabled: ${REDMINE_EXECUTOR_MOCK_ENABLED:true}
     gitlab-mock-enabled: ${GITLAB_EXECUTOR_MOCK_ENABLED:true}
+    # Local compatibility mode consumes the existing vendor ENV configuration directly.
+    # Production remains scoped-only through application-prod.yml.
+    scoped-identity-enabled: ${ISSUE_SCOPED_IDENTITY_ENABLED:true}
+    scoped-identity-required: ${ISSUE_SCOPED_IDENTITY_REQUIRED:true}
   audit:
     store: ${ADAPTER_EXECUTOR_AUDIT_STORE:MYBATIS}
 
 task-issue-links:
   store: ${TASK_ISSUE_LINK_STORE:${ADAPTER_ACTION_STORE:MYBATIS}}
+
+
+# Phase 0E Current integration identity model. Legacy executor ENV is compatibility bootstrap only.
+integration-identity:
+  store: ${INTEGRATION_IDENTITY_STORE:MYBATIS}
+  legacy-bootstrap-enabled: ${INTEGRATION_LEGACY_BOOTSTRAP_ENABLED:false}
+  allow-over-privileged-mapping: ${INTEGRATION_ALLOW_OVER_PRIVILEGED_MAPPING:false}
+  secret-resolver: ${INTEGRATION_SECRET_RESOLVER:ENV_REFERENCE}
+  managed-secret-directory: ${INTEGRATION_MANAGED_SECRET_DIRECTORY:/var/lib/opendispatch/integration-secrets}
+  permission-reprobe-on-auth-failure: ${INTEGRATION_PERMISSION_REPROBE_ON_AUTH_FAILURE:true}
+  rotation-grace-period: ${INTEGRATION_ROTATION_GRACE_PERIOD:24h}
+  permission-probe: ${INTEGRATION_PERMISSION_PROBE:PROVIDER}
+# Local Phase 0F defaults use the in-memory store and metadata-only relay.
+handoff-context:
+  store: ${HANDOFF_CONTEXT_STORE:MEMORY}
+  relay-provider: ${HANDOFF_CONTEXT_RELAY_PROVIDER:METADATA_ONLY}
+
+issue-tracking:
+  enabled: ${ISSUE_TRACKING_ENABLED:true}
+
+# P1C local Issue Projection can be disabled without affecting A2A or Handoff.
+issue-projection:
+  enabled: ${ISSUE_PROJECTION_ENABLED:true}
+  store: ${ISSUE_PROJECTION_STORE:MEMORY}
+  relay-provider: ${ISSUE_PROJECTION_RELAY_PROVIDER:METADATA_ONLY}
+  max-attempts: ${ISSUE_PROJECTION_MAX_ATTEMPTS:4}
+  reconcile-batch-size: ${ISSUE_PROJECTION_RECONCILE_BATCH_SIZE:25}
+  reconcile-delay-ms: ${ISSUE_PROJECTION_RECONCILE_DELAY_MS:60000}
+  retry-delay-seconds: ${ISSUE_PROJECTION_RETRY_DELAY_SECONDS:60}
+
+# Local Phase 0G uses in-memory evidence and keeps background delivery opt-in.
+integration-sync:
+  provider-gateway: ${INTEGRATION_SYNC_PROVIDER_GATEWAY:UNAVAILABLE}
+  store: ${INTEGRATION_SYNC_STORE:MEMORY}
+  worker-enabled: ${INTEGRATION_SYNC_WORKER_ENABLED:false}
+  worker-interval-ms: ${INTEGRATION_SYNC_WORKER_INTERVAL_MS:5000}
+  claim-limit: ${INTEGRATION_SYNC_CLAIM_LIMIT:10}
+  max-attempts: ${INTEGRATION_SYNC_MAX_ATTEMPTS:4}
+  circuit-failure-threshold: ${INTEGRATION_SYNC_CIRCUIT_FAILURE_THRESHOLD:3}
+  webhook-security:
+    enabled: ${INTEGRATION_WEBHOOK_SECURITY_ENABLED:true}
+    default-max-body-bytes: ${INTEGRATION_WEBHOOK_MAX_BODY_BYTES:1048576}
+    default-rate-limit-per-minute: ${INTEGRATION_WEBHOOK_RATE_LIMIT_PER_MINUTE:120}
+    clock-skew-seconds: ${INTEGRATION_WEBHOOK_CLOCK_SKEW_SECONDS:30}
+    nonce-cleanup-interval-ms: ${INTEGRATION_WEBHOOK_NONCE_CLEANUP_INTERVAL_MS:60000}
+    nonce-cleanup-batch-size: ${INTEGRATION_WEBHOOK_NONCE_CLEANUP_BATCH_SIZE:5000}
+
+# Phase 1A-2 IAM persistence safety. Local keeps role validation opt-in for existing single-role stacks.
+# Local IAM administration also exposes the Enforcement Activation control plane for read-only and governed
+# administration workflows. Revision synchronization and Wave0 runtime pilots remain disabled.
+aeg:
+  database-platform:
+    lifecycle-mode: ${DATABASE_PLATFORM_LIFECYCLE_MODE:SETUP_TOLERANT}
+    validate-on-startup: ${DATABASE_PLATFORM_VALIDATE_ON_STARTUP:false}
+  iam:
+    persistence:
+      department-max-depth: ${IAM_DEPARTMENT_MAX_DEPTH:10}
+      role-validation-enabled: ${IAM_DB_ROLE_VALIDATION_ENABLED:false}
+      expected-runtime-role: ${IAM_RUNTIME_DB_USER:opendispatch_runtime}
+  enforcement-activation:
+    control-plane-enabled: ${AEG_ENFORCEMENT_ACTIVATION_CONTROL_PLANE_ENABLED:true}
+    revision-sync-enabled: ${AEG_ENFORCEMENT_ACTIVATION_REVISION_SYNC_ENABLED:false}
+    wave0-read-pilot-enabled: ${AEG_ENFORCEMENT_ACTIVATION_WAVE0_READ_PILOT_ENABLED:false}
+

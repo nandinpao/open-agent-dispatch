@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.authentication.domain;
+import java.time.Duration;
+public record LoginRateLimitPolicy(Duration window,int usernameFailureLimit,int ipFailureLimit){public LoginRateLimitPolicy{window=window==null?Duration.ofMinutes(5):window;if(window.isNegative()||window.isZero())throw new IllegalArgumentException("window must be positive");if(usernameFailureLimit<3||ipFailureLimit<usernameFailureLimit)throw new IllegalArgumentException("rate limit values are invalid");}public static LoginRateLimitPolicy secureDefault(){return new LoginRateLimitPolicy(Duration.ofMinutes(5),20,100);}}

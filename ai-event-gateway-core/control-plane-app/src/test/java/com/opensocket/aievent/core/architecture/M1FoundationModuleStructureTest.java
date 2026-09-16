@@ -15,7 +15,7 @@ import com.opensocket.aievent.database.DatabasePlatformModule;
 class M1FoundationModuleStructureTest {
     @Test
     void foundationModulesShouldBeOnTheApplicationClasspath() {
-        assertThat(CoreVersion.CURRENT).isEqualTo("1.0.0-p25.7.4-p5-callback-transition-governance-fix");
+        assertThat(CoreVersion.CURRENT).isEqualTo("0.8.2-SNAPSHOT");
         assertThat(CoreContractsModule.class).isNotNull();
         assertThat(DatabasePlatformModule.class).isNotNull();
     }

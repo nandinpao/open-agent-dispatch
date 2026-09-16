@@ -118,26 +118,39 @@ abstract class AbstractHttpIssueVendorExecutor implements IssueTrackingActionExe
 
     protected String idempotencyMarker(IssueExecutorRequest request) {
         String key = idempotencyKey(request);
-        if (key == null || key.isBlank()) return null;
-        String actionId = firstNonBlank(request.getActionId(), text(request.getPayload(), "adapterActionId"));
-        return "<!-- OpenDispatch: issue-action-idempotency-key=" + key
-                + (actionId == null ? "" : "; actionId=" + actionId)
+        String actionId = request == null ? null : firstNonBlank(request.getActionId(), text(request.getPayload(), "adapterActionId"));
+        return idempotencyMarker(key, actionId);
+    }
+
+    protected String idempotencyMarker(String idempotencyKey, String actionId) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) return null;
+        return "<!-- OpenDispatch: issue-action-idempotency-key=" + idempotencyKey.trim()
+                + (actionId == null || actionId.isBlank() ? "" : "; actionId=" + actionId.trim())
                 + " -->";
     }
 
     protected String withIdempotencyMarker(String text, IssueExecutorRequest request) {
-        String marker = idempotencyMarker(request);
+        return withIdempotencyMarker(text, idempotencyKey(request),
+                request == null ? null : firstNonBlank(request.getActionId(), text(request.getPayload(), "adapterActionId")));
+    }
+
+    protected String withIdempotencyMarker(String text, String idempotencyKey, String actionId) {
+        String marker = idempotencyMarker(idempotencyKey, actionId);
         if (marker == null || marker.isBlank()) return text;
         String value = text == null ? "" : text;
-        return value.contains(marker) ? value : value + "\n\n" + marker;
+        String keyMarker = idempotencyKey == null ? null : "OpenDispatch: issue-action-idempotency-key=" + idempotencyKey.trim();
+        return (value.contains(marker) || (keyMarker != null && value.contains(keyMarker))) ? value : value + "\n\n" + marker;
     }
 
     protected Map<String, String> headersWithIdempotency(IssueExecutorRequest request, Map<String, String> headers) {
+        return headersWithIdempotencyKey(idempotencyKey(request), headers);
+    }
+
+    protected Map<String, String> headersWithIdempotencyKey(String idempotencyKey, Map<String, String> headers) {
         Map<String, String> result = new LinkedHashMap<>();
         if (headers != null) result.putAll(headers);
-        String key = idempotencyKey(request);
-        if (key != null && !key.isBlank()) {
-            result.put("X-OpenDispatch-Idempotency-Key", key);
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            result.put("X-OpenDispatch-Idempotency-Key", idempotencyKey.trim());
         }
         return result;
     }

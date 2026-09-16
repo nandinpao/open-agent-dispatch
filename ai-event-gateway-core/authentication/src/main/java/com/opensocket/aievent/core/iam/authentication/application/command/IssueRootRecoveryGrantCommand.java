@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import java.time.Duration;import java.time.Instant;public record IssueRootRecoveryGrantCommand(String initiatorId,String approverId,Duration ttl,String correlationId,Instant occurredAt){}

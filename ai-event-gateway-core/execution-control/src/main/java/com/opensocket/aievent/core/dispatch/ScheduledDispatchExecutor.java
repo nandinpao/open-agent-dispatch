@@ -19,7 +19,7 @@ public class ScheduledDispatchExecutor {
         this.properties = properties;
     }
 
-    @Scheduled(fixedDelayString = "${dispatch.client.auto-execute-interval-ms:5000}")
+    @Scheduled(fixedDelayString = "${dispatch.client.auto-execute-interval-ms:5000}", scheduler = "dispatchOperationalScheduler")
     public void executeApprovedBatch() {
         if (!properties.getClient().isEnabled()) {
             log.debug("dispatch_executor_skipped reason=CLIENT_DISABLED executionPolicy={} maxBatchSize={}", properties.getExecutionPolicy(), properties.getClient().getMaxBatchSize());

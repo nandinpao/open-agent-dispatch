@@ -103,6 +103,11 @@ public class CoreStatusController {
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("app", "ai-event-gateway-core");
         status.put("version", CoreVersion.CURRENT);
+        status.put("releaseLabel", CoreVersion.RELEASE_LABEL);
+        status.put("artifactRevision", CoreVersion.ARTIFACT_REVISION);
+        status.put("artifactName", CoreVersion.ARTIFACT_NAME);
+        status.put("releaseGateStatus", CoreVersion.RELEASE_GATE_STATUS);
+        status.put("productionReady", CoreVersion.PRODUCTION_READY);
         status.put("deploymentMode", deploymentProperties.getMode().name());
         status.put("dedupStore", eventProcessing.dedupStoreMode());
         status.put("dedupSnapshotStore", eventProcessing.dedupSnapshotStoreMode());

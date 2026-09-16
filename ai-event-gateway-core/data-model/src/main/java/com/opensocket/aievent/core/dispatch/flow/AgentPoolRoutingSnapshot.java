@@ -9,6 +9,8 @@ public class AgentPoolRoutingSnapshot {
     private String poolCode;
     private String poolName;
     private String sourceSystem;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
     private String poolType;
     private String selectionStrategy = "LOWEST_LOAD";
     private String status = "ACTIVE";
@@ -24,6 +26,10 @@ public class AgentPoolRoutingSnapshot {
     public void setPoolName(String poolName) { this.poolName = poolName; }
     public String getSourceSystem() { return sourceSystem; }
     public void setSourceSystem(String sourceSystem) { this.sourceSystem = sourceSystem; }
+    public String getOwnerDepartmentId() { return ownerDepartmentId; }
+    public void setOwnerDepartmentId(String ownerDepartmentId) { this.ownerDepartmentId = ownerDepartmentId; }
+    public String getOwnerGroupId() { return ownerGroupId; }
+    public void setOwnerGroupId(String ownerGroupId) { this.ownerGroupId = ownerGroupId; }
     public String getPoolType() { return poolType; }
     public void setPoolType(String poolType) { this.poolType = poolType; }
     public String getSelectionStrategy() { return selectionStrategy; }

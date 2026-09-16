@@ -2,7 +2,7 @@ package com.opensocket.aievent.database.persistence.task.converter;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
+
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import com.opensocket.aievent.database.persistence.spi.DatabasePersistenceConverter;
@@ -23,9 +23,51 @@ public class RoutingDecisionPersistenceConverter {
         this.objectMapper = objectMapper;
     }
 
-    public RoutingDecisionPo toPo(RoutingDecisionRecord d){RoutingDecisionPo r=new RoutingDecisionPo();r.setDecisionId(d.getDecisionId());r.setTaskId(d.getTaskId());r.setIncidentId(d.getIncidentId());r.setRoutingPolicy(d.getRoutingPolicy()==null?null:d.getRoutingPolicy().name());r.setStatus(d.getStatus()==null?null:d.getStatus().name());r.setSelectedAgentId(d.getSelectedAgentId());r.setSelectedGatewayNodeId(d.getSelectedGatewayNodeId());r.setSelectedAgentSessionId(d.getSelectedAgentSessionId());r.setSelectedSiteId(d.getSelectedSiteId());r.setSelectedScore(d.getSelectedScore());r.setDecisionReason(d.getDecisionReason());r.setUserFacingErrorJson(d.getUserFacingError()==null?null:write(d.getUserFacingError()));r.setCandidatesJson(write(d.getCandidates()==null?List.of():d.getCandidates()));r.setCreatedAt(d.getCreatedAt());return r;}
+    public RoutingDecisionPo toPo(RoutingDecisionRecord d) {
+        if (d == null) {
+            throw new IllegalArgumentException("Routing decision is required");
+        }
+        if (d.getTenantId() == null || d.getTenantId().isBlank()) {
+            throw new IllegalArgumentException("ROUTING_DECISION_TENANT_REQUIRED");
+        }
+        RoutingDecisionPo r = new RoutingDecisionPo();
+        r.setDecisionId(d.getDecisionId());
+        r.setTaskId(d.getTaskId());
+        r.setTenantId(d.getTenantId());
+        r.setIncidentId(d.getIncidentId());
+        r.setRoutingPolicy(d.getRoutingPolicy() == null ? null : d.getRoutingPolicy().name());
+        r.setStatus(d.getStatus() == null ? null : d.getStatus().name());
+        r.setSelectedAgentId(d.getSelectedAgentId());
+        r.setSelectedGatewayNodeId(d.getSelectedGatewayNodeId());
+        r.setSelectedAgentSessionId(d.getSelectedAgentSessionId());
+        r.setSelectedSiteId(d.getSelectedSiteId());
+        r.setSelectedScore(d.getSelectedScore());
+        r.setDecisionReason(d.getDecisionReason());
+        r.setUserFacingErrorJson(d.getUserFacingError() == null ? null : write(d.getUserFacingError()));
+        r.setCandidatesJson(write(d.getCandidates() == null ? List.of() : d.getCandidates()));
+        r.setCreatedAt(d.getCreatedAt());
+        return r;
+    }
 
-    public RoutingDecisionRecord toDomain(RoutingDecisionPo r){RoutingDecisionRecord d=new RoutingDecisionRecord();d.setDecisionId(r.getDecisionId());d.setTaskId(r.getTaskId());d.setIncidentId(r.getIncidentId());d.setRoutingPolicy(parseRoutingPolicy(r.getRoutingPolicy()));d.setStatus(r.getStatus()==null?null:RoutingDecisionStatus.valueOf(r.getStatus()));d.setSelectedAgentId(r.getSelectedAgentId());d.setSelectedGatewayNodeId(r.getSelectedGatewayNodeId());d.setSelectedAgentSessionId(r.getSelectedAgentSessionId());d.setSelectedSiteId(r.getSelectedSiteId());d.setSelectedScore(r.getSelectedScore());d.setDecisionReason(r.getDecisionReason());d.setUserFacingError(readUserFacingError(r.getUserFacingErrorJson()));d.setCandidates(read(r.getCandidatesJson()));d.setCreatedAt(r.getCreatedAt());return d;}
+    public RoutingDecisionRecord toDomain(RoutingDecisionPo r) {
+        RoutingDecisionRecord d = new RoutingDecisionRecord();
+        d.setDecisionId(r.getDecisionId());
+        d.setTaskId(r.getTaskId());
+        d.setTenantId(r.getTenantId());
+        d.setIncidentId(r.getIncidentId());
+        d.setRoutingPolicy(parseRoutingPolicy(r.getRoutingPolicy()));
+        d.setStatus(r.getStatus() == null ? null : RoutingDecisionStatus.valueOf(r.getStatus()));
+        d.setSelectedAgentId(r.getSelectedAgentId());
+        d.setSelectedGatewayNodeId(r.getSelectedGatewayNodeId());
+        d.setSelectedAgentSessionId(r.getSelectedAgentSessionId());
+        d.setSelectedSiteId(r.getSelectedSiteId());
+        d.setSelectedScore(r.getSelectedScore());
+        d.setDecisionReason(r.getDecisionReason());
+        d.setUserFacingError(readUserFacingError(r.getUserFacingErrorJson()));
+        d.setCandidates(read(r.getCandidatesJson()));
+        d.setCreatedAt(r.getCreatedAt());
+        return d;
+    }
 
     private RoutingPolicy parseRoutingPolicy(String raw) {
         if (raw == null || raw.isBlank()) {

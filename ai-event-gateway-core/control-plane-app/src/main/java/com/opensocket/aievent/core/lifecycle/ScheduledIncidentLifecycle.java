@@ -11,7 +11,7 @@ public class ScheduledIncidentLifecycle {
         this.service = service;
     }
 
-    @Scheduled(fixedDelayString = "${core.lifecycle.incident.scan-interval-ms:60000}")
+    @Scheduled(fixedDelayString = "${core.lifecycle.incident.scan-interval-ms:60000}", scheduler = "maintenanceOperationalScheduler")
     public void autoResolveStaleIncidents() {
         service.autoResolveStaleIncidents();
     }

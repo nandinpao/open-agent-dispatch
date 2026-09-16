@@ -3,9 +3,9 @@ package com.opensocket.aievent.core.routing;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+
 import java.util.List;
-import java.util.Map;
+
 import java.util.Set;
 import java.util.UUID;
 
@@ -14,9 +14,11 @@ import org.springframework.stereotype.Service;
 import com.opensocket.aievent.core.dispatch.flow.DispatchSimulationCandidateView;
 import com.opensocket.aievent.core.dispatch.flow.DispatchSimulationRequest;
 import com.opensocket.aievent.core.dispatch.flow.DispatchSimulationResponse;
-import com.opensocket.aievent.core.routing.eligibility.CandidateFilterResult;
 import com.opensocket.aievent.core.routing.flow.FlowResolution;
+import com.opensocket.aievent.core.routing.authority.DispatchDecisionEngine;
+import com.opensocket.aievent.core.routing.cutover.GenericAuthoritativeRoutingResult;
 import com.opensocket.aievent.core.task.TaskRecord;
+import com.opensocket.aievent.core.task.domain.TaskSeverity;
 
 /**
  * No-side-effect Dispatch Simulation using the same production routing components as assignment routing.
@@ -29,16 +31,22 @@ import com.opensocket.aievent.core.task.TaskRecord;
 @Service
 public class RoutingSimulationService {
     private final RoutingDecisionService routingDecisionService;
+    private final DispatchDecisionEngine dispatchDecisionEngine;
 
-    public RoutingSimulationService(RoutingDecisionService routingDecisionService) {
+    public RoutingSimulationService(RoutingDecisionService routingDecisionService,
+                                    DispatchDecisionEngine dispatchDecisionEngine) {
         this.routingDecisionService = routingDecisionService;
+        this.dispatchDecisionEngine = dispatchDecisionEngine;
     }
 
     public DispatchSimulationResponse simulate(DispatchSimulationRequest request) {
         DispatchSimulationRequest normalized = normalizeRequest(request);
         TaskRecord task = taskFrom(normalized);
         DispatchSimulationResponse response = baseResponse(normalized);
+        boolean draftSimulation = "DRAFT_SIMULATION".equals(normalized.getEvaluationMode());
         response.getDiagnostics().put("routingModel", "AGENT_POOL_FIRST");
+        response.getDiagnostics().put("evaluationMode", normalized.getEvaluationMode());
+        response.getDiagnostics().put("draftFlowVisible", draftSimulation);
         response.getDiagnostics().put("sideEffectContract", "NO_TASK_NO_ASSIGNMENT_NO_DELIVERY_NO_ACK_NO_RESULT");
         response.getDiagnostics().put("productionResolvers", List.of(
                 "FlowResolver",
@@ -54,13 +62,19 @@ public class RoutingSimulationService {
         if (blank(normalized.getSourceSystem())) {
             return blocked(response, "SOURCE_SYSTEM_REQUIRED", "sourceSystem is required for Dispatch Simulation.");
         }
+        if (draftSimulation && blank(normalized.getFlowId())) {
+            return blocked(response, "FLOW_ID_REQUIRED_FOR_DRAFT_SIMULATION", "flowId is required when evaluationMode=DRAFT_SIMULATION.");
+        }
         if (!routingDecisionService.properties().isAssignmentEnabled()) {
             return blocked(response, "ASSIGNMENT_ROUTING_DISABLED", "Assignment routing is disabled by ROUTING_ASSIGNMENT_ENABLED=false.");
         }
 
-        FlowResolution flowResolution = routingDecisionService.flowResolver().resolve(task);
+        FlowResolution flowResolution = draftSimulation
+                ? routingDecisionService.flowResolver().resolveSimulation(task, normalized.getAttributes())
+                : routingDecisionService.flowResolver().resolve(task);
         TaskRecord routedTask = flowResolution.task();
         response.setMatchedFlowId(routedTask == null ? null : routedTask.getMatchedFlowId());
+        response.setFlowVersion(flowResolution.flowVersion());
         response.setMatchedRuleId(routedTask == null ? null : routedTask.getMatchedRuleId());
         response.setResolutionType(routedTask == null ? null : routedTask.getRoutingPath());
         response.setTargetPoolId(routedTask == null ? null : firstNonBlank(routedTask.getTargetPoolId(), routedTask.getAssignedPoolId()));
@@ -68,70 +82,71 @@ public class RoutingSimulationService {
         if (!flowResolution.flowRuleTask() || !flowResolution.sourceFlowPoolFirstTask()) {
             response.getDiagnostics().put("flowRuleTask", flowResolution.flowRuleTask());
             response.getDiagnostics().put("sourceFlowPoolFirstTask", flowResolution.sourceFlowPoolFirstTask());
-            return blocked(response, "SOURCE_FLOW_NOT_MATCHED", "No active Source Flow / Default Pool or Rule target Pool matched this simulation payload.");
+            return blocked(response, "SOURCE_FLOW_NOT_MATCHED", "No deterministic Flow Rule matched this simulation payload. A0-R3 canonical behavior is NO_MATCH -> Triage; a Source default Pool is legacy execution compatibility, not Flow Match authority.");
         }
 
-        RoutingDecisionService.RoutingCandidateSelection selection = routingDecisionService.selectCandidates(
-                routedTask,
-                Set.of(),
-                flowResolution.policy(),
-                RoutingDecisionService.V2RoutingComparison.notApplied(EligibilityEngineMode.SHADOW),
-                EligibilityEngineMode.SHADOW);
-        CandidateFilterResult pool = selection.candidatePool();
-        List<AgentCandidateScore> scores = selection.scores() == null ? List.of() : selection.scores();
+        GenericAuthoritativeRoutingResult decision = dispatchDecisionEngine.decide(routedTask, Set.of());
+        response.getDiagnostics().put("dispatchAuthority", "DISPATCH_DECISION_ENGINE");
+        response.getDiagnostics().put("candidateAuthority", "AGENT_POOL_MEMBERSHIP");
+        response.getDiagnostics().put("capabilityAuthority", "CORE_APPROVED_AGENT_CAPABILITY");
+        response.getDiagnostics().put("runtimeReportedCapabilitiesAuthority", false);
+        response.getDiagnostics().put("canonicalDecisionStatus", decision == null || decision.status() == null ? null : decision.status().name());
+        response.getDiagnostics().put("canonicalReasonCode", decision == null ? null : decision.reasonCode());
 
-        response.setTargetPoolId(pool == null ? response.getTargetPoolId() : firstNonBlank(pool.targetPoolId(), response.getTargetPoolId()));
-        response.setTargetPoolCode(pool == null ? null : pool.targetPoolCode());
-        response.setSelectionStrategy(pool == null ? null : pool.selectionStrategy());
-        response.setPoolMemberCount(pool == null ? 0 : pool.memberCount());
-        response.setCandidateAgentCount(pool == null ? 0 : pool.memberCount());
+        if (decision == null) {
+            return blocked(response, "CANONICAL_DISPATCH_AUTHORITY_UNAVAILABLE", "Canonical DispatchDecisionEngine returned no decision.");
+        }
+
+        if (decision.requirement() != null) {
+            Object targetPoolId = decision.requirement().getEvidence().get("targetPoolId");
+            Object targetPoolCode = decision.requirement().getEvidence().get("targetPoolCode");
+            Object selectionStrategy = decision.requirement().getEvidence().get("selectionStrategy");
+            response.setTargetPoolId(firstNonBlank(targetPoolId, response.getTargetPoolId()));
+            response.setTargetPoolCode(targetPoolCode == null ? null : targetPoolCode.toString());
+            response.setSelectionStrategy(selectionStrategy == null
+                    ? (decision.requirement().getRoutingStrategy() == null ? null : decision.requirement().getRoutingStrategy().name())
+                    : selectionStrategy.toString());
+            response.getDiagnostics().put("requiredCapabilities", decision.requirement().getRequiredCapabilities());
+            response.getDiagnostics().put("requirementReasonCode", decision.requirement().getReasonCode());
+        }
+
+        List<AgentCandidateScore> scores = decision.candidates();
+        List<GenericAuthoritativeRoutingResult.BlockedCandidateEvidence> blocked = decision.blockedCandidates();
+        response.setPoolMemberCount(scores.size() + blocked.size());
+        response.setCandidateAgentCount(scores.size() + blocked.size());
         response.setEligibleAgentCount(scores.size());
-        response.getDiagnostics().put("poolBlockerCode", pool == null ? null : pool.poolBlockerCode());
-        response.getDiagnostics().put("reservationExcluded", pool == null ? List.of() : pool.reservationExcluded());
-        response.getDiagnostics().put("poisonExcluded", pool == null ? List.of() : pool.poisonExcluded());
 
         List<DispatchSimulationCandidateView> candidateEvidence = scores.stream().map(score -> candidate(score, false)).toList();
-        if (!candidateEvidence.isEmpty()) {
-            candidateEvidence.getFirst().setSelected(true);
-            response.setSelectedAgentId(candidateEvidence.getFirst().getAgentId());
+        if (decision.selected() != null) {
+            response.setSelectedAgentId(decision.selected().agentId());
+            candidateEvidence.stream()
+                    .filter(candidate -> decision.selected().agentId().equals(candidate.getAgentId()))
+                    .findFirst().ifPresent(candidate -> candidate.setSelected(true));
         }
         response.setCandidateEvidence(candidateEvidence);
 
-        List<DispatchSimulationCandidateView> blockedCandidates = new ArrayList<>();
-        if (pool != null) {
-            for (String agentId : pool.reservationExcluded()) {
-                blockedCandidates.add(blockedCandidate(agentId, "RESERVATION_EXCLUDED"));
-            }
-            for (String agentId : pool.poisonExcluded()) {
-                blockedCandidates.add(blockedCandidate(agentId, "POOL_AGENT_BACKOFF"));
-            }
-            if (candidateEvidence.isEmpty() && !blank(pool.poolBlockerCode())) {
-                DispatchSimulationCandidateView poolBlocker = new DispatchSimulationCandidateView();
-                poolBlocker.setAgentId("__POOL__");
-                poolBlocker.setEligible(false);
-                poolBlocker.setBlockingReasons(List.of(pool.poolBlockerCode()));
-                poolBlocker.setReason("Pool-level blocker: " + pool.poolBlockerCode());
-                blockedCandidates.add(poolBlocker);
-            }
-        }
+        List<DispatchSimulationCandidateView> blockedCandidates = blocked.stream()
+                .map(this::blockedCandidate)
+                .toList();
         response.setBlockedCandidates(blockedCandidates);
 
-        if (routingDecisionService.isManualOnlyPool(pool)) {
+        if (decision.status() == GenericAuthoritativeRoutingResult.Status.MANUAL_REVIEW) {
             response.setManualOnly(true);
             response.setDispatchable(false);
             response.setStatus("MANUAL_ASSIGNMENT_REQUIRED");
-            response.setBlockerCode("MANUAL_ASSIGNMENT_REQUIRED");
-            response.setBlockerReason("This Agent Pool uses MANUAL_ONLY. No Agent is selected by simulation or automatic routing.");
-            response.setSummary("模擬完成：此工作池需要人工指定 Agent，不會自動建立 Assignment。需要正式事件時，Task 會進入人工指定狀態。");
+            response.setBlockerCode(firstNonBlank(decision.reasonCode(), "MANUAL_ASSIGNMENT_REQUIRED"));
+            response.setBlockerReason(firstNonBlank(decision.reason(), "This Agent Pool requires manual assignment."));
+            response.setSummary("Manual assignment pending. Canonical authority resolved the Flow and Pool, but this Pool does not auto-select an Agent.");
             return response;
         }
-        if (candidateEvidence.isEmpty()) {
-            String blocker = pool == null || blank(pool.poolBlockerCode()) ? "NO_ELIGIBLE_AGENT_IN_POOL" : pool.poolBlockerCode();
-            return blocked(response, blocker, "No eligible Agent was available in the resolved Agent Pool.");
+        if (!decision.hasSelection()) {
+            return blocked(response, firstNonBlank(decision.reasonCode(), "NO_CANONICAL_ELIGIBLE_AGENT"),
+                    firstNonBlank(decision.reason(), "No Agent Pool member passed canonical eligibility."));
         }
         response.setDispatchable(true);
         response.setStatus("READY");
-        response.setSummary("模擬完成：已解析 Source Flow、Rule / Default Pool、Agent Pool 與 Runtime Eligibility，預計選擇 Agent " + response.getSelectedAgentId() + "。此結果不會建立 Task、Assignment 或 Delivery。");
+        response.setSummary("Canonical dispatch simulation passed: Flow -> Agent Pool -> Core-approved Capability -> Runtime Eligibility -> Routing Score selected Agent "
+                + response.getSelectedAgentId() + ". No Task, Assignment or Delivery was created.");
         return response;
     }
 
@@ -144,6 +159,7 @@ public class RoutingSimulationService {
         response.setEventType(request.getEventType());
         response.setErrorCode(request.getErrorCode());
         response.setGeneratedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        response.setEvaluationMode(firstNonBlank(request.getEvaluationMode(), "DRAFT_SIMULATION"));
         response.setSideEffectFree(true);
         response.setCreatedArtifacts(List.of());
         return response;
@@ -173,12 +189,13 @@ public class RoutingSimulationService {
         return view;
     }
 
-    private DispatchSimulationCandidateView blockedCandidate(String agentId, String reason) {
+    private DispatchSimulationCandidateView blockedCandidate(GenericAuthoritativeRoutingResult.BlockedCandidateEvidence blocked) {
         DispatchSimulationCandidateView view = new DispatchSimulationCandidateView();
-        view.setAgentId(agentId);
+        view.setAgentId(blocked.agentId());
+        view.setStatus(blocked.runtimeStatus());
         view.setEligible(false);
-        view.setBlockingReasons(List.of(reason));
-        view.setReason(reason);
+        view.setBlockingReasons(blocked.reasonCodes());
+        view.setReason(blocked.reasonCodes().isEmpty() ? "CANONICAL_ELIGIBILITY_BLOCKED" : String.join(", ", blocked.reasonCodes()));
         return view;
     }
 
@@ -193,6 +210,7 @@ public class RoutingSimulationService {
         task.setObjectType(request.getObjectType());
         task.setEventType(request.getEventType());
         task.setErrorCode(request.getErrorCode());
+        task.setSeverity(parseSeverity(request.getSeverity()));
         task.setSiteId(request.getSiteId());
         task.setPlantId(request.getPlantId());
         task.setMatchedFlowId(request.getFlowId());
@@ -213,7 +231,21 @@ public class RoutingSimulationService {
         normalized.setObjectType(wildcardToNull(normalized.getObjectType()));
         normalized.setEventType(wildcardToNull(normalized.getEventType()));
         normalized.setErrorCode(wildcardToNull(normalized.getErrorCode()));
+        String mode = firstNonBlank(trim(normalized.getEvaluationMode()), "DRAFT_SIMULATION").toUpperCase(java.util.Locale.ROOT);
+        if (!"DRAFT_SIMULATION".equals(mode) && !"RUNTIME_READINESS".equals(mode)) {
+            throw new IllegalArgumentException("evaluationMode must be DRAFT_SIMULATION or RUNTIME_READINESS");
+        }
+        normalized.setEvaluationMode(mode);
         return normalized;
+    }
+
+    private TaskSeverity parseSeverity(String value) {
+        if (blank(value)) return TaskSeverity.MEDIUM;
+        try {
+            return TaskSeverity.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return TaskSeverity.MEDIUM;
+        }
     }
 
     private String wildcardToNull(String value) {

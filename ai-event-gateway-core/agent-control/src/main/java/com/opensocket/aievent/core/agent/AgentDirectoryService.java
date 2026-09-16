@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.opensocket.aievent.core.agent.assignment.AgentAssignmentService;
+import com.opensocket.aievent.core.agent.governance.AgentGovernanceRepository;
+import com.opensocket.aievent.core.agent.governance.AgentProfile;
 
 @Service
 public class AgentDirectoryService implements AgentDirectoryFacade, AgentControlOperationalQuery {
@@ -25,6 +27,7 @@ public class AgentDirectoryService implements AgentDirectoryFacade, AgentControl
     private final AgentRuntimeStateRepository runtimeStateRepository;
     private final com.opensocket.aievent.core.gateway.GatewayNodeRepository gatewayNodeRepository;
     private final AgentAssignmentService assignmentService;
+    private AgentGovernanceRepository governanceRepository;
 
     @Autowired
     public AgentDirectoryService(AgentDirectoryRepository repository,
@@ -35,6 +38,16 @@ public class AgentDirectoryService implements AgentDirectoryFacade, AgentControl
         this.gatewayNodeRepository = gatewayNodeRepository;
         this.runtimeStateRepository = runtimeStateRepository;
         this.assignmentService = assignmentServiceProvider == null ? null : assignmentServiceProvider.getIfAvailable();
+    }
+
+    /**
+     * Core-side defense in depth for discovery-first / rolling-upgrade gateways.
+     * Runtime-only Agents must never enter the tenant-scoped Core directory until
+     * canonical governance says the Agent is currently connection-eligible.
+     */
+    @Autowired(required = false)
+    void setAgentGovernanceRepository(AgentGovernanceRepository governanceRepository) {
+        this.governanceRepository = governanceRepository;
     }
 
     /** Compatibility constructor for focused unit tests. */
@@ -77,8 +90,26 @@ public class AgentDirectoryService implements AgentDirectoryFacade, AgentControl
 
     public AgentSnapshot connected(String gatewayNodeId, String agentId, AgentSnapshot request) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        AgentSnapshot inbound = request == null ? new AgentSnapshot() : request;
+        inbound.setAgentId(agentId);
+        Optional<AgentSnapshot> governed = authoritativeGovernedSnapshot(inbound);
+        if (governanceRepository != null && governed.isEmpty()) {
+            // Discovery-first contract: runtime-only Agents are acknowledged but must never be
+            // inserted into the tenant-scoped Core Agent Directory. Admin UI observes them from
+            // Netty runtime APIs until governance approval is complete.
+            inbound.setTenantId(null);
+            inbound.setOwnerGatewayNodeId(gatewayNodeId);
+            inbound.setStatus(resolveRuntimeStatus(inbound));
+            inbound.setLastHeartbeatAt(now);
+            inbound.setLeaseExpiresAt(now.plus(DEFAULT_AGENT_LEASE));
+            return inbound;
+        }
+        request = governed.orElse(inbound);
         AgentSnapshot agent = repository.findById(agentId).orElseGet(AgentSnapshot::new);
         agent.setAgentId(agentId);
+        if (!blank(request.getTenantId())) {
+            agent.setTenantId(request.getTenantId().trim());
+        }
         agent.setOwnerGatewayNodeId(gatewayNodeId);
         agent.setAgentSessionId(blank(request.getAgentSessionId()) ? "session-" + UUID.randomUUID() : request.getAgentSessionId());
         agent.setAgentType(blank(request.getAgentType()) ? agent.getAgentType() : request.getAgentType());
@@ -173,8 +204,30 @@ public class AgentDirectoryService implements AgentDirectoryFacade, AgentControl
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         repository.markByGatewayNodeId(gatewayNodeId, AgentStatus.OFFLINE, now);
         return agents == null ? List.of() : agents.stream()
+                .filter(agent -> agent != null && !blank(agent.getAgentId()))
+                .map(this::authoritativeGovernedSnapshot)
+                .flatMap(Optional::stream)
                 .map(agent -> connected(gatewayNodeId, agent.getAgentId(), agent))
                 .toList();
+    }
+
+    private Optional<AgentSnapshot> authoritativeGovernedSnapshot(AgentSnapshot runtimeSnapshot) {
+        if (runtimeSnapshot == null || blank(runtimeSnapshot.getAgentId())) {
+            return Optional.empty();
+        }
+        // Focused unit tests / embedded compatibility stores may not provide governance.
+        // Normal Spring runtime injects AgentGovernanceRepository and therefore fails closed.
+        if (governanceRepository == null) {
+            return Optional.of(runtimeSnapshot);
+        }
+        return governanceRepository.findProfile(runtimeSnapshot.getAgentId())
+                .filter(AgentProfile::allowsConnection)
+                .filter(profile -> !blank(profile.getTenantId()))
+                .map(profile -> {
+                    // Never trust tenantId claimed by Gateway/runtime metadata. Core governance is authoritative.
+                    runtimeSnapshot.setTenantId(profile.getTenantId().trim());
+                    return runtimeSnapshot;
+                });
     }
 
     public int markAgentsByGatewayNode(String gatewayNodeId, AgentStatus status, OffsetDateTime at) {

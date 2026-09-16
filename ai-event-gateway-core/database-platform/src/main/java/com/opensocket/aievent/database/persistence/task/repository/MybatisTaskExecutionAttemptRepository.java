@@ -38,6 +38,11 @@ public class MybatisTaskExecutionAttemptRepository implements TaskExecutionAttem
     }
 
     @Override
+    public Optional<TaskExecutionAttempt> findLatestByAssignmentId(String assignmentId) {
+        return Optional.ofNullable(dao.findLatestByAssignmentId(assignmentId)).map(converter::toDomain);
+    }
+
+    @Override
     public List<TaskExecutionAttempt> findByTaskId(String taskId, int limit) {
         return dao.findByTaskId(taskId, cap(limit)).stream().map(converter::toDomain).toList();
     }

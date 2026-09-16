@@ -1,0 +1,6 @@
+package com.opensocket.aievent.core.issuetracking.application.relay;
+import java.nio.charset.StandardCharsets; import java.security.MessageDigest; import java.time.*; import java.util.*; import java.util.HexFormat; import org.springframework.stereotype.Service; import com.opensocket.aievent.core.issuetracking.relay.*;
+@Service public class RelayEventLedger { private final RelayGovernanceRepository repository; public RelayEventLedger(RelayGovernanceRepository repository){this.repository=repository;}
+ public RelayEvent append(String tenantId,String aggregateType,String aggregateId,RelayEventType type,String actor,String reason,String metadata,String correlationId){String previous=repository.latestEvent(tenantId,aggregateType,aggregateId).map(RelayEvent::eventHash).orElse("");OffsetDateTime now=OffsetDateTime.now(ZoneOffset.UTC);String eventId="relay-event-"+UUID.randomUUID();String hash=hash(previous+"|"+tenantId+"|"+aggregateType+"|"+aggregateId+"|"+type+"|"+reason+"|"+metadata+"|"+now);return repository.appendEvent(new RelayEvent(tenantId,eventId,aggregateType,aggregateId,type,actor,reason,metadata,previous,hash,now,correlationId));}
+ private String hash(String value){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));}catch(Exception ex){throw new IllegalStateException(ex);}}
+}

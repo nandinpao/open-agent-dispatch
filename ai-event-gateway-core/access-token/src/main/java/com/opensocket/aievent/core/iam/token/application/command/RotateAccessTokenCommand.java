@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.token.application.command;import java.time.*;public record RotateAccessTokenCommand(String tenantId,String tokenId,Duration overlap,String actorId,String correlationId){}

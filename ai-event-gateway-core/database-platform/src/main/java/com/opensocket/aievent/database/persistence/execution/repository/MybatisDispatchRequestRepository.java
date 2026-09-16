@@ -91,6 +91,24 @@ public class MybatisDispatchRequestRepository implements DispatchRequestReposito
     }
 
     @Override
+    public PersistenceWriteResult markClaimDispatching(String dispatchRequestId, ClaimOwnership ownership, java.time.OffsetDateTime heartbeatAt) {
+        int rows = dao.markClaimDispatching(dispatchRequestId, ownership.workerId(), ownership.claimUntil(), heartbeatAt);
+        return rows > 0 ? PersistenceWriteResult.applied(dispatchRequestId, rows) : PersistenceWriteResult.ownershipLost(dispatchRequestId);
+    }
+
+    @Override
+    public PersistenceWriteResult heartbeatClaim(String dispatchRequestId, ClaimOwnership ownership,
+            java.time.OffsetDateTime heartbeatAt, java.time.OffsetDateTime extendedUntil) {
+        int rows = dao.heartbeatClaim(dispatchRequestId, ownership.workerId(), ownership.claimUntil(), heartbeatAt, extendedUntil);
+        return rows > 0 ? PersistenceWriteResult.applied(dispatchRequestId, rows) : PersistenceWriteResult.ownershipLost(dispatchRequestId);
+    }
+
+    @Override
+    public List<DispatchRequest> findRecoveryCandidates(java.time.OffsetDateTime now, int limit) {
+        return dao.findRecoveryCandidates(now, cap(limit)).stream().map(converter::toRequest).toList();
+    }
+
+    @Override
     public PersistenceWriteResult transitionStatus(DispatchStatusTransition transition) {
         int rows = dao.transitionStatus(
                 transition.getDispatchRequestId(),
@@ -107,7 +125,14 @@ public class MybatisDispatchRequestRepository implements DispatchRequestReposito
                 transition.getRetryWaitingAt(),
                 transition.getNextRetryAt(),
                 transition.getUpdatedAt(),
-                transition.isClearClaim());
+                transition.isClearClaim(),
+                transition.outboxStatusName(),
+                transition.getAckEvidenceId(),
+                transition.getAckedAt(),
+                transition.recoveryClassificationName(),
+                transition.getUncertainSince(),
+                transition.getLastReconciledAt(),
+                transition.getReconciliationCountIncrement());
         return rows > 0
                 ? PersistenceWriteResult.applied(transition.getDispatchRequestId(), rows)
                 : PersistenceWriteResult.conflict(transition.getDispatchRequestId());

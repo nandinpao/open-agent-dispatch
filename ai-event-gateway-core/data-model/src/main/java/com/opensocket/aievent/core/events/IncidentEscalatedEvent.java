@@ -15,5 +15,6 @@ public record IncidentEscalatedEvent(
     public static final String TYPE = "incident.escalated.v1";
     @Override public String eventType() { return TYPE; }
     @Override public String aggregateType() { return "INCIDENT"; }
+    @Override public String rootTaskId() { return incidentId; }
     @Override public String aggregateId() { return incidentId; }
 }

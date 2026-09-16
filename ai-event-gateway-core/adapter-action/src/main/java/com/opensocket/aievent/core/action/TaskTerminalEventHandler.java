@@ -13,24 +13,45 @@ import org.springframework.stereotype.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Handles callback-side terminal events for compatibility actions only.
+ *
+ * <p>HF21 authority boundary: canonical Issue projection is deliberately NOT invoked from this
+ * handler. A callback-side terminal event can be emitted before the A0-R2 finalization transaction
+ * has closed the Task. Canonical Issue side effects are owned exclusively by
+ * {@code TaskFinalizationProjectionService} after {@code TaskLifecycle=CLOSED}. Keeping the Issue
+ * authority out of this handler prevents TASK_FINALIZATION_NOT_COMPLETE from turning an otherwise
+ * successful terminal callback into an exponentially retried module-outbox event.</p>
+ */
 @Component
 public class TaskTerminalEventHandler implements ModuleEventHandler<TaskTerminalEvent> {
     private static final Logger log = LoggerFactory.getLogger(TaskTerminalEventHandler.class);
 
     private final AdapterActionService service;
-    public TaskTerminalEventHandler(AdapterActionService service){this.service=service;}
+
+    public TaskTerminalEventHandler(AdapterActionService service) {
+        this.service = service;
+    }
+
     @Override public String eventType(){return TaskTerminalEvent.TYPE;}
     @Override public Class<TaskTerminalEvent> payloadType(){return TaskTerminalEvent.class;}
-    @Override public void handle(TaskTerminalEvent event){
-        log.info("issue_sync_terminal_event_received eventId={} taskId={} callbackType={} callbackId={} dispatchRequestId={} assignmentId={} agentId={} taskStatus={} incidentId={}",
+
+    @Override
+    public void handle(TaskTerminalEvent event) {
+        log.info("task_terminal_compatibility_action_received eventId={} taskId={} callbackType={} callbackId={} dispatchRequestId={} assignmentId={} agentId={} taskStatus={} incidentId={} canonicalIssueProjection=DEFERRED_TO_FINALIZATION",
                 event.eventId(), event.taskId(), event.callbackType(), event.callbackId(), event.dispatchRequestId(), event.assignmentId(), event.agentId(), event.taskStatus(), event.incidentId());
-        service.evaluateAfterTaskCallback(task(event),dispatch(event),callback(event),callbackType(event));
+
+        // Compatibility path remains for MCP and historical AdapterAction operations. Canonical
+        // Issue projection is intentionally absent here; TaskFinalizationProjectionService owns it.
+        service.evaluateAfterTaskCallback(task(event), dispatch(event), callback(event), callbackType(event), event.eventId());
     }
 
     private TaskRecord task(TaskTerminalEvent e){
         TaskRecord t=new TaskRecord();t.setTaskId(e.taskId());t.setIncidentId(e.incidentId());t.setSourceEventId(e.sourceEventId());
         t.setStatus(enumValue(TaskStatus.class,e.taskStatus()));t.setTaskType(enumValue(TaskType.class,e.taskType()));t.setPriority(enumValue(TaskPriority.class,e.priority()));
-        t.setTenantId(e.tenantId());t.setSiteId(e.siteId());t.setPlantId(e.plantId());t.setObjectType(e.objectType());t.setObjectId(e.objectId());t.setEventType(e.sourceEventType());t.setErrorCode(e.errorCode());t.setRoutingPolicy(e.routingPolicy());t.setRequiredCapabilities(e.requiredCapabilities());t.setTerminalAt(e.occurredAt());t.setUpdatedAt(e.occurredAt());return t;
+        t.setTenantId(e.tenantId());t.setSiteId(e.siteId());t.setPlantId(e.plantId());t.setObjectType(e.objectType());t.setObjectId(e.objectId());t.setEventType(e.sourceEventType());t.setErrorCode(e.errorCode());t.setRoutingPolicy(e.routingPolicy());t.setRequiredCapabilities(e.requiredCapabilities());
+        t.setCorrelationId(e.correlationId());t.setOriginCorrelationId(e.correlationId());t.setTraceId(e.traceId());t.setActorPrincipalType(e.actorType());t.setActorPrincipalId(e.actorId());
+        t.setTerminalAt(e.occurredAt());t.setUpdatedAt(e.occurredAt());return t;
     }
     private DispatchRequest dispatch(TaskTerminalEvent e){
         if(e.dispatchRequestId()==null||e.dispatchRequestId().isBlank())return null;DispatchRequest d=new DispatchRequest();d.setDispatchRequestId(e.dispatchRequestId());d.setAssignmentId(e.assignmentId());d.setTaskId(e.taskId());d.setIncidentId(e.incidentId());d.setAgentId(e.agentId());d.setOwnerGatewayNodeId(e.ownerGatewayNodeId());d.setAgentSessionId(e.agentSessionId());d.setSiteId(e.siteId());return d;

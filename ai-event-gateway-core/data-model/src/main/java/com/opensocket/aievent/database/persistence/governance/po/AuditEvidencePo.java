@@ -1,0 +1,2 @@
+package com.opensocket.aievent.database.persistence.governance.po; import java.time.OffsetDateTime; import lombok.*;
+@Getter @Setter @NoArgsConstructor public class AuditEvidencePo {private String tenantId,evidenceId,eventType,aggregateType,aggregateId,rootTaskId,actorType,actorId,action,reasonCode,auditReason,correlationId,causationId,authorizationDecisionId,requestId,clientAddress,payloadHash,outcome,evidenceJson;private OffsetDateTime occurredAt;}

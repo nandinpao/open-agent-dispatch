@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.integration.handoff;
+import java.util.List; import java.util.Map; import com.opensocket.aievent.core.organization.SensitivityLevel;
+public record HandoffContextPreview(String sourceTaskId,String targetTaskId,String policyId,String summary,Map<String,Object> sharedContext,List<HandoffContextField> fieldDecisions,List<String> allowedCommentRefs,List<HandoffAttachmentMetadata> attachmentMetadata,List<String> redactedFieldPaths,List<String> omittedContentReasons,SensitivityLevel sensitivityLevel,boolean approvalRequired,String contentHash,List<String> warnings) {}

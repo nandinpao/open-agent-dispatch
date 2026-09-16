@@ -31,5 +31,10 @@ public class IncidentPo {
     private OffsetDateTime reopenedAt;
     private int reopenCount;
     private String lifecycleReason;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
+    private String scopeStatus;
+    private Long scopeSourceVersion;
+    private OffsetDateTime scopeInheritedAt;
     public void setReopenCount(int reopenCount) { this.reopenCount = Math.max(0, reopenCount); }
 }

@@ -40,6 +40,7 @@ public class DispatchRecoveryService {
         int capped = Math.max(1, Math.min(limit, properties.getRecovery().getMaxBatchSize()));
         OffsetDateTime cutoff = OffsetDateTime.now(ZoneOffset.UTC).minus(properties.getRecovery().getDispatchTimeout());
         List<DispatchRequest> candidates = new ArrayList<>();
+        candidates.addAll(dispatchRepository.findByStatus(DispatchRequestStatus.DELIVERY_UNKNOWN, capped));
         candidates.addAll(dispatchRepository.findByStatus(DispatchRequestStatus.DISPATCHED, capped));
         candidates.addAll(dispatchRepository.findByStatus(DispatchRequestStatus.ACKED, capped));
         candidates.addAll(dispatchRepository.findByStatus(DispatchRequestStatus.RUNNING, capped));
@@ -65,7 +66,10 @@ public class DispatchRecoveryService {
         result.setPreviousDispatchStatus(request.getStatus() == null ? null : request.getStatus().name());
         result.setTimedOut(true);
 
-        boolean retry = properties.getRecovery().isRetryEnabled()
+        boolean deliveryUnknown = request.getStatus() == DispatchRequestStatus.DELIVERY_UNKNOWN
+                || request.getRecoveryClassification() == com.opensocket.aievent.core.dispatch.DispatchRecoveryClassification.RESPONSE_LOST;
+        boolean retry = !deliveryUnknown
+                && properties.getRecovery().isRetryEnabled()
                 && request.getAttemptCount() < properties.getRecovery().getMaxAttempts();
         Duration backoff = retry ? computeBackoff(request.getAttemptCount() + 1, request.getDispatchRequestId()) : Duration.ZERO;
         DispatchRequestStatus targetStatus = retry ? DispatchRequestStatus.RETRY_WAITING : DispatchRequestStatus.TIMED_OUT;
@@ -73,6 +77,7 @@ public class DispatchRecoveryService {
         DispatchStatusTransition transition = new DispatchStatusTransition();
         transition.setDispatchRequestId(request.getDispatchRequestId());
         transition.setAllowedCurrentStatuses(List.of(
+                DispatchRequestStatus.DELIVERY_UNKNOWN,
                 DispatchRequestStatus.DISPATCHED,
                 DispatchRequestStatus.ACKED,
                 DispatchRequestStatus.RUNNING));
@@ -88,8 +93,12 @@ public class DispatchRecoveryService {
             transition.setRetryWaitingAt(now);
             transition.setNextRetryAt(now.plus(backoff));
         } else {
-            transition.setReason("Dispatch timed out and no retry is scheduled");
-            transition.setLastError("Dispatch timed out after " + properties.getRecovery().getDispatchTimeout());
+            transition.setReason(deliveryUnknown
+                    ? "Unknown delivery outcome exceeded reconciliation timeout; automatic resend remains forbidden"
+                    : "Dispatch timed out and no retry is scheduled");
+            transition.setLastError(deliveryUnknown
+                    ? "Delivery outcome remained unknown after " + properties.getRecovery().getDispatchTimeout()
+                    : "Dispatch timed out after " + properties.getRecovery().getDispatchTimeout());
         }
 
         PersistenceWriteResult write = dispatchRepository.transitionStatus(transition);

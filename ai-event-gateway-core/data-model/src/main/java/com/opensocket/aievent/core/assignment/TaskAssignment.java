@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 
 public class TaskAssignment {
     private String assignmentId;
+    private String tenantId;
     private String taskId;
     private String incidentId;
     private String agentId;
@@ -30,6 +31,28 @@ public class TaskAssignment {
     private String leaseId;
     private String fencingToken;
     private OffsetDateTime leaseExpiresAt;
+    /** V206 compatibility-row projection. Null means legacy / not promoted to current execution authority. */
+    private String executionAuthorityVersion;
+    /** V206 canonical ExecutionAssignment referenced by the compatibility assignment row. */
+    private String canonicalExecutionAssignmentId;
+    /** Stage 2 additive Canonical Capability binding reference; null for legacy assignments. */
+    private String bindingId;
+    /** Stage 2 additive external A2A interface reference; null for managed-agent assignments. */
+    private String selectedPeerInterfaceId;
+    /** Stage 2 additive MCP server reference; null unless an MCP adapter is selected. */
+    private String selectedMcpServerId;
+    /** Stage 6/7 provider-neutral execution target kind. */
+    private String executionTargetType;
+    private String providerType;
+    private String providerId;
+    private String selectedMcpToolId;
+    /** Reserved for Stage 5 safety enforcement. Null means legacy / not yet classified. */
+    private ExecutionSafetyMode executionSafetyMode;
+    /** Additive attempt projection; nullable until a runtime writer owns this field. */
+    private Integer attemptNumber;
+    private String previousAssignmentId;
+    private OffsetDateTime releasedAt;
+    private String outcome;
     private int score;
     private String reason;
     private boolean capacityReserved;
@@ -39,6 +62,8 @@ public class TaskAssignment {
     private OffsetDateTime updatedAt;
 
     public String getAssignmentId() { return assignmentId; }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     public void setAssignmentId(String assignmentId) { this.assignmentId = assignmentId; }
     public String getTaskId() { return taskId; }
     public void setTaskId(String taskId) { this.taskId = taskId; }
@@ -92,6 +117,41 @@ public class TaskAssignment {
     public void setFencingToken(String fencingToken) { this.fencingToken = fencingToken; }
     public OffsetDateTime getLeaseExpiresAt() { return leaseExpiresAt; }
     public void setLeaseExpiresAt(OffsetDateTime leaseExpiresAt) { this.leaseExpiresAt = leaseExpiresAt; }
+    public String getExecutionAuthorityVersion() { return executionAuthorityVersion; }
+    public void setExecutionAuthorityVersion(String executionAuthorityVersion) { this.executionAuthorityVersion = executionAuthorityVersion; }
+    public String getCanonicalExecutionAssignmentId() { return canonicalExecutionAssignmentId; }
+    public void setCanonicalExecutionAssignmentId(String canonicalExecutionAssignmentId) { this.canonicalExecutionAssignmentId = canonicalExecutionAssignmentId; }
+    public String getBindingId() { return bindingId; }
+    public void setBindingId(String bindingId) { this.bindingId = bindingId; }
+    public String getSelectedPeerInterfaceId() { return selectedPeerInterfaceId; }
+    public void setSelectedPeerInterfaceId(String selectedPeerInterfaceId) { this.selectedPeerInterfaceId = selectedPeerInterfaceId; }
+    public String getSelectedMcpServerId() { return selectedMcpServerId; }
+    public void setSelectedMcpServerId(String selectedMcpServerId) { this.selectedMcpServerId = selectedMcpServerId; }
+    public String getExecutionTargetType() { return executionTargetType; }
+    public void setExecutionTargetType(String executionTargetType) { this.executionTargetType = executionTargetType; }
+    public String getProviderType() { return providerType; }
+    public void setProviderType(String providerType) { this.providerType = providerType; }
+    public String getProviderId() { return providerId; }
+    public void setProviderId(String providerId) { this.providerId = providerId; }
+    public String getSelectedMcpToolId() { return selectedMcpToolId; }
+    public void setSelectedMcpToolId(String selectedMcpToolId) { this.selectedMcpToolId = selectedMcpToolId; }
+    public ExecutionSafetyMode getExecutionSafetyMode() { return executionSafetyMode; }
+    public void setExecutionSafetyMode(ExecutionSafetyMode executionSafetyMode) { this.executionSafetyMode = executionSafetyMode; }
+    public Integer getAttemptNumber() { return attemptNumber; }
+    public void setAttemptNumber(Integer attemptNumber) { this.attemptNumber = attemptNumber; }
+    public String getPreviousAssignmentId() { return previousAssignmentId; }
+    public void setPreviousAssignmentId(String previousAssignmentId) { this.previousAssignmentId = previousAssignmentId; }
+    public OffsetDateTime getReleasedAt() { return releasedAt; }
+    public void setReleasedAt(OffsetDateTime releasedAt) { this.releasedAt = releasedAt; }
+    public String getOutcome() { return outcome; }
+    public void setOutcome(String outcome) { this.outcome = outcome; }
+    /** v5.3 alias over the existing assignedPoolId column; no second pool authority is created. */
+    public String getAgentPoolId() { return assignedPoolId; }
+    public void setAgentPoolId(String agentPoolId) { this.assignedPoolId = agentPoolId; }
+    /** v5.3 alias over the existing agentId authority. */
+    public String getSelectedAgentId() { return agentId; }
+    /** v5.3 alias over the existing agentSessionId authority. */
+    public String getSelectedSessionId() { return agentSessionId; }
     public int getScore() { return score; }
     public void setScore(int score) { this.score = score; }
     public String getReason() { return reason; }

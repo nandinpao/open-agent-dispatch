@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import java.time.Instant;public record ConfirmTotpEnrollmentCommand(String methodId,String code,String actorId,String correlationId,Instant occurredAt,long expectedVersion){}

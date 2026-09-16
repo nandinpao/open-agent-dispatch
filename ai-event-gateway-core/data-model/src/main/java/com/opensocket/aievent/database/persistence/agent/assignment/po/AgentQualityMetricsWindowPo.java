@@ -1,7 +1,7 @@
 package com.opensocket.aievent.database.persistence.agent.assignment.po;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+
 import java.time.OffsetDateTime;
 
 import lombok.Getter;

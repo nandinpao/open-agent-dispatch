@@ -9,10 +9,11 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Phase 9D Explicit Capability Policy.
+ * Legacy Phase 9D Agent Pool Capability Policy DTO.
  *
- * This is an explicit Agent Pool policy, not a Flow/Profile/Scope/Runtime Binding/Task Requirement gate.
- * Default enforcement is ADVISORY. REQUIRED must be chosen explicitly and must surface risk and simulation impact.
+ * <p>V38 retires this object as a mutable routing authority. It remains only so legacy
+ * GET/PUT API signatures can return an empty projection / HTTP 410 without breaking
+ * binary/source compatibility. Canonical routing uses Task requiredCapabilities.</p>
  */
 @Getter
 @Setter

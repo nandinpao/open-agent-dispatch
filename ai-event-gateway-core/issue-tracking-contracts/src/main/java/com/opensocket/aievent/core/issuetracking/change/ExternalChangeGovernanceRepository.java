@@ -1,0 +1,10 @@
+package com.opensocket.aievent.core.issuetracking.change;
+import java.util.*;
+public interface ExternalChangeGovernanceRepository {
+ ExternalChangePolicy savePolicy(ExternalChangePolicy value); boolean savePolicyExpectedVersion(ExternalChangePolicy value,long expectedVersion); Optional<ExternalChangePolicy> findPolicy(String tenantId,String policyId); List<ExternalChangePolicy> listPolicies(String tenantId,ExternalChangePolicyStatus status,int limit);
+ ExternalCommentSync saveCommentSync(ExternalCommentSync value); Optional<ExternalCommentSync> findCommentByMarker(String tenantId,String connectionId,String sourceMarker); Optional<ExternalCommentSync> findCommentByIdempotency(String tenantId,String sourceCommentId,ExternalSyncDirection direction); List<ExternalCommentSync> listCommentSync(String tenantId,ExternalSyncStatus status,int limit);
+ ExternalRelationSync saveRelationSync(ExternalRelationSync value); Optional<ExternalRelationSync> findRelationByMarker(String tenantId,String connectionId,String sourceMarker); Optional<ExternalRelationSync> findRelationByIdempotency(String tenantId,String sourceExternalIssueId,String targetExternalIssueId,String relationType,ExternalSyncDirection direction); List<ExternalRelationSync> listRelationSync(String tenantId,ExternalSyncStatus status,int limit);
+ ProviderActionCandidate saveCandidate(ProviderActionCandidate value); boolean saveCandidateExpectedVersion(ProviderActionCandidate value,long expectedVersion); Optional<ProviderActionCandidate> findCandidate(String tenantId,String candidateId); Optional<ProviderActionCandidate> findCandidateByIdempotency(String tenantId,String idempotencyKey); List<ProviderActionCandidate> listCandidates(String tenantId,ProviderActionCandidateStatus status,int limit);
+ ProviderActionCandidateEvent appendCandidateEvent(ProviderActionCandidateEvent value); Optional<ProviderActionCandidateEvent> latestCandidateEvent(String tenantId,String candidateId); List<ProviderActionCandidateEvent> listCandidateEvents(String tenantId,String candidateId,int limit);
+ default String mode(){return "CUSTOM";}
+}

@@ -46,6 +46,9 @@ public class TaskFailureQueueService {
     @Transactional
     public TaskRecord manualRetry(String taskId, String reason, OffsetDateTime now) {
         TaskRecord task = requireTask(taskId);
+        if (task.getStatus() == TaskStatus.WAITING_HUMAN || task.getStatus() == TaskStatus.BLOCKED) {
+            throw new IllegalStateException("Task retry is blocked while the task is held for Human/Security review: " + taskId);
+        }
         OffsetDateTime at = effectiveNow(now);
         String retryReason = firstNonBlank(reason, "Manual retry requested");
         if (task.getStatus() == TaskStatus.QUEUED

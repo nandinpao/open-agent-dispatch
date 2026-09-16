@@ -7,6 +7,7 @@ public interface TaskExecutionAttemptRepository {
     TaskExecutionAttempt save(TaskExecutionAttempt attempt);
     Optional<TaskExecutionAttempt> findById(String executionAttemptId);
     Optional<TaskExecutionAttempt> findCurrentByAssignmentId(String assignmentId);
+    Optional<TaskExecutionAttempt> findLatestByAssignmentId(String assignmentId);
     List<TaskExecutionAttempt> findByTaskId(String taskId, int limit);
     int countByTaskId(String taskId);
     String mode();

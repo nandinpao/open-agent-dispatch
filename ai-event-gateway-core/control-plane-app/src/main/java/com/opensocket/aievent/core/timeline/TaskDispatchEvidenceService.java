@@ -11,13 +11,15 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.opensocket.aievent.core.agent.eligibility.DispatchEligibilityService;
+import com.opensocket.aievent.core.agent.eligibility.EligibleAgentCandidate;
 import com.opensocket.aievent.core.agent.eligibility.TaskEligibleAgentsResponse;
 import com.opensocket.aievent.core.dispatch.DispatchRequest;
 import com.opensocket.aievent.core.dispatch.ExecutionOperationalQuery;
 import com.opensocket.aievent.core.issue.TaskIssueLink;
 import com.opensocket.aievent.core.issue.TaskIssueLinkRepository;
 import com.opensocket.aievent.core.routing.RoutingDecisionRecord;
+import com.opensocket.aievent.core.routing.authority.DispatchDecisionEngine;
+import com.opensocket.aievent.core.routing.cutover.GenericAuthoritativeRoutingResult;
 import com.opensocket.aievent.core.task.TaskOperationalQuery;
 import com.opensocket.aievent.core.task.TaskRecord;
 import com.opensocket.aievent.core.task.evidence.TaskDispatchEvidenceStage;
@@ -29,7 +31,7 @@ public class TaskDispatchEvidenceService {
     private final TaskOperationalQuery taskQuery;
     private final ExecutionOperationalQuery executionQuery;
     private final DispatchTimelineService timelineService;
-    private final DispatchEligibilityService dispatchEligibilityService;
+    private final DispatchDecisionEngine dispatchDecisionEngine;
 
     @Autowired(required = false)
     private TaskIssueLinkRepository taskIssueLinkRepository = TaskIssueLinkRepository.noop();
@@ -37,11 +39,11 @@ public class TaskDispatchEvidenceService {
     public TaskDispatchEvidenceService(TaskOperationalQuery taskQuery,
                                        ExecutionOperationalQuery executionQuery,
                                        DispatchTimelineService timelineService,
-                                       DispatchEligibilityService dispatchEligibilityService) {
+                                       DispatchDecisionEngine dispatchDecisionEngine) {
         this.taskQuery = taskQuery;
         this.executionQuery = executionQuery;
         this.timelineService = timelineService;
-        this.dispatchEligibilityService = dispatchEligibilityService;
+        this.dispatchDecisionEngine = dispatchDecisionEngine;
     }
 
     public TaskDispatchEvidenceView evidence(String taskId, int limit) {
@@ -100,20 +102,51 @@ public class TaskDispatchEvidenceService {
         diagnostics.put("taskType", resolvedTaskType(task));
         diagnostics.put("dispatchRequestCount", dispatchRequests.size());
         diagnostics.put("timelineEventCount", timeline == null || timeline.events() == null ? 0 : timeline.events().size());
-        diagnostics.put("authority", "FLOW_RULE_TO_DISPATCH_REQUEST_TO_NETTY_ACK_RESULT");
+        diagnostics.put("authority", "DISPATCH_DECISION_ENGINE_TO_DISPATCH_REQUEST_TO_NETTY_ACK_RESULT");
+        diagnostics.put("candidateAuthority", "AGENT_POOL_MEMBERSHIP");
+        diagnostics.put("capabilityAuthority", "CORE_APPROVED_AGENT_CAPABILITY");
+        diagnostics.put("runtimeReportedCapabilitiesAuthority", false);
         view.setDiagnostics(diagnostics);
         return view;
     }
 
     private TaskEligibleAgentsResponse eligibleAgentsForTask(TaskRecord task) {
+        TaskEligibleAgentsResponse response = new TaskEligibleAgentsResponse();
+        response.setTaskId(task.getTaskId());
+        response.setGeneratedAt(OffsetDateTime.now(ZoneOffset.UTC));
         try {
-            return dispatchEligibilityService.eligibleAgents(task, 500);
+            GenericAuthoritativeRoutingResult result = dispatchDecisionEngine.decide(task, java.util.Set.of());
+            if (result == null) {
+                response.setEligibleAgents(List.of());
+                response.setBlockedAgents(List.of());
+                return response;
+            }
+            response.setEligibleAgents(result.candidates().stream().map(score -> {
+                EligibleAgentCandidate candidate = new EligibleAgentCandidate();
+                candidate.setAgentId(score.agentId());
+                candidate.setScore(score.score());
+                candidate.setEligible(true);
+                candidate.setDispatchStatus("CANONICAL_ELIGIBLE");
+                candidate.setReason(score.reason());
+                return candidate;
+            }).toList());
+            response.setBlockedAgents(result.blockedCandidates().stream().map(blocked -> {
+                EligibleAgentCandidate candidate = new EligibleAgentCandidate();
+                candidate.setAgentId(blocked.agentId());
+                candidate.setEligible(false);
+                candidate.setDispatchStatus("CANONICAL_BLOCKED");
+                candidate.setReason(blocked.reasonCodes().isEmpty() ? "CANONICAL_ELIGIBILITY_BLOCKED" : String.join(",", blocked.reasonCodes()));
+                return candidate;
+            }).toList());
+            return response;
         } catch (RuntimeException ex) {
-            TaskEligibleAgentsResponse response = new TaskEligibleAgentsResponse();
-            response.setTaskId(task.getTaskId());
             response.setEligibleAgents(List.of());
-            response.setBlockedAgents(List.of());
-            response.setGeneratedAt(OffsetDateTime.now(ZoneOffset.UTC));
+            EligibleAgentCandidate blocked = new EligibleAgentCandidate();
+            blocked.setAgentId("__AUTHORITY__");
+            blocked.setEligible(false);
+            blocked.setDispatchStatus("CANONICAL_AUTHORITY_ERROR");
+            blocked.setReason("CANONICAL_ROUTING_ERROR");
+            response.setBlockedAgents(List.of(blocked));
             return response;
         }
     }
@@ -192,14 +225,23 @@ public class TaskDispatchEvidenceService {
             return TaskDispatchEvidenceStage.of("AGENT_RUNTIME_CHECK", "PASS", "Agent Runtime / Capacity", "Selected Agent " + assignedAgentId + " is available for dispatch.")
                     .withDetail("agentId", assignedAgentId);
         }
-        String standard = standardBlockerCode(reason);
-        if ("AGENT_OFFLINE".equals(standard)) {
-            return TaskDispatchEvidenceStage.blocked("AGENT_RUNTIME_CHECK", "Agent Runtime / Capacity", "Flow Agent is offline or has no active runtime session.", "AGENT_OFFLINE", "Open Agent");
+        String canonicalReason = normalize(reason);
+        if (!blank(canonicalReason) && (canonicalReason.startsWith("AGENT_RUNTIME_")
+                || canonicalReason.startsWith("AGENT_SESSION_")
+                || canonicalReason.startsWith("OWNER_GATEWAY_"))) {
+            return TaskDispatchEvidenceStage.blocked("AGENT_RUNTIME_CHECK", "Agent Runtime / Capacity",
+                    "Canonical runtime eligibility blocked Agent selection: " + canonicalReason + ".",
+                    canonicalReason, "Open Agent");
         }
-        if ("AGENT_CAPACITY_FULL".equals(standard)) {
-            return TaskDispatchEvidenceStage.blocked("AGENT_RUNTIME_CHECK", "Agent Runtime / Capacity", "Flow Agent is online but has no available capacity.", "AGENT_CAPACITY_FULL", "Open Agent");
+        if (!blank(canonicalReason) && canonicalReason.contains("CAPACITY")) {
+            return TaskDispatchEvidenceStage.blocked("AGENT_RUNTIME_CHECK", "Agent Runtime / Capacity",
+                    "Canonical capacity eligibility blocked Agent selection: " + canonicalReason + ".",
+                    canonicalReason, "Open Agent");
         }
-        return TaskDispatchEvidenceStage.of("AGENT_RUNTIME_CHECK", "PENDING", "Agent Runtime / Capacity", "No selected Agent yet, or runtime evidence has not been recorded.");
+        return TaskDispatchEvidenceStage.of("AGENT_RUNTIME_CHECK", "PENDING", "Agent Runtime / Capacity",
+                blank(canonicalReason) ? "No selected Agent yet, or canonical runtime evidence has not been recorded."
+                        : "Agent selection is blocked before runtime readiness: " + canonicalReason + ".")
+                .withDetail("canonicalBlockingReason", canonicalReason);
     }
 
     private TaskDispatchEvidenceStage routingStage(RoutingDecisionRecord decision) {
@@ -234,7 +276,7 @@ public class TaskDispatchEvidenceService {
         if (requests == null || requests.isEmpty()) {
             return TaskDispatchEvidenceStage.of("DISPATCH_REQUEST_CREATED", "PENDING", "DispatchRequest Created", "DispatchRequest will be created after Assignment is available.");
         }
-        DispatchRequest latest = requests.stream().max(Comparator.comparing(this::dispatchSortTime)).orElse(null);
+        DispatchRequest latest = requests.stream().max(Comparator.comparing(this::dispatchSortTime)).orElseThrow();
         return TaskDispatchEvidenceStage.of("DISPATCH_REQUEST_CREATED", "PASS", "DispatchRequest Created", "DispatchRequest was persisted for Netty delivery.")
                 .withDetail("dispatchRequestId", latest == null ? null : latest.getDispatchRequestId());
     }

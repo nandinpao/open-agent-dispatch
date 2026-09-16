@@ -1,0 +1,61 @@
+package com.opensocket.aievent.core.a2a;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter @Setter @NoArgsConstructor
+public class A2ARequest {
+    private String tenantId;
+    private String requestId;
+    private String rootTaskId;
+    private String sourceTaskId;
+    private String requestingTaskId;
+    private String requestingAgentId;
+    private A2ARequesterType requesterType;
+    private String sourceDepartmentId;
+    private String sourceGroupId;
+    private String sourceDomainId;
+    private String targetDepartmentId;
+    private String targetGroupId;
+    private String targetDomainId;
+    private String requestedTaskType;
+    private String requestedServiceCode;
+    private List<String> requestedCapabilityCodes = List.of();
+    private String targetAgentPoolId;
+    private String policyId;
+    private long policyVersion;
+    private A2ADirectionalPolicySnapshot policySnapshot;
+    private String policySnapshotHash;
+    private A2AApprovalStatus approvalStatus = A2AApprovalStatus.NOT_REQUIRED;
+    private int approvalCount;
+    private int requiredApprovalCount;
+    private List<String> approvalActorIds = List.of();
+    private A2ARequestStatus requestStatus = A2ARequestStatus.REQUESTED;
+    private A2AOperationalStage operationalStage = A2AOperationalStage.REQUESTED;
+    private A2ABlockerCode blockerCode = A2ABlockerCode.NONE;
+    private String blockerReason;
+    private String reason;
+    private String inputPayloadRef;
+    private String sensitivityLevel = "INTERNAL";
+    private int hopCount;
+    private String idempotencyKey;
+    private String correlationId;
+    private String childTaskId;
+    private String requestedByType;
+    private String requestedById;
+    private String originPrincipalType;
+    private String originPrincipalId;
+    private String delegatingPrincipalType;
+    private String delegatingPrincipalId;
+    private String executingPrincipalType;
+    private String executingPrincipalId;
+    private int delegationDepth;
+    private String rejectionReasonCode;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+    private OffsetDateTime expiresAt;
+    private long version = 1L;
+}

@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record IssueTokenRequest(@NotBlank String name,@NotNull TokenScopeRequest scope,@Min(1) long ttlSeconds){}

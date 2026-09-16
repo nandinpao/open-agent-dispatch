@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.response;import java.time.Instant;import java.util.Set;public record SessionResponse(String sessionId,String subjectType,String subjectId,String tenantId,Set<String> methods,Instant createdAt,Instant lastSeenAt,Instant idleExpiresAt,Instant absoluteExpiresAt,String ipAddress,String userAgent,String status,long version){}

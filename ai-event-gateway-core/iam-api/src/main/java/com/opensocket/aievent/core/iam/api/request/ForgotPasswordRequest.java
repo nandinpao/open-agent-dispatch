@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record ForgotPasswordRequest(@NotBlank @Size(max=200) String username){}

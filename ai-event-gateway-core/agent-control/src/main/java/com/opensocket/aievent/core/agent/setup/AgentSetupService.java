@@ -269,6 +269,11 @@ public class AgentSetupService {
         approval.setAgentName(request.getAgentName().trim());
         approval.setAgentType(purpose);
         approval.setOwnerTeam(request.getOwnerTeam());
+        approval.setOwnerDepartmentId(request.getOwnerDepartmentId());
+        approval.setOwnerGroupId(request.getOwnerGroupId());
+        approval.setBusinessOwnerUserId(request.getBusinessOwnerUserId());
+        approval.setTechnicalStewardUserId(request.getTechnicalStewardUserId());
+        approval.setResponsibilityRoleId(request.getResponsibilityRoleId());
         approval.setDescription(firstNonBlank(request.getDescription(), "Agent created from Admin UI setup contract."));
         approval.setComment("Approved through POST /admin/agents/setup.");
         approval.setCapabilities(capabilityCodes);
@@ -654,6 +659,15 @@ public class AgentSetupService {
         }
         if (request.isAutoApprove() && blank(request.getCredentialToken())) {
             throw new IllegalArgumentException("credentialToken is required when autoApprove=true");
+        }
+        if (request.isAutoApprove() && (blank(request.getOwnerDepartmentId()) || "UNASSIGNED".equalsIgnoreCase(request.getOwnerDepartmentId().trim()))) {
+            throw new IllegalArgumentException("ownerDepartmentId is required when autoApprove=true because approved Agents require accountable Department ownership");
+        }
+        if (request.isAutoApprove() && blank(request.getBusinessOwnerUserId())) {
+            throw new IllegalArgumentException("businessOwnerUserId is required when autoApprove=true because approved Agents require an accountable Human owner");
+        }
+        if (request.isAutoApprove() && blank(request.getResponsibilityRoleId())) {
+            throw new IllegalArgumentException("responsibilityRoleId is required when autoApprove=true because approved Agents require an Agent-compatible Responsibility");
         }
     }
 

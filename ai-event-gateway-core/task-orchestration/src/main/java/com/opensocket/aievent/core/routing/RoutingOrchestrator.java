@@ -34,7 +34,7 @@ class RoutingOrchestrator {
     RoutingDecisionRecord decide(TaskRecord task, Set<String> excludedAgentIds) {
         Set<String> excluded = service.normalizeAgentIds(excludedAgentIds);
         FlowResolution flowResolution = service.flowResolver().resolve(task);
-        task = flowResolution.task();
+        task = java.util.Objects.requireNonNull(flowResolution.task(), "Resolved routing task must not be null");
         RoutingPolicy policy = flowResolution.policy();
         log.info("routing_decision_started taskId={} incidentId={} tenantId={} sourceSystem={} eventStage={} objectType={} eventType={} errorCode={} classificationStatus={} matchedFlowId={} matchedRuleId={} routingPath={} targetPoolId={} assignedPoolId={} policy={} excludedAgents={} routingModel=AGENT_POOL_FIRST",
                 task == null ? null : task.getTaskId(), task == null ? null : task.getIncidentId(), task == null ? null : task.getTenantId(),
@@ -45,6 +45,7 @@ class RoutingOrchestrator {
         RoutingDecisionRecord decision = new RoutingDecisionRecord();
         decision.setDecisionId("route-" + UUID.randomUUID());
         decision.setTaskId(task.getTaskId());
+        decision.setTenantId(task.getTenantId());
         decision.setIncidentId(task.getIncidentId());
         decision.setRoutingPolicy(policy);
         decision.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
@@ -55,24 +56,15 @@ class RoutingOrchestrator {
             log.info("routing_decision_suppressed taskId={} policy={} reason={}", task.getTaskId(), policy, decision.getDecisionReason());
             return service.saveAndRecord(decision);
         }
+        boolean authoritativePoolTask = service.isAuthoritativePoolTask(task);
         if (service.properties().isZeroSpecialCaseRuntimeEnabled()
                 && service.properties().isFlowRuleRoutingEnabled() && !service.properties().isFlowRuleLegacyFallbackEnabled()
-                && !service.isFlowRuleTask(task)) {
+                && !service.isFlowRuleTask(task) && !authoritativePoolTask) {
             decision.setStatus(RoutingDecisionStatus.NO_CANDIDATE);
             decision.setDecisionReason("NO_ACTIVE_FLOW_RULE: new work requires a matched Dispatch Flow Rule; legacy profile/source fallback is disabled");
             log.warn("routing_new_work_fail_closed_no_flow_rule taskId={} tenantId={} sourceSystem={} eventStage={} objectType={} eventType={} errorCode={} reason=NO_ACTIVE_FLOW_RULE legacyFallback=false",
                     task.getTaskId(), task.getTenantId(), task.getSourceSystem(), task.getEventStage(), task.getObjectType(), task.getEventType(), task.getErrorCode());
             return service.saveAndRecord(decision);
-        }
-        if (!service.isSourceFlowPoolFirstTask(task)) {
-            RoutingDecisionRecord genericDecision = service.genericAuthorityBridge().decide(task, excluded, decision, service.isFlowRuleTask(task));
-            if (genericDecision != null) {
-                return genericDecision;
-            }
-        } else {
-            log.info("routing_source_flow_pool_first_bypassed_generic_authority taskId={} tenantId={} sourceSystem={} routingPath={} matchedFlowId={} matchedRuleId={} targetPoolId={} reason=SOURCE_FLOW_POOL_IS_AUTHORITATIVE routingModel=AGENT_POOL_FIRST",
-                    task.getTaskId(), task.getTenantId(), task.getSourceSystem(), task.getRoutingPath(),
-                    task.getMatchedFlowId(), task.getMatchedRuleId(), task.getTargetPoolId());
         }
         if (service.requiresManualReview(policy)) {
             decision.setStatus(RoutingDecisionStatus.MANUAL_REVIEW_REQUIRED);
@@ -82,9 +74,24 @@ class RoutingOrchestrator {
             return service.saveAndRecord(decision);
         }
 
-        // Current standard runtime authority is Source Flow -> Rule/default Pool ->
-        // Agent Pool member -> Agent runtime/capacity. Capability is metadata only and
-        // does not participate as a routing gate in the first Pool-first model.
+        if (authoritativePoolTask) {
+            String authority = service.isGovernedPoolTask(task) ? "GOVERNED_POOL" : "SOURCE_FLOW";
+            log.info("routing_authoritative_pool_entering_canonical_engine taskId={} tenantId={} sourceSystem={} routingPath={} matchedFlowId={} matchedRuleId={} a2aPolicyId={} targetPoolId={} authority={} candidateAuthority=AGENT_POOL_MEMBERSHIP capabilityAuthority=CORE_APPROVED_AGENT_CAPABILITY runtimeReportedCapabilitiesAuthority=false",
+                    task.getTaskId(), task.getTenantId(), task.getSourceSystem(), task.getRoutingPath(),
+                    task.getMatchedFlowId(), task.getMatchedRuleId(), task.getA2aPolicyId(),
+                    firstNonBlank(task.getTargetPoolId(), task.getAssignedPoolId()), authority);
+            return service.authoritativePoolRoutingBridge().decide(task, excluded, decision, policy);
+        }
+
+        RoutingDecisionRecord genericDecision = service.genericAuthorityBridge().decide(task, excluded, decision, service.isFlowRuleTask(task));
+        if (genericDecision != null) {
+            return genericDecision;
+        }
+
+        // Compatibility/fallback-only scorer. Current Source Flow and governed-pool work
+        // returns through the canonical engine above, where Core-approved Capability
+        // assignments are blocking authority. Runtime-reported capability metadata must
+        // never be treated as qualification for those current product paths.
         EligibilityEngineMode eligibilityMode = EligibilityEngineMode.SHADOW;
         RoutingDecisionService.V2RoutingComparison v2Comparison = RoutingDecisionService.V2RoutingComparison.notApplied(eligibilityMode);
 
@@ -158,4 +165,10 @@ class RoutingOrchestrator {
     }
 
 
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String value : values) if (value != null && !value.isBlank()) return value;
+        return null;
+    }
 }

@@ -1,0 +1,16 @@
+source_context,target_context,source_file,imported_type
+database-platform,adapter-action,persistence/adapter/repository/MybatisAdapterActionRepository.java,com.opensocket.aievent.core.action.AdapterActionRepository
+database-platform,adapter-action,persistence/adapter/repository/MybatisAdapterExecutorAuditRepository.java,com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRepository
+database-platform,agent-control,persistence/agent/repository/MybatisAgentDirectoryRepository.java,com.opensocket.aievent.core.agent.AgentDirectoryRepository
+database-platform,agent-control,persistence/agent/repository/MybatisGatewayNodeRepository.java,com.opensocket.aievent.core.gateway.GatewayNodeRepository
+database-platform,domain-events,persistence/domainevent/repository/MybatisOutboxEventRepository.java,com.opensocket.aievent.core.outbox.OutboxEventRepository
+database-platform,event-processing,persistence/eventprocessing/repository/MybatisDedupStateSnapshotRepository.java,com.opensocket.aievent.core.dedup.snapshot.DedupStateSnapshotRepository
+database-platform,event-processing,persistence/eventprocessing/repository/MybatisEventDecisionRepository.java,com.opensocket.aievent.core.decision.EventDecisionRepository
+database-platform,execution-control,persistence/execution/repository/MybatisDispatchRequestRepository.java,com.opensocket.aievent.core.dispatch.DispatchRequestRepository
+database-platform,execution-control,persistence/execution/repository/MybatisTaskCallbackRepository.java,com.opensocket.aievent.core.callback.TaskCallbackRepository
+database-platform,incident-management,persistence/incident/repository/MybatisIncidentOccurrenceSummaryRepository.java,com.opensocket.aievent.core.summary.IncidentOccurrenceSummaryRepository
+database-platform,incident-management,persistence/incident/repository/MybatisIncidentRepository.java,com.opensocket.aievent.core.incident.IncidentRepository
+database-platform,integration-events,persistence/integrationevent/repository/MybatisIntegrationEventRepository.java,com.opensocket.aievent.core.integration.IntegrationEventRepository
+database-platform,task-orchestration,persistence/task/repository/MybatisRoutingDecisionRepository.java,com.opensocket.aievent.core.routing.RoutingDecisionRepository
+database-platform,task-orchestration,persistence/task/repository/MybatisTaskAssignmentRepository.java,com.opensocket.aievent.core.assignment.TaskAssignmentRepository
+database-platform,task-orchestration,persistence/task/repository/MybatisTaskRepository.java,com.opensocket.aievent.core.task.TaskRepository

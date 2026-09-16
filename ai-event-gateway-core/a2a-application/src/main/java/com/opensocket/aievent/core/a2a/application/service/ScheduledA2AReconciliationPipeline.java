@@ -1,0 +1,4 @@
+package com.opensocket.aievent.core.a2a.application.service;
+import org.springframework.scheduling.annotation.Scheduled;
+/** Phase 2I single scheduler: produce cases, plan them, then lease-execute canonical repairs. */
+public final class ScheduledA2AReconciliationPipeline {private final A2AReconciliationCaseProducer producer;private final A2AUnifiedReconciliationService planner;private final A2ACanonicalRepairExecutor executor;private final String worker=System.getenv().getOrDefault("HOSTNAME","a2a-pipeline-local");public ScheduledA2AReconciliationPipeline(A2AReconciliationCaseProducer p,A2AUnifiedReconciliationService r,A2ACanonicalRepairExecutor e){producer=p;planner=r;executor=e;}@Scheduled(fixedDelayString="${a2a.reconciliation.pipeline-ms:30000}", scheduler="reconciliationOperationalScheduler")public void run(){producer.produce(200);planner.reconcileDue(worker+"-planner",200);executor.executeDue(worker+"-executor",200);}}

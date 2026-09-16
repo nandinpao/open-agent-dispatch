@@ -2,12 +2,29 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.opensocket.aievent.database.persistence.task.dao.TaskDao">
     <resultMap id="TaskPoMap" type="com.opensocket.aievent.database.persistence.task.po.TaskPo">
-        <id property="taskId" column="task_id"/><result property="incidentId" column="incident_id"/><result property="sourceEventId" column="source_event_id"/><result property="sourceSystem" column="source_system"/>
+        <id property="taskId" column="task_id"/><result property="taskKey" column="task_key"/><result property="title" column="title"/><result property="description" column="description"/><result property="severity" column="severity"/><result property="incidentId" column="incident_id"/><result property="sourceEventId" column="source_event_id"/><result property="sourceSystem" column="source_system"/>
         <result property="eventStage" column="event_stage"/><result property="originSourceSystem" column="origin_source_system"/><result property="targetSystem" column="target_system"/>
         <result property="taskType" column="task_type"/><result property="taskTypeCode" column="task_type_code"/><result property="status" column="status"/><result property="priority" column="priority"/>
         <result property="tenantId" column="tenant_id"/><result property="siteId" column="site_id"/><result property="plantId" column="plant_id"/>
         <result property="objectType" column="object_type"/><result property="objectId" column="object_id"/><result property="eventType" column="event_type"/><result property="errorCode" column="error_code"/>
-        <result property="requestedSkill" column="requested_skill"/><result property="handoffMode" column="handoff_mode"/><result property="correlationId" column="correlation_id"/><result property="parentTaskId" column="parent_task_id"/><result property="matchedFlowId" column="matched_flow_id"/><result property="matchedRuleId" column="matched_rule_id"/>
+        <result property="requestedSkill" column="requested_skill"/><result property="handoffMode" column="handoff_mode"/><result property="correlationId" column="correlation_id"/><result property="rootTaskId" column="root_task_id"/><result property="parentTaskId" column="parent_task_id"/><result property="sourceTaskId" column="source_task_id"/><result property="requestingTaskId" column="requesting_task_id"/><result property="requestingAgentId" column="requesting_agent_id"/><result property="a2aPolicyId" column="a2a_policy_id"/><result property="hopCount" column="hop_count"/><result property="resultAggregationPolicy" column="result_aggregation_policy"/><result property="childCancellationPolicy" column="child_cancellation_policy"/><result property="childFailurePolicy" column="child_failure_policy"/><result property="issueSyncPolicy" column="issue_sync_policy"/><result property="issueSyncPolicySource" column="issue_sync_policy_source"/><result property="issueSyncPolicyInheritanceMode" column="issue_sync_policy_inheritance_mode"/><result property="issueSyncPolicyInheritedFromTaskId" column="issue_sync_policy_inherited_from_task_id"/><result property="createdByType" column="created_by_type"/><result property="createdById" column="created_by_id"/>
+        <result property="originPrincipalType" column="origin_principal_type"/><result property="originPrincipalId" column="origin_principal_id"/>
+        <result property="actorPrincipalType" column="actor_principal_type"/><result property="actorPrincipalId" column="actor_principal_id"/>
+        <result property="originCredentialId" column="origin_credential_id"/><result property="originOauthClientId" column="origin_oauth_client_id"/>
+        <result property="originEventId" column="origin_event_id"/><result property="originWorkloadSourceSystem" column="origin_workload_source_system"/><result property="originCorrelationId" column="origin_correlation_id"/>
+        <result property="initialPriority" column="initial_priority"/><result property="initialSeverity" column="initial_severity"/>
+        <result property="originDepartmentId" column="origin_department_id"/><result property="originGroupId" column="origin_group_id"/>
+        <result property="originOrganizationSource" column="origin_organization_source"/><result property="originOrganizationStatus" column="origin_organization_status"/>
+        <result property="originSourceIp" column="origin_source_ip"/><result property="originApiResource" column="origin_api_resource"/>
+        <result property="authorizationDecisionId" column="authorization_decision_id"/>
+        <result property="securityGlobalEpoch" column="security_global_epoch"/><result property="securityTenantEpoch" column="security_tenant_epoch"/><result property="securityPrincipalEpoch" column="security_principal_epoch"/>
+        <result property="requestId" column="request_id"/><result property="traceId" column="trace_id"/><result property="authenticationMethod" column="authentication_method"/><result property="workloadPurpose" column="workload_purpose"/><result property="synthetic" column="synthetic"/><result property="provenanceCapturedAt" column="provenance_captured_at"/>
+        <result property="version" column="version"/><result property="creationIdempotencyKey" column="creation_idempotency_key"/>
+        <result property="ownerDepartmentId" column="owner_department_id"/><result property="ownerGroupId" column="owner_group_id"/>
+        <result property="originScopeStatus" column="origin_scope_status"/><result property="originScopeSourceVersion" column="origin_scope_source_version"/><result property="originScopeInheritedAt" column="origin_scope_inherited_at"/>
+        <result property="requesterDepartmentId" column="requester_department_id"/><result property="requesterGroupId" column="requester_group_id"/><result property="requesterDomainId" column="requester_domain_id"/>
+        <result property="executorDepartmentId" column="executor_department_id"/><result property="executorGroupId" column="executor_group_id"/><result property="executorDomainId" column="executor_domain_id"/>
+        <result property="visibilityPolicy" column="visibility_policy"/><result property="sensitivityLevel" column="sensitivity_level"/><result property="matchedFlowId" column="matched_flow_id"/><result property="matchedRuleId" column="matched_rule_id"/>
         <result property="assignedPoolId" column="assigned_pool_id"/><result property="targetPoolId" column="target_pool_id"/><result property="classificationStatus" column="classification_status"/><result property="classificationResultJson" column="classification_result_json"/><result property="routingPath" column="routing_path"/>
         <result property="routingPolicy" column="routing_policy"/><result property="requiredCapabilitiesJson" column="required_capabilities_json"/>
         <result property="createdReason" column="created_reason"/><result property="occurrenceCountAtCreation" column="occurrence_count_at_creation"/>
@@ -15,39 +32,74 @@
         <result property="timeoutAt" column="timeout_at"/><result property="terminalAt" column="terminal_at"/><result property="reassignmentCount" column="reassignment_count"/>
         <result property="nextDispatchAttemptAt" column="next_dispatch_attempt_at"/><result property="dispatchAttemptCount" column="dispatch_attempt_count"/>
         <result property="dispatchRetryReason" column="dispatch_retry_reason"/><result property="dispatchRecoveryClaimedBy" column="dispatch_recovery_claimed_by"/><result property="dispatchRecoveryClaimUntil" column="dispatch_recovery_claim_until"/>
-        <result property="lifecycleReason" column="lifecycle_reason"/><result property="externalExecutionKey" column="external_execution_key"/>
+        <result property="taskLifecycle" column="task_lifecycle"/><result property="taskPhase" column="task_phase"/><result property="taskOutcome" column="task_outcome"/>
+        <result property="taskStateAuthorityVersion" column="task_state_authority_version"/><result property="terminalizationReason" column="terminalization_reason"/><result property="terminalizationRequestedAt" column="terminalization_requested_at"/><result property="terminalizationActorRef" column="terminalization_actor_ref"/><result property="outcomeResolverVersion" column="outcome_resolver_version"/>
+        <result property="cancellationState" column="cancellation_state"/><result property="finalizationState" column="finalization_state"/><result property="finalizationCheckpoint" column="finalization_checkpoint"/><result property="finalizationAttemptCount" column="finalization_attempt_count"/><result property="finalizationNextAttemptAt" column="finalization_next_attempt_at"/><result property="finalizationClaimedBy" column="finalization_claimed_by"/><result property="finalizationClaimUntil" column="finalization_claim_until"/>
+        <result property="finalizationLastErrorCode" column="finalization_last_error_code"/><result property="finalizationLastErrorMessage" column="finalization_last_error_message"/><result property="finalizationCompletedAt" column="finalization_completed_at"/><result property="evidenceAvailabilityRequirement" column="evidence_availability_requirement"/>
+        <result property="lifecycleReason" column="lifecycle_reason"/><result property="failureDomain" column="failure_domain"/><result property="failureCode" column="failure_code"/><result property="failureAt" column="failure_at"/><result property="externalExecutionKey" column="external_execution_key"/>
     </resultMap>
-    <sql id="TaskColumns">task_id, incident_id, source_event_id, source_system, event_stage, origin_source_system, target_system, task_type, task_type_code, status, priority, tenant_id, site_id, plant_id, object_type, object_id, event_type, error_code, requested_skill, handoff_mode, correlation_id, parent_task_id, matched_flow_id, matched_rule_id, assigned_pool_id, target_pool_id, classification_status, classification_result_json, routing_path, routing_policy, required_capabilities_json, created_reason, occurrence_count_at_creation, created_at, updated_at, timeout_at, terminal_at, reassignment_count, next_dispatch_attempt_at, dispatch_attempt_count, dispatch_retry_reason, dispatch_recovery_claimed_by, dispatch_recovery_claim_until, lifecycle_reason, external_execution_key</sql>
+    <sql id="TaskColumns">task_id, task_key, title, description, severity, incident_id, source_event_id, source_system, event_stage, origin_source_system, target_system, task_type, task_type_code, status, priority, tenant_id, site_id, plant_id, object_type, object_id, event_type, error_code, requested_skill, handoff_mode, correlation_id, root_task_id, parent_task_id, source_task_id, requesting_task_id, requesting_agent_id, a2a_policy_id, hop_count, result_aggregation_policy, child_cancellation_policy, child_failure_policy, issue_sync_policy, issue_sync_policy_source, issue_sync_policy_inheritance_mode, issue_sync_policy_inherited_from_task_id, created_by_type, created_by_id, origin_principal_type, origin_principal_id, actor_principal_type, actor_principal_id, origin_credential_id, origin_oauth_client_id, origin_event_id, origin_workload_source_system, origin_correlation_id, initial_priority, initial_severity, origin_department_id, origin_group_id, origin_organization_source, origin_organization_status, origin_source_ip, origin_api_resource, authorization_decision_id, security_global_epoch, security_tenant_epoch, security_principal_epoch, request_id, trace_id, authentication_method, workload_purpose, synthetic, provenance_captured_at, version, creation_idempotency_key, owner_department_id, owner_group_id, origin_scope_status, origin_scope_source_version, origin_scope_inherited_at, requester_department_id, requester_group_id, requester_domain_id, executor_department_id, executor_group_id, executor_domain_id, visibility_policy, sensitivity_level, matched_flow_id, matched_rule_id, assigned_pool_id, target_pool_id, classification_status, classification_result_json, routing_path, routing_policy, required_capabilities_json, created_reason, occurrence_count_at_creation, created_at, updated_at, timeout_at, terminal_at, reassignment_count, next_dispatch_attempt_at, dispatch_attempt_count, dispatch_retry_reason, dispatch_recovery_claimed_by, dispatch_recovery_claim_until, lifecycle_reason, failure_domain, failure_code, failure_at, external_execution_key</sql>
     <insert id="upsert">
         insert into tasks (<include refid="TaskColumns"/>) values (
-            #{task.taskId}, #{task.incidentId}, #{task.sourceEventId}, #{task.sourceSystem}, #{task.eventStage}, #{task.originSourceSystem}, #{task.targetSystem}, #{task.taskType}, #{task.taskTypeCode}, #{task.status}, #{task.priority}, #{task.tenantId}, #{task.siteId}, #{task.plantId}, #{task.objectType}, #{task.objectId}, #{task.eventType}, #{task.errorCode}, #{task.requestedSkill}, #{task.handoffMode}, #{task.correlationId}, #{task.parentTaskId}, #{task.matchedFlowId}, #{task.matchedRuleId}, #{task.assignedPoolId}, #{task.targetPoolId}, #{task.classificationStatus}, coalesce(coalesce(cast(#{task.classificationResultJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{task.routingPath}, #{task.routingPolicy}, coalesce(coalesce(cast(#{task.requiredCapabilitiesJson} as jsonb), '[]'::jsonb), '[]'::jsonb), #{task.createdReason}, #{task.occurrenceCountAtCreation}, #{task.createdAt}, #{task.updatedAt}, #{task.timeoutAt}, #{task.terminalAt}, #{task.reassignmentCount}, #{task.nextDispatchAttemptAt}, #{task.dispatchAttemptCount}, #{task.dispatchRetryReason}, #{task.dispatchRecoveryClaimedBy}, #{task.dispatchRecoveryClaimUntil}, #{task.lifecycleReason}, #{task.externalExecutionKey}
+            #{task.taskId}, #{task.taskKey}, #{task.title}, #{task.description}, #{task.severity}, #{task.incidentId}, #{task.sourceEventId}, #{task.sourceSystem}, #{task.eventStage}, #{task.originSourceSystem}, #{task.targetSystem}, #{task.taskType}, #{task.taskTypeCode}, #{task.status}, #{task.priority}, #{task.tenantId}, #{task.siteId}, #{task.plantId}, #{task.objectType}, #{task.objectId}, #{task.eventType}, #{task.errorCode}, #{task.requestedSkill}, #{task.handoffMode}, #{task.correlationId}, #{task.rootTaskId}, #{task.parentTaskId}, #{task.sourceTaskId}, #{task.requestingTaskId}, #{task.requestingAgentId}, #{task.a2aPolicyId}, #{task.hopCount}, #{task.resultAggregationPolicy}, #{task.childCancellationPolicy}, #{task.childFailurePolicy}, #{task.issueSyncPolicy}, #{task.issueSyncPolicySource}, #{task.issueSyncPolicyInheritanceMode}, #{task.issueSyncPolicyInheritedFromTaskId}, #{task.createdByType}, #{task.createdById}, #{task.originPrincipalType}, #{task.originPrincipalId}, #{task.actorPrincipalType}, #{task.actorPrincipalId}, #{task.originCredentialId}, #{task.originOauthClientId}, #{task.originEventId}, #{task.originWorkloadSourceSystem}, #{task.originCorrelationId}, #{task.initialPriority}, #{task.initialSeverity}, #{task.originDepartmentId}, #{task.originGroupId}, #{task.originOrganizationSource}, #{task.originOrganizationStatus}, #{task.originSourceIp}, #{task.originApiResource}, #{task.authorizationDecisionId}, #{task.securityGlobalEpoch}, #{task.securityTenantEpoch}, #{task.securityPrincipalEpoch}, #{task.requestId}, #{task.traceId}, #{task.authenticationMethod}, #{task.workloadPurpose}, #{task.synthetic}, #{task.provenanceCapturedAt}, #{task.version}, #{task.creationIdempotencyKey}, #{task.ownerDepartmentId}, #{task.ownerGroupId}, #{task.originScopeStatus}, #{task.originScopeSourceVersion}, #{task.originScopeInheritedAt}, #{task.requesterDepartmentId}, #{task.requesterGroupId}, #{task.requesterDomainId}, #{task.executorDepartmentId}, #{task.executorGroupId}, #{task.executorDomainId}, #{task.visibilityPolicy}, #{task.sensitivityLevel}, #{task.matchedFlowId}, #{task.matchedRuleId}, #{task.assignedPoolId}, #{task.targetPoolId}, #{task.classificationStatus}, coalesce(coalesce(cast(#{task.classificationResultJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{task.routingPath}, #{task.routingPolicy}, coalesce(coalesce(cast(#{task.requiredCapabilitiesJson} as jsonb), '[]'::jsonb), '[]'::jsonb), #{task.createdReason}, #{task.occurrenceCountAtCreation}, #{task.createdAt}, #{task.updatedAt}, #{task.timeoutAt}, #{task.terminalAt}, #{task.reassignmentCount}, #{task.nextDispatchAttemptAt}, #{task.dispatchAttemptCount}, #{task.dispatchRetryReason}, #{task.dispatchRecoveryClaimedBy}, #{task.dispatchRecoveryClaimUntil}, #{task.lifecycleReason}, #{task.failureDomain}, #{task.failureCode}, #{task.failureAt}, #{task.externalExecutionKey}
         ) on conflict (task_id) do update set
-            incident_id = excluded.incident_id, source_event_id = excluded.source_event_id, source_system = excluded.source_system, event_stage = excluded.event_stage, origin_source_system = excluded.origin_source_system, target_system = excluded.target_system, task_type = excluded.task_type, task_type_code = excluded.task_type_code, status = excluded.status,
+            task_key = excluded.task_key, title = excluded.title, description = excluded.description, severity = excluded.severity, incident_id = excluded.incident_id, source_event_id = excluded.source_event_id, source_system = excluded.source_system, event_stage = excluded.event_stage, origin_source_system = excluded.origin_source_system, target_system = excluded.target_system, task_type = excluded.task_type, task_type_code = excluded.task_type_code, status = excluded.status,
             priority = excluded.priority, tenant_id = excluded.tenant_id, site_id = excluded.site_id, plant_id = excluded.plant_id,
-            object_type = excluded.object_type, object_id = excluded.object_id, event_type = excluded.event_type, error_code = excluded.error_code, requested_skill = excluded.requested_skill, handoff_mode = excluded.handoff_mode, correlation_id = excluded.correlation_id, parent_task_id = excluded.parent_task_id, matched_flow_id = excluded.matched_flow_id, matched_rule_id = excluded.matched_rule_id, assigned_pool_id = excluded.assigned_pool_id, target_pool_id = excluded.target_pool_id, classification_status = excluded.classification_status, classification_result_json = excluded.classification_result_json, routing_path = excluded.routing_path,
+            object_type = excluded.object_type, object_id = excluded.object_id, event_type = excluded.event_type, error_code = excluded.error_code, requested_skill = excluded.requested_skill, handoff_mode = excluded.handoff_mode, correlation_id = excluded.correlation_id, root_task_id = excluded.root_task_id, parent_task_id = excluded.parent_task_id, source_task_id = excluded.source_task_id, requesting_task_id = excluded.requesting_task_id, requesting_agent_id = excluded.requesting_agent_id, a2a_policy_id = excluded.a2a_policy_id, hop_count = excluded.hop_count, result_aggregation_policy = excluded.result_aggregation_policy, child_cancellation_policy = excluded.child_cancellation_policy, child_failure_policy = excluded.child_failure_policy, issue_sync_policy = excluded.issue_sync_policy, issue_sync_policy_source = excluded.issue_sync_policy_source, issue_sync_policy_inheritance_mode = excluded.issue_sync_policy_inheritance_mode, issue_sync_policy_inherited_from_task_id = excluded.issue_sync_policy_inherited_from_task_id, owner_department_id = excluded.owner_department_id, owner_group_id = excluded.owner_group_id, origin_scope_status = tasks.origin_scope_status, origin_scope_source_version = tasks.origin_scope_source_version, origin_scope_inherited_at = tasks.origin_scope_inherited_at, requester_department_id = excluded.requester_department_id, requester_group_id = excluded.requester_group_id, requester_domain_id = excluded.requester_domain_id, executor_department_id = excluded.executor_department_id, executor_group_id = excluded.executor_group_id, executor_domain_id = excluded.executor_domain_id, visibility_policy = excluded.visibility_policy, sensitivity_level = excluded.sensitivity_level, matched_flow_id = excluded.matched_flow_id, matched_rule_id = excluded.matched_rule_id, assigned_pool_id = excluded.assigned_pool_id, target_pool_id = excluded.target_pool_id, classification_status = excluded.classification_status, classification_result_json = excluded.classification_result_json, routing_path = excluded.routing_path,
             routing_policy = excluded.routing_policy, required_capabilities_json = excluded.required_capabilities_json, created_reason = excluded.created_reason,
             occurrence_count_at_creation = excluded.occurrence_count_at_creation, timeout_at = excluded.timeout_at, terminal_at = excluded.terminal_at,
             reassignment_count = excluded.reassignment_count, next_dispatch_attempt_at = excluded.next_dispatch_attempt_at,
             dispatch_attempt_count = excluded.dispatch_attempt_count, dispatch_retry_reason = excluded.dispatch_retry_reason,
             dispatch_recovery_claimed_by = excluded.dispatch_recovery_claimed_by, dispatch_recovery_claim_until = excluded.dispatch_recovery_claim_until,
-            lifecycle_reason = excluded.lifecycle_reason, external_execution_key = excluded.external_execution_key, updated_at = excluded.updated_at
+            lifecycle_reason = excluded.lifecycle_reason, failure_domain = excluded.failure_domain, failure_code = excluded.failure_code, failure_at = excluded.failure_at, external_execution_key = excluded.external_execution_key, creation_idempotency_key = coalesce(tasks.creation_idempotency_key, excluded.creation_idempotency_key), updated_at = excluded.updated_at
     </insert>
     <insert id="insert">
         insert into tasks (<include refid="TaskColumns"/>) values (
-            #{task.taskId}, #{task.incidentId}, #{task.sourceEventId}, #{task.sourceSystem}, #{task.eventStage}, #{task.originSourceSystem}, #{task.targetSystem}, #{task.taskType}, #{task.taskTypeCode}, #{task.status}, #{task.priority}, #{task.tenantId}, #{task.siteId}, #{task.plantId}, #{task.objectType}, #{task.objectId}, #{task.eventType}, #{task.errorCode}, #{task.requestedSkill}, #{task.handoffMode}, #{task.correlationId}, #{task.parentTaskId}, #{task.matchedFlowId}, #{task.matchedRuleId}, #{task.assignedPoolId}, #{task.targetPoolId}, #{task.classificationStatus}, coalesce(coalesce(cast(#{task.classificationResultJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{task.routingPath}, #{task.routingPolicy}, coalesce(coalesce(cast(#{task.requiredCapabilitiesJson} as jsonb), '[]'::jsonb), '[]'::jsonb), #{task.createdReason}, #{task.occurrenceCountAtCreation}, #{task.createdAt}, #{task.updatedAt}, #{task.timeoutAt}, #{task.terminalAt}, #{task.reassignmentCount}, #{task.nextDispatchAttemptAt}, #{task.dispatchAttemptCount}, #{task.dispatchRetryReason}, #{task.dispatchRecoveryClaimedBy}, #{task.dispatchRecoveryClaimUntil}, #{task.lifecycleReason}, #{task.externalExecutionKey}
+            #{task.taskId}, #{task.taskKey}, #{task.title}, #{task.description}, #{task.severity}, #{task.incidentId}, #{task.sourceEventId}, #{task.sourceSystem}, #{task.eventStage}, #{task.originSourceSystem}, #{task.targetSystem}, #{task.taskType}, #{task.taskTypeCode}, #{task.status}, #{task.priority}, #{task.tenantId}, #{task.siteId}, #{task.plantId}, #{task.objectType}, #{task.objectId}, #{task.eventType}, #{task.errorCode}, #{task.requestedSkill}, #{task.handoffMode}, #{task.correlationId}, #{task.rootTaskId}, #{task.parentTaskId}, #{task.sourceTaskId}, #{task.requestingTaskId}, #{task.requestingAgentId}, #{task.a2aPolicyId}, #{task.hopCount}, #{task.resultAggregationPolicy}, #{task.childCancellationPolicy}, #{task.childFailurePolicy}, #{task.issueSyncPolicy}, #{task.issueSyncPolicySource}, #{task.issueSyncPolicyInheritanceMode}, #{task.issueSyncPolicyInheritedFromTaskId}, #{task.createdByType}, #{task.createdById}, #{task.originPrincipalType}, #{task.originPrincipalId}, #{task.actorPrincipalType}, #{task.actorPrincipalId}, #{task.originCredentialId}, #{task.originOauthClientId}, #{task.originEventId}, #{task.originWorkloadSourceSystem}, #{task.originCorrelationId}, #{task.initialPriority}, #{task.initialSeverity}, #{task.originDepartmentId}, #{task.originGroupId}, #{task.originOrganizationSource}, #{task.originOrganizationStatus}, #{task.originSourceIp}, #{task.originApiResource}, #{task.authorizationDecisionId}, #{task.securityGlobalEpoch}, #{task.securityTenantEpoch}, #{task.securityPrincipalEpoch}, #{task.requestId}, #{task.traceId}, #{task.authenticationMethod}, #{task.workloadPurpose}, #{task.synthetic}, #{task.provenanceCapturedAt}, #{task.version}, #{task.creationIdempotencyKey}, #{task.ownerDepartmentId}, #{task.ownerGroupId}, #{task.originScopeStatus}, #{task.originScopeSourceVersion}, #{task.originScopeInheritedAt}, #{task.requesterDepartmentId}, #{task.requesterGroupId}, #{task.requesterDomainId}, #{task.executorDepartmentId}, #{task.executorGroupId}, #{task.executorDomainId}, #{task.visibilityPolicy}, #{task.sensitivityLevel}, #{task.matchedFlowId}, #{task.matchedRuleId}, #{task.assignedPoolId}, #{task.targetPoolId}, #{task.classificationStatus}, coalesce(coalesce(cast(#{task.classificationResultJson} as jsonb), '{}'::jsonb), '{}'::jsonb), #{task.routingPath}, #{task.routingPolicy}, coalesce(coalesce(cast(#{task.requiredCapabilitiesJson} as jsonb), '[]'::jsonb), '[]'::jsonb), #{task.createdReason}, #{task.occurrenceCountAtCreation}, #{task.createdAt}, #{task.updatedAt}, #{task.timeoutAt}, #{task.terminalAt}, #{task.reassignmentCount}, #{task.nextDispatchAttemptAt}, #{task.dispatchAttemptCount}, #{task.dispatchRetryReason}, #{task.dispatchRecoveryClaimedBy}, #{task.dispatchRecoveryClaimUntil}, #{task.lifecycleReason}, #{task.failureDomain}, #{task.failureCode}, #{task.failureAt}, #{task.externalExecutionKey}
         )
-        on conflict (incident_id, task_type)
-        where status not in ('SUCCEEDED','FAILED','ESCALATED','DEAD_LETTER','SUPPRESSED','COMPLETED','TIMED_OUT','CANCELLED')
+        on conflict (tenant_id, incident_id, task_type)
+        where task_lifecycle &lt;&gt; 'CLOSED'
         do nothing
     </insert>
     <select id="findById" resultMap="TaskPoMap">select * from tasks where task_id = #{taskId}</select>
+    <select id="findByTenantAndId" resultMap="TaskPoMap">select * from tasks where tenant_id = #{tenantId} and task_id = #{taskId}</select>
+    <select id="findByRootTaskId" resultMap="TaskPoMap">
+        select * from tasks where tenant_id = #{tenantId} and root_task_id = #{rootTaskId}
+        order by created_at asc, task_id asc limit #{limit}
+    </select>
+    <select id="findByParentTaskId" resultMap="TaskPoMap">
+        select * from tasks where tenant_id = #{tenantId} and parent_task_id = #{parentTaskId}
+        order by created_at asc, task_id asc limit #{limit}
+    </select>
+    <update id="transferOwnership">
+        update tasks set
+            owner_department_id = #{ownerDepartmentId},
+            owner_group_id = #{ownerGroupId},
+            lifecycle_reason = #{reason},
+            correlation_id = #{correlationId},
+            updated_at = #{changedAt},
+            version = version + 1
+        where tenant_id = #{tenantId} and task_id = #{taskId} and version = #{expectedVersion}
+    </update>
+    <update id="transitionGovernanceState">
+        update tasks set
+            status = #{newStatus}, lifecycle_reason = #{reason}, correlation_id = coalesce(#{correlationId}, correlation_id),
+            last_transition_reason_code = #{reasonCode}, last_transition_actor_type = #{actorType},
+            last_transition_actor_id = #{actorId}, last_transition_idempotency_key = #{idempotencyKey},
+            updated_at = #{transitionAt}, version = version + 1
+        where tenant_id = #{tenantId} and task_id = #{taskId} and version = #{expectedVersion}
+    </update>
     <select id="findOpenByIncidentAndType" resultMap="TaskPoMap">
-        select * from tasks where incident_id = #{incidentId} and task_type = #{taskType} and status not in ('SUCCEEDED','FAILED','ESCALATED','DEAD_LETTER','SUPPRESSED','COMPLETED','TIMED_OUT','CANCELLED') order by created_at desc limit 1
+        select * from tasks where incident_id = #{incidentId} and task_type = #{taskType} and task_lifecycle &lt;&gt; 'CLOSED' order by created_at desc limit 1
+    </select>
+    <select id="findOpenByTenantAndIncidentAndType" resultMap="TaskPoMap">
+        select * from tasks where tenant_id = #{tenantId} and incident_id = #{incidentId} and task_type = #{taskType} and task_lifecycle &lt;&gt; 'CLOSED' order by created_at desc limit 1
     </select>
     <select id="findByIncidentId" resultMap="TaskPoMap">select * from tasks where incident_id = #{incidentId} order by created_at desc limit #{limit}</select>
+    <select id="findByTenantAndIncidentId" resultMap="TaskPoMap">select * from tasks where tenant_id = #{tenantId} and incident_id = #{incidentId} order by created_at desc limit #{limit}</select>
     <select id="findOpenUpdatedBefore" resultMap="TaskPoMap">
         select * from tasks
-        where status not in ('SUCCEEDED','FAILED','ESCALATED','DEAD_LETTER','SUPPRESSED','COMPLETED','TIMED_OUT','CANCELLED') and updated_at &lt; #{cutoff}
+        where task_lifecycle &lt;&gt; 'CLOSED' and updated_at &lt; #{cutoff}
         order by updated_at asc limit #{limit}
     </select>
     <select id="findByStatusUpdatedBefore" resultMap="TaskPoMap">
@@ -140,13 +192,262 @@
           </foreach>
     </update>
 
+    <select id="searchAuthorized" resultMap="TaskPoMap">
+        select t.* from tasks t
+        where t.tenant_id = #{tenantId}
+        <if test="incidentId != null and incidentId != ''">and t.incident_id = #{incidentId}</if>
+        <if test="siteId != null and siteId != ''">and t.site_id = #{siteId}</if>
+        <if test="plantId != null and plantId != ''">and t.plant_id = #{plantId}</if>
+        <if test="taskType != null">and t.task_type = #{taskType}</if>
+        <if test="status != null">and t.status = #{status}</if>
+        <if test="beforeCreatedAt != null and beforeTaskId != null and beforeTaskId != ''">
+            and (t.created_at &lt; #{beforeCreatedAt} or (t.created_at = #{beforeCreatedAt} and t.task_id &lt; #{beforeTaskId}))
+        </if>
+        <choose>
+            <when test="plan == null or plan.denyAll">and 1 = 0</when>
+            <when test="plan.strategy().name() == 'TENANT'">
+                <!-- Tenant-wide permission still remains bounded by explicit deny predicates below. -->
+            </when>
+            <otherwise>
+                and (
+                    <if test="plan.explicitTaskIds != null and !plan.explicitTaskIds.isEmpty()">
+                        t.task_id in
+                        <foreach item="id" collection="plan.explicitTaskIds" open="(" separator="," close=")">#{id}</foreach>
+                        or
+                    </if>
+                    <if test="plan.exactDepartmentIds != null and !plan.exactDepartmentIds.isEmpty()">
+                        t.owner_department_id in <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+                        or t.requester_department_id in <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+                        or t.executor_department_id in <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+                        or
+                    </if>
+                    <if test="plan.subtreeDepartmentRootIds != null and !plan.subtreeDepartmentRootIds.isEmpty()">
+                        exists (select 1 from org_department_closure dc where dc.tenant_id=t.tenant_id
+                            and dc.ancestor_department_id in <foreach item="id" collection="plan.subtreeDepartmentRootIds" open="(" separator="," close=")">#{id}</foreach>
+                            and dc.descendant_department_id in (t.owner_department_id,t.requester_department_id,t.executor_department_id))
+                        or
+                    </if>
+                    <if test="plan.groupIds != null and !plan.groupIds.isEmpty()">
+                        t.owner_group_id in <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>
+                        or t.requester_group_id in <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>
+                        or t.executor_group_id in <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>
+                        or
+                    </if>
+                    exists (select 1 from resource_participants rp where rp.tenant_id=t.tenant_id
+                        and rp.resource_type='TASK' and rp.resource_id=t.task_id and rp.participant_status='ACTIVE'
+                        and current_timestamp &gt;= rp.valid_from and (rp.valid_to is null or current_timestamp &lt; rp.valid_to)
+                        and ((rp.participant_type='USER' and rp.participant_ref_id=#{plan.principalId})
+                          <if test="plan.exactDepartmentIds != null and !plan.exactDepartmentIds.isEmpty()">
+                          or (rp.participant_type='DEPARTMENT' and rp.participant_ref_id in <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>)
+                          </if>
+                          <if test="plan.groupIds != null and !plan.groupIds.isEmpty()">
+                          or (rp.participant_type='GROUP' and rp.participant_ref_id in <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>)
+                          </if>
+                        ))
+                )
+            </otherwise>
+        </choose>
+        <if test="plan.excludedTaskIds != null and !plan.excludedTaskIds.isEmpty()">
+            and t.task_id not in <foreach item="id" collection="plan.excludedTaskIds" open="(" separator="," close=")">#{id}</foreach>
+        </if>
+        <if test="plan.deniedDepartmentIds != null and !plan.deniedDepartmentIds.isEmpty()">
+            and coalesce(t.owner_department_id,'') not in <foreach item="id" collection="plan.deniedDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+            and coalesce(t.requester_department_id,'') not in <foreach item="id" collection="plan.deniedDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+            and coalesce(t.executor_department_id,'') not in <foreach item="id" collection="plan.deniedDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+        </if>
+        <if test="plan.deniedSubtreeDepartmentRootIds != null and !plan.deniedSubtreeDepartmentRootIds.isEmpty()">
+            and not exists (select 1 from org_department_closure dd where dd.tenant_id=t.tenant_id
+                and dd.ancestor_department_id in <foreach item="id" collection="plan.deniedSubtreeDepartmentRootIds" open="(" separator="," close=")">#{id}</foreach>
+                and dd.descendant_department_id in (t.owner_department_id,t.requester_department_id,t.executor_department_id))
+        </if>
+        <if test="plan.deniedGroupIds != null and !plan.deniedGroupIds.isEmpty()">
+            and coalesce(t.owner_group_id,'') not in <foreach item="id" collection="plan.deniedGroupIds" open="(" separator="," close=")">#{id}</foreach>
+            and coalesce(t.requester_group_id,'') not in <foreach item="id" collection="plan.deniedGroupIds" open="(" separator="," close=")">#{id}</foreach>
+            and coalesce(t.executor_group_id,'') not in <foreach item="id" collection="plan.deniedGroupIds" open="(" separator="," close=")">#{id}</foreach>
+        </if>
+        <!-- Full deny precedence is evaluated per row before pagination, including OWNER/PARTICIPANT/TASK_CHAIN. -->
+        and not exists (
+            select 1 from resource_scope_denies rd
+            where rd.tenant_id=t.tenant_id
+              and rd.resource_type='TASK'
+              and rd.deny_state='ACTIVE'
+              and rd.valid_from &lt;= current_timestamp
+              and (rd.valid_to is null or rd.valid_to &gt; current_timestamp)
+              and (rd.permission_code is null or rd.permission_code='' or rd.permission_code=#{plan.permissionCode})
+              and (
+                    (rd.principal_type=#{plan.principalType} and rd.principal_id=#{plan.principalId})
+                    <if test="plan.exactDepartmentIds != null and !plan.exactDepartmentIds.isEmpty()">
+                    or (rd.principal_type='DEPARTMENT' and rd.principal_id in
+                        <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>)
+                    </if>
+                    <if test="plan.groupIds != null and !plan.groupIds.isEmpty()">
+                    or (rd.principal_type='GROUP' and rd.principal_id in
+                        <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>)
+                    </if>
+              )
+              and (
+                    rd.scope_type='TENANT'
+                    or (rd.scope_type='RESOURCE' and rd.scope_ref_id=t.task_id)
+                    or (rd.scope_type='TASK_CHAIN' and rd.scope_ref_id in (t.task_id,t.root_task_id))
+                    or (rd.scope_type='DEPARTMENT' and rd.scope_ref_id in
+                        (t.owner_department_id,t.requester_department_id,t.executor_department_id))
+                    or (rd.scope_type='DEPARTMENT_SUBTREE' and exists (
+                        select 1 from org_department_closure rdc
+                        where rdc.tenant_id=t.tenant_id
+                          and rdc.ancestor_department_id=rd.scope_ref_id
+                          and rdc.descendant_department_id in
+                              (t.owner_department_id,t.requester_department_id,t.executor_department_id)))
+                    or (rd.scope_type='GROUP' and rd.scope_ref_id in
+                        (t.owner_group_id,t.requester_group_id,t.executor_group_id))
+                    or (rd.scope_type='OWNER' and (
+                        (rd.principal_type='DEPARTMENT' and rd.principal_id=t.owner_department_id)
+                        or (rd.principal_type='GROUP' and rd.principal_id=t.owner_group_id)))
+                    or (rd.scope_type='PARTICIPANT' and exists (
+                        select 1 from resource_participants drp
+                        where drp.tenant_id=t.tenant_id and drp.resource_type='TASK'
+                          and drp.resource_id=t.task_id and drp.participant_status='ACTIVE'
+                          and drp.valid_from &lt;= current_timestamp
+                          and (drp.valid_to is null or drp.valid_to &gt; current_timestamp)
+                          and drp.participant_type=rd.principal_type
+                          and drp.participant_ref_id=rd.principal_id))
+              )
+        )
+        order by t.created_at desc, t.task_id desc limit #{limit}
+    </select>
+
+    <select id="searchAuthorizedTarget" resultMap="TaskPoMap">
+        select t.* from enforcement_task_list_target_read_v1 t
+        where t.tenant_id = #{tenantId}
+        <if test="incidentId != null and incidentId != ''">and t.incident_id = #{incidentId}</if>
+        <if test="siteId != null and siteId != ''">and t.site_id = #{siteId}</if>
+        <if test="plantId != null and plantId != ''">and t.plant_id = #{plantId}</if>
+        <if test="taskType != null">and t.task_type = #{taskType}</if>
+        <if test="status != null">and t.status = #{status}</if>
+        <if test="beforeCreatedAt != null and beforeTaskId != null and beforeTaskId != ''">
+            and (t.created_at &lt; #{beforeCreatedAt} or (t.created_at = #{beforeCreatedAt} and t.task_id &lt; #{beforeTaskId}))
+        </if>
+        <choose>
+            <when test="plan == null or plan.denyAll">and 1 = 0</when>
+            <when test="plan.strategy().name() == 'TENANT'">
+                <!-- Tenant-wide permission still remains bounded by explicit deny predicates below. -->
+            </when>
+            <otherwise>
+                and (
+                    <if test="plan.explicitTaskIds != null and !plan.explicitTaskIds.isEmpty()">
+                        t.task_id in
+                        <foreach item="id" collection="plan.explicitTaskIds" open="(" separator="," close=")">#{id}</foreach>
+                        or
+                    </if>
+                    <if test="plan.exactDepartmentIds != null and !plan.exactDepartmentIds.isEmpty()">
+                        t.owner_department_id in <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+                        or t.requester_department_id in <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+                        or t.executor_department_id in <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+                        or
+                    </if>
+                    <if test="plan.subtreeDepartmentRootIds != null and !plan.subtreeDepartmentRootIds.isEmpty()">
+                        exists (select 1 from org_department_closure dc where dc.tenant_id=t.tenant_id
+                            and dc.ancestor_department_id in <foreach item="id" collection="plan.subtreeDepartmentRootIds" open="(" separator="," close=")">#{id}</foreach>
+                            and dc.descendant_department_id in (t.owner_department_id,t.requester_department_id,t.executor_department_id))
+                        or
+                    </if>
+                    <if test="plan.groupIds != null and !plan.groupIds.isEmpty()">
+                        t.owner_group_id in <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>
+                        or t.requester_group_id in <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>
+                        or t.executor_group_id in <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>
+                        or
+                    </if>
+                    exists (select 1 from resource_participants rp where rp.tenant_id=t.tenant_id
+                        and rp.resource_type='TASK' and rp.resource_id=t.task_id and rp.participant_status='ACTIVE'
+                        and current_timestamp &gt;= rp.valid_from and (rp.valid_to is null or current_timestamp &lt; rp.valid_to)
+                        and ((rp.participant_type='USER' and rp.participant_ref_id=#{plan.principalId})
+                          <if test="plan.exactDepartmentIds != null and !plan.exactDepartmentIds.isEmpty()">
+                          or (rp.participant_type='DEPARTMENT' and rp.participant_ref_id in <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>)
+                          </if>
+                          <if test="plan.groupIds != null and !plan.groupIds.isEmpty()">
+                          or (rp.participant_type='GROUP' and rp.participant_ref_id in <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>)
+                          </if>
+                        ))
+                )
+            </otherwise>
+        </choose>
+        <if test="plan.excludedTaskIds != null and !plan.excludedTaskIds.isEmpty()">
+            and t.task_id not in <foreach item="id" collection="plan.excludedTaskIds" open="(" separator="," close=")">#{id}</foreach>
+        </if>
+        <if test="plan.deniedDepartmentIds != null and !plan.deniedDepartmentIds.isEmpty()">
+            and coalesce(t.owner_department_id,'') not in <foreach item="id" collection="plan.deniedDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+            and coalesce(t.requester_department_id,'') not in <foreach item="id" collection="plan.deniedDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+            and coalesce(t.executor_department_id,'') not in <foreach item="id" collection="plan.deniedDepartmentIds" open="(" separator="," close=")">#{id}</foreach>
+        </if>
+        <if test="plan.deniedSubtreeDepartmentRootIds != null and !plan.deniedSubtreeDepartmentRootIds.isEmpty()">
+            and not exists (select 1 from org_department_closure dd where dd.tenant_id=t.tenant_id
+                and dd.ancestor_department_id in <foreach item="id" collection="plan.deniedSubtreeDepartmentRootIds" open="(" separator="," close=")">#{id}</foreach>
+                and dd.descendant_department_id in (t.owner_department_id,t.requester_department_id,t.executor_department_id))
+        </if>
+        <if test="plan.deniedGroupIds != null and !plan.deniedGroupIds.isEmpty()">
+            and coalesce(t.owner_group_id,'') not in <foreach item="id" collection="plan.deniedGroupIds" open="(" separator="," close=")">#{id}</foreach>
+            and coalesce(t.requester_group_id,'') not in <foreach item="id" collection="plan.deniedGroupIds" open="(" separator="," close=")">#{id}</foreach>
+            and coalesce(t.executor_group_id,'') not in <foreach item="id" collection="plan.deniedGroupIds" open="(" separator="," close=")">#{id}</foreach>
+        </if>
+        <!-- Full deny precedence is evaluated per row before pagination, including OWNER/PARTICIPANT/TASK_CHAIN. -->
+        and not exists (
+            select 1 from resource_scope_denies rd
+            where rd.tenant_id=t.tenant_id
+              and rd.resource_type='TASK'
+              and rd.deny_state='ACTIVE'
+              and rd.valid_from &lt;= current_timestamp
+              and (rd.valid_to is null or rd.valid_to &gt; current_timestamp)
+              and (rd.permission_code is null or rd.permission_code='' or rd.permission_code=#{plan.permissionCode})
+              and (
+                    (rd.principal_type=#{plan.principalType} and rd.principal_id=#{plan.principalId})
+                    <if test="plan.exactDepartmentIds != null and !plan.exactDepartmentIds.isEmpty()">
+                    or (rd.principal_type='DEPARTMENT' and rd.principal_id in
+                        <foreach item="id" collection="plan.exactDepartmentIds" open="(" separator="," close=")">#{id}</foreach>)
+                    </if>
+                    <if test="plan.groupIds != null and !plan.groupIds.isEmpty()">
+                    or (rd.principal_type='GROUP' and rd.principal_id in
+                        <foreach item="id" collection="plan.groupIds" open="(" separator="," close=")">#{id}</foreach>)
+                    </if>
+              )
+              and (
+                    rd.scope_type='TENANT'
+                    or (rd.scope_type='RESOURCE' and rd.scope_ref_id=t.task_id)
+                    or (rd.scope_type='TASK_CHAIN' and rd.scope_ref_id in (t.task_id,t.root_task_id))
+                    or (rd.scope_type='DEPARTMENT' and rd.scope_ref_id in
+                        (t.owner_department_id,t.requester_department_id,t.executor_department_id))
+                    or (rd.scope_type='DEPARTMENT_SUBTREE' and exists (
+                        select 1 from org_department_closure rdc
+                        where rdc.tenant_id=t.tenant_id
+                          and rdc.ancestor_department_id=rd.scope_ref_id
+                          and rdc.descendant_department_id in
+                              (t.owner_department_id,t.requester_department_id,t.executor_department_id)))
+                    or (rd.scope_type='GROUP' and rd.scope_ref_id in
+                        (t.owner_group_id,t.requester_group_id,t.executor_group_id))
+                    or (rd.scope_type='OWNER' and (
+                        (rd.principal_type='DEPARTMENT' and rd.principal_id=t.owner_department_id)
+                        or (rd.principal_type='GROUP' and rd.principal_id=t.owner_group_id)))
+                    or (rd.scope_type='PARTICIPANT' and exists (
+                        select 1 from resource_participants drp
+                        where drp.tenant_id=t.tenant_id and drp.resource_type='TASK'
+                          and drp.resource_id=t.task_id and drp.participant_status='ACTIVE'
+                          and drp.valid_from &lt;= current_timestamp
+                          and (drp.valid_to is null or drp.valid_to &gt; current_timestamp)
+                          and drp.participant_type=rd.principal_type
+                          and drp.participant_ref_id=rd.principal_id))
+              )
+        )
+        order by t.created_at desc, t.task_id desc limit #{limit}
+    </select>
+
     <select id="search" resultMap="TaskPoMap">
         select * from tasks
         <where>
             <if test="incidentId != null and incidentId != ''">and incident_id = #{incidentId}</if><if test="tenantId != null and tenantId != ''">and tenant_id = #{tenantId}</if>
             <if test="siteId != null and siteId != ''">and site_id = #{siteId}</if><if test="plantId != null and plantId != ''">and plant_id = #{plantId}</if>
             <if test="taskType != null">and task_type = #{taskType}</if><if test="status != null">and status = #{status}</if>
+            <if test="beforeCreatedAt != null and beforeTaskId != null and beforeTaskId != ''">
+                and (created_at &lt; #{beforeCreatedAt} or (created_at = #{beforeCreatedAt} and task_id &lt; #{beforeTaskId}))
+            </if>
         </where>
-        order by created_at desc limit #{limit}
+        order by created_at desc, task_id desc limit #{limit}
     </select>
 </mapper>

@@ -4,8 +4,10 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Locale;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,12 +30,15 @@ import com.opensocket.aievent.core.dispatch.flow.DispatchFlowTraceChainView;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowTraceStepView;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowView;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowManagementService;
+import com.opensocket.aievent.core.dispatch.flow.DispatchFlowActivationService;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowReadinessRequest;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowReadinessResponse;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowReadinessService;
 import com.opensocket.aievent.core.decision.EventIntakeApplicationService;
 import com.opensocket.aievent.core.decision.EventIntakeDecisionResponse;
 import com.opensocket.aievent.core.event.EventIntakeRequest;
+import com.opensocket.aievent.core.resourceaccess.contract.*;
+import com.opensocket.aievent.core.resourceaccess.runtime.ScopedBusinessResourceAccessCoordinator;
 
 @RestController
 @RequestMapping("/admin/dispatch-flows")
@@ -45,30 +50,44 @@ public class DispatchFlowController {
     // R2/R4 compatibility verification tokens retained: R2_PREVIEW_ONLY, R2_SKELETON_PREVIEW, R4_PREVIEW_ONLY, R4_SKILL_MODEL_PREVIEW, standaloneDispatchCapabilities.
     // P1_DB_BACKED_CRUD: the beginner-facing Dispatch Flows API now reads/writes persisted Flow-owned records instead of skeleton preview data.
     private final DispatchFlowManagementService dispatchFlowManagementService;
+    private final DispatchFlowActivationService dispatchFlowActivationService;
     private final DispatchFlowReadinessService dispatchFlowReadinessService;
     private final EventIntakeApplicationService eventIntakeApplicationService;
+    private final ObjectProvider<ScopedBusinessResourceAccessCoordinator> scopedAccess;
 
     public DispatchFlowController(DispatchFlowManagementService dispatchFlowManagementService,
+                                  DispatchFlowActivationService dispatchFlowActivationService,
                                   DispatchFlowReadinessService dispatchFlowReadinessService,
-                                  EventIntakeApplicationService eventIntakeApplicationService) {
+                                  EventIntakeApplicationService eventIntakeApplicationService,
+                                  ObjectProvider<ScopedBusinessResourceAccessCoordinator> scopedAccess) {
         this.dispatchFlowManagementService = dispatchFlowManagementService;
+        this.dispatchFlowActivationService = dispatchFlowActivationService;
         this.dispatchFlowReadinessService = dispatchFlowReadinessService;
         this.eventIntakeApplicationService = eventIntakeApplicationService;
+        this.scopedAccess = scopedAccess;
     }
 
     @GetMapping
     public List<DispatchFlowView> list(@RequestParam String tenantId,
                                        @RequestParam(required = false) String sourceSystem) {
-        return dispatchFlowManagementService.listFlows(tenantId, sourceSystem);
+        var guard=scopedAccess.getIfAvailable();
+        if(guard==null)return dispatchFlowManagementService.listFlows(tenantId,sourceSystem);
+        return dispatchFlowManagementService.listFlows(tenantId,sourceSystem,guard.plan("admin.dispatch.flow.list",ResourceType.DISPATCH_FLOW,VisibilityLevel.STANDARD,"DISPATCH_FLOW_LIST"));
     }
 
     @PostMapping
     public DispatchFlowView create(@RequestBody DispatchFlowView request,
                                    @RequestParam String tenantId) {
         try {
-            requireTenantMatch(tenantId, request == null ? null : request.getTenantId());
+            request = requireRequestBody(request, "Dispatch Flow");
+            requireTenantMatch(tenantId, request.getTenantId());
             request.setTenantId(tenantId);
-            return dispatchFlowManagementService.createOrUpdateFlow(request);
+            requireExplicitIssuePolicy(request);
+            var guard=scopedAccess.getIfAvailable();
+            if(guard!=null){var plan=guard.plan("admin.dispatch.flow.create",ResourceType.DISPATCH_FLOW,VisibilityLevel.STANDARD,"DISPATCH_FLOW_CREATE_SCOPE");dispatchFlowManagementService.requireAssignableSourceOwnership(plan,tenantId,firstNonBlank(request.getFlowId(),"flow-"+request.getFlowCode()),request.getSourceSystem());}
+            return isActiveStatus(request.getStatus())
+                    ? dispatchFlowActivationService.saveAndValidateActivation(request, request.getVersion())
+                    : dispatchFlowManagementService.createOrUpdateFlow(request);
         } catch (IllegalArgumentException ex) {
             throw dispatchFlowMutationException(ex);
         }
@@ -82,15 +101,25 @@ public class DispatchFlowController {
     @GetMapping("/agent-pools")
     public List<AgentPoolView> agentPools(@RequestParam String tenantId,
                                           @RequestParam(required = false) String sourceSystem) {
-        return dispatchFlowManagementService.listAgentPools(tenantId, sourceSystem);
+        var guard=scopedAccess.getIfAvailable();
+        if(guard==null)return dispatchFlowManagementService.listAgentPools(tenantId,sourceSystem);
+        return dispatchFlowManagementService.listAgentPools(tenantId,sourceSystem,guard.plan("admin.dispatch.flow.agent.pools",ResourceType.AGENT_POOL,VisibilityLevel.STANDARD,"AGENT_POOL_LIST"));
     }
 
     @PostMapping("/agent-pools")
     public AgentPoolView createAgentPool(@RequestBody AgentPoolView request,
                                          @RequestParam String tenantId) {
         try {
-            requireTenantMatch(tenantId, request == null ? null : request.getTenantId());
+            request = requireRequestBody(request, "Agent Pool");
+            requireTenantMatch(tenantId, request.getTenantId());
             request.setTenantId(tenantId);
+            var guard=scopedAccess.getIfAvailable();
+            if(guard!=null){
+                var plan=guard.plan("admin.dispatch.flow.create.agent.pool",ResourceType.AGENT_POOL,VisibilityLevel.STANDARD,"AGENT_POOL_CREATE_SCOPE");
+                dispatchFlowManagementService.requireAssignableSourceOwnership(plan,tenantId,firstNonBlank(request.getPoolId(),"pool-"+request.getPoolCode()),request.getSourceSystem());
+                if(!dispatchFlowManagementService.crossScopeAgentIds(tenantId,request.getSourceSystem(),request.getMembers()).isEmpty())
+                    guard.requireTenantWide("admin.dispatch.cross.scope.manage",ResourceType.AGENT_POOL,VisibilityLevel.SENSITIVE,"RS4_CROSS_SCOPE_AGENT_POOL_CREATE");
+            }
             return dispatchFlowManagementService.createOrUpdateAgentPool(request);
         } catch (IllegalArgumentException ex) {
             throw dispatchFlowMutationException(ex);
@@ -100,6 +129,7 @@ public class DispatchFlowController {
     @GetMapping("/agent-pools/{poolId}")
     public AgentPoolView agentPoolDetail(@PathVariable String poolId,
                                          @RequestParam String tenantId) {
+        authorize(ResourceType.AGENT_POOL,poolId,"admin.dispatch.flow.agent.pool.detail",ResourceAction.ActionKind.READ,false,"AGENT_POOL_DETAIL");
         return dispatchFlowManagementService.findAgentPool(tenantId, poolId)
                 .orElseThrow(() -> new StandardApiException(StandardApiErrorCode.NOT_FOUND, "Agent Pool not found: " + poolId));
     }
@@ -110,9 +140,20 @@ public class DispatchFlowController {
                                          @RequestParam String tenantId,
                                          @RequestHeader(value = "If-Match", required = false) String ifMatch) {
         try {
-            requireTenantMatch(tenantId, request == null ? null : request.getTenantId());
+            request = requireRequestBody(request, "Agent Pool");
+            requireTenantMatch(tenantId, request.getTenantId());
             request.setTenantId(tenantId);
             request.setPoolId(poolId);
+            authorize(ResourceType.AGENT_POOL,poolId,"admin.dispatch.flow.update.agent.pool",ResourceAction.ActionKind.UPDATE,true,"AGENT_POOL_UPDATE");
+            AgentPoolView existingPool = dispatchFlowManagementService.findAgentPool(tenantId, poolId)
+                    .orElseThrow(() -> new StandardApiException(StandardApiErrorCode.NOT_FOUND, "Agent Pool not found: " + poolId));
+            var guard=scopedAccess.getIfAvailable();
+            if(guard!=null && !sameCode(existingPool.getSourceSystem(), request.getSourceSystem())){
+                var plan=guard.plan("admin.dispatch.flow.update.agent.pool",ResourceType.AGENT_POOL,VisibilityLevel.STANDARD,"AGENT_POOL_REASSIGN_SCOPE");
+                dispatchFlowManagementService.requireAssignableSourceOwnership(plan,tenantId,poolId,request.getSourceSystem());
+            }
+            if(guard!=null && !dispatchFlowManagementService.crossScopeAgentIds(tenantId,request.getSourceSystem(),request.getMembers()).isEmpty())
+                guard.requireTenantWide("admin.dispatch.cross.scope.manage",ResourceType.AGENT_POOL,VisibilityLevel.SENSITIVE,"RS4_CROSS_SCOPE_AGENT_POOL_UPDATE");
             Integer expectedVersion = expectedVersion(ifMatch, request.getVersion(), "Agent Pool");
             return dispatchFlowManagementService.createOrUpdateAgentPool(request, expectedVersion);
         } catch (IllegalArgumentException ex) {
@@ -123,6 +164,7 @@ public class DispatchFlowController {
     @DeleteMapping("/agent-pools/{poolId}")
     public Map<String, Object> retireAgentPool(@PathVariable String poolId,
                                                @RequestParam String tenantId) {
+        authorize(ResourceType.AGENT_POOL,poolId,"admin.dispatch.flow.retire.agent.pool",ResourceAction.ActionKind.DELETE,true,"AGENT_POOL_RETIRE");
         dispatchFlowManagementService.retireAgentPool(tenantId, poolId);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("poolId", poolId);
@@ -134,12 +176,16 @@ public class DispatchFlowController {
     @GetMapping("/by-agent/{agentId}")
     public List<DispatchFlowView> byAgent(@PathVariable String agentId,
                                           @RequestParam String tenantId) {
-        return dispatchFlowManagementService.listFlowsForAgent(tenantId, agentId);
+        var guard = scopedAccess.getIfAvailable();
+        if (guard == null) return dispatchFlowManagementService.listFlowsForAgent(tenantId, agentId);
+        return dispatchFlowManagementService.listFlowsForAgent(tenantId, agentId,
+                guard.plan("admin.dispatch.flow.by.agent", ResourceType.DISPATCH_FLOW, VisibilityLevel.STANDARD, "DISPATCH_FLOW_BY_AGENT"));
     }
 
     @GetMapping("/{flowId}")
     public DispatchFlowView detail(@PathVariable String flowId,
                                    @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW,flowId,"admin.dispatch.flow.detail",ResourceAction.ActionKind.READ,false,"DISPATCH_FLOW_DETAIL");
         return dispatchFlowManagementService.findFlow(tenantId, flowId)
                 .orElseThrow(() -> new StandardApiException(StandardApiErrorCode.NOT_FOUND, "Dispatch Flow not found: " + flowId));
     }
@@ -150,11 +196,23 @@ public class DispatchFlowController {
                                    @RequestParam String tenantId,
                                    @RequestHeader(value = "If-Match", required = false) String ifMatch) {
         try {
-            requireTenantMatch(tenantId, request == null ? null : request.getTenantId());
+            request = requireRequestBody(request, "Dispatch Flow");
+            requireTenantMatch(tenantId, request.getTenantId());
             request.setTenantId(tenantId);
             request.setFlowId(flowId);
+            requireExplicitIssuePolicy(request);
+            authorize(ResourceType.DISPATCH_FLOW,flowId,"admin.dispatch.flow.update",ResourceAction.ActionKind.UPDATE,true,"DISPATCH_FLOW_UPDATE");
+            DispatchFlowView existingFlow = dispatchFlowManagementService.findFlow(tenantId, flowId)
+                    .orElseThrow(() -> new StandardApiException(StandardApiErrorCode.NOT_FOUND, "Dispatch Flow not found: " + flowId));
+            var guard=scopedAccess.getIfAvailable();
+            if(guard!=null && !sameCode(existingFlow.getSourceSystem(), request.getSourceSystem())){
+                var plan=guard.plan("admin.dispatch.flow.update",ResourceType.DISPATCH_FLOW,VisibilityLevel.STANDARD,"DISPATCH_FLOW_REASSIGN_SCOPE");
+                dispatchFlowManagementService.requireAssignableSourceOwnership(plan,tenantId,flowId,request.getSourceSystem());
+            }
             Integer expectedVersion = expectedVersion(ifMatch, request.getVersion(), "Source Flow");
-            return dispatchFlowManagementService.createOrUpdateFlow(request, expectedVersion);
+            return isActiveStatus(request.getStatus())
+                    ? dispatchFlowActivationService.saveAndValidateActivation(request, expectedVersion)
+                    : dispatchFlowManagementService.createOrUpdateFlow(request, expectedVersion);
         } catch (IllegalArgumentException ex) {
             throw dispatchFlowMutationException(ex);
         }
@@ -163,6 +221,7 @@ public class DispatchFlowController {
     @DeleteMapping("/{flowId}")
     public Map<String, Object> retire(@PathVariable String flowId,
                                       @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW,flowId,"admin.dispatch.flow.retire",ResourceAction.ActionKind.DELETE,true,"DISPATCH_FLOW_RETIRE");
         dispatchFlowManagementService.retireFlow(tenantId, flowId);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("flowId", flowId);
@@ -174,20 +233,19 @@ public class DispatchFlowController {
     /**
      * Real Source Flow test event. This is not a readiness simulator: the request is
      * generated from the persisted Flow and enters the same EventIntakeApplicationService
-     * used by /api/events/intake, creating a real Event, Task, routing decision,
-     * assignment, dispatch request, and callback lifecycle when the runtime is available.
+     * used by /api/events/intake, creating a real Event and Task. A deterministic Rule
+     * match may continue into the existing execution path; NO_MATCH enters Triage and
+     * deliberately creates no executor Assignment under A0-R3.
      */
     @PostMapping("/{flowId}/test-event")
     public EventIntakeDecisionResponse createRealTestEvent(@PathVariable String flowId,
                                                            @RequestBody(required = false) Map<String, Object> overrides,
                                                            @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, true, "DISPATCH_FLOW_TEST_EVENT");
         DispatchFlowView flow = dispatchFlowManagementService.findFlow(tenantId, flowId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dispatch Flow not found: " + flowId));
         if (!"ACTIVE".equalsIgnoreCase(flow.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Activate the Dispatch Flow before sending a real test event.");
-        }
-        if (blank(flow.getDefaultPoolId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Select a default Agent Pool before sending a real test event.");
         }
         List<DispatchFlowRuleView> persistedRules = flow.getRules() == null ? List.of() : flow.getRules();
         DispatchFlowRuleView rule = persistedRules.stream()
@@ -195,10 +253,31 @@ public class DispatchFlowController {
                 .filter(candidate -> blank(candidate.getEventStage()) || "EXTERNAL".equalsIgnoreCase(candidate.getEventStage()))
                 .findFirst()
                 .orElse(null);
-        // Source Flow default Pool is a valid Current routing entry even when the
-        // administrator has not created any special classification Rule. The real
-        // test event must therefore be able to exercise SOURCE_DEFAULT instead of
-        // forcing operators to create an artificial catch-all rule.
+        // A0-R3: Flow Match Authority is independent from legacy execution Pool compatibility.
+        // When no deterministic Rule exists, the real test intentionally exercises NO_MATCH
+        // and enters semantic triage; it must never manufacture SOURCE_DEFAULT as Rule evidence.
+
+        String effectiveIssueSyncPolicy = normalizeIssueSyncPolicy(firstNonBlank(
+                rule == null ? null : rule.getIssueSyncPolicy(),
+                flow.getDefaultIssueSyncPolicy(),
+                "OPTIONAL"));
+        String issueSyncPolicySource = rule != null && !blank(rule.getIssueSyncPolicy()) ? "RULE_OVERRIDE" : "FLOW_DEFAULT";
+        String expectedIssueSyncPolicy = normalizeExpectedIssueSyncPolicy(stringValue(overrides, "expectedIssueSyncPolicy"));
+        boolean expectExternalIssueOnSuccess = booleanValue(overrides, "expectExternalIssueOnSuccess");
+        if (!blank(expectedIssueSyncPolicy) && !expectedIssueSyncPolicy.equals(effectiveIssueSyncPolicy)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Issue policy preflight failed: expected " + expectedIssueSyncPolicy
+                            + " but effective policy is " + effectiveIssueSyncPolicy
+                            + " (source=" + issueSyncPolicySource + "). Refresh the Flow/Rule configuration before creating a real Task.");
+        }
+        if (expectExternalIssueOnSuccess && !"REQUIRED".equals(effectiveIssueSyncPolicy)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Issue policy preflight failed: this test expects an external Issue after a successful Task, "
+                            + "but effective policy is " + effectiveIssueSyncPolicy
+                            + " (source=" + issueSyncPolicySource + "). Set the Flow or selected Rule policy to REQUIRED before running this test.");
+        }
 
         String runId = UUID.randomUUID().toString();
         EventIntakeRequest request = new EventIntakeRequest();
@@ -235,8 +314,15 @@ public class DispatchFlowController {
         attributes.put("testRunId", runId);
         attributes.put("flowId", flow.getFlowId());
         attributes.put("flowCode", flow.getFlowCode());
-        attributes.put("ruleId", rule == null ? "SOURCE_DEFAULT" : rule.getRuleId());
-        attributes.put("routingEntry", rule == null ? "SOURCE_DEFAULT_POOL" : "FLOW_RULE");
+        attributes.put("flowMatchExpectation", rule == null ? "NO_MATCH" : "MATCHED");
+        attributes.put("effectiveIssueSyncPolicy", effectiveIssueSyncPolicy);
+        attributes.put("issueSyncPolicySource", issueSyncPolicySource);
+        if (!blank(expectedIssueSyncPolicy)) attributes.put("expectedIssueSyncPolicy", expectedIssueSyncPolicy);
+        if (expectExternalIssueOnSuccess) attributes.put("expectExternalIssueOnSuccess", true);
+        if (rule != null && !blank(rule.getRuleId())) {
+            attributes.put("testRuleHint", rule.getRuleId());
+        }
+        attributes.put("routingEntry", "FLOW_MATCH_AUTHORITY");
         attributes.put("initiatedFrom", "DISPATCH_FLOW_DETAIL");
         request.setAttributes(attributes);
         return eventIntakeApplicationService.intake(request);
@@ -247,6 +333,11 @@ public class DispatchFlowController {
                                                 @RequestParam String tenantId) {
         DispatchFlowReadinessRequest dryRunRequest = request == null ? new DispatchFlowReadinessRequest() : request;
         dryRunRequest.setTenantId(dryRunRequest.getTenantId() == null || dryRunRequest.getTenantId().isBlank() ? tenantId : dryRunRequest.getTenantId());
+        if (!blank(dryRunRequest.getFlowId())) {
+            authorize(ResourceType.DISPATCH_FLOW, dryRunRequest.getFlowId(), "admin.dispatch.flow.readiness", ResourceAction.ActionKind.READ, false, "DISPATCH_FLOW_DRY_RUN");
+        } else if (!blank(dryRunRequest.getSourceSystem())) {
+            authorize(ResourceType.SOURCE_SYSTEM, dryRunRequest.getSourceSystem(), "source_system.manage", ResourceAction.ActionKind.READ, false, "SOURCE_SYSTEM_DRY_RUN");
+        }
         return dispatchFlowReadinessService.dryRun(dryRunRequest);
     }
 
@@ -254,6 +345,7 @@ public class DispatchFlowController {
     public DispatchFlowReadinessResponse dryRunFlow(@PathVariable String flowId,
                                                     @RequestBody(required = false) DispatchFlowReadinessRequest request,
                                                     @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.readiness", ResourceAction.ActionKind.READ, false, "DISPATCH_FLOW_DRY_RUN");
         DispatchFlowReadinessRequest dryRunRequest = request == null ? new DispatchFlowReadinessRequest() : request;
         dryRunRequest.setTenantId(dryRunRequest.getTenantId() == null || dryRunRequest.getTenantId().isBlank() ? tenantId : dryRunRequest.getTenantId());
         dryRunRequest.setFlowId(flowId);
@@ -270,6 +362,7 @@ public class DispatchFlowController {
                                                    @RequestParam(required = false, defaultValue = "*") String errorCode,
                                                    @RequestParam(required = false) String requestedSkill,
                                                    @RequestParam(required = false) String agentId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.readiness", ResourceAction.ActionKind.READ, false, "DISPATCH_FLOW_READINESS");
         DispatchFlowReadinessRequest request = new DispatchFlowReadinessRequest();
         request.setTenantId(tenantId);
         request.setFlowId(flowId);
@@ -286,6 +379,7 @@ public class DispatchFlowController {
     @GetMapping("/{flowId}/rules")
     public List<DispatchFlowRuleView> rules(@PathVariable String flowId,
                                             @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.rules", ResourceAction.ActionKind.READ, false, "DISPATCH_FLOW_RULES");
         return dispatchFlowManagementService.rules(tenantId, flowId);
     }
 
@@ -298,12 +392,21 @@ public class DispatchFlowController {
     public DispatchFlowRuleView upsertRule(@PathVariable String flowId,
                                            @RequestBody DispatchFlowRuleView rule,
                                            @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, true, "DISPATCH_FLOW_RULE_MUTATION");
         throw aggregateMutationRequired(flowId);
+    }
+
+    @GetMapping("/{flowId}/rule-conflicts")
+    public List<Map<String,Object>> ruleConflicts(@PathVariable String flowId,
+                                                  @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.rules", ResourceAction.ActionKind.READ, false, "DISPATCH_FLOW_RULE_CONFLICTS");
+        return dispatchFlowManagementService.ruleConflicts(tenantId, flowId);
     }
 
     @GetMapping("/{flowId}/skills")
     public List<DispatchFlowRequiredSkillView> skills(@PathVariable String flowId,
                                                       @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.skills", ResourceAction.ActionKind.READ, false, "DISPATCH_FLOW_SKILLS");
         return dispatchFlowManagementService.skills(tenantId, flowId);
     }
 
@@ -312,12 +415,14 @@ public class DispatchFlowController {
     public DispatchFlowRequiredSkillView upsertSkill(@PathVariable String flowId,
                                                      @RequestBody DispatchFlowRequiredSkillView skill,
                                                      @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, true, "DISPATCH_FLOW_SKILL_MUTATION");
         throw aggregateMutationRequired(flowId);
     }
 
     @GetMapping("/{flowId}/agents")
     public List<DispatchFlowAgentView> agents(@PathVariable String flowId,
                                               @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.agents", ResourceAction.ActionKind.READ, false, "DISPATCH_FLOW_AGENTS");
         return dispatchFlowManagementService.agents(tenantId, flowId);
     }
 
@@ -326,12 +431,14 @@ public class DispatchFlowController {
     public DispatchFlowAgentView upsertAgent(@PathVariable String flowId,
                                              @RequestBody DispatchFlowAgentView agent,
                                              @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, true, "DISPATCH_FLOW_AGENT_MUTATION");
         throw aggregateMutationRequired(flowId);
     }
 
     @PostMapping("/{flowId}/agents/preview")
     public Map<String, Object> previewAgentAssignment(@PathVariable String flowId,
                                                       @RequestBody(required = false) DispatchFlowAgentView agent) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, false, "DISPATCH_FLOW_AGENT_PREVIEW");
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("flowId", flowId);
         response.put("accepted", true);
@@ -347,6 +454,7 @@ public class DispatchFlowController {
     @PostMapping("/{flowId}/rules/preview")
     public Map<String, Object> previewRule(@PathVariable String flowId,
                                            @RequestBody(required = false) DispatchFlowRuleView rule) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, false, "DISPATCH_FLOW_RULE_PREVIEW");
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("flowId", flowId);
         response.put("accepted", true);
@@ -362,6 +470,7 @@ public class DispatchFlowController {
     public DispatchFlowTraceChainView trace(@PathVariable String flowId,
                                             @RequestParam String tenantId,
                                             @RequestParam(required = false, defaultValue = "CHAIN") String testMode) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.trace", ResourceAction.ActionKind.READ, false, "DISPATCH_FLOW_TRACE");
         return skeletonTraceChain(flowId, tenantId, testMode);
     }
 
@@ -369,6 +478,7 @@ public class DispatchFlowController {
     public DispatchFlowTraceChainView testExternal(@PathVariable String flowId,
                                                    @RequestBody(required = false) Map<String, Object> payload,
                                                    @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, true, "DISPATCH_FLOW_TEST_EXTERNAL");
         DispatchFlowTraceChainView chain = skeletonTraceChain(flowId, tenantId, "EXTERNAL");
         chain.setSummary("Real external test preview: tenant-defined event -> selected Agent, with matchedFlowId/matchedRuleId/requiredCapability evidence.");
         chain.setSteps(chain.getSteps().subList(0, Math.min(2, chain.getSteps().size())));
@@ -379,6 +489,7 @@ public class DispatchFlowController {
     public DispatchFlowTraceChainView testA2a(@PathVariable String flowId,
                                               @RequestBody(required = false) Map<String, Object> payload,
                                               @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, true, "DISPATCH_FLOW_TEST_A2A");
         DispatchFlowTraceChainView chain = skeletonTraceChain(flowId, tenantId, "A2A");
         chain.setSummary("R7 A2A intake2 test preview: lead Agent -> collaborator Agent through the configured A2A Dispatch Rule.");
         chain.setSteps(chain.getSteps().subList(2, Math.min(4, chain.getSteps().size())));
@@ -389,6 +500,7 @@ public class DispatchFlowController {
     public DispatchFlowTraceChainView testResult(@PathVariable String flowId,
                                                  @RequestBody(required = false) Map<String, Object> payload,
                                                  @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, true, "DISPATCH_FLOW_TEST_RESULT");
         DispatchFlowTraceChainView chain = skeletonTraceChain(flowId, tenantId, "RESULT");
         chain.setSummary("R7 RESULT callback test preview: collaborator result links back to parent task / correlationId.");
         chain.setSteps(chain.getSteps().subList(4, Math.min(6, chain.getSteps().size())));
@@ -399,6 +511,7 @@ public class DispatchFlowController {
     public DispatchFlowTraceChainView testChain(@PathVariable String flowId,
                                                 @RequestBody(required = false) Map<String, Object> payload,
                                                 @RequestParam String tenantId) {
+        authorize(ResourceType.DISPATCH_FLOW, flowId, "admin.dispatch.flow.update", ResourceAction.ActionKind.UPDATE, true, "DISPATCH_FLOW_TEST_CHAIN");
         return skeletonTraceChain(flowId, tenantId, "CHAIN");
     }
 
@@ -428,6 +541,38 @@ public class DispatchFlowController {
             throw new StandardApiException(StandardApiErrorCode.RESOURCE_VERSION_CONFLICT,
                     "If-Match must contain the numeric configuration version.");
         }
+    }
+
+    private static boolean isActiveStatus(String status) {
+        if (status == null) return false;
+        String normalized = status.trim().toUpperCase(java.util.Locale.ROOT);
+        return "ACTIVE".equals(normalized) || "ENABLED".equals(normalized);
+    }
+
+    private static boolean sameCode(String left, String right) {
+        String a = left == null ? "" : left.trim();
+        String b = right == null ? "" : right.trim();
+        return a.equalsIgnoreCase(b);
+    }
+
+    private void authorize(ResourceType type,String id,String permission,ResourceAction.ActionKind kind,boolean sideEffect,String purpose){
+        var guard=scopedAccess.getIfAvailable();if(guard!=null)guard.authorize(type,id,permission,kind,sideEffect,VisibilityLevel.STANDARD,purpose);
+    }
+
+    private void requireExplicitIssuePolicy(DispatchFlowView request) {
+        if (request != null && !request.defaultIssueSyncPolicyWasProvided()) {
+            throw new IllegalArgumentException(
+                    "defaultIssueSyncPolicy is required for Source Flow writes. "
+                            + "Choose NONE, OPTIONAL (failure only), REQUIRED (always after close), or MANUAL explicitly; "
+                            + "OpenDispatch will not silently choose Issue behavior for a Flow.");
+        }
+    }
+
+    private static <T> T requireRequestBody(T request, String resourceName) {
+        if (request == null) {
+            throw new IllegalArgumentException(resourceName + " request body is required");
+        }
+        return request;
     }
 
     private void requireTenantMatch(String requestTenantId, String bodyTenantId) {
@@ -654,6 +799,26 @@ public class DispatchFlowController {
         if (values == null) return null;
         Object value = values.get(key);
         return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private boolean booleanValue(Map<String, Object> values, String key) {
+        if (values == null) return false;
+        Object value = values.get(key);
+        if (value instanceof Boolean flag) return flag;
+        return value != null && Boolean.parseBoolean(String.valueOf(value).trim());
+    }
+
+    private String normalizeExpectedIssueSyncPolicy(String value) {
+        if (blank(value)) return null;
+        String normalized = normalizeIssueSyncPolicy(value);
+        if (!List.of("NONE", "OPTIONAL", "REQUIRED", "MANUAL").contains(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported expectedIssueSyncPolicy: " + value);
+        }
+        return normalized;
+    }
+
+    private String normalizeIssueSyncPolicy(String value) {
+        return blank(value) ? "OPTIONAL" : value.trim().toUpperCase(Locale.ROOT);
     }
 
     private String conditionString(DispatchFlowRuleView rule, String key) {

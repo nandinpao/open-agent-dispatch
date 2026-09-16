@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.opensocket.aievent.core.callback.TaskCallbackRequest;
@@ -36,9 +37,13 @@ import com.opensocket.aievent.core.kernel.persistence.ClaimOwnership;
 import com.opensocket.aievent.core.kernel.persistence.ClaimRequest;
 import com.opensocket.aievent.core.kernel.persistence.LeaseRenewalRequest;
 import com.opensocket.aievent.core.kernel.persistence.PersistenceWriteVerifier;
+import com.opensocket.aievent.core.integration.issue.automation.IssueAutomationActionCommand;
+import com.opensocket.aievent.core.integration.issue.automation.IssueAutomationActionPort;
+import com.opensocket.aievent.core.integration.issue.automation.IssueAutomationActionResult;
+import com.opensocket.aievent.core.integration.issue.automation.IssueAutomationOperation;
 
 @Service
-public class AdapterActionService implements AdapterActionFacade {
+public class AdapterActionService implements AdapterActionFacade, IssueAutomationActionPort {
     private static final Logger log = LoggerFactory.getLogger(AdapterActionService.class);
 
     private final AdapterActionRepository repository;
@@ -63,6 +68,118 @@ public class AdapterActionService implements AdapterActionFacade {
         this.repository = repository;
         this.incidentFacade = incidentFacade;
         this.properties = properties;
+        log.info("issue_sync_runtime_config legacyWriteEnabled={} issueEnabled={} createOnCompletedTask={} createOnFailedTask={} updateExistingIssueComment={} oneCreatePerIncident={} adapterName={}",
+                properties.getIssue().isLegacyWriteEnabled(), properties.getIssue().isEnabled(),
+                properties.getIssue().isCreateOnCompletedTask(),
+                properties.getIssue().isCreateOnFailedTask(),
+                properties.getIssue().isUpdateExistingIssueComment(),
+                properties.getIssue().isOneCreatePerIncident(),
+                properties.getIssue().getAdapterName());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NESTED)
+    public IssueAutomationActionResult request(IssueAutomationActionCommand command) {
+        java.util.Objects.requireNonNull(command, "command");
+        log.info("issue_adapter_action_request_started taskId={} incidentId={} operation={} connectionId={} projectMappingId={} projectMappingVersion={} terminalGeneration={} taskIssueLinkId={} targetExternalIssueId={} idempotencyKey={} correlationId={}",
+                command.taskId(), command.incidentId(), command.operation(), command.connectionId(), command.projectMappingId(),
+                command.projectMappingVersion(), command.terminalGeneration(), command.taskIssueLinkId(), command.targetExternalIssueId(),
+                command.idempotencyKey(), command.correlationId());
+        AdapterActionType actionType = switch (command.operation()) {
+            case CREATE_ISSUE -> AdapterActionType.ISSUE_CREATE;
+            case UPDATE_ISSUE, TRANSITION_ISSUE -> AdapterActionType.ISSUE_UPDATE;
+            case ADD_COMMENT -> AdapterActionType.ISSUE_COMMENT;
+            case READ_ISSUE -> AdapterActionType.ISSUE_READ;
+        };
+        Optional<AdapterAction> previous = repository.findByIdempotencyKey(command.idempotencyKey());
+        if (previous.isPresent()) {
+            AdapterAction existing = previous.get();
+            if (!java.util.Objects.equals(existing.getTaskId(), command.taskId())
+                    || existing.getAdapterType() != AdapterType.ISSUE_TRACKING
+                    || existing.getActionType() != actionType) {
+                throw new IllegalStateException("ISSUE_AUTOMATION_IDEMPOTENCY_CONFLICT");
+            }
+            log.info("issue_adapter_action_request_reused taskId={} actionId={} actionType={} status={} idempotencyKey={}",
+                    command.taskId(), existing.getActionId(), existing.getActionType(), existing.getStatus(), existing.getIdempotencyKey());
+            return new IssueAutomationActionResult(existing.getActionId(), existing.getIdempotencyKey(),
+                    existing.getStatus() == null ? null : existing.getStatus().name(), false);
+        }
+
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        AdapterAction action = new AdapterAction();
+        action.setActionId("act-" + UUID.randomUUID());
+        action.setIdempotencyKey(command.idempotencyKey());
+        action.setIncidentId(command.incidentId());
+        action.setTaskId(command.taskId());
+        action.setAdapterName(properties.getIssue().getAdapterName());
+        action.setAdapterType(AdapterType.ISSUE_TRACKING);
+        action.setActionType(actionType);
+        action.setStatus(AdapterActionStatus.PENDING);
+        action.setReason("Task Issue Policy Route B requested " + command.operation().name());
+        action.setRequestHash(sha256(command.idempotencyKey() + "|" + actionType + "|" + command.taskId()));
+        Map<String,Object> payload = new LinkedHashMap<>();
+        payload.put("issueAutomationAuthority", "TASK_POLICY_ROUTE_B");
+        payload.put("issueAutomationOperation", command.operation().name());
+        payload.put("tenantId", command.tenantId());
+        payload.put("connectionId", command.connectionId());
+        payload.put("projectMappingId", command.projectMappingId());
+        payload.put("projectMappingVersion", command.projectMappingVersion());
+        payload.put("projectMappingSchemaHash", command.projectMappingSchemaHash());
+        payload.put("issuePolicyId", command.policyId());
+        payload.put("issuePolicyVersion", command.policyVersion());
+        payload.put("terminalGeneration", command.terminalGeneration());
+        if (command.title() != null && !command.title().isBlank()) payload.put("issueTitle", command.title());
+        if (command.description() != null && !command.description().isBlank()) payload.put("issueDescription", command.description());
+        if (command.priorityId() != null && !command.priorityId().isBlank()) payload.put("priorityId", command.priorityId());
+        if (command.taskIssueLinkId() != null) payload.put("taskIssueLinkId", command.taskIssueLinkId());
+        if (command.targetExternalIssueId() != null) {
+            // HF12: server-side TaskIssueLink authority is promoted into the executor payload.
+            // The provider executor must never accept a client supplied target Issue id.
+            payload.put("linkedIssueId", command.targetExternalIssueId());
+            payload.put("externalIssueId", command.targetExternalIssueId());
+        }
+        if (command.targetExternalIssueUrl() != null) payload.put("issueUrl", command.targetExternalIssueUrl());
+        if (command.operation() == IssueAutomationOperation.ADD_COMMENT
+                && command.description() != null && !command.description().isBlank()) {
+            payload.put("issueComment", command.description());
+            payload.put("issueCommentMode", "APPEND");
+        }
+        if (!command.approvedContext().isEmpty()) {
+            payload.put("approvedContext", command.approvedContext());
+            Object providerFields = command.approvedContext().get("providerFields");
+            if (providerFields instanceof Map<?,?>) payload.put("providerFields", providerFields);
+            Object issueOwnerTaskId = command.approvedContext().get("issueOwnerTaskId");
+            if (issueOwnerTaskId != null) payload.put("issueOwnerTaskId", String.valueOf(issueOwnerTaskId));
+        }
+        if (!command.sourceEvidence().isEmpty()) payload.put("sourceEvidence", command.sourceEvidence());
+        action.setPayload(payload);
+        action.setMaxAttempts(properties.getWorker().getMaxAttempts());
+        action.setCreatedAt(now);
+        action.setUpdatedAt(now);
+
+        AdapterAction saved = repository.saveNewOrGetByIdempotencyKey(action);
+        boolean created = action.getActionId().equals(saved.getActionId());
+        if (!created && (!java.util.Objects.equals(saved.getTaskId(), command.taskId())
+                || saved.getAdapterType() != AdapterType.ISSUE_TRACKING
+                || saved.getActionType() != actionType)) {
+            throw new IllegalStateException("ISSUE_AUTOMATION_IDEMPOTENCY_CONFLICT");
+        }
+        record(saved, created ? "route_b_create" : "route_b_reuse");
+        log.info("issue_adapter_action_request_persisted taskId={} actionId={} created={} actionType={} status={} idempotencyKey={} connectionId={} projectMappingId={}",
+                command.taskId(), saved.getActionId(), created, saved.getActionType(), saved.getStatus(), saved.getIdempotencyKey(),
+                command.connectionId(), command.projectMappingId());
+        recordIssueReadModel(saved, now);
+        if (created && saved.getStatus() == AdapterActionStatus.PENDING) {
+            eventPublisher.publish(new AdapterActionRequestedEvent(
+                    "evt-" + UUID.randomUUID(), saved.getActionId(), saved.getTaskId(), saved.getIncidentId(),
+                    AdapterType.ISSUE_TRACKING.name(), actionType.name(), saved.getStatus().name(), saved.getIdempotencyKey(),
+                    command.tenantId(), now, command.correlationId(), command.causationId(), command.traceId(), null,
+                    command.actorType(), command.actorId()));
+        }
+        log.info("issue_adapter_action_request_completed taskId={} actionId={} created={} status={} eventPublished={} idempotencyKey={}",
+                command.taskId(), saved.getActionId(), created, saved.getStatus(), created && saved.getStatus() == AdapterActionStatus.PENDING, saved.getIdempotencyKey());
+        return new IssueAutomationActionResult(saved.getActionId(), saved.getIdempotencyKey(),
+                saved.getStatus() == null ? null : saved.getStatus().name(), created);
     }
 
     public void onTerminalTaskCallback(TaskRecord task,
@@ -77,6 +194,16 @@ public class AdapterActionService implements AdapterActionFacade {
                                                                        DispatchRequest dispatchRequest,
                                                                        TaskCallbackRequest callback,
                                                                        TaskCallbackType callbackType) {
+        return evaluateAfterTaskCallback(task,dispatchRequest,callback,callbackType,
+                callback == null ? null : callback.getCallbackId());
+    }
+
+    @Transactional
+    public AdapterActionOrchestrationResult evaluateAfterTaskCallback(TaskRecord task,
+                                                                       DispatchRequest dispatchRequest,
+                                                                       TaskCallbackRequest callback,
+                                                                       TaskCallbackType callbackType,
+                                                                       String causationId) {
         AdapterActionOrchestrationResult result = new AdapterActionOrchestrationResult();
         result.setTaskId(task == null ? null : task.getTaskId());
         result.setIncidentId(task == null ? null : task.getIncidentId());
@@ -127,9 +254,10 @@ public class AdapterActionService implements AdapterActionFacade {
             String idemKey = actionType == AdapterActionType.ISSUE_CREATE
                     ? issueCreateIdempotencyKey(task, incident)
                     : issueUpdateIdempotencyKey(task, incident);
+            String linkedIssueId = hasLinkedIssue ? incident.getLinkedIssueId() : null;
             String reason = actionType == AdapterActionType.ISSUE_CREATE
                     ? "Issue create requested after task terminal status " + task.getStatus()
-                    : "Issue comment update requested for linked issue " + incident.getLinkedIssueId();
+                    : "Issue comment update requested for linked issue " + linkedIssueId;
             AdapterAction action = createOrSuppress(
                     AdapterType.ISSUE_TRACKING,
                     actionType,
@@ -155,14 +283,16 @@ public class AdapterActionService implements AdapterActionFacade {
         result.setSuppressedCount((int) actions.stream().filter(a -> a.getStatus() == AdapterActionStatus.SUPPRESSED).count());
         log.info("issue_sync_evaluation_completed taskId={} incidentId={} createdCount={} suppressedCount={} actions={}",
                 result.getTaskId(), result.getIncidentId(), result.getCreatedCount(), result.getSuppressedCount(), actions.size());
-        actions.stream().filter(a -> a.getStatus() == AdapterActionStatus.PENDING).forEach(this::publishRequestedEvent);
+        actions.stream().filter(a -> a.getStatus() == AdapterActionStatus.PENDING)
+                .forEach(action -> publishRequestedEvent(action, task, causationId));
         result.setActions(actions);
         return result;
     }
 
-    private void publishRequestedEvent(AdapterAction action) {
-        log.info("adapter_action_requested_event_published actionId={} taskId={} incidentId={} adapterType={} actionType={} status={} idempotencyKey={}",
-                action.getActionId(), action.getTaskId(), action.getIncidentId(), action.getAdapterType(), action.getActionType(), action.getStatus(), action.getIdempotencyKey());
+    private void publishRequestedEvent(AdapterAction action, TaskRecord task, String causationId) {
+        log.info("adapter_action_requested_event_published actionId={} taskId={} incidentId={} adapterType={} actionType={} status={} idempotencyKey={} correlationId={} causationId={}",
+                action.getActionId(), action.getTaskId(), action.getIncidentId(), action.getAdapterType(), action.getActionType(), action.getStatus(), action.getIdempotencyKey(),
+                task == null ? null : task.getCorrelationId(), causationId);
         eventPublisher.publish(new AdapterActionRequestedEvent(
                 "evt-" + UUID.randomUUID(),
                 action.getActionId(),
@@ -172,7 +302,14 @@ public class AdapterActionService implements AdapterActionFacade {
                 action.getActionType() == null ? null : action.getActionType().name(),
                 action.getStatus() == null ? null : action.getStatus().name(),
                 action.getIdempotencyKey(),
-                OffsetDateTime.now(ZoneOffset.UTC)));
+                task == null ? null : task.getTenantId(),
+                OffsetDateTime.now(ZoneOffset.UTC),
+                task == null ? null : task.getCorrelationId(),
+                causationId,
+                task == null ? null : task.getTraceId(),
+                null,
+                task == null ? "SYSTEM" : task.getActorPrincipalType(),
+                task == null ? "opendispatch" : task.getActorPrincipalId()));
     }
 
     public AdapterAction markCompleted(String actionId, String responseRef) {
@@ -305,6 +442,9 @@ public class AdapterActionService implements AdapterActionFacade {
                 && action.getStatus() != AdapterActionStatus.EXECUTOR_UNAVAILABLE
                 && action.getStatus() != AdapterActionStatus.RETRY_WAITING) {
             throw new IllegalStateException("Only FAILED, CANCELLED, EXECUTOR_UNAVAILABLE or RETRY_WAITING adapter action can be retried: " + actionId);
+        }
+        if (action.getLastError() != null && action.getLastError().contains("ISSUE_PROVIDER_OUTCOME_UNCERTAIN")) {
+            throw new IllegalStateException("ISSUE_PROVIDER_OUTCOME_UNCERTAIN_RECONCILIATION_REQUIRED: inspect Redmine before retrying this mutating operation");
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         action.setStatus(AdapterActionStatus.PENDING);
@@ -444,8 +584,14 @@ public class AdapterActionService implements AdapterActionFacade {
                                            TaskCallbackType callbackType) {
         Optional<AdapterAction> previous = repository.findByIdempotencyKey(idempotencyKey);
         if (previous.isPresent()) {
+            AdapterAction existing = previous.get();
+            if (!java.util.Objects.equals(existing.getTaskId(), task == null ? null : task.getTaskId())
+                    || existing.getActionType() != actionType
+                    || existing.getAdapterType() != adapterType) {
+                throw new IllegalStateException("ADAPTER_ACTION_IDEMPOTENCY_CONFLICT: key is already bound to a different action context");
+            }
             if (!properties.isCreateSuppressedRecords()) {
-                return previous.get();
+                return existing;
             }
             return saveAction(adapterType, actionType, adapterName, idempotencyKey + ":suppressed:" + UUID.randomUUID(), task, dispatchRequest, incident,
                     AdapterActionStatus.SUPPRESSED, "Duplicate adapter action suppressed. Existing actionId=" + previous.get().getActionId(), callback, callbackType);
@@ -559,6 +705,13 @@ public class AdapterActionService implements AdapterActionFacade {
         map.put("incidentId", task.getIncidentId());
         map.put("tenantId", task.getTenantId());
         map.put("sourceSystem", incident == null ? inferSystem(task) : incident.getSourceSystem());
+        map.put("sourceSystemId", incident == null ? inferSystem(task) : incident.getSourceSystem());
+        map.put("taskType", task.getTaskType() == null ? null : task.getTaskType().name());
+        map.put("ownerDepartmentId", task.getOwnerDepartmentId());
+        map.put("ownerGroupId", task.getOwnerGroupId());
+        map.put("executorDepartmentId", task.getExecutorDepartmentId());
+        map.put("executorGroupId", task.getExecutorGroupId());
+        map.put("executorDomainId", task.getExecutorDomainId());
         map.put("severity", severityLabel(task, incident));
         map.put("priority", severityLabel(task, incident));
         map.put("message", eventMessage(task, incident, callback));
@@ -671,7 +824,11 @@ public class AdapterActionService implements AdapterActionFacade {
     }
 
     private boolean shouldEvaluateIssue(boolean completed, boolean failed) {
-        return (completed && properties.getIssue().isCreateOnCompletedTask()) || (failed && properties.getIssue().isCreateOnFailedTask());
+        // v24 Phase 4: legacy AdapterAction ISSUE_CREATE/UPDATE is compatibility-only.
+        // Production terminal Task write authority is IssuePolicyOrchestrationService -> canonical ISSUE_TRACKING AdapterAction (Route B).
+        return properties.getIssue().isLegacyWriteEnabled()
+                && ((completed && properties.getIssue().isCreateOnCompletedTask())
+                    || (failed && properties.getIssue().isCreateOnFailedTask()));
     }
 
     private String mcpIdempotencyKey(TaskRecord task) {

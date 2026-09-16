@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.opensocket.aievent.core.agent.assignment.AgentAssignmentService;
 import com.opensocket.aievent.core.agent.governance.AgentGovernanceService;
 import com.opensocket.aievent.core.agent.setup.AgentSetupRequest;

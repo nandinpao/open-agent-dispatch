@@ -1,0 +1,6 @@
+package com.opensocket.aievent.core.issuetracking.application.change;
+import java.util.Objects;
+public record ExternalChangeIngestionCommand(String tenantId,String connectionId,String projectMappingId,String externalProjectId,String externalIssueId,String taskIssueLinkId,String conflictId,String observationId,String eventType,String normalizedObservationJson,String providerIdentityHash,String correlationId) {
+ public ExternalChangeIngestionCommand { tenantId=req(tenantId,"tenantId");connectionId=req(connectionId,"connectionId");projectMappingId=norm(projectMappingId);externalProjectId=norm(externalProjectId);externalIssueId=req(externalIssueId,"externalIssueId");taskIssueLinkId=norm(taskIssueLinkId);conflictId=norm(conflictId);observationId=norm(observationId);eventType=norm(eventType);normalizedObservationJson=normalizedObservationJson==null||normalizedObservationJson.isBlank()?"{}":normalizedObservationJson;providerIdentityHash=norm(providerIdentityHash);correlationId=norm(correlationId); }
+ private static String req(String v,String n){Objects.requireNonNull(v,n+" is required");String x=v.trim();if(x.isEmpty())throw new IllegalArgumentException(n+" is required");return x;} private static String norm(String v){return v==null?"":v.trim();}
+}

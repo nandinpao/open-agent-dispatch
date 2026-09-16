@@ -127,6 +127,7 @@ public class HttpGatewayDispatchClient implements GatewayDispatchClient {
         payload.put("taskType", command.getTaskType() == null ? "INCIDENT_RESPONSE" : command.getTaskType());
         payload.put("priority", command.getPriority());
         payload.put("routingPolicy", command.getRoutingPolicy());
+        payload.put("correlationId", command.getCorrelationId());
         payload.put("requiredCapabilities", command.getRequiredCapabilities() == null ? java.util.List.of() : command.getRequiredCapabilities());
         payload.put("input", command.getInput() == null ? Map.of() : command.getInput());
 
@@ -134,6 +135,8 @@ public class HttpGatewayDispatchClient implements GatewayDispatchClient {
         envelope.put("commandId", firstNonBlank(command.getDispatchRequestId(), request.getDispatchRequestId(), command.getTaskId(), request.getTaskId()));
         envelope.put("messageType", "TASK_DISPATCH");
         envelope.put("payload", payload);
+        // Business correlation is carried explicitly in payload.correlationId; keep the legacy
+        // traceId compatibility behavior unchanged for existing Gateway diagnostics.
         envelope.put("traceId", firstNonBlank(command.getTaskId(), request.getTaskId(), command.getDispatchRequestId(), request.getDispatchRequestId()));
         envelope.put("issuedBy", firstNonBlank(command.getSourceNodeId(), properties.getSourceNodeId()));
         envelope.put("timeoutMs", Math.max(100L, properties.getClient().getRequestTimeout().toMillis()));

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.opensocket</groupId><artifactId>control-plane-parent</artifactId><version>0.8.2-SNAPSHOT</version><relativePath>../pom.xml</relativePath></parent>
+  <artifactId>ui-capability-api</artifactId><name>ui-capability-api</name>
+  <description>Spring HTTP adapter for Phase 7A-1 capability projection; request DTOs cannot select permission, tenant or resource type.</description>
+  <dependencies>
+    <dependency><groupId>com.opensocket</groupId><artifactId>ui-capability-core</artifactId></dependency>
+    <dependency><groupId>com.opensocket</groupId><artifactId>ui-access-request-application</artifactId></dependency>
+    <dependency><groupId>com.opensocket</groupId><artifactId>resource-access-core</artifactId></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-context</artifactId></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-web</artifactId></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-tx</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-autoconfigure</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot</artifactId></dependency>
+    <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-core</artifactId></dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+  </dependencies>
+  <build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-enforcer-plugin</artifactId>
+    <executions><execution><id>enforce-ui-capability-api-boundary</id><goals><goal>enforce</goal></goals><configuration><rules><bannedDependencies>
+      <searchTransitive>false</searchTransitive><excludes><exclude>org.mybatis:*</exclude><exclude>com.opensocket:*persistence</exclude>
+      <exclude>com.opensocket:task-orchestration</exclude><exclude>com.opensocket:a2a-application</exclude><exclude>com.opensocket:issue-tracking-application</exclude></excludes>
+      <message>UI capability API is an HTTP adapter and must not depend on domain persistence or workflow internals.</message>
+    </bannedDependencies></rules></configuration></execution></executions>
+  </plugin></plugins></build>
+</project>

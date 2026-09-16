@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.opensocket</groupId><artifactId>control-plane-parent</artifactId><version>0.8.2-SNAPSHOT</version><relativePath>../pom.xml</relativePath></parent>
+  <artifactId>enforcement-activation-core</artifactId>
+  <name>enforcement-activation-core</name>
+  <description>Phase 6A immutable local snapshot router and unified enforcement kernel.</description>
+  <dependencies>
+    <dependency><groupId>com.opensocket</groupId><artifactId>enforcement-activation-contracts</artifactId></dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+  </dependencies>
+  <build><plugins><plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-enforcer-plugin</artifactId><executions><execution><id>enforce-phase6a-core-boundary</id><goals><goal>enforce</goal></goals><configuration><rules><bannedDependencies><searchTransitive>false</searchTransitive><excludes><exclude>org.springframework:*</exclude><exclude>org.mybatis:*</exclude><exclude>com.opensocket:database-platform</exclude><exclude>com.opensocket:resource-access-*</exclude><exclude>com.opensocket:task-orchestration</exclude></excludes><message>Phase 6A core must remain framework and domain neutral.</message></bannedDependencies></rules></configuration></execution></executions></plugin></plugins></build>
+</project>

@@ -90,7 +90,13 @@ public class PoolResolver {
                 continue;
             }
             membersByAgentId.putIfAbsent(normalizeAgentId(member.getAgentId()), member);
-            agentDirectory.findById(member.getAgentId()).ifPresent(candidates::add);
+            var runtimeSnapshot = agentDirectory.findById(member.getAgentId());
+            log.info("pool_member_runtime_resolution tenantId={} taskId={} poolId={} agentId={} poolMemberStatus={} runtimeFound={} runtimeStatus={} assignable={} availableCapacity={}",
+                    task.getTenantId(), task.getTaskId(), pool.getPoolId(), member.getAgentId(), String.valueOf(member.getMemberStatus()), runtimeSnapshot.isPresent(),
+                    runtimeSnapshot.map(snapshot -> String.valueOf(snapshot.getStatus())).orElse("MISSING"),
+                    runtimeSnapshot.map(AgentSnapshot::isAssignable).orElse(false),
+                    runtimeSnapshot.map(AgentSnapshot::getAvailableSlots).orElse(0));
+            runtimeSnapshot.ifPresent(candidates::add);
         }
         CandidateFilterResult filtered = runtimeEligibilityEvaluator.filterCandidates(candidates, excluded);
         String poolBlocker = filtered.included().isEmpty() ? runtimeEligibilityEvaluator.poolBlocker(pool, candidates, filtered) : null;

@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.iam.token.domain;
+final class TokenText {private TokenText(){} static String required(String v,String n,int max){if(v==null||v.isBlank())throw new IllegalArgumentException(n+" is required");String x=v.trim();if(x.length()>max)throw new IllegalArgumentException(n+" exceeds "+max);return x;} static String optional(String v,int max){if(v==null)return "";String x=v.trim();if(x.length()>max)throw new IllegalArgumentException("value exceeds "+max);return x;}}

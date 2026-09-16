@@ -1,12 +1,12 @@
 package com.opensocket.aievent.core.callback;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import static com.opensocket.aievent.core.callback.TaskCallbackReasonFormatter.progressSuffix;
+import static com.opensocket.aievent.core.callback.TaskCallbackReasonFormatter.suffix;
+
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -18,12 +18,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.opensocket.aievent.core.assignment.AssignmentFencingTokenPolicy;
-import com.opensocket.aievent.core.assignment.AssignmentFencingValidation;
-import com.opensocket.aievent.core.assignment.TaskAssignment;
+
+
 import com.opensocket.aievent.core.assignment.TaskAssignmentRepository;
 import com.opensocket.aievent.core.dispatch.DispatchRequest;
 import com.opensocket.aievent.core.dispatch.DispatchRequestRepository;
 import com.opensocket.aievent.core.dispatch.DispatchRequestStatus;
+import com.opensocket.aievent.core.dispatch.DispatchOutboxStatus;
+import com.opensocket.aievent.core.dispatch.DispatchRecoveryClassification;
 import com.opensocket.aievent.core.dispatch.DispatchStatusTransition;
 import com.opensocket.aievent.core.executionattempt.TaskExecutionAttemptService;
 import com.opensocket.aievent.core.kernel.persistence.PersistenceWriteResult;
@@ -39,6 +41,8 @@ import com.opensocket.aievent.core.outbox.ModuleEventPublisher;
 @Service
 public class TaskCallbackService {
     private static final Logger log = LoggerFactory.getLogger(TaskCallbackService.class);
+    @Autowired(required = false)
+    private com.opensocket.aievent.core.dispatch.DispatchAssignmentEvidenceService assignmentEvidenceService;
 
     private final TaskCallbackRepository callbackRepository;
     private final DispatchRequestRepository dispatchRepository;
@@ -49,6 +53,7 @@ public class TaskCallbackService {
     private final TaskOrchestrationFacade taskOrchestrationFacade;
 
     private final ExecutionMetricsPort metrics;
+    private final TaskCallbackIdentity callbackIdentity;
 
     @Autowired(required = false)
     private TaskAssignmentRepository assignmentRepository;
@@ -102,20 +107,25 @@ public class TaskCallbackService {
         this.eventPublisher = eventPublisher == null ? ModuleEventPublisher.noop() : eventPublisher;
         this.eventDrivenTerminalFlow = eventDrivenTerminalFlow;
         this.metrics = metrics == null ? ExecutionMetricsPort.noop() : metrics;
+        this.callbackIdentity = new TaskCallbackIdentity(properties);
     }
 
+    @Transactional
     public TaskCallbackResult ack(String taskId, TaskCallbackRequest request) {
         return handle(TaskCallbackType.ACK, taskId, request);
     }
 
+    @Transactional
     public TaskCallbackResult progress(String taskId, TaskCallbackRequest request) {
         return handle(TaskCallbackType.PROGRESS, taskId, request);
     }
 
+    @Transactional
     public TaskCallbackResult result(String taskId, TaskCallbackRequest request) {
         return handle(TaskCallbackType.RESULT, taskId, request);
     }
 
+    @Transactional
     public TaskCallbackResult error(String taskId, TaskCallbackRequest request) {
         return handle(TaskCallbackType.ERROR, taskId, request);
     }
@@ -132,17 +142,17 @@ public class TaskCallbackService {
         if (request.getOccurredAt() == null) {
             request.setOccurredAt(now);
         }
-        String callbackId = firstNonBlank(request.getCallbackId(), generatedCallbackId(type, request));
+        String callbackId = firstNonBlank(request.getCallbackId(), callbackIdentity.generatedCallbackId(type, request));
         request.setCallbackId(callbackId);
 
         log.info("callback_inbox_processing_started taskId={} callbackType={} callbackId={} dispatchRequestId={} assignmentId={} agentId={} attemptNo={} idempotencyKey={}",
                 taskId, type, callbackId, request.getDispatchRequestId(), request.getAssignmentId(), request.getAgentId(),
-                request.getAttemptNo(), idempotencyKey(type, request));
+                request.getAttemptNo(), callbackIdentity.idempotencyKey(type, request));
 
         TaskCallbackRecord record = recordFrom(type, request, now);
         if (properties.isIdempotencyEnabled() && !callbackRepository.tryReserve(record)) {
             TaskCallbackRecord previous = callbackRepository.findByCallbackId(callbackId).orElse(record);
-            if (isReplayMismatch(record, previous)) {
+            if (callbackIdentity.replayMismatch(record, previous)) {
                 if (previous.isAccepted() && isTerminalCallback(type)) {
                     log.info("callback_replay_duplicate_accepted taskId={} callbackType={} callbackId={} dispatchRequestId={} previousTaskStatus={} previousDispatchStatus={} reason=PREVIOUS_TERMINAL_CALLBACK_ALREADY_ACCEPTED",
                             taskId, type, callbackId, request.getDispatchRequestId(), previous.getNewTaskStatus(), previous.getNewDispatchStatus());
@@ -199,7 +209,8 @@ public class TaskCallbackService {
             record.setAgentSessionId(request.getAgentSessionId());
         }
 
-        String rejection = validateCallback(type, request, dispatchRequest, task);
+        String rejection = TaskCallbackAcceptancePolicy.validate(
+                type, request, dispatchRequest, task, properties, assignmentRepository, assignmentFencingTokenPolicy);
         if (rejection == null) {
             rejection = validateAcceptanceGuards(type, request, dispatchRequest, task);
         }
@@ -212,7 +223,18 @@ public class TaskCallbackService {
         }
 
         if (dispatchRequest != null) {
-            PersistenceWriteResult dispatchTransition = transitionDispatch(type, dispatchRequest, request, now);
+            boolean cancellationCallback = TaskCallbackAcceptancePolicy.isCancellationCallback(type, request);
+            PersistenceWriteResult dispatchTransition;
+            try {
+                dispatchTransition = cancellationCallback
+                        && dispatchRequest.getStatus() == DispatchRequestStatus.CANCELLED
+                        ? PersistenceWriteResult.applied(dispatchRequest.getDispatchRequestId(), 1)
+                        : transitionDispatch(type, dispatchRequest, request, now);
+            } catch (RuntimeException failure) {
+                log.error("callback_dispatch_transition_persistence_failed taskId={} callbackType={} callbackId={} dispatchRequestId={} dispatchStatus={} attemptNo={} transactionalEntryPoint=true",
+                        taskId, type, callbackId, dispatchRequest.getDispatchRequestId(), dispatchRequest.getStatus(), request.getAttemptNo(), failure);
+                throw failure;
+            }
             if (!dispatchTransition.applied()) {
                 DispatchRequest latest = dispatchRepository.findById(dispatchRequest.getDispatchRequestId()).orElse(dispatchRequest);
                 String reason = resolveConcurrentDispatchReason(latest);
@@ -227,7 +249,7 @@ public class TaskCallbackService {
             task = taskOrchestrationFacade.findTask(taskId).orElse(task);
             log.info("callback_task_transition_applied taskId={} callbackType={} callbackId={} dispatchRequestId={} taskTransitioned={} taskStatus={} dispatchStatus={}",
                     taskId, type, callbackId, dispatchRequest.getDispatchRequestId(), taskTransitioned, task.getStatus(), dispatchRequest.getStatus());
-            if (!taskTransitioned && isTerminal(task.getStatus())) {
+            if (!taskTransitioned && TaskCallbackAcceptancePolicy.isTerminal(task.getStatus())) {
                 record.setMessage(firstNonBlank(record.getMessage(), "Task was already terminal; dispatch transition was accepted and terminal task state was preserved"));
             }
 
@@ -259,6 +281,12 @@ public class TaskCallbackService {
         record.setNewTaskStatus(name(task.getStatus()));
         record.setNewDispatchStatus(dispatchRequest == null ? null : name(dispatchRequest.getStatus()));
         callbackRepository.save(record);
+        if (assignmentEvidenceService != null && dispatchRequest != null) {
+            dispatchRequest.setAckEvidenceId(type == TaskCallbackType.ACK ? record.getCallbackId() : dispatchRequest.getAckEvidenceId());
+            dispatchRequest.setAckedAt(type == TaskCallbackType.ACK ? now : dispatchRequest.getAckedAt());
+            dispatchRequest.setOutboxStatus(DispatchOutboxStatus.ACKNOWLEDGED);
+            assignmentEvidenceService.record(dispatchRequest, "CALLBACK_" + type.name(), null, record.getCallbackId(), "{\"accepted\":true}");
+        }
         eventPublisher.publish(toTaskCallbackAcceptedEvent(record, request, task, dispatchRequest, now));
         log.info("callback_accepted_event_published taskId={} callbackType={} callbackId={} dispatchRequestId={} assignmentId={} agentId={}",
                 taskId, type, callbackId, record.getDispatchRequestId(), record.getAssignmentId(), record.getAgentId());
@@ -290,7 +318,18 @@ public class TaskCallbackService {
                 request.getProgressPercent(),
                 request.getPayload(),
                 now,
-                request.getOccurredAt() == null ? now : request.getOccurredAt());
+                request.getOccurredAt() == null ? now : request.getOccurredAt(),
+                dispatch == null ? request.getAgentSessionId() : dispatch.getAgentSessionId(),
+                request.getAttemptNo(),
+                callbackIdentity.secretFingerprint(request.getDispatchToken()),
+                callbackIdentity.secretFingerprint(request.getFencingToken()),
+                callbackIdentity.payloadFingerprint(request.getPayload()),
+                businessCorrelation(task),
+                record.getCallbackId(),
+                task == null ? null : task.getTraceId(),
+                null,
+                "AGENT",
+                dispatch == null ? record.getAgentId() : dispatch.getAgentId());
     }
 
     private TaskTerminalEvent toTaskTerminalEvent(TaskRecord task,
@@ -327,7 +366,20 @@ public class TaskCallbackService {
                 callback.getErrorCode(),
                 callback.getErrorMessage(),
                 callback.getPayload(),
-                callback.getOccurredAt() == null ? now : callback.getOccurredAt());
+                callback.getOccurredAt() == null ? now : callback.getOccurredAt(),
+                businessCorrelation(task),
+                callback.getCallbackId(),
+                task.getTraceId(),
+                null,
+                "AGENT",
+                dispatch == null ? callback.getAgentId() : dispatch.getAgentId());
+    }
+
+    private String businessCorrelation(TaskRecord task) {
+        if (task == null) return null;
+        if (task.getCorrelationId() != null && !task.getCorrelationId().isBlank()) return task.getCorrelationId().trim();
+        if (task.getOriginCorrelationId() != null && !task.getOriginCorrelationId().isBlank()) return task.getOriginCorrelationId().trim();
+        return null;
     }
 
     private void releaseAssignmentReservation(DispatchRequest dispatchRequest) {
@@ -371,7 +423,7 @@ public class TaskCallbackService {
                 dispatch == null ? request.getDispatchRequestId() : dispatch.getDispatchRequestId(),
                 dispatch == null ? request.getAssignmentId() : dispatch.getAssignmentId(),
                 dispatch == null ? request.getAgentId() : dispatch.getAgentId(),
-                idempotencyKey(type, request),
+                callbackIdentity.idempotencyKey(type, request),
                 request.getPayload(),
                 request.getOccurredAt());
         return callbackAcceptanceGuards.stream()
@@ -403,78 +455,8 @@ public class TaskCallbackService {
         }
     }
 
-    private String validateCallback(TaskCallbackType type, TaskCallbackRequest request, DispatchRequest dispatch, TaskRecord task) {
-        if (dispatch == null) {
-            return null;
-        }
-        if (properties.isRequireDispatchToken()) {
-            String expected = dispatch.getDispatchToken();
-            if (expected == null || expected.isBlank()) {
-                return "DISPATCH_TOKEN_NOT_ISSUED";
-            }
-            if (request.getDispatchToken() == null || request.getDispatchToken().isBlank()) {
-                return "DISPATCH_TOKEN_REQUIRED";
-            }
-            if (!expected.equals(request.getDispatchToken())) {
-                return "INVALID_DISPATCH_TOKEN";
-            }
-        }
-        if (properties.isRejectOldAttemptCallbacks()) {
-            if (request.getAttemptNo() == null) {
-                if (properties.isRequireAttemptNo()) {
-                    return "ATTEMPT_NO_REQUIRED";
-                }
-            } else if (request.getAttemptNo() != dispatch.getAttemptCount()) {
-                return request.getAttemptNo() < dispatch.getAttemptCount() ? "OLD_ATTEMPT_CALLBACK" : "FUTURE_ATTEMPT_CALLBACK";
-            }
-        }
-        if (properties.isEnforceGatewayAndAgentIdentity()) {
-            String identityError = requireMatching("agentId", request.getAgentId(), dispatch.getAgentId());
-            if (identityError != null) return identityError;
-            identityError = requireMatching("ownerGatewayNodeId", request.getOwnerGatewayNodeId(), dispatch.getOwnerGatewayNodeId());
-            if (identityError != null) return identityError;
-            identityError = requireMatching("agentSessionId", request.getAgentSessionId(), dispatch.getAgentSessionId());
-            if (identityError != null) return identityError;
-        }
-        String fencingError = validateAssignmentFence(request, dispatch);
-        if (fencingError != null) {
-            return fencingError;
-        }
-        if (!properties.isAllowTerminalCallbackOverride()) {
-            if (isTerminal(task.getStatus())) {
-                return "TASK_ALREADY_TERMINAL";
-            }
-            if (isTerminal(dispatch.getStatus())) {
-                return "DISPATCH_ALREADY_TERMINAL";
-            }
-        }
-        if (properties.isEnforceStateTransition() && !isAllowedDispatchTransition(type, dispatch.getStatus())) {
-            return "INVALID_DISPATCH_TRANSITION_" + dispatch.getStatus() + "_TO_" + type;
-        }
-        return null;
-    }
-
-
-    private String validateAssignmentFence(TaskCallbackRequest request, DispatchRequest dispatch) {
-        if (!properties.isEnforceAssignmentFencing()) {
-            return null;
-        }
-        if (assignmentRepository == null) {
-            return null;
-        }
-        String assignmentId = firstNonBlank(request.getAssignmentId(), dispatch == null ? null : dispatch.getAssignmentId());
-        if (assignmentId == null || assignmentId.isBlank()) {
-            return properties.isRequireAssignmentIdForFencing() ? "ASSIGNMENT_ID_REQUIRED" : null;
-        }
-        TaskAssignment assignment = assignmentRepository.findById(assignmentId).orElse(null);
-        if (assignment == null) {
-            return properties.isRequireKnownAssignmentForFencing() ? "ASSIGNMENT_NOT_FOUND" : null;
-        }
-        AssignmentFencingValidation validation = assignmentFencingTokenPolicy.validate(assignment, assignmentId, request.getFencingToken(), OffsetDateTime.now(ZoneOffset.UTC));
-        return validation.accepted() ? null : validation.code();
-    }
-
     private void updateExecutionAttemptFromCallback(TaskCallbackType type, TaskCallbackRequest request) {
+        if (TaskCallbackAcceptancePolicy.isCancellationCallback(type, request)) return;
         if (executionAttemptService == null || request.getAssignmentId() == null || request.getAssignmentId().isBlank()) {
             return;
         }
@@ -529,32 +511,6 @@ public class TaskCallbackService {
         return null;
     }
 
-    private boolean isAllowedDispatchTransition(TaskCallbackType type, DispatchRequestStatus status) {
-        if (status == null) return false;
-        return switch (type) {
-            case ACK -> status == DispatchRequestStatus.DISPATCHING || status == DispatchRequestStatus.DISPATCHED;
-            case PROGRESS -> status == DispatchRequestStatus.ACKED
-                    || status == DispatchRequestStatus.RUNNING;
-            case RESULT, ERROR -> status == DispatchRequestStatus.DISPATCHING
-                    || status == DispatchRequestStatus.DISPATCHED
-                    || status == DispatchRequestStatus.ACKED
-                    || status == DispatchRequestStatus.RUNNING;
-        };
-    }
-
-    private boolean isTerminal(TaskStatus status) {
-        return status != null && status.isTerminal();
-    }
-
-    private boolean isTerminal(DispatchRequestStatus status) {
-        return status == DispatchRequestStatus.COMPLETED
-                || status == DispatchRequestStatus.FAILED
-                || status == DispatchRequestStatus.TIMED_OUT
-                || status == DispatchRequestStatus.CANCELLED
-                || status == DispatchRequestStatus.REJECTED
-                || status == DispatchRequestStatus.DEAD_LETTER;
-    }
-
     private TaskCallbackResult ignore(TaskCallbackRecord record, DispatchRequest dispatch, TaskRecord task, String reason, String message) {
         record.setAccepted(false);
         record.setIgnoredReason(reason);
@@ -592,10 +548,15 @@ public class TaskCallbackService {
         record.setOccurredAt(request.getOccurredAt());
         record.setProcessedAt(now);
         record.setDuplicate(false);
-        record.setIdempotencyKey(idempotencyKey(type, request));
-        record.setCallbackFingerprint(callbackFingerprint(type, request));
+        record.setIdempotencyKey(callbackIdentity.idempotencyKey(type, request));
+        record.setCallbackFingerprint(callbackIdentity.callbackFingerprint(type, request));
         record.setReplayDetected(false);
-        record.setAccepted(true);
+        // A reservation is not an accepted callback. Marking it accepted before the
+        // authoritative Dispatch + Task transitions commit can cause a retry to be
+        // discarded after a persistence failure. The record is promoted to accepted
+        // only after all authoritative transitions succeed.
+        record.setAccepted(false);
+        record.setIgnoredReason("RESERVED");
         record.setNewTaskStatus("RESERVED");
         return record;
     }
@@ -614,6 +575,14 @@ public class TaskCallbackService {
         transition.setReason(dispatchReason(type, callback));
         transition.setLastError(dispatchLastError(type, callback));
         transition.setUpdatedAt(now);
+        if (type == TaskCallbackType.ACK) {
+            transition.setOutboxStatus(DispatchOutboxStatus.ACKNOWLEDGED);
+            transition.setAckEvidenceId(callback.getCallbackId());
+            transition.setAckedAt(now);
+            transition.setRecoveryClassification(DispatchRecoveryClassification.NONE);
+        } else if (dispatch.getStatus() == DispatchRequestStatus.DELIVERY_UNKNOWN || dispatch.getRecoveryClassification() == DispatchRecoveryClassification.RESPONSE_LOST) {
+            transition.setOutboxStatus(DispatchOutboxStatus.ACKNOWLEDGED); transition.setRecoveryClassification(DispatchRecoveryClassification.NONE);
+        }
         if (type == TaskCallbackType.RESULT && !resultIndicatesFailure(callback)) {
             transition.setCompletedAt(now);
         }
@@ -633,6 +602,13 @@ public class TaskCallbackService {
         TaskExecutionStateTransition transition = new TaskExecutionStateTransition();
         transition.setTaskId(task.getTaskId());
         transition.setAllowedCurrentStatuses(openTaskStatuses());
+        if (TaskCallbackAcceptancePolicy.isCancellationCallback(type, request)) {
+            transition.setNewStatus(TaskStatus.CANCELLED);
+            transition.setTerminalAt(now);
+            transition.setLifecycleReason("Agent acknowledged cancellation" + suffix(request.getMessage()));
+            transition.setUpdatedAt(now);
+            return transition;
+        }
         switch (type) {
             case ACK, PROGRESS -> {
                 transition.setNewStatus(TaskStatus.RUNNING);
@@ -654,15 +630,18 @@ public class TaskCallbackService {
     }
 
     private List<TaskStatus> openTaskStatuses() {
-        return List.of(TaskStatus.QUEUED, TaskStatus.CREATED, TaskStatus.ASSIGNED, TaskStatus.DISPATCHED, TaskStatus.RUNNING, TaskStatus.RETRY_WAIT, TaskStatus.RECONCILING);
+        return List.of(TaskStatus.QUEUED, TaskStatus.CREATED, TaskStatus.ASSIGNED,
+                TaskStatus.DISPATCHED, TaskStatus.RUNNING, TaskStatus.RETRY_WAIT,
+                TaskStatus.RECONCILING, TaskStatus.CANCEL_REQUESTED);
     }
 
     private List<DispatchRequestStatus> allowedDispatchStatuses(TaskCallbackType type) {
         return switch (type) {
-            case ACK -> List.of(DispatchRequestStatus.DISPATCHING, DispatchRequestStatus.DISPATCHED);
-            case PROGRESS -> List.of(DispatchRequestStatus.ACKED, DispatchRequestStatus.RUNNING);
+            case ACK -> List.of(DispatchRequestStatus.DISPATCHING, DispatchRequestStatus.DELIVERY_UNKNOWN, DispatchRequestStatus.DISPATCHED);
+            case PROGRESS -> List.of(DispatchRequestStatus.DELIVERY_UNKNOWN, DispatchRequestStatus.ACKED, DispatchRequestStatus.RUNNING);
             case RESULT, ERROR -> List.of(
                     DispatchRequestStatus.DISPATCHING,
+                    DispatchRequestStatus.DELIVERY_UNKNOWN,
                     DispatchRequestStatus.DISPATCHED,
                     DispatchRequestStatus.ACKED,
                     DispatchRequestStatus.RUNNING);
@@ -703,13 +682,20 @@ public class TaskCallbackService {
         if (latest == null) {
             return "DISPATCH_NOT_FOUND";
         }
-        if (isTerminal(latest.getStatus())) {
+        if (TaskCallbackAcceptancePolicy.isTerminal(latest.getStatus())) {
             return "DISPATCH_ALREADY_TERMINAL";
         }
         return "CONCURRENT_STATE_CONFLICT";
     }
 
     private void applyTaskTransition(TaskCallbackType type, TaskRecord task, TaskCallbackRequest request, OffsetDateTime now) {
+        if (TaskCallbackAcceptancePolicy.isCancellationCallback(type, request)) {
+            task.setStatus(TaskStatus.CANCELLED);
+            task.setTerminalAt(now);
+            task.setLifecycleReason("Agent acknowledged cancellation" + suffix(request.getMessage()));
+            task.setUpdatedAt(now);
+            return;
+        }
         switch (type) {
             case ACK, PROGRESS -> {
                 task.setStatus(TaskStatus.RUNNING);
@@ -796,138 +782,12 @@ public class TaskCallbackService {
         return type == TaskCallbackType.RESULT || type == TaskCallbackType.ERROR;
     }
 
-    private boolean isReplayMismatch(TaskCallbackRecord current, TaskCallbackRecord previous) {
-        if (!properties.isReplayProtectionEnabled() || !properties.isRejectCallbackIdReplayMismatch()) {
-            return false;
-        }
-        String currentFingerprint = current == null ? null : current.getCallbackFingerprint();
-        String previousFingerprint = previous == null ? null : previous.getCallbackFingerprint();
-        if (currentFingerprint == null || currentFingerprint.isBlank()
-                || previousFingerprint == null || previousFingerprint.isBlank()) {
-            return false;
-        }
-        return !Objects.equals(currentFingerprint, previousFingerprint);
-    }
-
-    private String idempotencyKey(TaskCallbackType type, TaskCallbackRequest request) {
-        String raw = String.join("|",
-                "TASK_CALLBACK_IDEMPOTENCY_V2",
-                type == null ? "" : type.name(),
-                safe(request.getTaskId()),
-                safe(request.getDispatchRequestId()),
-                safe(request.getAssignmentId()),
-                safe(request.getAgentId()),
-                safe(request.getOwnerGatewayNodeId()),
-                safe(request.getAgentSessionId()),
-                safe(request.getAttemptNo()),
-                safe(request.getCallbackId()));
-        return sha256("idk-", raw);
-    }
-
-    private String callbackFingerprint(TaskCallbackType type, TaskCallbackRequest request) {
-        String raw = String.join("|",
-                "TASK_CALLBACK_FINGERPRINT_V2",
-                type == null ? "" : type.name(),
-                safe(request.getTaskId()),
-                safe(request.getDispatchRequestId()),
-                safe(request.getAssignmentId()),
-                safe(request.getAgentId()),
-                safe(request.getOwnerGatewayNodeId()),
-                safe(request.getAgentSessionId()),
-                safe(request.getAttemptNo()),
-                secretFingerprint(request.getDispatchToken()),
-                secretFingerprint(request.getFencingToken()),
-                safe(request.getProgressPercent()),
-                safe(request.getResultStatus()),
-                safe(request.getErrorCode()),
-                safe(request.getErrorMessage()),
-                safe(request.getMessage()),
-                canonical(request.getPayload()));
-        return sha256("cbf-", raw);
-    }
-
-    private String secretFingerprint(String secret) {
-        if (secret == null || secret.isBlank()) {
-            return "";
-        }
-        return sha256("sec-", secret);
-    }
-
-    private String sha256(String prefix, String raw) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return prefix + HexFormat.of().formatHex(digest.digest(raw.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception ex) {
-            return prefix + Math.abs(raw.hashCode());
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private String canonical(Object value) {
-        if (value == null) {
-            return "null";
-        }
-        if (value instanceof Map<?, ?> map) {
-            return map.entrySet().stream()
-                    .sorted((a, b) -> String.valueOf(a.getKey()).compareTo(String.valueOf(b.getKey())))
-                    .map(e -> String.valueOf(e.getKey()) + "=" + canonical(e.getValue()))
-                    .toList()
-                    .toString();
-        }
-        if (value instanceof Iterable<?> iterable) {
-            StringBuilder builder = new StringBuilder("[");
-            boolean first = true;
-            for (Object item : iterable) {
-                if (!first) {
-                    builder.append(',');
-                }
-                builder.append(canonical(item));
-                first = false;
-            }
-            return builder.append(']').toString();
-        }
-        return String.valueOf(value);
-    }
-
-    private String generatedCallbackId(TaskCallbackType type, TaskCallbackRequest request) {
-        String raw = String.join("|",
-                type.name(),
-                safe(request.getTaskId()),
-                safe(request.getDispatchRequestId()),
-                safe(request.getAssignmentId()),
-                safe(request.getAgentId()),
-                safe(request.getOwnerGatewayNodeId()),
-                safe(request.getAgentSessionId()),
-                safe(request.getAttemptNo()),
-                safe(request.getFencingToken()),
-                safe(request.getProgressPercent()),
-                safe(request.getResultStatus()),
-                safe(request.getErrorCode()),
-                safe(request.getErrorMessage()),
-                safe(request.getMessage()));
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return "cb-" + HexFormat.of().formatHex(digest.digest(raw.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception ex) {
-            return "cb-" + Math.abs(raw.hashCode());
-        }
-    }
-
     private String firstNonBlank(String... values) {
         if (values == null) return null;
         for (String value : values) {
             if (value != null && !value.isBlank()) return value;
         }
         return null;
-    }
-
-    private String suffix(String message) {
-        return message == null || message.isBlank() ? "" : ": " + message;
-    }
-
-    private String progressSuffix(TaskCallbackRequest callback) {
-        String progress = callback.getProgressPercent() == null ? "" : " " + callback.getProgressPercent() + "%";
-        return progress + suffix(callback.getMessage());
     }
 
     private String safe(Object value) {

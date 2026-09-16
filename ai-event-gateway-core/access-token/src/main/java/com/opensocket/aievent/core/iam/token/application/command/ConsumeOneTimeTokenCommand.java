@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.token.application.command;import com.opensocket.aievent.core.iam.token.domain.AccessTokenType;public record ConsumeOneTimeTokenCommand(String presentedToken,String tenantId,AccessTokenType expectedType,String sourceIp,String correlationId){}

@@ -1,12 +1,12 @@
 package com.opensocket.aievent.database.persistence.incident.converter;
 
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
+
+
+
 import com.opensocket.aievent.database.persistence.spi.DatabasePersistenceConverter;
 import com.opensocket.aievent.core.event.EventSeverity;
 import com.opensocket.aievent.core.incident.Incident;
-import com.opensocket.aievent.core.incident.IncidentQuery;
+
 import com.opensocket.aievent.core.incident.IncidentStatus;
 import com.opensocket.aievent.database.persistence.incident.po.IncidentPo;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -40,6 +40,11 @@ public class IncidentPersistenceConverter {
             po.setReopenedAt(incident.getReopenedAt());
             po.setReopenCount(incident.getReopenCount());
             po.setLifecycleReason(incident.getLifecycleReason());
+            po.setOwnerDepartmentId(incident.getOwnerDepartmentId());
+            po.setOwnerGroupId(incident.getOwnerGroupId());
+            po.setScopeStatus(incident.getScopeStatus());
+            po.setScopeSourceVersion(incident.getScopeSourceVersion());
+            po.setScopeInheritedAt(incident.getScopeInheritedAt());
             return po;
         }
 
@@ -67,6 +72,11 @@ public class IncidentPersistenceConverter {
             incident.setReopenedAt(po.getReopenedAt());
             incident.setReopenCount(po.getReopenCount());
             incident.setLifecycleReason(po.getLifecycleReason());
+            incident.setOwnerDepartmentId(po.getOwnerDepartmentId());
+            incident.setOwnerGroupId(po.getOwnerGroupId());
+            incident.setScopeStatus(po.getScopeStatus());
+            incident.setScopeSourceVersion(po.getScopeSourceVersion());
+            incident.setScopeInheritedAt(po.getScopeInheritedAt());
             return incident;
         }
 }

@@ -1,0 +1,6 @@
+package com.opensocket.aievent.core.a2a;
+import java.util.*; import java.util.concurrent.ConcurrentHashMap; import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty; import org.springframework.context.annotation.Profile; import org.springframework.stereotype.Repository;
+@Repository @Profile("!prod") @ConditionalOnProperty(prefix="task",name="store",havingValue="MEMORY")
+public class InMemoryA2AParentAggregationRepository implements A2AParentAggregationRepository {
+ private final Map<String,A2AParentAggregation> values=new ConcurrentHashMap<>(); public synchronized A2AParentAggregation save(A2AParentAggregation v){values.put(k(v.getTenantId(),v.getParentTaskId()),v);return v;} public synchronized A2AParentAggregation saveExpectedVersion(A2AParentAggregation v,long expected){A2AParentAggregation current=values.get(k(v.getTenantId(),v.getParentTaskId()));if(current==null||current.getVersion()!=expected)throw new IllegalStateException("RESOURCE_VERSION_CONFLICT");values.put(k(v.getTenantId(),v.getParentTaskId()),v);return v;} public Optional<A2AParentAggregation> findByParentTask(String t,String id){return Optional.ofNullable(values.get(k(t,id)));} public String mode(){return "MEMORY";} private String k(String t,String id){return t+":"+id;}
+}

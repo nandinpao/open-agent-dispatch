@@ -15,7 +15,7 @@ public class ScheduledDispatchRecovery {
         this.properties = properties;
     }
 
-    @Scheduled(fixedDelayString = "${task.callback.recovery.scan-interval-ms:30000}")
+    @Scheduled(fixedDelayString = "${task.callback.recovery.scan-interval-ms:30000}", scheduler = "dispatchOperationalScheduler")
     public void recoverTimedOutDispatches() {
         recoveryService.scanAndRecoverTimedOut(properties.getRecovery().getMaxBatchSize());
     }

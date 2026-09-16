@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.response;import java.time.Instant;public record IdentityAuditResponse(String eventId,String eventType,String actorType,String actorId,String targetType,String targetId,String tenantId,String permission,String decisionId,String correlationId,String reason,Instant occurredAt){}

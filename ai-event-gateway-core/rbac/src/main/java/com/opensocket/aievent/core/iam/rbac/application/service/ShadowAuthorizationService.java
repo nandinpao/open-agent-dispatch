@@ -1,0 +1,17 @@
+package com.opensocket.aievent.core.iam.rbac.application.service;
+
+import com.opensocket.aievent.core.iam.rbac.application.port.in.ShadowAuthorizationPort;
+import com.opensocket.aievent.core.iam.rbac.application.port.out.ShadowDecisionRecorderPort;
+import com.opensocket.aievent.core.iam.rbac.domain.*;
+import com.opensocket.aievent.core.iam.security.contract.*;
+import java.time.*;
+import java.util.*;
+
+public final class ShadowAuthorizationService implements ShadowAuthorizationPort {
+    private final ShadowDecisionRecorderPort recorder; private final double matchSamplingRate; private final int maxMetadataEntries; private final Clock clock;
+    public ShadowAuthorizationService(ShadowDecisionRecorderPort recorder,double matchSamplingRate,int maxMetadataEntries,Clock clock){if(matchSamplingRate<0||matchSamplingRate>1)throw new IllegalArgumentException("sampling rate must be 0..1");this.recorder=recorder;this.matchSamplingRate=matchSamplingRate;this.maxMetadataEntries=Math.max(0,maxMetadataEntries);this.clock=clock;}
+    public ShadowDecisionRecord compare(LegacyDecision legacy,AuthorizationRequest request,AuthorizationDecision decision,String route){boolean highRisk="true".equalsIgnoreCase(request.requestContext().getOrDefault("highRisk","false"));boolean mismatch=(legacy==LegacyDecision.ALLOW&&decision.effect()!=AuthorizationDecision.Effect.ALLOW)||(legacy==LegacyDecision.DENY&&decision.effect()!=AuthorizationDecision.Effect.DENY)||legacy==LegacyDecision.ERROR;boolean instanceScope=request.activeTenant().scope()==TenantRef.Scope.INSTANCE;ShadowLane lane=(instanceScope||mismatch||highRisk||decision.reasonCode().contains("ERROR")||decision.reasonCode().contains("EPOCH"))?ShadowLane.CRITICAL:(isHighFrequency(route)?ShadowLane.AGGREGATE:ShadowLane.SAMPLE);Map<String,String> metadata=safeMetadata(request.requestContext());String tenantId=instanceScope?"":request.activeTenant().tenantId();ShadowDecisionRecord record=new ShadowDecisionRecord(UUID.randomUUID().toString(),tenantId,request.principal().principalId(),request.permission(),route,legacy,decision.effect(),decision.reasonCode(),lane,highRisk,metadata,clock.instant());if(lane==ShadowLane.CRITICAL)recorder.recordCritical(record);else if(lane==ShadowLane.AGGREGATE)recorder.aggregate(record);else if(sample(record))recorder.enqueueSample(record);return record;}
+    private boolean sample(ShadowDecisionRecord record){if(matchSamplingRate>=1)return true;if(matchSamplingRate<=0)return false;long hash=Integer.toUnsignedLong(Objects.hash(record.tenantId(),record.principalId(),record.permission(),record.route(),record.occurredAt().getEpochSecond()/60));return (hash%1000000)<(long)(matchSamplingRate*1000000);}
+    private boolean isHighFrequency(String route){String r=route==null?"":route.toLowerCase(Locale.ROOT);return r.contains("heartbeat")||r.contains("health")||r.contains("poll");}
+    private Map<String,String> safeMetadata(Map<String,String> source){if(source==null||source.isEmpty()||maxMetadataEntries==0)return Map.of();Map<String,String> result=new LinkedHashMap<>();for(var e:source.entrySet()){if(result.size()>=maxMetadataEntries)break;String key=e.getKey()==null?"":e.getKey().trim();if(key.toLowerCase(Locale.ROOT).matches(".*(password|token|secret|cookie|payload|body).*$"))continue;String value=e.getValue()==null?"":e.getValue();result.put(key,value.length()>256?value.substring(0,256):value);}return Map.copyOf(result);}
+}

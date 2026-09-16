@@ -1,6 +1,9 @@
 package com.opensocket.aievent.core.dispatch.flow;
 
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Collections;
 
 /**
  * R6 routing plan resolved before legacy capability/profile fallback.
@@ -11,7 +14,13 @@ import java.util.List;
  */
 public class FlowRuleRoutingPlan {
     private boolean matched;
+    private FlowMatchDecision.MatchResult matchResult = FlowMatchDecision.MatchResult.NO_MATCH;
+    private String flowEvaluationSetRef;
     private String flowId;
+    private String flowVersion;
+    private String serviceCode;
+    private FlowRuleEvaluation evaluation;
+    private Map<String,Object> matchAttributes = Map.of();
     private String ruleId;
     private String ruleScope;
     private String eventStage;
@@ -33,19 +42,50 @@ public class FlowRuleRoutingPlan {
     private boolean sourceDefaultPool;
     private Boolean explicitActionAuthorizationRequired = Boolean.TRUE;
     private Integer requirementModelVersion = 3;
+    private String issueSyncPolicy = "OPTIONAL";
+    private String issueSyncPolicySource = "SYSTEM_FALLBACK";
 
     public static FlowRuleRoutingPlan notMatched(String reason) {
         FlowRuleRoutingPlan plan = new FlowRuleRoutingPlan();
         plan.setMatched(false);
+        plan.setMatchResult(FlowMatchDecision.MatchResult.NO_MATCH);
         plan.setRoutingPath("FLOW_RULE_REQUIRED_BLOCKED");
         plan.setReason(reason);
         return plan;
     }
 
+    public static FlowRuleRoutingPlan ambiguous(String reason) {
+        FlowRuleRoutingPlan plan = new FlowRuleRoutingPlan();
+        plan.setMatched(false);
+        plan.setMatchResult(FlowMatchDecision.MatchResult.AMBIGUOUS);
+        plan.setRoutingPath("FLOW_RULE_AMBIGUOUS");
+        plan.setReason(reason);
+        return plan;
+    }
+
     public boolean isMatched() { return matched; }
-    public void setMatched(boolean matched) { this.matched = matched; }
+    public void setMatched(boolean matched) { this.matched = matched; if (matched) this.matchResult = FlowMatchDecision.MatchResult.MATCHED; }
+    public FlowMatchDecision.MatchResult getMatchResult() { return matchResult; }
+    public void setMatchResult(FlowMatchDecision.MatchResult matchResult) { this.matchResult = matchResult == null ? FlowMatchDecision.MatchResult.NO_MATCH : matchResult; this.matched = this.matchResult == FlowMatchDecision.MatchResult.MATCHED; }
+    public boolean isAmbiguous() { return matchResult == FlowMatchDecision.MatchResult.AMBIGUOUS; }
+    public boolean isNoMatch() { return matchResult == FlowMatchDecision.MatchResult.NO_MATCH; }
+    public String getFlowEvaluationSetRef() { return flowEvaluationSetRef; }
+    public void setFlowEvaluationSetRef(String flowEvaluationSetRef) { this.flowEvaluationSetRef = flowEvaluationSetRef; }
     public String getFlowId() { return flowId; }
     public void setFlowId(String flowId) { this.flowId = flowId; }
+    public String getFlowVersion() { return flowVersion; }
+    public void setFlowVersion(String flowVersion) { this.flowVersion = flowVersion; }
+    public String getServiceCode() { return serviceCode; }
+    public void setServiceCode(String serviceCode) { this.serviceCode = serviceCode; }
+    public FlowRuleEvaluation getEvaluation() { return evaluation; }
+    public void setEvaluation(FlowRuleEvaluation evaluation) { this.evaluation = evaluation; }
+    public Map<String,Object> getMatchAttributes() { return matchAttributes; }
+    public void setMatchAttributes(Map<String,Object> matchAttributes) {
+        if (matchAttributes == null || matchAttributes.isEmpty()) { this.matchAttributes = Map.of(); return; }
+        LinkedHashMap<String,Object> copy = new LinkedHashMap<>();
+        matchAttributes.forEach((key,value) -> { if (key != null) copy.put(key, value); });
+        this.matchAttributes = Collections.unmodifiableMap(copy);
+    }
     public String getRuleId() { return ruleId; }
     public void setRuleId(String ruleId) { this.ruleId = ruleId; }
     public String getRuleScope() { return ruleScope; }
@@ -88,4 +128,8 @@ public class FlowRuleRoutingPlan {
     public void setExplicitActionAuthorizationRequired(Boolean explicitActionAuthorizationRequired) { this.explicitActionAuthorizationRequired = explicitActionAuthorizationRequired; }
     public Integer getRequirementModelVersion() { return requirementModelVersion; }
     public void setRequirementModelVersion(Integer requirementModelVersion) { this.requirementModelVersion = requirementModelVersion; }
+    public String getIssueSyncPolicy() { return issueSyncPolicy; }
+    public void setIssueSyncPolicy(String issueSyncPolicy) { this.issueSyncPolicy = issueSyncPolicy; }
+    public String getIssueSyncPolicySource() { return issueSyncPolicySource; }
+    public void setIssueSyncPolicySource(String issueSyncPolicySource) { this.issueSyncPolicySource = issueSyncPolicySource; }
 }

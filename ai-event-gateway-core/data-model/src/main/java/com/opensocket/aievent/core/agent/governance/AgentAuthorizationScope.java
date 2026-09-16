@@ -2,6 +2,13 @@ package com.opensocket.aievent.core.agent.governance;
 
 import java.time.OffsetDateTime;
 
+/**
+ * Persistence contract for Agent Dispatch Access.
+ *
+ * <p>The historical class/table name is retained for schema compatibility. In the current product
+ * model these rows are an execution-authorization ceiling for already-assigned Tasks. They do not
+ * select candidate Agents, replace Capability approval, or replace Agent Pool / Dispatch Flow routing.</p>
+ */
 public class AgentAuthorizationScope {
     private String scopeId;
     private String agentId;

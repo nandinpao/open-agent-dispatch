@@ -12,6 +12,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.opensocket.aievent.core.agent.assignment.AgentAssignmentService;
 import com.opensocket.aievent.core.agent.contract.DispatchContractReadinessRequest;
@@ -32,6 +33,7 @@ public class DispatchContractTraceService {
         this.taskRepository = taskRepository == null ? null : taskRepository.getIfAvailable();
     }
 
+    @Transactional(readOnly = true)
     public DispatchContractTraceResponse trace(DispatchContractTraceRequest request) {
         DispatchContractTraceRequest body = request == null ? new DispatchContractTraceRequest() : request;
         TaskRecord task = loadTask(body.getTaskId());

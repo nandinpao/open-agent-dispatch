@@ -36,6 +36,15 @@ public class InMemoryTaskAssignmentRepository implements TaskAssignmentRepositor
     }
 
     @Override
+    public Optional<TaskAssignment> findOpenByTenantAndTaskId(String tenantId, String taskId) {
+        return assignments.values().stream()
+                .filter(a -> tenantId != null && tenantId.equals(a.getTenantId()))
+                .filter(a -> taskId != null && taskId.equals(a.getTaskId()))
+                .filter(a -> a.getStatus() == AssignmentStatus.ASSIGNED || a.getStatus() == AssignmentStatus.AWAITING_REVIEW)
+                .max(Comparator.comparing(TaskAssignment::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder())));
+    }
+
+    @Override
     public boolean releaseCapacityReservation(String assignmentId, OffsetDateTime releasedAt) {
         boolean[] released = {false};
         assignments.computeIfPresent(assignmentId, (id, assignment) -> {

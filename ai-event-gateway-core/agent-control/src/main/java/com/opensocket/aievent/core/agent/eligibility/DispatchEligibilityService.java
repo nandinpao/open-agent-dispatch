@@ -16,7 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.opensocket.aievent.core.agent.AgentDirectoryService;
-import com.opensocket.aievent.core.agent.AgentQuery;
+
 import com.opensocket.aievent.core.agent.AgentRuntimeDescriptor;
 import com.opensocket.aievent.core.agent.AgentSnapshot;
 import com.opensocket.aievent.core.agent.AgentStatus;

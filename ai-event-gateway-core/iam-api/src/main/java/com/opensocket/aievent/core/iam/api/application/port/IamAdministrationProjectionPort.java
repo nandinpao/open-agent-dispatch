@@ -1,0 +1,48 @@
+package com.opensocket.aievent.core.iam.api.application.port;
+import com.opensocket.aievent.core.iam.api.pagination.*;import com.opensocket.aievent.core.iam.api.response.*;import java.util.*;
+/** Read-model SPI. Implementations must be Tenant-aware, paginated and must not expose secret columns. */
+public interface IamAdministrationProjectionPort {
+ CursorPage<UserResponse> users(String tenantId,String text,String status,String membershipStatus,String roleId,String departmentId,String groupId,String signInState,int limit,String cursor);
+ CursorPage<UserResponse> usersWithin(String tenantId,Set<String> departmentIds,Set<String> groupIds,String text,String status,String membershipStatus,String roleId,String departmentId,String groupId,String signInState,int limit,String cursor);
+ CursorPage<UserResponse> availableUsers(String tenantId,String text,int limit,String cursor);
+ CursorPage<UserResponse> platformUsers(String text,String status,String tenantId,int limit,String cursor);
+ Optional<UserResponse> platformUser(String userId);
+ CursorPage<PlatformTenantMembershipResponse> platformMemberships(String userId,int limit,String cursor);
+ Optional<UserResponse> user(String tenantId,String userId);
+ UserOrganizationScopeResponse userOrganizationScope(String tenantId,String userId);
+ UserAuthenticationReadinessResponse userAuthenticationReadiness(String tenantId,String userId);
+ MachineOwnershipImpactResponse machineOwnershipImpact(String tenantId,String userId);
+ OffsetPage<TenantResponse> tenants(int page,int size,String text,String status);
+ TenantWorkspaceSummaryResponse tenantWorkspaceSummary(String tenantId);
+ OffsetPage<DepartmentResponse> departments(String tenantId,int page,int size,String text,String status);
+ OffsetPage<DepartmentResponse> departmentsWithin(String tenantId,Set<String> departmentIds,int page,int size,String text,String status);
+ Set<String> departmentIdsWithinSubtrees(String tenantId,Set<String> rootDepartmentIds);
+ OffsetPage<GroupResponse> groups(String tenantId,int page,int size,String text,String type,String status);
+ OffsetPage<GroupResponse> groupsWithin(String tenantId,Set<String> groupIds,int page,int size,String text,String type,String status);
+ OrganizationRetirementPreviewResponse departmentRetirementPreview(String tenantId,String departmentId);
+ OrganizationRetirementPreviewResponse groupRetirementPreview(String tenantId,String groupId);
+ CursorPage<MembershipResponse> memberships(String tenantId,String userId,int limit,String cursor);
+ Optional<MembershipResponse> membership(String tenantId,String membershipId);
+ CursorPage<MembershipResponse> tenantMemberships(String tenantId,int limit,String cursor);
+ CursorPage<MembershipResponse> departmentMembers(String tenantId,String departmentId,int limit,String cursor);
+ CursorPage<MembershipResponse> groupMembers(String tenantId,String groupId,int limit,String cursor);
+ CursorPage<UserResponse> eligibleDepartmentManagers(String tenantId,String departmentId,String text,int limit,String cursor);
+ OffsetPage<RoleResponse> roles(String tenantId,int page,int size,String text,String type,String status);
+ OffsetPage<ResponsibilityTemplateResponse> responsibilityTemplates(String tenantId,int page,int size,String text,String status,String riskLevel,String scopeType);
+ CursorPage<AccessAssignmentResponse> accessAssignments(String tenantId,String text,String status,String principalType,String scopeType,String lifecycle,int limit,String cursor);
+ AccessLifecycleSummaryResponse accessLifecycleSummary(String tenantId);
+ CursorPage<AccessReviewCandidateResponse> accessReviewCandidates(String tenantId,String reason,String riskLevel,int limit,String cursor);
+ SecurityWorkspaceSummaryResponse securityWorkspaceSummary(String tenantId);
+ CredentialGovernanceCatalogResponse credentialGovernanceCatalog(String tenantId);
+ CursorPage<HumanReadableAuditResponse> humanReadableAudit(String tenantId,String category,String outcome,int limit,String cursor);
+ CursorPage<SecurityPolicyRevisionResponse> securityPolicyRevisions(String tenantId,String policyKind,int limit,String cursor);
+ OffsetPage<RoleResponse> platformRoles(int page,int size,String text,String type,String status);
+ OffsetPage<PermissionResponse> permissions(int page,int size,String text,String scopeType);
+ List<PermissionResponse> rolePermissions(String tenantId,String roleId);
+ CursorPage<RoleBindingResponse> roleBindings(String tenantId,String roleId,String principalId,int limit,String cursor);
+ CursorPage<SessionResponse> sessions(String tenantId,String subjectId,int limit,String cursor);
+ CursorPage<ServiceAccountResponse> serviceAccounts(String tenantId,int limit,String cursor,String status);
+ CursorPage<ServiceAccountCredentialResponse> serviceAccountCredentials(String tenantId,String serviceAccountId,int limit,String cursor,String status);
+ CursorPage<TokenSummaryResponse> tokens(String tenantId,String principalId,int limit,String cursor,String status);
+ CursorPage<IdentityAuditResponse> identityAudit(String tenantId,int limit,String cursor,String eventType,String actorId,String targetId);
+}

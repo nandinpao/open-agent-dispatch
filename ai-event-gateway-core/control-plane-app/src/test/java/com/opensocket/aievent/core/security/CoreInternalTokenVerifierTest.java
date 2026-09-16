@@ -25,7 +25,7 @@ class CoreInternalTokenVerifierTest {
         CoreInternalSecurityProperties properties = enabledProperties();
         CoreInternalTokenVerifier verifier = new CoreInternalTokenVerifier(
                 properties, new CoreInternalSecurityRequestClassifier(properties));
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/session/login");
 
         CoreInternalTokenVerifier.Verification result = verifier.verify(request);
         assertThat(result.required()).isFalse();
@@ -42,6 +42,21 @@ class CoreInternalTokenVerifierTest {
         request.addHeader("X-Cluster-Token", "event-secret");
 
         assertThat(verifier.verify(request).accepted()).isTrue();
+    }
+
+    @Test
+    void doesNotFallBackToOperatorCredentialForEventIntake() {
+        CoreInternalSecurityProperties properties = enabledProperties();
+        CoreInternalTokenVerifier verifier = new CoreInternalTokenVerifier(
+                properties, new CoreInternalSecurityRequestClassifier(properties));
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/events/intake");
+        request.addHeader("X-Cluster-Token", "operator-secret");
+
+        CoreInternalTokenVerifier.Verification result = verifier.verify(request);
+        assertThat(result.required()).isTrue();
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.role()).isEqualTo(CoreInternalSecurityRole.EVENT_INGESTION);
+        assertThat(result.reason()).isEqualTo("missing_configured_token");
     }
 
     @Test

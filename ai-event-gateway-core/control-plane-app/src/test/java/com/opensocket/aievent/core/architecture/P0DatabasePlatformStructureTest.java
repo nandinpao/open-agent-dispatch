@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +24,13 @@ class P0DatabasePlatformStructureTest {
         assertThat(DatabasePersistenceAutoConfiguration.class).isNotNull();
         assertThat(DatabasePlatformProperties.class).isNotNull();
         assertThat(JsonMapTypeHandler.class).isNotNull();
+    }
+
+    @Test
+    void databasePlatformMustNotGloballyRegisterJavaUtilMapAsJson() {
+        assertThat(Arrays.stream(DatabasePlatformAutoConfiguration.class.getDeclaredMethods())
+                .map(method -> method.getName()))
+                .doesNotContain("databasePlatformMybatisTypeHandlerRegistrar");
     }
 
     @Test

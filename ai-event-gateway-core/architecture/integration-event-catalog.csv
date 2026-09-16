@@ -1,0 +1,5 @@
+event_type,producer,internal_consumer,external_export,delivery,compatibility
+incident.escalated.v1,incident,audit,optional,at-least-once,additive-fields-only
+task.terminal.v1,execution-control,adapter-action,optional,at-least-once,additive-fields-only
+adapter-action.requested.v1,adapter-action,audit,optional,at-least-once,additive-fields-only
+dispatch.dead-lettered.v1,execution-control,audit,optional,at-least-once,additive-fields-only

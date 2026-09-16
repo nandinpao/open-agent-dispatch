@@ -14,6 +14,7 @@ import lombok.ToString;
 public class AgentSnapshot {
     @ToString.Include
     private String agentId;
+    private String tenantId;
     private String agentType;
     @ToString.Include
     private String ownerGatewayNodeId;
@@ -80,6 +81,7 @@ public class AgentSnapshot {
         return runtimeBackoffUntil != null && runtimeBackoffUntil.isAfter(OffsetDateTime.now(ZoneOffset.UTC));
     }
     public void setAgentId(String agentId) { this.agentId = agentId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     public void setAgentType(String agentType) { this.agentType = agentType; }
     public void setOwnerGatewayNodeId(String ownerGatewayNodeId) { this.ownerGatewayNodeId = ownerGatewayNodeId; }
     public void setAgentSessionId(String agentSessionId) { this.agentSessionId = agentSessionId; }

@@ -1,0 +1,1 @@
+package com.opensocket.aievent.database.persistence.integrationidentity.po; import java.time.OffsetDateTime; import lombok.*; @Getter @Setter @NoArgsConstructor public class IntegrationPermissionProbeResultPo { private String tenantId,probeResultId,probeId,capabilityCode,resultStatus,detail; private boolean requiredForMapping; private OffsetDateTime observedAt; }

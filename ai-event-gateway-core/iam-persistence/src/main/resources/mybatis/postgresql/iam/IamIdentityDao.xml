@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.core.iam.persistence.dao.IamIdentityDao">
+  <sql id="RootColumns">root_identity_id as "rootIdentityId", status, reason, created_at as "createdAt", updated_at as "updatedAt", updated_by as "updatedBy", version</sql>
+  <select id="findRoot" resultType="map">select <include refid="RootColumns"/> from iam_root_identities where root_identity_id='root'</select>
+  <insert id="insertRoot">insert into iam_root_identities(root_identity_id,identity_type,status,reason,created_at,updated_at,updated_by,version)
+    values(#{row.rootIdentityId},'INSTANCE_ROOT',#{row.status},#{row.reason},#{row.createdAt},#{row.updatedAt},#{row.updatedBy},#{row.version})</insert>
+  <update id="updateRoot">update iam_root_identities set status=#{row.status},reason=#{row.reason},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=#{row.version}
+    where root_identity_id=#{row.rootIdentityId} and version=#{expectedVersion}</update>
+
+  <sql id="UserColumns">user_id as "userId",username,normalized_username as "normalizedUsername",email,normalized_email as "normalizedEmail",display_name as "displayName",status,creation_mode as "creationMode",status_reason as "statusReason",created_at as "createdAt",updated_at as "updatedAt",created_by as "createdBy",updated_by as "updatedBy",version</sql>
+  <select id="findUserById" resultType="map">select <include refid="UserColumns"/> from iam_users where user_id=#{userId}</select>
+  <select id="findUserByNormalizedUsername" resultType="map">select <include refid="UserColumns"/> from iam_users where normalized_username=#{value}</select>
+  <select id="findUserByNormalizedEmail" resultType="map">select <include refid="UserColumns"/> from iam_users where normalized_email=#{value}</select>
+  <select id="countUserByNormalizedUsername" resultType="int">select count(*) from iam_users where normalized_username=#{value}</select>
+  <select id="countUserByNormalizedEmail" resultType="int">select count(*) from iam_users where normalized_email=#{value}</select>
+  <insert id="insertUser">insert into iam_users(user_id,identity_type,username,normalized_username,email,normalized_email,display_name,status,creation_mode,status_reason,created_at,updated_at,created_by,updated_by,version)
+    values(#{row.userId},'HUMAN_USER',#{row.username},#{row.normalizedUsername},#{row.email},#{row.normalizedEmail},#{row.displayName},#{row.status},#{row.creationMode},#{row.statusReason},#{row.createdAt},#{row.updatedAt},#{row.createdBy},#{row.updatedBy},#{row.version})</insert>
+  <update id="updateUser">update iam_users set email=#{row.email},normalized_email=#{row.normalizedEmail},display_name=#{row.displayName},status=#{row.status},status_reason=#{row.statusReason},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=#{row.version}
+    where user_id=#{row.userId} and version=#{expectedVersion}</update>
+  <select id="searchUsers" resultType="map">select <include refid="UserColumns"/> from iam_users
+    <where>
+      <if test="text != null and text != ''">(normalized_username like concat('%',lower(#{text}),'%') or lower(display_name) like concat('%',lower(#{text}),'%') or normalized_email like concat('%',lower(#{text}),'%'))</if>
+      <if test="status != null and status != ''"><if test="text != null and text != ''">and</if> status=#{status}</if>
+      <if test="cursor != null and cursor != ''">and user_id &gt; #{cursor}</if>
+    </where>
+    order by user_id asc limit #{limit}
+  </select>
+</mapper>

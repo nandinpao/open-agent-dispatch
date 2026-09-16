@@ -23,19 +23,23 @@ import com.opensocket.aievent.core.decision.EventIntakeDecisionResponse;
 import com.opensocket.aievent.core.event.EventIntakeRequest;
 import com.opensocket.aievent.core.task.evidence.TaskDispatchEvidenceView;
 import com.opensocket.aievent.core.timeline.TaskDispatchEvidenceService;
+import com.opensocket.aievent.core.workload.HumanAdministrativeWorkloadContextFactory;
 
 @Service
 public class DispatchContractTestTaskService {
     private final AgentAssignmentService assignmentService;
     private final DecisionEngine decisionEngine;
     private final TaskDispatchEvidenceService evidenceService;
+    private final HumanAdministrativeWorkloadContextFactory workloadContexts;
 
     public DispatchContractTestTaskService(AgentAssignmentService assignmentService,
                                            DecisionEngine decisionEngine,
-                                           TaskDispatchEvidenceService evidenceService) {
+                                           TaskDispatchEvidenceService evidenceService,
+                                           HumanAdministrativeWorkloadContextFactory workloadContexts) {
         this.assignmentService = assignmentService;
         this.decisionEngine = decisionEngine;
         this.evidenceService = evidenceService;
+        this.workloadContexts = workloadContexts;
     }
 
     public DispatchContractTestTaskResponse createTestTask(DispatchContractTestTaskRequest raw) {
@@ -55,6 +59,7 @@ public class DispatchContractTestTaskService {
         }
 
         EventIntakeRequest event = testEvent(request, tenantId, sourceSystem, taskType, agentId, capabilities);
+        event.attachServerWorkloadContext(workloadContexts.capture(tenantId, sourceSystem, "/api/admin/dispatch-contracts/test-task", "TEST", true));
         EventIntakeDecisionResponse intake = decisionEngine.ingest(event);
 
         TaskDispatchEvidenceView evidence = null;
@@ -175,6 +180,8 @@ public class DispatchContractTestTaskService {
         diagnostics.put("readinessBefore", before == null ? null : before.getStatus());
         diagnostics.put("readinessAfter", after == null ? null : after.getStatus());
         diagnostics.put("bootstrapApplied", bootstrap != null);
+        diagnostics.put("workloadPurpose", "TEST");
+        diagnostics.put("synthetic", true);
         return diagnostics;
     }
 

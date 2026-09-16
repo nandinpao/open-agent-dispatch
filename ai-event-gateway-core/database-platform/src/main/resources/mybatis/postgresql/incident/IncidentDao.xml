@@ -9,6 +9,8 @@
         <result property="firstSeenAt" column="first_seen_at"/><result property="lastSeenAt" column="last_seen_at"/><result property="occurrenceCount" column="occurrence_count"/>
         <result property="lastMessage" column="last_message"/><result property="linkedTaskId" column="linked_task_id"/><result property="linkedIssueId" column="linked_issue_id"/>
         <result property="resolvedAt" column="resolved_at"/><result property="reopenedAt" column="reopened_at"/><result property="reopenCount" column="reopen_count"/><result property="lifecycleReason" column="lifecycle_reason"/>
+        <result property="ownerDepartmentId" column="owner_department_id"/><result property="ownerGroupId" column="owner_group_id"/><result property="scopeStatus" column="scope_status"/>
+        <result property="scopeSourceVersion" column="scope_source_version"/><result property="scopeInheritedAt" column="scope_inherited_at"/>
     </resultMap>
     <sql id="IncidentColumns">incident_id, fingerprint, tenant_id, source_system, site_id, plant_id, object_type, object_id, event_type, error_code, severity, status, first_seen_at, last_seen_at, occurrence_count, last_message, linked_task_id, linked_issue_id, resolved_at, reopened_at, reopen_count, lifecycle_reason</sql>
     <insert id="upsert">

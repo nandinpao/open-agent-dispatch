@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.integration.issue.webhook;
+import static org.assertj.core.api.Assertions.assertThat; import java.time.Instant; import org.junit.jupiter.api.Test;
+class ProviderWebhookRateLimiterTest {@Test void enforcesEndpointWindowAndResetsNextMinute(){var limiter=new ProviderWebhookRateLimiter();var now=Instant.ofEpochSecond(120);assertThat(limiter.tryAcquire("endpoint",2,now)).isTrue();assertThat(limiter.tryAcquire("endpoint",2,now)).isTrue();assertThat(limiter.tryAcquire("endpoint",2,now)).isFalse();assertThat(limiter.tryAcquire("endpoint",2,now.plusSeconds(60))).isTrue();}}

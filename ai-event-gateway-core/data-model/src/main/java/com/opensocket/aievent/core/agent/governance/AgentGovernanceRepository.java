@@ -11,6 +11,7 @@ public interface AgentGovernanceRepository {
     List<AgentEnrollmentRequest> searchEnrollments(AgentEnrollmentStatus status, int limit);
 
     AgentProfile saveProfile(AgentProfile profile);
+    AgentProfile bumpPolicyVersion(String agentId, String tenantId, int expectedPolicyVersion, OffsetDateTime updatedAt);
     Optional<AgentProfile> findProfile(String agentId);
     List<AgentProfile> searchProfiles(AgentApprovalStatus approvalStatus, int limit);
 

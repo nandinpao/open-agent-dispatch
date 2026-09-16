@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.iam.authentication.domain;
+final class Text{private Text(){}static String required(String value,String field,int max){if(value==null||value.isBlank())throw new IllegalArgumentException(field+" is required");String v=value.trim();if(v.length()>max)throw new IllegalArgumentException(field+" exceeds "+max);return v;}static String optional(String value,int max){if(value==null)return "";String v=value.trim();if(v.length()>max)throw new IllegalArgumentException("value exceeds "+max);return v;}}

@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import com.opensocket.aievent.database.persistence.spi.DatabaseRepositoryAdapter;
-import com.opensocket.aievent.core.assignment.AssignmentStatus;
+
 import com.opensocket.aievent.core.assignment.TaskAssignment;
 import com.opensocket.aievent.core.assignment.TaskAssignmentRepository;
 import com.opensocket.aievent.database.persistence.task.dao.TaskAssignmentDao;
-import com.opensocket.aievent.database.persistence.task.po.TaskAssignmentPo;
+
 import com.opensocket.aievent.database.persistence.task.converter.TaskAssignmentPersistenceConverter;
 
 
@@ -29,6 +29,7 @@ public class MybatisTaskAssignmentRepository implements TaskAssignmentRepository
     public Optional<TaskAssignment> findById(String id){return Optional.ofNullable(dao.findById(id)).map(converter::toDomain);}
 
     public Optional<TaskAssignment> findOpenByTaskId(String taskId){return Optional.ofNullable(dao.findOpenByTaskId(taskId)).map(converter::toDomain);}
+    public Optional<TaskAssignment> findOpenByTenantAndTaskId(String tenantId,String taskId){return Optional.ofNullable(dao.findOpenByTenantAndTaskId(tenantId,taskId)).map(converter::toDomain);}
 
     public boolean releaseCapacityReservation(String id,OffsetDateTime at){return dao.releaseCapacityReservation(id,at)==1;}
 

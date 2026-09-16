@@ -7,9 +7,9 @@ import org.springframework.dao.DuplicateKeyException;
 import com.opensocket.aievent.database.persistence.spi.DatabaseRepositoryAdapter;
 import com.opensocket.aievent.core.callback.TaskCallbackRecord;
 import com.opensocket.aievent.core.callback.TaskCallbackRepository;
-import com.opensocket.aievent.core.callback.TaskCallbackType;
+
 import com.opensocket.aievent.database.persistence.execution.dao.TaskCallbackDao;
-import com.opensocket.aievent.database.persistence.execution.po.TaskCallbackPo;
+
 import com.opensocket.aievent.database.persistence.execution.converter.TaskCallbackPersistenceConverter;
 
 

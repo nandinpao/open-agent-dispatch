@@ -24,6 +24,10 @@ public interface AgentAssignmentRepository {
     Optional<AgentCapabilityCatalog> findCapabilityByCode(String tenantId, String capabilityCode);
     List<AgentCapabilityCatalog> searchCapabilities(String tenantId, String status, String taskDefinitionId, int limit);
 
+    /** Canonical Capability Definition projection. This is the admin/runtime WHAT authority. */
+    Optional<AgentCapabilityCatalog> findCanonicalCapabilityByCode(String tenantId, String capabilityCode);
+    List<AgentCapabilityCatalog> searchCanonicalCapabilities(String tenantId, String status, int limit);
+
     AssignmentProfileCapabilityBinding saveCapabilityBinding(AssignmentProfileCapabilityBinding binding);
     Optional<AssignmentProfileCapabilityBinding> findCapabilityBinding(String tenantId, String profileCode, String capabilityCode);
     List<AssignmentProfileCapabilityBinding> findCapabilityBindings(String tenantId, String profileCode, Boolean active);

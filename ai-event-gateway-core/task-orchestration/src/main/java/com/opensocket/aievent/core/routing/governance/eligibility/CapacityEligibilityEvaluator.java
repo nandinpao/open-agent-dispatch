@@ -3,8 +3,8 @@ package com.opensocket.aievent.core.routing.governance.eligibility;
 import org.springframework.stereotype.Component;
 
 import com.opensocket.aievent.core.agent.AgentSnapshot;
-import com.opensocket.aievent.core.routing.governance.eligibility.AgentEligibilityShadowCheck;
-import com.opensocket.aievent.core.routing.governance.eligibility.EligibilityShadowCheckOutcome;
+
+
 
 @Component
 public class CapacityEligibilityEvaluator implements DispatchEligibilityShadowEvaluator {

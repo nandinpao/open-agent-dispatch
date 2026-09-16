@@ -10,6 +10,7 @@ public class DispatchFlowRuleView {
     private String flowId;
     private String ruleCode;
     private String ruleName;
+    private String serviceCode;
     private String ruleScope;
     private String eventStage;
     private String sourceSystem;
@@ -32,6 +33,8 @@ public class DispatchFlowRuleView {
     private Integer requirementModelVersion = 10;
     private String handoffMode;
     private String issuePolicyId;
+    private String issueSyncPolicy;
+    private transient boolean issueSyncPolicyProvided;
     private Integer priority = 100;
     private Boolean enabled = Boolean.FALSE;
     private String legacyStatus = "LEGACY_READONLY";
@@ -47,6 +50,8 @@ public class DispatchFlowRuleView {
     public void setRuleCode(String ruleCode) { this.ruleCode = ruleCode; }
     public String getRuleName() { return ruleName; }
     public void setRuleName(String ruleName) { this.ruleName = ruleName; }
+    public String getServiceCode() { return serviceCode; }
+    public void setServiceCode(String serviceCode) { this.serviceCode = serviceCode; }
     public String getRuleScope() { return ruleScope; }
     public void setRuleScope(String ruleScope) { this.ruleScope = ruleScope; }
     public String getEventStage() { return eventStage; }
@@ -91,6 +96,10 @@ public class DispatchFlowRuleView {
     public void setHandoffMode(String handoffMode) { this.handoffMode = handoffMode; }
     public String getIssuePolicyId() { return issuePolicyId; }
     public void setIssuePolicyId(String issuePolicyId) { this.issuePolicyId = issuePolicyId; }
+    public String getIssueSyncPolicy() { return issueSyncPolicy; }
+    public void setIssueSyncPolicy(String issueSyncPolicy) { this.issueSyncPolicy = issueSyncPolicy; this.issueSyncPolicyProvided = true; }
+    /** Evidence-only: true only when the Rule policy setter was explicitly invoked by input/mutation code. */
+    public boolean issueSyncPolicyWasProvided() { return issueSyncPolicyProvided; }
     public Integer getPriority() { return priority; }
     public void setPriority(Integer priority) { this.priority = priority; }
     public Boolean getEnabled() { return enabled; }

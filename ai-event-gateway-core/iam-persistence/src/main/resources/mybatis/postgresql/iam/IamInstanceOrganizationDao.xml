@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.core.iam.persistence.dao.IamInstanceOrganizationDao">
+  <select id="initializeTenantTransactionContext" resultType="string">select set_config('app.current_tenant_id',#{tenantId},true) || ':' || set_config('app.current_actor_id',#{actorId},true)</select>
+  <sql id="TenantColumns">tenant_id as "tenantId",tenant_code as "tenantCode",display_name as "tenantName",legal_name as "legalName",status,default_timezone as "defaultTimezone",default_locale as "defaultLocale",data_region as "dataRegion",created_at as "createdAt",updated_at as "updatedAt",updated_by as "updatedBy",version</sql>
+  <select id="findTenant" resultType="map">select <include refid="TenantColumns"/> from tenants where tenant_id=#{tenantId}</select>
+  <select id="countTenantByCode" resultType="int">select count(*) from tenants where lower(tenant_code)=lower(#{code})</select>
+  <insert id="insertTenant">insert into tenants(tenant_id,tenant_code,display_name,legal_name,status,default_timezone,default_locale,data_region,metadata_json,created_at,updated_at,updated_by,version)
+    values(#{row.tenantId},#{row.tenantCode},#{row.tenantName},#{row.legalName},#{row.status},#{row.defaultTimezone},#{row.defaultLocale},#{row.dataRegion},'{}'::jsonb,#{row.createdAt},#{row.updatedAt},#{row.updatedBy},#{row.version})</insert>
+  <update id="updateTenant">update tenants set display_name=#{row.tenantName},legal_name=#{row.legalName},status=#{row.status},default_timezone=#{row.defaultTimezone},default_locale=#{row.defaultLocale},data_region=#{row.dataRegion},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=#{row.version}
+    where tenant_id=#{row.tenantId} and version=#{expectedVersion}</update>
+</mapper>

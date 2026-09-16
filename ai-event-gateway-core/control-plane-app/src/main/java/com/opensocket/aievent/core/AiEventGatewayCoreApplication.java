@@ -28,6 +28,7 @@ import com.opensocket.aievent.core.security.CoreInternalSecurityProperties;
 import com.opensocket.aievent.core.identity.AdminIdentityProperties;
 import com.opensocket.aievent.core.runtime.RuntimeDisconnectProperties;
 import com.opensocket.aievent.core.config.RecoveryGovernanceProperties;
+import com.opensocket.aievent.database.config.DatabasePlatformApplicationFailureCleanupListener;
 
 @SpringBootApplication(excludeName = {
     "org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration",
@@ -38,6 +39,8 @@ import com.opensocket.aievent.core.config.RecoveryGovernanceProperties;
 @EnableConfigurationProperties({CoreDecisionProperties.class, CoreDeploymentProperties.class, EventDedupRedisProperties.class, IncidentSummaryProperties.class, RoutingProperties.class, DispatchProperties.class, TaskCallbackProperties.class, AdapterActionProperties.class, AdapterActionExecutionProperties.class, FingerprintPolicyProperties.class, LifecycleProperties.class, ObservabilityProperties.class, EventProcessingProperties.class, IncidentModuleProperties.class, TaskOrchestrationProperties.class, TaskDispatchRecoveryProperties.class, OutboxProperties.class, IntegrationEventProperties.class, CoreInternalSecurityProperties.class, AdminIdentityProperties.class, RuntimeDisconnectProperties.class, RecoveryGovernanceProperties.class})
 public class AiEventGatewayCoreApplication {
     public static void main(String[] args) {
-        SpringApplication.run(AiEventGatewayCoreApplication.class, args);
+        SpringApplication application = new SpringApplication(AiEventGatewayCoreApplication.class);
+        application.addListeners(new DatabasePlatformApplicationFailureCleanupListener());
+        application.run(args);
     }
 }

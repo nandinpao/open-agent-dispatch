@@ -1,0 +1,5 @@
+com.opensocket.aievent.core.iam.persistence.config.IamPersistenceAutoConfiguration
+com.opensocket.aievent.core.iam.persistence.config.IamApplicationServiceConfiguration
+com.opensocket.aievent.core.iam.persistence.config.IamAuthenticationApplicationServiceConfiguration
+com.opensocket.aievent.core.iam.persistence.config.IamRbacApplicationServiceConfiguration
+com.opensocket.aievent.core.iam.persistence.config.IamTokenApplicationServiceConfiguration

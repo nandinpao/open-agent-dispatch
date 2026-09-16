@@ -17,8 +17,9 @@ public class OpenDispatchHttpObservationConfiguration {
     }
 
     @Bean
-    public OpenDispatchRequestContextFilter openDispatchRequestContextFilter(ObservationRegistry observationRegistry) {
-        return new OpenDispatchRequestContextFilter(observationRegistry);
+    public OpenDispatchRequestContextFilter openDispatchRequestContextFilter(ObservationRegistry observationRegistry,
+            com.opensocket.aievent.core.iam.runtime.machine.TrustedClientIpResolver trustedClientIpResolver) {
+        return new OpenDispatchRequestContextFilter(observationRegistry, trustedClientIpResolver);
     }
 
     /** The filter is inserted explicitly into Spring Security after authentication. */

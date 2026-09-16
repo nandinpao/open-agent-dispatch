@@ -63,7 +63,7 @@ public class CoreInternalSecurityProperties {
         return switch (role) {
             case GATEWAY -> gatewayToken;
             case ADAPTER_WORKER -> adapterWorkerToken;
-            case EVENT_INGESTION -> !eventIntakeToken.isBlank() ? eventIntakeToken : operatorToken;
+            case EVENT_INGESTION -> eventIntakeToken;
             case OPERATOR -> operatorToken;
             case RECOVERY_OPERATOR -> !recoveryOperatorToken.isBlank() ? recoveryOperatorToken : operatorToken;
             case RECOVERY_ADMIN -> !recoveryAdminToken.isBlank() ? recoveryAdminToken : operatorToken;

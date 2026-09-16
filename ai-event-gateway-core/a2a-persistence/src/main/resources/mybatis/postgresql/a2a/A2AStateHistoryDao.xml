@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.a2a.dao.A2AStateHistoryDao">
+  <resultMap id="Map" type="com.opensocket.aievent.database.persistence.a2a.po.A2AStateHistoryPo">
+    <id property="historyId" column="history_id"/>
+    <result property="tenantId" column="tenant_id"/>
+    <result property="requestId" column="a2a_request_id"/>
+    <result property="fromStatus" column="from_status"/>
+    <result property="fromOperationalStage" column="from_operational_stage"/>
+    <result property="toStatus" column="to_status"/>
+    <result property="toOperationalStage" column="to_operational_stage"/>
+    <result property="blockerCode" column="blocker_code"/>
+    <result property="transitionCommand" column="transition_command"/>
+    <result property="requiredPermission" column="required_permission"/>
+    <result property="evidenceType" column="evidence_type"/>
+    <result property="evidenceReference" column="evidence_reference"/>
+    <result property="domainEventCode" column="domain_event_code"/>
+    <result property="failureHandling" column="failure_handling"/>
+    <result property="timeoutPolicy" column="timeout_policy"/>
+    <result property="expectedVersion" column="expected_version"/>
+    <result property="resultingVersion" column="resulting_version"/>
+    <result property="recovery" column="recovery"/>
+    <result property="reasonCode" column="reason_code"/>
+    <result property="reason" column="reason"/>
+    <result property="actorType" column="actor_type"/>
+    <result property="actorId" column="actor_id"/>
+    <result property="correlationId" column="correlation_id"/>
+    <result property="transitionAt" column="transition_at"/>
+    <result property="requestVersion" column="request_version"/>
+    <result property="idempotencyKey" column="idempotency_key"/>
+  </resultMap>
+  <insert id="insert">
+    insert into a2a_state_history(
+      tenant_id,history_id,a2a_request_id,from_status,from_operational_stage,to_status,to_operational_stage,
+      blocker_code,transition_command,required_permission,evidence_type,evidence_reference,domain_event_code,failure_handling,
+      timeout_policy,expected_version,resulting_version,recovery,reason_code,reason,actor_type,actor_id,
+      correlation_id,transition_at,request_version,idempotency_key
+    ) values(
+      #{entry.tenantId},#{entry.historyId},#{entry.requestId},#{entry.fromStatus},#{entry.fromOperationalStage},
+      #{entry.toStatus},#{entry.toOperationalStage},#{entry.blockerCode},#{entry.transitionCommand},
+      #{entry.requiredPermission},#{entry.evidenceType},#{entry.evidenceReference},#{entry.domainEventCode},#{entry.failureHandling},
+      #{entry.timeoutPolicy},#{entry.expectedVersion},#{entry.resultingVersion},#{entry.recovery},
+      #{entry.reasonCode},#{entry.reason},#{entry.actorType},#{entry.actorId},#{entry.correlationId},
+      coalesce(#{entry.transitionAt},now()),#{entry.requestVersion},#{entry.idempotencyKey}
+    ) on conflict(tenant_id,idempotency_key) where idempotency_key is not null do nothing
+  </insert>
+  <select id="findByIdempotencyKey" resultMap="Map">select * from a2a_state_history where tenant_id=#{tenantId} and idempotency_key=#{idempotencyKey}</select>
+  <select id="findByRequest" resultMap="Map">select * from a2a_state_history where tenant_id=#{tenantId} and a2a_request_id=#{requestId} order by transition_at asc limit #{limit}</select>
+</mapper>

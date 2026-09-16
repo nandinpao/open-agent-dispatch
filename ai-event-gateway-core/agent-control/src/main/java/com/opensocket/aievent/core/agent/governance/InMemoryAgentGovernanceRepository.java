@@ -59,6 +59,18 @@ public class InMemoryAgentGovernanceRepository implements AgentGovernanceReposit
     }
 
     @Override
+    public AgentProfile bumpPolicyVersion(String agentId, String tenantId, int expectedPolicyVersion, OffsetDateTime updatedAt) {
+        AgentProfile profile = profiles.get(agentId);
+        if (profile == null || tenantId == null || !tenantId.equals(profile.getTenantId())
+                || profile.getPolicyVersion() != expectedPolicyVersion) {
+            throw new IllegalStateException("AGENT_POLICY_VERSION_CONFLICT: " + agentId);
+        }
+        profile.setPolicyVersion(expectedPolicyVersion + 1);
+        profile.setUpdatedAt(updatedAt);
+        return profile;
+    }
+
+    @Override
     public Optional<AgentProfile> findProfile(String agentId) {
         return Optional.ofNullable(profiles.get(agentId));
     }
@@ -158,7 +170,10 @@ public class InMemoryAgentGovernanceRepository implements AgentGovernanceReposit
     public List<AgentSecurityEvent> searchSecurityEvents(String agentId, int limit) {
         return securityEvents.values().stream()
                 .filter(event -> agentId == null || agentId.isBlank() || agentId.equals(event.getAgentId()) || agentId.equals(event.getClaimedAgentId()))
-                .sorted(Comparator.comparing(AgentSecurityEvent::getOccurredAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .sorted(Comparator.comparing(AgentSecurityEvent::getOccurredAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(AgentSecurityEvent::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparing(AgentSecurityEvent::getSecurityEventId, Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .reversed())
                 .limit(limit)
                 .toList();
     }

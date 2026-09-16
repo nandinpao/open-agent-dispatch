@@ -1,0 +1,3 @@
+package com.opensocket.aievent.database.persistence.a2a.dao;
+import java.util.List; import org.apache.ibatis.annotations.Mapper; import org.apache.ibatis.annotations.Param; import com.opensocket.aievent.database.persistence.a2a.po.A2AStateHistoryPo;
+@Mapper public interface A2AStateHistoryDao { int insert(@Param("entry") A2AStateHistoryPo entry); A2AStateHistoryPo findByIdempotencyKey(@Param("tenantId")String tenantId,@Param("idempotencyKey")String idempotencyKey); List<A2AStateHistoryPo> findByRequest(@Param("tenantId")String tenantId,@Param("requestId")String requestId,@Param("limit")int limit); }

@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.issuetracking.application.change;
+import com.opensocket.aievent.core.issuetracking.change.*;
+public final class UnavailableOpenDispatchCollaborationPort implements OpenDispatchCollaborationPort { public OpenDispatchCollaborationResult applyProviderComment(ProviderCommentSyncCommand c){return OpenDispatchCollaborationResult.unavailable("COMMENT_COMMAND_PORT_UNAVAILABLE");} public OpenDispatchCollaborationResult applyProviderRelation(ProviderRelationSyncCommand c){return OpenDispatchCollaborationResult.unavailable("RELATION_COMMAND_PORT_UNAVAILABLE");} public String mode(){return "UNAVAILABLE";} }

@@ -80,6 +80,7 @@ class HttpGatewayDispatchClientContractTest {
             assertThat(payload).containsEntry("ownerGatewayNodeId", "gateway-node-001");
             assertThat(payload).containsEntry("dispatchToken", "dispatch-token-1");
             assertThat(payload).containsEntry("fencingToken", "fence-1");
+            assertThat(payload).containsEntry("correlationId", "corr-task-1");
         } finally {
             server.stop(0);
         }
@@ -164,6 +165,7 @@ class HttpGatewayDispatchClientContractTest {
         command.setAttemptNo(1);
         command.setTaskType("INCIDENT_RESPONSE");
         command.setFencingToken("fence-1");
+        command.setCorrelationId("corr-task-1");
         command.setInput(Map.of("incidentId", "incident-1"));
 
         DispatchRequest request = new DispatchRequest();

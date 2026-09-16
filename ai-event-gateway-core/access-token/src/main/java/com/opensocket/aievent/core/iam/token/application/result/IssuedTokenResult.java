@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.token.application.result;import com.opensocket.aievent.core.iam.token.domain.*;import java.time.Instant;public record IssuedTokenResult(String tokenId,String token,AccessTokenType type,String prefix,String last4,Instant expiresAt,TokenScope effectiveScope){}

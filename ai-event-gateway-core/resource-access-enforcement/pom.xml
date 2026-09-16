@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.opensocket</groupId><artifactId>control-plane-parent</artifactId><version>0.8.2-SNAPSHOT</version><relativePath>../pom.xml</relativePath></parent>
+  <artifactId>resource-access-enforcement</artifactId>
+  <name>resource-access-enforcement</name>
+  <description>Spring method, REST and query enforcement adapter baseline; disabled by default.</description>
+  <dependencies>
+    <dependency><groupId>com.opensocket</groupId><artifactId>resource-access-contracts</artifactId></dependency>
+    <dependency><groupId>com.opensocket</groupId><artifactId>resource-access-core</artifactId></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-context</artifactId></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-web</artifactId></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-autoconfigure</artifactId></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-tx</artifactId></dependency>
+    <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-core</artifactId></dependency>
+    <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-config</artifactId></dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-resource-access-enforcement-boundary</id>
+            <goals><goal>enforce</goal></goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <searchTransitive>false</searchTransitive>
+                  <excludes>
+                                            <exclude>org.mybatis:*</exclude>
+                                            <exclude>com.opensocket:resource-access-persistence</exclude>
+                                            <exclude>com.opensocket:task-orchestration</exclude>
+                                            <exclude>com.opensocket:a2a-persistence</exclude>
+                                            <exclude>com.opensocket:issue-tracking-application</exclude>
+                  </excludes>
+                  <message>P4RA-A module boundary violation in resource-access-enforcement.</message>
+                </bannedDependencies>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

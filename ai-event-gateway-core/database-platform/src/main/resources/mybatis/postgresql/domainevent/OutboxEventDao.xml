@@ -4,12 +4,15 @@
   <resultMap id="OutboxEventPoMap" type="com.opensocket.aievent.database.persistence.domainevent.po.OutboxEventPo">
     <id property="outboxId" column="outbox_id"/><result property="eventId" column="event_id"/><result property="eventType" column="event_type"/>
     <result property="aggregateType" column="aggregate_type"/><result property="aggregateId" column="aggregate_id"/><result property="payloadJson" column="payload_json"/>
+    <result property="payloadVersion" column="payload_version"/><result property="tenantId" column="tenant_id"/><result property="rootTaskId" column="root_task_id"/><result property="taskId" column="task_id"/>
+    <result property="correlationId" column="correlation_id"/><result property="causationId" column="causation_id"/><result property="traceId" column="trace_id"/><result property="spanId" column="span_id"/>
+    <result property="actorType" column="actor_type"/><result property="actorId" column="actor_id"/><result property="lineageStatus" column="lineage_status"/>
     <result property="status" column="status"/><result property="attemptCount" column="attempt_count"/><result property="nextAttemptAt" column="next_attempt_at"/>
     <result property="lastError" column="last_error"/><result property="claimedBy" column="claimed_by"/><result property="claimUntil" column="claim_until"/>
     <result property="createdAt" column="created_at"/><result property="publishedAt" column="published_at"/><result property="updatedAt" column="updated_at"/>
   </resultMap>
-  <sql id="Columns">outbox_id,event_id,event_type,aggregate_type,aggregate_id,payload_json,status,attempt_count,next_attempt_at,last_error,claimed_by,claim_until,created_at,published_at,updated_at</sql>
-  <insert id="insertIgnore">insert into module_outbox_events(<include refid="Columns"/>) values(#{event.outboxId},#{event.eventId},#{event.eventType},#{event.aggregateType},#{event.aggregateId},coalesce(cast(#{event.payloadJson} as jsonb), '{}'::jsonb),#{event.status},#{event.attemptCount},#{event.nextAttemptAt},#{event.lastError},#{event.claimedBy},#{event.claimUntil},#{event.createdAt},#{event.publishedAt},#{event.updatedAt}) on conflict(event_id) do nothing</insert>
+  <sql id="Columns">outbox_id,event_id,event_type,aggregate_type,aggregate_id,payload_json,payload_version,tenant_id,root_task_id,task_id,correlation_id,causation_id,trace_id,span_id,actor_type,actor_id,lineage_status,status,attempt_count,next_attempt_at,last_error,claimed_by,claim_until,created_at,published_at,updated_at</sql>
+  <insert id="insertIgnore">insert into module_outbox_events(<include refid="Columns"/>) values(#{event.outboxId},#{event.eventId},#{event.eventType},#{event.aggregateType},#{event.aggregateId},coalesce(cast(#{event.payloadJson} as jsonb), '{}'::jsonb),#{event.payloadVersion},#{event.tenantId},#{event.rootTaskId},#{event.taskId},#{event.correlationId},#{event.causationId},#{event.traceId},#{event.spanId},#{event.actorType},#{event.actorId},#{event.lineageStatus},#{event.status},#{event.attemptCount},#{event.nextAttemptAt},#{event.lastError},#{event.claimedBy},#{event.claimUntil},#{event.createdAt},#{event.publishedAt},#{event.updatedAt}) on conflict(event_id) do nothing</insert>
   <select id="findById" resultMap="OutboxEventPoMap">select <include refid="Columns"/> from module_outbox_events where outbox_id=#{outboxId}</select>
   <select id="findByEventId" resultMap="OutboxEventPoMap">select <include refid="Columns"/> from module_outbox_events where event_id=#{eventId}</select>
   <select id="claimDispatchable" resultMap="OutboxEventPoMap">

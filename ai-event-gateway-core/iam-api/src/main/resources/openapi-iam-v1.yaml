@@ -1,0 +1,4047 @@
+openapi: 3.1.0
+x-opendispatch-foundation: r6-canonical-iam
+x-opendispatch-current-phase: r6
+info:
+  title: OpenDispatch IAM API
+  version: 0.8.2-SNAPSHOT-r6
+  description: Canonical OpenDispatch IAM and Access Management API. One browser session,
+    one authorization engine, no Legacy or migration administration endpoints.
+servers:
+- url: /
+tags:
+- name: Bootstrap
+- name: Authentication
+- name: Access Management
+- name: Platform Governance
+- name: Security
+- name: Audit
+paths:
+  /api/admin/access/platform/permission-catalog/active:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_active_get
+      summary: IamPermissionCatalogController.active
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/publications:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_publications_get
+      summary: IamPermissionCatalogController.publications
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_revisions_get
+      summary: IamPermissionCatalogController.revisions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_createDraft_post
+      summary: IamPermissionCatalogController.createDraft
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions/{revisionId}:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_revision_get
+      summary: IamPermissionCatalogController.revision
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions/{revisionId}/aliases:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_aliases_get
+      summary: IamPermissionCatalogController.aliases
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_createAlias_post
+      summary: IamPermissionCatalogController.createAlias
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions/{revisionId}/aliases/{aliasCode}:
+    delete:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_deleteAlias_delete
+      summary: IamPermissionCatalogController.deleteAlias
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_updateAlias_put
+      summary: IamPermissionCatalogController.updateAlias
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions/{revisionId}/diff:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_diff_get
+      summary: IamPermissionCatalogController.diff
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions/{revisionId}/entries:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_entries_get
+      summary: IamPermissionCatalogController.entries
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_createEntry_post
+      summary: IamPermissionCatalogController.createEntry
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions/{revisionId}/entries/{permissionCode}:
+    delete:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_deleteEntry_delete
+      summary: IamPermissionCatalogController.deleteEntry
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_updateEntry_put
+      summary: IamPermissionCatalogController.updateEntry
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions/{revisionId}/publish:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_publish_post
+      summary: IamPermissionCatalogController.publish
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-catalog/revisions/{revisionId}/validation:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPermissionCatalogController_validation_get
+      summary: IamPermissionCatalogController.validation
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/bypasses:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_bypasses_get
+      summary: IamEntryPointAuthorityController.bypasses
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_createBypass_post
+      summary: IamEntryPointAuthorityController.createBypass
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/bypasses/{bypassId}/revoke:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_revokeBypass_post
+      summary: IamEntryPointAuthorityController.revokeBypass
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/coverage-evidence:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_coverageEvidence_get
+      summary: IamEntryPointAuthorityController.coverageEvidence
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/domain-readiness:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_domainReadiness_get
+      summary: IamEntryPointAuthorityController.domainReadiness
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/domain-readiness/evaluate:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_evaluateDomainReadiness_post
+      summary: IamEntryPointAuthorityController.evaluateDomainReadiness
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/entry-points:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_entries_get
+      summary: IamEntryPointAuthorityController.entries
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/entry-points/{entryPointId}:
+    put:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_updateEntry_put
+      summary: IamEntryPointAuthorityController.updateEntry
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/legacy-mappings:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_mappings_get
+      summary: IamEntryPointAuthorityController.mappings
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/legacy-mappings/{mappingId}:
+    put:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_updateMapping_put
+      summary: IamEntryPointAuthorityController.updateMapping
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/manifests:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_manifests_get
+      summary: IamEntryPointAuthorityController.manifests
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_registerManifest_post
+      summary: IamEntryPointAuthorityController.registerManifest
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/manifests/{manifestId}:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_manifest_get
+      summary: IamEntryPointAuthorityController.manifest
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/manifests/{manifestId}/drift:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_manifestDrift_get
+      summary: IamEntryPointAuthorityController.manifestDrift
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/manifests/{manifestId}/entries:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_manifestEntries_get
+      summary: IamEntryPointAuthorityController.manifestEntries
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/mismatch-cases:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_mismatchCases_get
+      summary: IamEntryPointAuthorityController.mismatchCases
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_createMismatchCase_post
+      summary: IamEntryPointAuthorityController.createMismatchCase
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/mismatch-cases/{caseId}:
+    put:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_updateMismatchCase_put
+      summary: IamEntryPointAuthorityController.updateMismatchCase
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/mismatch-cases/{caseId}/regressions:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_addRegressionEvidence_post
+      summary: IamEntryPointAuthorityController.addRegressionEvidence
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/mismatch-cases/{caseId}/waivers:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_createMismatchWaiver_post
+      summary: IamEntryPointAuthorityController.createMismatchWaiver
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/phase6-eligibility:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_phase6Eligibility_get
+      summary: IamEntryPointAuthorityController.phase6Eligibility
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/phase6-eligibility/evaluate:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_evaluatePhase6Eligibility_post
+      summary: IamEntryPointAuthorityController.evaluatePhase6Eligibility
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/runtime-certification:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_phase5RuntimeCertificationEvidence_get
+      summary: IamEntryPointAuthorityController.phase5RuntimeCertificationEvidence
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_generatePhase5RuntimeCertificationEvidence_post
+      summary: IamEntryPointAuthorityController.generatePhase5RuntimeCertificationEvidence
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/shadow/observations:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_shadowObservations_get
+      summary: IamEntryPointAuthorityController.shadowObservations
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/shadow/pipeline:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_shadowPipelineReadiness_get
+      summary: IamEntryPointAuthorityController.shadowPipelineReadiness
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/shadow/pipeline/process:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_processShadowPipeline_post
+      summary: IamEntryPointAuthorityController.processShadowPipeline
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/shadow/retention-runs:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_shadowRetentionRuns_get
+      summary: IamEntryPointAuthorityController.shadowRetentionRuns
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/shadow/storage:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_shadowStorageReadiness_get
+      summary: IamEntryPointAuthorityController.shadowStorageReadiness
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/shadow/storage/retention:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_runShadowRetention_post
+      summary: IamEntryPointAuthorityController.runShadowRetention
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/shadow/summary:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_shadowSummary_get
+      summary: IamEntryPointAuthorityController.shadowSummary
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permission-readiness/summary:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamEntryPointAuthorityController_summary_get
+      summary: IamEntryPointAuthorityController.summary
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/permissions:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_permissions_get
+      summary: IamPlatformRoleController.permissions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/role-bindings:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_bindings_get
+      summary: IamPlatformRoleController.bindings
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_bind_post
+      summary: IamPlatformRoleController.bind
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/role-bindings/{bindingId}/revoke:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_revoke_post
+      summary: IamPlatformRoleController.revoke
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/roles:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_roles_get
+      summary: IamPlatformRoleController.roles
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_create_post
+      summary: IamPlatformRoleController.create
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/roles/{roleId}:
+    put:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_update_put
+      summary: IamPlatformRoleController.update
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/roles/{roleId}/permissions:
+    get:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_rolePermissions_get
+      summary: IamPlatformRoleController.rolePermissions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_replacePermissions_put
+      summary: IamPlatformRoleController.replacePermissions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/platform/roles/{roleId}/permissions/hardening-preview:
+    post:
+      tags: [Platform Governance]
+      operationId: IamPlatformRoleController_previewRolePermissionHardening_post
+      summary: Preview Instance Role Permission hardening boundaries
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: R7 hardening preview}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/platform/roles/{roleId}/permissions/approval-requests:
+    post:
+      tags: [Platform Governance]
+      operationId: IamPlatformRoleController_requestRolePermissionApproval_post
+      summary: Request two-person approval for a critical Instance Role Permission change
+      security: [{sessionCookie: []}]
+      responses:
+        '201': {description: Critical approval request created}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/platform/role-bindings/hardening-preview:
+    post:
+      tags: [Platform Governance]
+      operationId: IamPlatformRoleController_previewRoleBindingHardening_post
+      summary: Preview Instance Role Binding hardening boundaries
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: R7 hardening preview}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/platform/role-bindings/approval-requests:
+    post:
+      tags: [Platform Governance]
+      operationId: IamPlatformRoleController_requestRoleBindingApproval_post
+      summary: Request two-person approval for a critical Instance Role Binding
+      security: [{sessionCookie: []}]
+      responses:
+        '201': {description: Critical approval request created}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/platform/rbac-approvals:
+    get:
+      tags: [Platform Governance]
+      operationId: IamPlatformRoleController_rbacApprovals_get
+      summary: List Instance critical RBAC approval requests
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Approval requests}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/platform/rbac-approvals/{approvalId}:
+    get:
+      tags: [Platform Governance]
+      operationId: IamPlatformRoleController_rbacApproval_get
+      summary: Read one Instance critical RBAC approval
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Approval request}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/platform/rbac-approvals/{approvalId}/approve:
+    post:
+      tags: [Platform Governance]
+      operationId: IamPlatformRoleController_approveRbacChange_post
+      summary: Approve another principal's critical Instance RBAC change
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Approval accepted}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/platform/rbac-approvals/{approvalId}/reject:
+    post:
+      tags: [Platform Governance]
+      operationId: IamPlatformRoleController_rejectRbacChange_post
+      summary: Reject another principal's critical Instance RBAC change
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Approval rejected}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/platform/roles/{roleId}/status:
+    post:
+      tags:
+      - Platform Governance
+      operationId: IamPlatformRoleController_status_post
+      summary: IamPlatformRoleController.status
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/policies/:
+    get:
+      tags:
+      - Security
+      operationId: IamSecurityPolicyController_read_get
+      summary: IamSecurityPolicyController.read
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/policies/mfa:
+    put:
+      tags:
+      - Security
+      operationId: IamSecurityPolicyController_mfa_put
+      summary: IamSecurityPolicyController.mfa
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/policies/password:
+    put:
+      tags:
+      - Security
+      operationId: IamSecurityPolicyController_password_put
+      summary: IamSecurityPolicyController.password
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/policies/session:
+    put:
+      tags:
+      - Security
+      operationId: IamSecurityPolicyController_session_put
+      summary: IamSecurityPolicyController.session
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/policies/token:
+    put:
+      tags:
+      - Security
+      operationId: IamSecurityPolicyController_token_put
+      summary: IamSecurityPolicyController.token
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/service-accounts:
+    get:
+      tags:
+      - Security
+      operationId: IamTokenController_accounts_get
+      summary: IamTokenController.accounts
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Security
+      operationId: IamTokenController_createAccount_post
+      summary: IamTokenController.createAccount
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/service-accounts/{id}/tokens:
+    post:
+      tags:
+      - Security
+      operationId: IamTokenController_service_post
+      summary: IamTokenController.service
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/tokens:
+    get:
+      tags:
+      - Security
+      operationId: IamTokenController_tokens_get
+      summary: IamTokenController.tokens
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/tokens/personal:
+    post:
+      tags:
+      - Security
+      operationId: IamTokenController_personal_post
+      summary: IamTokenController.personal
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/tokens/{id}/revoke:
+    post:
+      tags:
+      - Security
+      operationId: IamTokenController_revoke_post
+      summary: IamTokenController.revoke
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/tokens/{id}/rotate:
+    post:
+      tags:
+      - Security
+      operationId: IamTokenController_rotate_post
+      summary: IamTokenController.rotate
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_tenants_get
+      summary: UnifiedAccessManagementController.tenants
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_createTenant_post
+      summary: UnifiedAccessManagementController.createTenant
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_tenant_get
+      summary: UnifiedAccessManagementController.tenant
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/audit:
+    get:
+      tags:
+      - Audit
+      operationId: UnifiedAccessManagementController_audit_get
+      summary: UnifiedAccessManagementController.audit
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/available-users:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_availableTenantUsers_get
+      summary: UnifiedAccessManagementController.availableTenantUsers
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/department-memberships/{membershipId}:
+    delete:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_removeDepartmentMembership_delete
+      summary: UnifiedAccessManagementController.removeDepartmentMembership
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_updateDepartmentMembership_put
+      summary: UnifiedAccessManagementController.updateDepartmentMembership
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/departments:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_departments_get
+      summary: UnifiedAccessManagementController.departments
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_createDepartment_post
+      summary: UnifiedAccessManagementController.createDepartment
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/departments/{departmentId}:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_department_get
+      summary: UnifiedAccessManagementController.department
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_updateDepartment_put
+      summary: UnifiedAccessManagementController.updateDepartment
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/departments/{departmentId}/retirement-preview:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_departmentRetirementPreview_get
+      summary: Preview Department retirement impact and unresolved governed-resource blockers
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Department retirement impact preview
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/departments/{departmentId}/move:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_moveDepartment_post
+      summary: UnifiedAccessManagementController.moveDepartment
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/departments/{departmentId}/official-manager:
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_assignOfficialDepartmentManager_put
+      summary: UnifiedAccessManagementController.assignOfficialDepartmentManager
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/departments/{departmentId}/status:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_changeDepartmentStatus_post
+      summary: UnifiedAccessManagementController.changeDepartmentStatus
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/group-memberships/{membershipId}:
+    delete:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_removeGroupMembership_delete
+      summary: UnifiedAccessManagementController.removeGroupMembership
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_updateGroupMembership_put
+      summary: UnifiedAccessManagementController.updateGroupMembership
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/groups:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_groups_get
+      summary: UnifiedAccessManagementController.groups
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_createGroup_post
+      summary: UnifiedAccessManagementController.createGroup
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/groups/{groupId}:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_group_get
+      summary: UnifiedAccessManagementController.group
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_updateGroup_put
+      summary: UnifiedAccessManagementController.updateGroup
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/groups/{groupId}/retirement-preview:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_groupRetirementPreview_get
+      summary: Preview Group retirement impact and unresolved governed-resource blockers
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Group retirement impact preview
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/groups/{groupId}/status:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_changeGroupStatus_post
+      summary: UnifiedAccessManagementController.changeGroupStatus
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/memberships:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_createTenantMembership_post
+      summary: UnifiedAccessManagementController.createTenantMembership
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/memberships/{membershipId}:
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_updateTenantMembership_put
+      summary: UnifiedAccessManagementController.updateTenantMembership
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/memberships/{membershipId}/status:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_changeTenantMembershipStatus_post
+      summary: UnifiedAccessManagementController.changeTenantMembershipStatus
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/permissions:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_permissions_get
+      summary: UnifiedAccessManagementController.permissions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/responsibility-templates:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_responsibilityTemplates_get
+      summary: List business-facing Responsibility Templates with usage and risk metadata
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string}}
+      - {name: page, in: query, schema: {type: integer, default: 0}}
+      - {name: size, in: query, schema: {type: integer, default: 20}}
+      - {name: text, in: query, schema: {type: string}}
+      - {name: status, in: query, schema: {type: string, default: ACTIVE}}
+      - {name: riskLevel, in: query, schema: {type: string}}
+      - {name: scopeType, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Responsibility Template page}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/access-assignments:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_accessAssignments_get
+      summary: Search the human-readable access assignment directory
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string}}
+      - {name: text, in: query, schema: {type: string}}
+      - {name: status, in: query, schema: {type: string}}
+      - {name: principalType, in: query, schema: {type: string}}
+      - {name: scopeType, in: query, schema: {type: string}}
+      - {name: lifecycle, in: query, schema: {type: string}}
+      - {name: limit, in: query, schema: {type: integer, default: 20}}
+      - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Access assignment cursor page}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/access-lifecycle-summary:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_accessLifecycleSummary_get
+      summary: Read Tenant access lifecycle and review counters
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Access lifecycle summary}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/access-review-candidates:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_accessReviewCandidates_get
+      summary: List assignments requiring access review
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string}}
+      - {name: reason, in: query, schema: {type: string}}
+      - {name: riskLevel, in: query, schema: {type: string}}
+      - {name: limit, in: query, schema: {type: integer, default: 20}}
+      - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Access review candidate cursor page}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/role-bindings:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_roleBindings_get
+      summary: UnifiedAccessManagementController.roleBindings
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_bindRole_post
+      summary: UnifiedAccessManagementController.bindRole
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/role-bindings/hardening-preview:
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_previewRoleBindingHardening_post
+      summary: Preview grant-above-actor, self-binding, Effective SoD and critical approval requirements
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: R7 hardening preview}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/role-bindings/approval-requests:
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_requestRoleBindingApproval_post
+      summary: Request two-person approval for a critical Role Binding
+      security: [{sessionCookie: []}]
+      responses:
+        '201': {description: Critical approval request created}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/role-bindings/preview:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_previewRoleBinding_post
+      summary: UnifiedAccessManagementController.previewRoleBinding
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/role-bindings/{bindingId}/revocation-preview:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_previewRoleBindingRevocation_get
+      summary: UnifiedAccessManagementController.previewRoleBindingRevocation
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/role-bindings/{bindingId}/revoke:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_revokeRoleBinding_post
+      summary: UnifiedAccessManagementController.revokeRoleBinding
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/members:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_tenantMembers_get
+      summary: List Tenant memberships from the Tenant workspace
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Tenant membership cursor page}
+        default: {$ref: '#/components/responses/IamError'}
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_addTenantMember_post
+      summary: Add a person to the Tenant from the Tenant workspace
+      security: [{sessionCookie: []}]
+      responses:
+        '201': {description: Tenant membership created}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/departments/{departmentId}/members:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_departmentMembers_get
+      summary: List people in a Department
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Department membership cursor page}
+        default: {$ref: '#/components/responses/IamError'}
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_addDepartmentMember_post
+      summary: Add a Tenant member to a Department
+      security: [{sessionCookie: []}]
+      responses:
+        '201': {description: Department membership created}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/departments/{departmentId}/eligible-managers:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_eligibleDepartmentManagers_get
+      summary: List active Department members eligible to become official Manager
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Eligible user cursor page}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/groups/{groupId}/members:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_groupMembers_get
+      summary: List people in a Group
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Group membership cursor page}
+        default: {$ref: '#/components/responses/IamError'}
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_addGroupMember_post
+      summary: Add a Tenant member to a Group
+      security: [{sessionCookie: []}]
+      responses:
+        '201': {description: Group membership created}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/roles:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_roles_get
+      summary: UnifiedAccessManagementController.roles
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_createRole_post
+      summary: UnifiedAccessManagementController.createRole
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/roles/{roleId}:
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_updateRole_put
+      summary: UnifiedAccessManagementController.updateRole
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/roles/{roleId}/permissions:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_rolePermissions_get
+      summary: UnifiedAccessManagementController.rolePermissions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_replaceRolePermissions_put
+      summary: UnifiedAccessManagementController.replaceRolePermissions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/roles/{roleId}/ui-access-preview:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_responsibilityUiAccessPreview_get
+      summary: Preview Navigator, pages and functions produced by one Responsibility
+      security: [{sessionCookie: []}]
+      responses:
+        '200':
+          description: Responsibility UI access preview
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ResponsibilityUiAccessPreviewResponse'}
+        default: {$ref: '#/components/responses/IamError'}
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_previewResponsibilityUiAccessDraft_post
+      summary: Preview UI impact of an unsaved Responsibility permission set
+      security: [{sessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreviewResponsibilityUiAccessRequest'}
+      responses:
+        '200':
+          description: Draft Responsibility UI access preview
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ResponsibilityUiAccessPreviewResponse'}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/roles/{roleId}/permissions/hardening-preview:
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_previewRolePermissionHardening_post
+      summary: Preview assignable Permission boundary and critical approval requirements
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: R7 hardening preview}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/roles/{roleId}/permissions/approval-requests:
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_requestRolePermissionApproval_post
+      summary: Request two-person approval for a critical Permission Matrix change
+      security: [{sessionCookie: []}]
+      responses:
+        '201': {description: Critical approval request created}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/rbac-approvals:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_rbacApprovals_get
+      summary: List critical RBAC approval requests
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Approval requests}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/rbac-approvals/{approvalId}:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_rbacApproval_get
+      summary: Read one critical RBAC approval
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Approval request}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/rbac-approvals/{approvalId}/approve:
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_approveRbacChange_post
+      summary: Approve another principal's critical RBAC change
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Approval accepted}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/rbac-approvals/{approvalId}/reject:
+    post:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_rejectRbacChange_post
+      summary: Reject another principal's critical RBAC change
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Approval rejected}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/roles/{roleId}/status:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_changeRoleStatus_post
+      summary: UnifiedAccessManagementController.changeRoleStatus
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/sessions:
+    get:
+      tags:
+      - Security
+      operationId: UnifiedAccessManagementController_sessions_get
+      summary: UnifiedAccessManagementController.sessions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/sessions/{sessionId}/revoke:
+    post:
+      tags:
+      - Security
+      operationId: UnifiedAccessManagementController_revokeSession_post
+      summary: UnifiedAccessManagementController.revokeSession
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/status/{status}:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_changeTenantStatus_post
+      summary: UnifiedAccessManagementController.changeTenantStatus
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/workspace-summary:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_tenantWorkspaceSummary_get
+      summary: Tenant Workspace summary
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Aggregated Tenant workspace summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantWorkspaceSummaryResponse'
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_tenantUsers_get
+      summary: UnifiedAccessManagementController.tenantUsers
+      security:
+      - sessionCookie: []
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: text
+        in: query
+        schema: { type: string }
+      - name: status
+        in: query
+        schema: { type: string }
+      - name: membershipStatus
+        in: query
+        schema: { type: string }
+      - name: roleId
+        in: query
+        schema: { type: string }
+      - name: departmentId
+        in: query
+        schema: { type: string }
+      - name: groupId
+        in: query
+        schema: { type: string }
+      - name: limit
+        in: query
+        schema: { type: integer, default: 20 }
+      - name: cursor
+        in: query
+        schema: { type: string }
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_createTenantUser_post
+      summary: UnifiedAccessManagementController.createTenantUser
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/people/bulk-actions:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_peopleBulkAction_post
+      summary: Execute one server-side governed bulk People/Organization command
+      description: Each Person receives an independent reconciliation/idempotency namespace. Authoritative sub-mutations retain their existing transaction boundaries. The batch returns per-Person reconciliation and uses PARTIAL_SUCCESS execution policy.
+      security:
+      - sessionCookie: []
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: { type: string }
+      - name: X-Audit-Reason
+        in: header
+        required: true
+        schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeopleBulkActionRequest'
+      responses:
+        '200':
+          description: Per-Person bulk reconciliation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeopleBulkActionResponse'
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_tenantUser_get
+      summary: UnifiedAccessManagementController.tenantUser
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_updateTenantUser_put
+      summary: UnifiedAccessManagementController.updateTenantUser
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/department-memberships:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_addDepartmentMembership_post
+      summary: UnifiedAccessManagementController.addDepartmentMembership
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/effective-access:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_effectiveAccess_get
+      summary: UnifiedAccessManagementController.effectiveAccess
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/ui-access:
+    get:
+      tags: [Access Management]
+      operationId: UnifiedAccessManagementController_effectiveUiAccess_get
+      summary: Explain the Person's effective Navigator, pages and functions
+      security: [{sessionCookie: []}]
+      responses:
+        '200':
+          description: Effective UI access with canonical RBAC grant reasons
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EffectiveUiAccessResponse'}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/users/{userId}/group-memberships:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_addGroupMembership_post
+      summary: UnifiedAccessManagementController.addGroupMembership
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/memberships:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_memberships_get
+      summary: UnifiedAccessManagementController.memberships
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/overview:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_userOverview_get
+      summary: UnifiedAccessManagementController.userOverview
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/machine-ownership/transfer:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_transferMachineOwnership_post
+      summary: Transfer accountable Service Account and Agent ownership to another active Tenant Person
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Ownership transfer completed atomically with immutable evidence
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/reset-mfa:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_resetMfa_post
+      summary: UnifiedAccessManagementController.resetMfa
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/reset-password:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_resetPassword_post
+      summary: UnifiedAccessManagementController.resetPassword
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/temporary-password:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_setTemporaryPassword_post
+      summary: Set an administrator-issued temporary password
+      description: Replaces the local password with a one-time administrator-issued credential. The password is write-only, must be changed on next sign-in, and existing sessions are invalidated by the credential security epoch.
+      security:
+      - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetTemporaryPasswordRequest'
+      responses:
+        '204':
+          description: Temporary password set; password change is required at next sign-in.
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/setup-credential:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_setupCredential_post
+      summary: Issue and deliver a one-time password setup credential
+      description: Issues a one-time credential and tracks delivery separately. MANUAL delivery may return a one-time setupActionUrl and responses must not be cached.
+      security:
+      - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialSetupRequest'
+      responses:
+        '202':
+          description: Setup credential issued; delivery status is returned independently.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialSetupResponse'
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/revoke-sessions:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_revokeUserSessions_post
+      summary: UnifiedAccessManagementController.revokeUserSessions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/user-onboarding:
+    post:
+      tags:
+      - Access Management
+      operationId: IamUserLifecycleController_onboard_post
+      summary: IamUserLifecycleController.onboard
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/users:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_users_get
+      summary: UnifiedAccessManagementController.users
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_createPlatformUser_post
+      summary: UnifiedAccessManagementController.createPlatformUser
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/users/{userId}:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_user_get
+      summary: UnifiedAccessManagementController.user
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+    put:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_updatePlatformUser_put
+      summary: UnifiedAccessManagementController.updatePlatformUser
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/invitation:
+    get:
+      tags:
+      - Access Management
+      operationId: IamUserInvitationController_status_get
+      summary: IamUserInvitationController.status
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/invitation/resend:
+    post:
+      tags:
+      - Access Management
+      operationId: IamUserInvitationController_resend_post
+      summary: Reissue and deliver the Person invitation
+      description: Reissues a one-time invitation using the explicitly selected delivery method. MANUAL may return a one-time setupActionUrl and the response is no-store.
+      security:
+      - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationDeliveryRequest'
+      responses:
+        '200':
+          description: Invitation reissued and delivery result returned.
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/tenants/{tenantId}/users/{userId}/invitation/revoke:
+    post:
+      tags:
+      - Access Management
+      operationId: IamUserInvitationController_revoke_post
+      summary: IamUserInvitationController.revoke
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/users/{userId}/require-password-change:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_requirePasswordChange_post
+      summary: UnifiedAccessManagementController.requirePasswordChange
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/users/{userId}/revoke-all-sessions:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_revokeAllPlatformSessions_post
+      summary: UnifiedAccessManagementController.revokeAllPlatformSessions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/users/{userId}/status:
+    post:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_changePlatformUserStatus_post
+      summary: UnifiedAccessManagementController.changePlatformUserStatus
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/users/{userId}/tenant-memberships:
+    get:
+      tags:
+      - Access Management
+      operationId: UnifiedAccessManagementController_platformMemberships_get
+      summary: UnifiedAccessManagementController.platformMemberships
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/bootstrap/complete:
+    post:
+      tags:
+      - Bootstrap
+      operationId: completeBootstrap
+      summary: completeBootstrap
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/bootstrap/root/mfa:
+    post:
+      tags:
+      - Bootstrap
+      operationId: beginRootMfa
+      summary: beginRootMfa
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/bootstrap/root/mfa/confirm:
+    post:
+      tags:
+      - Bootstrap
+      operationId: confirmRootMfa
+      summary: Confirm Root MFA and rotate the restricted bootstrap Session
+      security:
+      - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - methodId
+              - code
+              - acknowledgeRecoveryCodesSaved
+              - expectedVersion
+              properties:
+                methodId:
+                  type: string
+                code:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                acknowledgeRecoveryCodesSaved:
+                  type: boolean
+                  enum: [true]
+                expectedVersion:
+                  type: integer
+                  format: int64
+      responses:
+        '200':
+          description: MFA confirmed; the stale pre-MFA Session is replaced and a new HTTP-only Session cookie is issued
+          headers:
+            Set-Cookie:
+              description: Rotated canonical IAM browser Session cookie
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/bootstrap/status:
+    get:
+      tags:
+      - Bootstrap
+      operationId: getBootstrapStatus
+      summary: getBootstrapStatus
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/bootstrap/tenant:
+    post:
+      tags:
+      - Bootstrap
+      operationId: createFirstTenant
+      summary: createFirstTenant
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/bootstrap/tenant-admin:
+    post:
+      tags:
+      - Bootstrap
+      operationId: createFirstTenantAdmin
+      summary: Create the first Tenant administrator with a server-generated internal User ID
+      security:
+      - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - tenantId
+              - username
+              - displayName
+              properties:
+                tenantId:
+                  type: string
+                  minLength: 1
+                userId:
+                  type: string
+                  nullable: true
+                  description: Optional compatibility field. Omit it to let OpenDispatch generate the stable internal User ID.
+                username:
+                  type: string
+                  minLength: 1
+                email:
+                  type: string
+                  format: email
+                displayName:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/platform/runtime-capabilities:
+    get:
+      tags:
+      - Platform Governance
+      operationId: getRuntimeCapabilities
+      summary: Read canonical runtime capabilities
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session:
+    get:
+      tags:
+      - Authentication
+      operationId: getCanonicalSession
+      summary: get Session
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/entitlements:
+    get:
+      tags: [Authentication]
+      operationId: getCanonicalUiEntitlements
+      summary: Project backend-owned Menu, Page and Action entitlements for the active Session
+      security: [{sessionCookie: []}]
+      responses:
+        '200':
+          description: Canonical UI entitlement projection derived from Effective Access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UiEntitlementResponse'
+        default: {$ref: '#/components/responses/IamError'}
+  /api/session/preflight:
+    get:
+      tags: [Authentication]
+      operationId: CanonicalSessionController_preflight_get
+      summary: Diagnose canonical browser Session and CSRF readiness without requiring Tenant RBAC
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Session preflight status}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/session/change-password:
+    post:
+      tags:
+      - Authentication
+      operationId: changeCanonicalPassword
+      summary: change Password
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/csrf:
+    get:
+      tags:
+      - Authentication
+      operationId: getCanonicalCsrf
+      summary: get Csrf
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/activate-invitation:
+    post:
+      tags:
+      - Authentication
+      operationId: activateCanonicalInvitation
+      summary: Accept a one-time invitation and establish the first password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateInvitationRequest'
+      responses:
+        '204':
+          description: Invitation accepted; sign in to complete required MFA enrollment
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/mfa/enrollment/start:
+    post:
+      tags:
+      - Authentication
+      operationId: beginCanonicalUserMfaEnrollment
+      summary: Begin TOTP enrollment for an MFA-enrollment-restricted Human User session
+      security:
+      - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BeginMfaEnrollmentRequest'
+      responses:
+        '200':
+          description: One-time TOTP enrollment material; shown only during the active setup ceremony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MfaEnrollmentResponse'
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/mfa/enrollment/confirm:
+    post:
+      tags:
+      - Authentication
+      operationId: confirmCanonicalUserMfaEnrollment
+      summary: Confirm TOTP enrollment and complete Human User sign-in readiness
+      security:
+      - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmMfaEnrollmentRequest'
+      responses:
+        '204':
+          description: MFA enrollment confirmed; restricted setup session is cleared
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/forgot-password:
+    post:
+      tags:
+      - Authentication
+      operationId: forgotCanonicalPassword
+      summary: forgot Password
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/login:
+    post:
+      tags:
+      - Authentication
+      operationId: loginCanonicalSession
+      summary: Sign in and automatically bind the Session to the administrator-provisioned home Tenant
+      description: Tenant context is resolved from the active Default Tenant Membership (or the sole active membership). Interactive Tenant selection is not part of human authentication.
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/logout:
+    post:
+      tags:
+      - Authentication
+      operationId: logoutCanonicalSession
+      summary: logout Session
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/logout-all:
+    post:
+      tags:
+      - Authentication
+      operationId: logoutAllCanonicalSessions
+      summary: logoutAll Sessions
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/mfa/verify:
+    post:
+      tags:
+      - Authentication
+      operationId: verifyCanonicalMfa
+      summary: verify Mfa
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/reset-password:
+    post:
+      tags:
+      - Authentication
+      operationId: resetCanonicalPassword
+      summary: reset Password
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/session/switch-tenant:
+    post:
+      tags:
+      - Authentication
+      operationId: switchCanonicalTenant
+      summary: Deprecated compatibility route; interactive Tenant switching is disabled
+      description: Canonical human Sessions are bound to their administrator-provisioned home Tenant. This route is retained only for compatibility and returns AUTH_TENANT_SWITCH_DISABLED.
+      deprecated: true
+      security:
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Successful response
+        '204':
+          description: Successful response with no content
+        default:
+          $ref: '#/components/responses/IamError'
+  /api/admin/access/security/policies/{policyKind}/restore/{revisionId}:
+    post:
+      tags: [Security]
+      operationId: IamSecurityPolicyController_restore_post
+      summary: Restore a previously archived Tenant security policy revision
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: policyKind, in: path, required: true, schema: {type: string, enum: [password, mfa, session, token]}}
+      - {name: revisionId, in: path, required: true, schema: {type: string}}
+      - {name: If-Match, in: header, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '200': {description: Restored security policy set}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/security-summary:
+    get:
+      tags: [Security]
+      operationId: UnifiedAccessManagementController_securityWorkspaceSummary_get
+      summary: Read Tenant security, session, credential and audit counters
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Security workspace summary}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/credential-governance-catalog:
+    get:
+      tags: [Security]
+      operationId: UnifiedAccessManagementController_credentialGovernanceCatalog_get
+      summary: Read governed API products and token audiences
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Credential governance catalog}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/audit-feed:
+    get:
+      tags: [Audit]
+      operationId: UnifiedAccessManagementController_humanReadableAudit_get
+      summary: Read human-readable Tenant audit activity
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string}}
+      - {name: category, in: query, schema: {type: string}}
+      - {name: outcome, in: query, schema: {type: string}}
+      - {name: limit, in: query, schema: {type: integer, default: 50}}
+      - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Human-readable audit cursor page}
+        default: {$ref: '#/components/responses/IamError'}
+  /api/admin/access/tenants/{tenantId}/security-policy-revisions:
+    get:
+      tags: [Security]
+      operationId: UnifiedAccessManagementController_securityPolicyRevisions_get
+      summary: Read immutable Tenant security policy revision history
+      security: [{sessionCookie: []}]
+      parameters:
+      - {name: tenantId, in: path, required: true, schema: {type: string}}
+      - {name: policyKind, in: query, schema: {type: string}}
+      - {name: limit, in: query, schema: {type: integer, default: 50}}
+      - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {description: Security policy revision cursor page}
+        default: {$ref: '#/components/responses/IamError'}
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: OPENDISPATCH_IAM_SESSION
+    personalToken:
+      type: http
+      scheme: bearer
+  parameters:
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    Status:
+      name: status
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    RoleId:
+      name: roleId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    BindingId:
+      name: bindingId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    MembershipId:
+      name: membershipId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    CsrfHeader:
+      name: X-XSRF-TOKEN
+      in: header
+      required: true
+      description: Browser CSRF token obtained from GET /api/session/csrf and paired
+        with the XSRF-TOKEN cookie.
+      schema:
+        type: string
+        minLength: 1
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Positive aggregate version
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+    AuditReason:
+      name: X-Audit-Reason
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 500
+  requestBodies:
+    JsonBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+  responses:
+    IamError:
+      description: Stable IAM error contract
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/IamApiError'
+  schemas:
+    UiDisplayMode:
+      type: string
+      enum: [HIDDEN, READ_ONLY, ENABLED]
+    UiNavigationItem:
+      type: object
+      required: [featureId, section, order, route, label, purpose, displayMode, children]
+      properties:
+        featureId: { type: string }
+        parentFeatureId: { type: string, nullable: true }
+        section: { type: string }
+        order: { type: integer }
+        route:
+          type: string
+          description: Product-owned route template. `{tenantId}` is substituted only with the active canonical Tenant identifier.
+        label: { type: string }
+        purpose: { type: string }
+        displayMode:
+          $ref: '#/components/schemas/UiDisplayMode'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/UiNavigationItem'
+    UiPageEntitlement:
+      type: object
+      required: [featureId, route, displayMode, allowed, denialReason, surface]
+      properties:
+        featureId: { type: string }
+        route: { type: string }
+        displayMode:
+          $ref: '#/components/schemas/UiDisplayMode'
+        allowed:
+          type: boolean
+          deprecated: true
+          description: Contract 2.x compatibility projection. `displayMode` is authoritative in 3.0.
+        denialReason: { type: string }
+        surface:
+          type: string
+          enum: [TENANT, PLATFORM, INTERNAL_ENGINEERING]
+    UiActionEntitlement:
+      type: object
+      required: [actionId, displayMode, scopes]
+      properties:
+        actionId: { type: string }
+        displayMode:
+          type: string
+          enum: [HIDDEN, ENABLED]
+        scopes:
+          type: array
+          items: { type: string }
+    UiEntitlementResponse:
+      type: object
+      required: [contractVersion, workspaceKind, tenantId, navigation, pages, actions, actionEntitlements, actionScopes, generatedAt]
+      properties:
+        contractVersion:
+          type: string
+          enum: ['3.0']
+        workspaceKind:
+          type: string
+          enum: [TENANT, INSTANCE_ROOT]
+        tenantId: { type: string }
+        navigation:
+          type: array
+          items:
+            $ref: '#/components/schemas/UiNavigationItem'
+        pages:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/UiPageEntitlement'
+        actions:
+          type: array
+          deprecated: true
+          description: Contract 2.x compatibility projection. `actionEntitlements` is authoritative in 3.0.
+          items: { type: string }
+        actionEntitlements:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/UiActionEntitlement'
+        actionScopes:
+          type: object
+          deprecated: true
+          additionalProperties:
+            type: array
+            items: { type: string }
+        generatedAt:
+          type: string
+          format: date-time
+    PreviewResponsibilityUiAccessRequest:
+      type: object
+      required: [permissionCodes]
+      properties:
+        permissionCodes:
+          type: array
+          uniqueItems: true
+          items: {type: string}
+    ResponsibilityUiAccessPreviewResponse:
+      type: object
+      required: [tenantId, roleId, generatedAt, permissionCodes, allowedScopeTypes, uiAccess]
+      properties:
+        tenantId: {type: string}
+        roleId: {type: string}
+        generatedAt: {type: string, format: date-time}
+        permissionCodes:
+          type: array
+          uniqueItems: true
+          items: {type: string}
+        allowedScopeTypes:
+          type: array
+          uniqueItems: true
+          items: {type: string}
+        uiAccess:
+          $ref: '#/components/schemas/UiEntitlementResponse'
+    UiAccessGrantReasonResponse:
+      type: object
+      required: [permissionCode, bindingId, roleId, roleName, principalType, principalId, scopeType, scopeId, effectiveAt, inheritedFromGroup]
+      properties:
+        permissionCode: {type: string}
+        bindingId: {type: string}
+        roleId: {type: string}
+        roleName: {type: string}
+        principalType: {type: string}
+        principalId: {type: string}
+        scopeType: {type: string}
+        scopeId: {type: string}
+        effectiveAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time, nullable: true}
+        inheritedFromGroup: {type: boolean}
+    EffectiveUiAccessResponse:
+      type: object
+      required: [tenantId, userId, evaluatedAt, uiAccess, pageReasons, actionReasons]
+      properties:
+        tenantId: {type: string}
+        userId: {type: string}
+        evaluatedAt: {type: string, format: date-time}
+        uiAccess:
+          $ref: '#/components/schemas/UiEntitlementResponse'
+        pageReasons:
+          type: object
+          additionalProperties:
+            type: array
+            items: {$ref: '#/components/schemas/UiAccessGrantReasonResponse'}
+        actionReasons:
+          type: object
+          additionalProperties:
+            type: array
+            items: {$ref: '#/components/schemas/UiAccessGrantReasonResponse'}
+    UpdateDepartmentMembershipRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - membershipType
+      - primary
+      - reason
+      properties:
+        membershipType:
+          type: string
+          enum:
+          - MEMBER
+          - DELEGATE
+        primary:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        replacementMembershipId:
+          type: string
+          nullable: true
+          description: Required when demoting the current Primary Department membership.
+        replacementExpectedVersion:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        reason:
+          type: string
+          minLength: 12
+          maxLength: 500
+    EffectiveAccessSource:
+      type: object
+      required:
+      - bindingId
+      - roleId
+      - roleName
+      - principalType
+      - principalId
+      - scopeType
+      - scopeId
+      - effectiveAt
+      - inheritedFromGroup
+      properties:
+        bindingId:
+          type: string
+        roleId:
+          type: string
+        roleName:
+          type: string
+        principalType:
+          type: string
+        principalId:
+          type: string
+        scopeType:
+          type: string
+        scopeId:
+          type: string
+        effectiveAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        inheritedFromGroup:
+          type: boolean
+    EffectivePermission:
+      type: object
+      required:
+      - permissionCode
+      - sources
+      - observations
+      properties:
+        permissionCode:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectiveAccessSource'
+        observations:
+          type: array
+          items:
+            type: string
+    EffectiveAccess:
+      type: object
+      required:
+      - tenantId
+      - userId
+      - evaluatedAt
+      - permissions
+      - conflicts
+      properties:
+        tenantId:
+          type: string
+        userId:
+          type: string
+        evaluatedAt:
+          type: string
+          format: date-time
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectivePermission'
+        conflicts:
+          type: array
+          items:
+            type: string
+    RoleBindingRevocationPreview:
+      type: object
+      required:
+      - bindingId
+      - roleId
+      - roleName
+      - scopeType
+      - scopeId
+      - permissionsLost
+      - permissionsRetained
+      - warnings
+      properties:
+        bindingId:
+          type: string
+        roleId:
+          type: string
+        roleName:
+          type: string
+        scopeType:
+          type: string
+        scopeId:
+          type: string
+        permissionsLost:
+          type: array
+          items:
+            type: string
+        permissionsRetained:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+    UserOnboardingRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - username
+      - displayName
+      - creationMode
+      - authenticationMethod
+      - activationDeliveryMethod
+      - membershipId
+      - membershipStatus
+      - defaultTenant
+      - membershipSource
+      - applicationAccessDeferred
+      - reason
+      properties:
+        userId:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Optional controlled-import identifier. When omitted
+          the server generates a retry-stable UUID from the Idempotency-Key.: null
+        username:
+          type: string
+          minLength: 1
+          maxLength: 128
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        creationMode:
+          type: string
+          enum:
+          - INVITATION
+          - ADMIN_CREATED
+          - LEGACY_IMPORT
+        authenticationMethod:
+          type: string
+          enum: [LOCAL]
+          description: P2.3A supports canonical local authentication. Enterprise IdP methods are reserved for P2.4.
+        activationDeliveryMethod:
+          type: string
+          enum: [EMAIL, MANUAL, DEVELOPMENT_FILE]
+          description: EMAIL uses configured SMTP; MANUAL returns the one-time setup URL in the no-store response; DEVELOPMENT_FILE is non-production compatibility.
+        initialPassword:
+          type: string
+          minLength: 14
+          maxLength: 1024
+          writeOnly: true
+          nullable: true
+          description: Optional administrator-provisioned temporary password for a new ADMIN_CREATED identity. The credential is hashed immediately, excluded from idempotency persistence, never returned, and must be changed at first sign-in. Existing identities reject this field.
+        membershipId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        membershipStatus:
+          type: string
+          enum:
+          - INVITED
+          - ACTIVE
+          - SUSPENDED
+          - EXPIRED
+        employeeId:
+          type: string
+          maxLength: 128
+          nullable: true
+        membershipExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        defaultTenant:
+          type: boolean
+        membershipSource:
+          type: string
+          enum:
+          - ADMIN_CREATED
+          - INVITATION
+          - LEGACY_IMPORT
+          - PLATFORM_PROVISIONING
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserOnboardingDepartmentAssignment'
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserOnboardingGroupAssignment'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserOnboardingRoleAssignment'
+        applicationAccessDeferred:
+          type: boolean
+          description: Must be false for normal ADMIN_CREATED onboarding. Set true only when an administrator intentionally creates an authenticated Person with no business Responsibility yet; roles must then be empty and only My Account self-service is expected after sign-in setup.
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    UserOnboardingDepartmentAssignment:
+      type: object
+      additionalProperties: false
+      required:
+      - membershipId
+      - departmentId
+      - membershipType
+      - primary
+      properties:
+        membershipId:
+          type: string
+          minLength: 1
+        departmentId:
+          type: string
+          minLength: 1
+        membershipType:
+          type: string
+          enum:
+          - MEMBER
+          - DELEGATE
+        primary:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+    UserOnboardingGroupAssignment:
+      type: object
+      additionalProperties: false
+      required:
+      - membershipId
+      - groupId
+      - membershipRole
+      properties:
+        membershipId:
+          type: string
+          minLength: 1
+        groupId:
+          type: string
+          minLength: 1
+        membershipRole:
+          type: string
+          enum:
+          - MEMBER
+          - LEAD
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+    UserOnboardingRoleAssignment:
+      type: object
+      additionalProperties: false
+      required:
+      - bindingId
+      - roleId
+      - scopeType
+      - scopeId
+      properties:
+        bindingId:
+          type: string
+          minLength: 1
+        roleId:
+          type: string
+          minLength: 1
+        scopeType:
+          type: string
+          enum:
+          - TENANT
+          - DEPARTMENT
+          - DEPARTMENT_SUBTREE
+          - GROUP
+        scopeId:
+          type: string
+          minLength: 1
+        effectiveAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+    UserInvitationStatus:
+      type: object
+      additionalProperties: false
+      required:
+      - userId
+      - status
+      - deliveryReference
+      - tokenId
+      - canResend
+      - canRevoke
+      properties:
+        userId:
+          type: string
+        status:
+          type: string
+          enum:
+          - NOT_ISSUED
+          - PENDING
+          - ACCEPTED
+          - EXPIRED
+          - REVOKED
+        deliveryReference:
+          type: string
+          description: Non-secret destination reference used by the configured delivery
+            adapter.
+        tokenId:
+          type: string
+          description: Non-secret token record identifier; never the credential value.
+        issuedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        canResend:
+          type: boolean
+        canRevoke:
+          type: boolean
+    ActivateInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [token, newPassword]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: One-time invitation token normally supplied by the secure setup link.
+        newPassword:
+          type: string
+          format: password
+          minLength: 14
+          maxLength: 256
+    BeginMfaEnrollmentRequest:
+      type: object
+      additionalProperties: false
+      required: [accountLabel, issuer]
+      properties:
+        accountLabel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        issuer:
+          type: string
+          minLength: 1
+          maxLength: 200
+    ConfirmMfaEnrollmentRequest:
+      type: object
+      additionalProperties: false
+      required: [methodId, code, acknowledgeRecoveryCodesSaved, expectedVersion]
+      properties:
+        methodId:
+          type: string
+          minLength: 1
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+        acknowledgeRecoveryCodesSaved:
+          type: boolean
+          const: true
+        expectedVersion:
+          type: integer
+          format: int64
+          minimum: 1
+    MfaEnrollmentResponse:
+      type: object
+      additionalProperties: false
+      required: [methodId, provisioningUri, secretDisplay, recoveryCodes, expectedVersion]
+      properties:
+        methodId:
+          type: string
+        provisioningUri:
+          type: string
+          description: TOTP otpauth URI used to render the setup QR code.
+        secretDisplay:
+          type: string
+          description: One-time manual-entry TOTP secret shown only during enrollment.
+        recoveryCodes:
+          type: array
+          items: {type: string}
+        expectedVersion:
+          type: integer
+          format: int64
+          minimum: 1
+    InvitationDeliveryRequest:
+      type: object
+      additionalProperties: false
+      required: [deliveryMethod]
+      properties:
+        deliveryMethod:
+          type: string
+          enum: [EMAIL, MANUAL, DEVELOPMENT_FILE]
+    SetTemporaryPasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [temporaryPassword, reason]
+      properties:
+        temporaryPassword:
+          type: string
+          minLength: 14
+          maxLength: 1024
+          writeOnly: true
+          description: One-time administrator-issued password. It is hashed immediately, never returned, and must be replaced before normal sign-in access.
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    CredentialSetupRequest:
+      type: object
+      additionalProperties: false
+      required: [deliveryMethod, reason]
+      properties:
+        deliveryMethod:
+          type: string
+          enum: [EMAIL, MANUAL, DEVELOPMENT_FILE]
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+    CredentialSetupResponse:
+      type: object
+      additionalProperties: false
+      required: [userId, purpose, deliveryId, deliveryMethod, deliveryStatus, deliveryReference, failureCode, setupActionUrl]
+      properties:
+        userId: {type: string}
+        purpose: {type: string}
+        deliveryId: {type: string}
+        deliveryMethod: {type: string, enum: [EMAIL, MANUAL, DEVELOPMENT_FILE]}
+        deliveryStatus: {type: string, enum: [ISSUED, QUEUED, DELIVERED, FAILED, CONSUMED, EXPIRED, REVOKED]}
+        deliveryReference: {type: string}
+        expiresAt: {type: string, format: date-time, nullable: true}
+        failureCode: {type: string}
+        setupActionUrl:
+          type: string
+          description: Present only for MANUAL secure handoff and must never be persisted by clients.
+    UserAuthenticationReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [tenantId, userId, authenticationMethod, accountStatus, signInState, signInReady, passwordState, mfaState, recoveryCodesRemaining, failedLoginCount, activeSessionCount, setupState, deliveryMethod, deliveryStatus, blockingActions]
+      properties:
+        tenantId: {type: string}
+        userId: {type: string}
+        authenticationMethod: {type: string, enum: [LOCAL]}
+        accountStatus: {type: string}
+        signInState: {type: string, enum: [READY, SETUP_REQUIRED, MFA_REQUIRED, LOCKED, SUSPENDED, DISABLED]}
+        signInReady: {type: boolean}
+        passwordState: {type: string, enum: [NOT_CONFIGURED, CHANGE_REQUIRED, CONFIGURED]}
+        passwordChangedAt: {type: string, format: date-time, nullable: true}
+        passwordExpiresAt: {type: string, format: date-time, nullable: true}
+        mfaState: {type: string, enum: [NOT_ENROLLED, PENDING, ACTIVE]}
+        mfaType: {type: string}
+        mfaVerifiedAt: {type: string, format: date-time, nullable: true}
+        recoveryCodesRemaining: {type: integer, format: int64, minimum: 0}
+        lastSuccessfulLogin: {type: string, format: date-time, nullable: true}
+        failedLoginCount: {type: integer, format: int64, minimum: 0}
+        lockedUntil: {type: string, format: date-time, nullable: true}
+        activeSessionCount: {type: integer, format: int64, minimum: 0}
+        setupState: {type: string}
+        setupExpiresAt: {type: string, format: date-time, nullable: true}
+        deliveryMethod: {type: string, enum: [NOT_ISSUED, EMAIL, MANUAL, DEVELOPMENT_FILE]}
+        deliveryStatus: {type: string, enum: [NOT_ISSUED, ISSUED, QUEUED, DELIVERED, FAILED, CONSUMED, EXPIRED, REVOKED]}
+        deliveryReference: {type: string}
+        deliveryFailureCode: {type: string}
+        blockingActions:
+          type: array
+          items: {type: string}
+    UserOnboardingResponse:
+      type: object
+      required:
+      - user
+      - tenantMembership
+      - departmentMemberships
+      - groupMemberships
+      - roleBindings
+      - invitationIssued
+      - setupIssued
+      - temporaryPasswordConfigured
+      - authenticationMethod
+      - setupDeliveryMethod
+      - setupDeliveryStatus
+      - setupDeliveryReference
+      - setupDeliveryId
+      - setupFailureCode
+      - setupActionUrl
+      - requiredActions
+      properties:
+        user:
+          type: object
+          additionalProperties: true
+        tenantMembership:
+          type: object
+          additionalProperties: true
+        departmentMemberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        groupMemberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        roleBindings:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        invitationIssued:
+          type: boolean
+        setupIssued:
+          type: boolean
+        temporaryPasswordConfigured:
+          type: boolean
+          description: True when an administrator-provisioned temporary password was hashed during onboarding. The plaintext password is never returned.
+        authenticationMethod:
+          type: string
+          enum: [LOCAL]
+        setupDeliveryMethod:
+          type: string
+          enum: [NOT_REQUIRED, EMAIL, MANUAL, DEVELOPMENT_FILE]
+        setupDeliveryStatus:
+          type: string
+          enum: [NOT_ISSUED, ISSUED, QUEUED, DELIVERED, FAILED, CONSUMED, EXPIRED, REVOKED]
+        setupDeliveryReference:
+          type: string
+          description: Non-secret destination reference used by the configured setup delivery adapter.
+        setupDeliveryId:
+          type: string
+        setupExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        setupFailureCode:
+          type: string
+        setupActionUrl:
+          type: string
+          description: Returned only for explicit MANUAL secure handoff; plaintext is not persisted and the response is no-store.
+        requiredActions:
+          type: array
+          items:
+            type: string
+    ProcessShadowPipelineRequest:
+      type: object
+      required:
+      - batchSize
+      properties:
+        batchSize:
+          type: integer
+          minimum: 1
+          maximum: 5000
+    RunShadowRetentionRequest:
+      type: object
+      additionalProperties: false
+    GeneratePhase5RuntimeCertificationRequest:
+      type: object
+      required:
+      - sourceVersion
+      - postgresqlCleanStatus
+      - postgresqlUpgradeStatus
+      - applicationContextStatus
+      - adminUiBuildStatus
+      - playwrightStatus
+      - loadTestStatus
+      - pipelineStatus
+      - evidenceJson
+      properties:
+        sourceVersion:
+          type: string
+          minLength: 1
+          maxLength: 64
+        postgresqlCleanStatus:
+          type: string
+          enum:
+          - PASS
+          - FAIL
+          - NOT_EXECUTED
+        postgresqlUpgradeStatus:
+          type: string
+          enum:
+          - PASS
+          - FAIL
+          - NOT_EXECUTED
+        applicationContextStatus:
+          type: string
+          enum:
+          - PASS
+          - FAIL
+          - NOT_EXECUTED
+        adminUiBuildStatus:
+          type: string
+          enum:
+          - PASS
+          - FAIL
+          - NOT_EXECUTED
+        playwrightStatus:
+          type: string
+          enum:
+          - PASS
+          - FAIL
+          - NOT_EXECUTED
+        loadTestStatus:
+          type: string
+          enum:
+          - PASS
+          - FAIL
+          - NOT_EXECUTED
+        pipelineStatus:
+          type: string
+          enum:
+          - HEALTHY
+          - UNHEALTHY
+          - NOT_EXECUTED
+        evidenceJson:
+          type: string
+          minLength: 2
+          maxLength: 20000
+    IamApiError:
+      type: object
+      required:
+      - errorCode
+      - message
+      - correlationId
+      - fieldErrors
+      - occurredAt
+      properties:
+        errorCode:
+          type: string
+        message:
+          type: string
+        correlationId:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+        requiredPermission:
+          type: string
+        activeTenantId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+    CreateMismatchCaseRequest:
+      type: object
+      required:
+      - tenantId
+      - comparisonId
+      - ownerId
+      - slaDueAt
+      - title
+      properties:
+        tenantId:
+          type: string
+        comparisonId:
+          type: string
+        entryPointId:
+          type: string
+        ownerId:
+          type: string
+        slaDueAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+    PeopleBulkActionRequest:
+      type: object
+      required: [operation, userIds]
+      properties:
+        operation:
+          type: string
+          enum: [MOVE_PRIMARY_DEPARTMENT, ADD_DEPARTMENT_MEMBERSHIP, ADD_GROUPS, REMOVE_GROUPS, SUSPEND, REACTIVATE, REVOKE_SESSIONS, RESEND_INVITATION]
+        userIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items: { type: string }
+        targetDepartmentId: { type: string }
+        groupIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string }
+        membershipRole:
+          type: string
+          enum: [MEMBER, LEAD]
+        deliveryMethod:
+          type: string
+          enum: [EMAIL, MANUAL, DEVELOPMENT_FILE]
+    PeopleBulkItemResultResponse:
+      type: object
+      required: [userId, displayName, outcome, changedCount, code, message, remediation]
+      properties:
+        userId: { type: string }
+        displayName: { type: string }
+        outcome:
+          type: string
+          enum: [SUCCEEDED, SKIPPED, FAILED]
+        changedCount: { type: integer, minimum: 0 }
+        code: { type: string }
+        message: { type: string }
+        remediation: { type: string }
+    PeopleBulkActionResponse:
+      type: object
+      required: [bulkOperationId, operation, executionPolicy, selectedCount, succeededCount, skippedCount, failedCount, changedCount, results]
+      properties:
+        bulkOperationId: { type: string }
+        operation: { type: string }
+        executionPolicy:
+          type: string
+          enum: [PARTIAL_SUCCESS]
+        selectedCount: { type: integer, minimum: 0 }
+        succeededCount: { type: integer, minimum: 0 }
+        skippedCount: { type: integer, minimum: 0 }
+        failedCount: { type: integer, minimum: 0 }
+        changedCount: { type: integer, minimum: 0 }
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PeopleBulkItemResultResponse'
+    TenantWorkspaceSummaryResponse:
+      type: object
+      required:
+      - tenantId
+      - activePeople
+      - tenantAdministratorCount
+      - pendingInvitations
+      - signInSetupRequiredCount
+      - mfaEnrolledPeople
+      - suspendedPeople
+      - peopleWithoutDepartment
+      - departmentCount
+      - departmentsWithoutManager
+      - groupCount
+      - activeRoleCount
+      - activeBindingCount
+      - expiringBindingCount
+      properties:
+        tenantId: { type: string }
+        activePeople: { type: integer, format: int64 }
+        tenantAdministratorCount: { type: integer, format: int64 }
+        pendingInvitations: { type: integer, format: int64 }
+        signInSetupRequiredCount: { type: integer, format: int64 }
+        mfaEnrolledPeople: { type: integer, format: int64 }
+        suspendedPeople: { type: integer, format: int64 }
+        peopleWithoutDepartment: { type: integer, format: int64 }
+        departmentCount: { type: integer, format: int64 }
+        departmentsWithoutManager: { type: integer, format: int64 }
+        groupCount: { type: integer, format: int64 }
+        activeRoleCount: { type: integer, format: int64 }
+        activeBindingCount: { type: integer, format: int64 }
+        expiringBindingCount: { type: integer, format: int64 }
+    UpdateMismatchCaseRequest:
+      type: object
+      required:
+      - status
+      - severity
+      - ownerId
+      - slaDueAt
+      properties:
+        status:
+          type: string
+        severity:
+          type: string
+        ownerId:
+          type: string
+        slaDueAt:
+          type: string
+          format: date-time
+        resolution:
+          type: string
+    CreateMismatchWaiverRequest:
+      type: object
+      required:
+      - reason
+      - expiresAt
+      properties:
+        reason:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    AddRegressionEvidenceRequest:
+      type: object
+      required:
+      - testReference
+      - result
+      properties:
+        testReference:
+          type: string
+        result:
+          type: string
+          enum:
+          - PASSED
+          - FAILED
+        detailsJson:
+          type: string
+    EvaluateDomainReadinessRequest:
+      type: object
+      required:
+      - tenantId
+      - domainCode
+      - windowStartedAt
+      - windowEndedAt
+      properties:
+        tenantId:
+          type: string
+        domainCode:
+          type: string
+          enum:
+          - TASK
+          - A2A
+          - AGENT
+          - ISSUE
+          - INTEGRATION
+        windowStartedAt:
+          type: string
+          format: date-time
+        windowEndedAt:
+          type: string
+          format: date-time
+    EvaluatePhase6EligibilityRequest:
+      type: object
+      required:
+      - tenantId
+      properties:
+        tenantId:
+          type: string

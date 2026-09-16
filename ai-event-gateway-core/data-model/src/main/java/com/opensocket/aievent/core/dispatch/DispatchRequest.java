@@ -4,7 +4,11 @@ import java.time.OffsetDateTime;
 
 public class DispatchRequest {
     private String dispatchRequestId;
+    private String tenantId;
     private String assignmentId;
+    private String executionAuthorityVersion = "LEGACY";
+    private String canonicalExecutionAssignmentId;
+    private DispatchAuthorityProvenance authorityProvenance = DispatchAuthorityProvenance.LEGACY_COMPATIBILITY;
     private String taskId;
     private String incidentId;
     private String agentId;
@@ -35,11 +39,32 @@ public class DispatchRequest {
     private String claimedBy;
     private OffsetDateTime claimStartedAt;
     private OffsetDateTime claimUntil;
+    private DispatchOutboxStatus outboxStatus = DispatchOutboxStatus.PENDING;
+    private String claimToken;
+    private OffsetDateTime claimHeartbeatAt;
+    private String dispatchTokenHash;
+    private String fencingTokenHash;
+    private String runtimeSessionId;
+    private String ackEvidenceId;
+    private OffsetDateTime ackedAt;
+    private DispatchRecoveryClassification recoveryClassification = DispatchRecoveryClassification.NONE;
+    private OffsetDateTime uncertainSince;
+    private OffsetDateTime lastReconciledAt;
+    private int reconciliationCount;
+    private long rowVersion;
 
     public String getDispatchRequestId() { return dispatchRequestId; }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     public void setDispatchRequestId(String dispatchRequestId) { this.dispatchRequestId = dispatchRequestId; }
     public String getAssignmentId() { return assignmentId; }
     public void setAssignmentId(String assignmentId) { this.assignmentId = assignmentId; }
+    public String getExecutionAuthorityVersion() { return executionAuthorityVersion; }
+    public void setExecutionAuthorityVersion(String executionAuthorityVersion) { this.executionAuthorityVersion = executionAuthorityVersion == null || executionAuthorityVersion.isBlank() ? "LEGACY" : executionAuthorityVersion; }
+    public String getCanonicalExecutionAssignmentId() { return canonicalExecutionAssignmentId; }
+    public void setCanonicalExecutionAssignmentId(String canonicalExecutionAssignmentId) { this.canonicalExecutionAssignmentId = canonicalExecutionAssignmentId; }
+    public DispatchAuthorityProvenance getAuthorityProvenance() { return authorityProvenance; }
+    public void setAuthorityProvenance(DispatchAuthorityProvenance authorityProvenance) { this.authorityProvenance = authorityProvenance == null ? DispatchAuthorityProvenance.LEGACY_COMPATIBILITY : authorityProvenance; }
     public String getTaskId() { return taskId; }
     public void setTaskId(String taskId) { this.taskId = taskId; }
     public String getIncidentId() { return incidentId; }
@@ -100,6 +125,33 @@ public class DispatchRequest {
     public void setClaimStartedAt(OffsetDateTime claimStartedAt) { this.claimStartedAt = claimStartedAt; }
     public OffsetDateTime getClaimUntil() { return claimUntil; }
     public void setClaimUntil(OffsetDateTime claimUntil) { this.claimUntil = claimUntil; }
+    public DispatchOutboxStatus getOutboxStatus() { return outboxStatus; }
+    public void setOutboxStatus(DispatchOutboxStatus outboxStatus) { this.outboxStatus = outboxStatus == null ? DispatchOutboxStatus.PENDING : outboxStatus; }
+    public String getClaimToken() { return claimToken; }
+    public void setClaimToken(String claimToken) { this.claimToken = claimToken; }
+    public OffsetDateTime getClaimHeartbeatAt() { return claimHeartbeatAt; }
+    public void setClaimHeartbeatAt(OffsetDateTime claimHeartbeatAt) { this.claimHeartbeatAt = claimHeartbeatAt; }
+    public String getDispatchTokenHash() { return dispatchTokenHash; }
+    public void setDispatchTokenHash(String dispatchTokenHash) { this.dispatchTokenHash = dispatchTokenHash; }
+    public String getFencingTokenHash() { return fencingTokenHash; }
+    public void setFencingTokenHash(String fencingTokenHash) { this.fencingTokenHash = fencingTokenHash; }
+    public String getRuntimeSessionId() { return runtimeSessionId; }
+    public void setRuntimeSessionId(String runtimeSessionId) { this.runtimeSessionId = runtimeSessionId; }
+    public String getAckEvidenceId() { return ackEvidenceId; }
+    public void setAckEvidenceId(String ackEvidenceId) { this.ackEvidenceId = ackEvidenceId; }
+    public OffsetDateTime getAckedAt() { return ackedAt; }
+    public void setAckedAt(OffsetDateTime ackedAt) { this.ackedAt = ackedAt; }
+    public DispatchRecoveryClassification getRecoveryClassification() { return recoveryClassification; }
+    public void setRecoveryClassification(DispatchRecoveryClassification recoveryClassification) { this.recoveryClassification = recoveryClassification == null ? DispatchRecoveryClassification.NONE : recoveryClassification; }
+    public OffsetDateTime getUncertainSince() { return uncertainSince; }
+    public void setUncertainSince(OffsetDateTime uncertainSince) { this.uncertainSince = uncertainSince; }
+    public OffsetDateTime getLastReconciledAt() { return lastReconciledAt; }
+    public void setLastReconciledAt(OffsetDateTime lastReconciledAt) { this.lastReconciledAt = lastReconciledAt; }
+    public int getReconciliationCount() { return reconciliationCount; }
+    public void setReconciliationCount(int reconciliationCount) { this.reconciliationCount = Math.max(0, reconciliationCount); }
+    public long getRowVersion() { return rowVersion; }
+    public void setRowVersion(long rowVersion) { this.rowVersion = Math.max(0L, rowVersion); }
 }
+
 
 

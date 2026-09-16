@@ -1,0 +1,16 @@
+package com.opensocket.aievent.core.issuetracking.application.change;
+import java.time.*; import java.util.*; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
+import com.opensocket.aievent.core.issuetracking.change.*; import com.opensocket.aievent.core.issuetracking.core.ExternalChangePolicyEngine;
+@Service public class ExternalChangePolicyService {
+ private final ExternalChangeGovernanceRepository repository; private final ExternalChangePolicyEngine engine=new ExternalChangePolicyEngine();
+ public ExternalChangePolicyService(ExternalChangeGovernanceRepository repository){this.repository=repository;}
+ public List<ExternalChangePolicy> list(String tenantId,ExternalChangePolicyStatus status,int limit){return repository.listPolicies(required(tenantId,"tenantId"),status,bound(limit));}
+ public ExternalChangeDecision evaluate(ExternalChangeEvaluationContext context){return engine.evaluate(context,repository.listPolicies(context.tenantId(),ExternalChangePolicyStatus.ACTIVE,1000),now());}
+ @Transactional public ExternalChangePolicy save(ExternalChangePolicy value){return repository.savePolicy(value);}
+ @Transactional public ExternalChangePolicy saveExpected(ExternalChangePolicy value,long expectedVersion){if(!repository.savePolicyExpectedVersion(value,expectedVersion))throw new IllegalStateException("EXTERNAL_CHANGE_POLICY_VERSION_MISMATCH");return value;}
+ @Transactional public ExternalChangePolicy activate(String tenantId,String policyId,long expectedVersion,String actor){ExternalChangePolicy current=find(tenantId,policyId);requireVersion(current.version(),expectedVersion);ExternalChangePolicy next=copy(current,ExternalChangePolicyStatus.ACTIVE,current.version()+1);return saveExpected(next,current.version());}
+ @Transactional public ExternalChangePolicy disable(String tenantId,String policyId,long expectedVersion,String actor){ExternalChangePolicy current=find(tenantId,policyId);requireVersion(current.version(),expectedVersion);return saveExpected(copy(current,ExternalChangePolicyStatus.DISABLED,current.version()+1),current.version());}
+ public ExternalChangePolicy find(String tenantId,String policyId){return repository.findPolicy(required(tenantId,"tenantId"),required(policyId,"policyId")).orElseThrow(()->new IllegalArgumentException("EXTERNAL_CHANGE_POLICY_NOT_FOUND"));}
+ private ExternalChangePolicy copy(ExternalChangePolicy p,ExternalChangePolicyStatus s,long v){return new ExternalChangePolicy(p.tenantId(),p.policyId(),p.name(),p.connectionId(),p.projectMappingId(),p.externalProjectId(),p.issueType(),p.resourceType(),p.fieldPath(),p.direction(),p.action(),p.riskLevel(),p.requiresReauthentication(),p.requiresApproval(),p.allowProviderMutation(),p.priority(),s,v,p.effectiveFrom(),p.expiresAt(),now());}
+ private void requireVersion(long actual,long expected){if(actual!=expected)throw new IllegalStateException("EXTERNAL_CHANGE_POLICY_VERSION_MISMATCH");} private int bound(int n){return Math.max(1,Math.min(n,1000));} private String required(String v,String n){if(v==null||v.isBlank())throw new IllegalArgumentException(n+" is required");return v.trim();} private OffsetDateTime now(){return OffsetDateTime.now(ZoneOffset.UTC);}
+}

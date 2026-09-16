@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.a2a.dao.A2ARequestDao">
+  <resultMap id="Map" type="com.opensocket.aievent.database.persistence.a2a.po.A2ARequestPo">
+    <id property="requestId" column="a2a_request_id"/>
+    <result property="tenantId" column="tenant_id"/>
+    <result property="rootTaskId" column="root_task_id"/>
+    <result property="sourceTaskId" column="source_task_id"/>
+    <result property="requestingTaskId" column="requesting_task_id"/>
+    <result property="requestingAgentId" column="requesting_agent_id"/>
+    <result property="requesterType" column="requester_type"/>
+    <result property="sourceDepartmentId" column="source_department_id"/>
+    <result property="sourceGroupId" column="source_group_id"/>
+    <result property="sourceDomainId" column="source_domain_id"/>
+    <result property="targetDepartmentId" column="target_department_id"/>
+    <result property="targetGroupId" column="target_group_id"/>
+    <result property="targetDomainId" column="target_domain_id"/>
+    <result property="requestedTaskType" column="requested_task_type"/>
+    <result property="requestedServiceCode" column="requested_service_code"/>
+    <result property="requestedCapabilityCodesJson" column="requested_capability_codes_json"/>
+    <result property="targetAgentPoolId" column="target_agent_pool_id"/>
+    <result property="policyId" column="policy_id"/>
+    <result property="policyVersion" column="policy_version"/>
+    <result property="policySnapshotJson" column="policy_snapshot_json"/>
+    <result property="policySnapshotHash" column="policy_snapshot_hash"/>
+    <result property="approvalStatus" column="approval_status"/>
+    <result property="approvalCount" column="approval_count"/>
+    <result property="requiredApprovalCount" column="required_approval_count"/>
+    <result property="approvalActorIdsJson" column="approval_actor_ids_json"/>
+    <result property="requestStatus" column="request_status"/>
+    <result property="operationalStage" column="operational_stage"/>
+    <result property="blockerCode" column="blocker_code"/>
+    <result property="blockerReason" column="blocker_reason"/>
+    <result property="reason" column="reason"/>
+    <result property="inputPayloadRef" column="input_payload_ref"/>
+    <result property="sensitivityLevel" column="sensitivity_level"/>
+    <result property="hopCount" column="hop_count"/>
+    <result property="idempotencyKey" column="idempotency_key"/>
+    <result property="correlationId" column="correlation_id"/>
+    <result property="childTaskId" column="child_task_id"/>
+    <result property="requestedByType" column="requested_by_type"/>
+    <result property="requestedById" column="requested_by_id"/>
+    <result property="originPrincipalType" column="origin_principal_type"/>
+    <result property="originPrincipalId" column="origin_principal_id"/>
+    <result property="delegatingPrincipalType" column="delegating_principal_type"/>
+    <result property="delegatingPrincipalId" column="delegating_principal_id"/>
+    <result property="executingPrincipalType" column="executing_principal_type"/>
+    <result property="executingPrincipalId" column="executing_principal_id"/>
+    <result property="delegationDepth" column="delegation_depth"/>
+    <result property="rejectionReasonCode" column="rejection_reason_code"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+    <result property="expiresAt" column="expires_at"/>
+    <result property="version" column="version"/>
+  </resultMap>
+
+  <insert id="upsert">
+    insert into a2a_requests(
+      tenant_id,a2a_request_id,root_task_id,source_task_id,requesting_task_id,
+      requesting_agent_id,requester_type,source_department_id,source_group_id,source_domain_id,
+      target_department_id,target_group_id,target_domain_id,requested_task_type,requested_service_code,
+      requested_capability_codes_json,target_agent_pool_id,policy_id,policy_version,policy_snapshot_json,
+      policy_snapshot_hash,approval_status,approval_count,required_approval_count,approval_actor_ids_json,
+      request_status,operational_stage,blocker_code,blocker_reason,reason,input_payload_ref,
+      sensitivity_level,hop_count,idempotency_key,correlation_id,child_task_id,requested_by_type,
+      requested_by_id,origin_principal_type,origin_principal_id,delegating_principal_type,delegating_principal_id,
+      executing_principal_type,executing_principal_id,delegation_depth,rejection_reason_code,created_at,updated_at,expires_at,version
+    ) values(
+      #{request.tenantId},#{request.requestId},#{request.rootTaskId},#{request.sourceTaskId},#{request.requestingTaskId},
+      #{request.requestingAgentId},#{request.requesterType},#{request.sourceDepartmentId},#{request.sourceGroupId},#{request.sourceDomainId},
+      #{request.targetDepartmentId},#{request.targetGroupId},#{request.targetDomainId},#{request.requestedTaskType},#{request.requestedServiceCode},
+      cast(#{request.requestedCapabilityCodesJson} as jsonb),#{request.targetAgentPoolId},#{request.policyId},#{request.policyVersion},cast(#{request.policySnapshotJson} as jsonb),
+      #{request.policySnapshotHash},#{request.approvalStatus},#{request.approvalCount},#{request.requiredApprovalCount},cast(#{request.approvalActorIdsJson} as jsonb),
+      #{request.requestStatus},#{request.operationalStage},#{request.blockerCode},#{request.blockerReason},#{request.reason},#{request.inputPayloadRef},
+      #{request.sensitivityLevel},#{request.hopCount},#{request.idempotencyKey},#{request.correlationId},#{request.childTaskId},#{request.requestedByType},
+      #{request.requestedById},#{request.originPrincipalType},#{request.originPrincipalId},#{request.delegatingPrincipalType},#{request.delegatingPrincipalId},
+      #{request.executingPrincipalType},#{request.executingPrincipalId},#{request.delegationDepth},#{request.rejectionReasonCode},coalesce(#{request.createdAt},now()),coalesce(#{request.updatedAt},now()),#{request.expiresAt},#{request.version}
+    )
+    on conflict(tenant_id,a2a_request_id) do update set
+      policy_version=excluded.policy_version,
+      policy_snapshot_json=excluded.policy_snapshot_json,
+      policy_snapshot_hash=excluded.policy_snapshot_hash,
+      approval_status=excluded.approval_status,
+      approval_count=excluded.approval_count,
+      required_approval_count=excluded.required_approval_count,
+      approval_actor_ids_json=excluded.approval_actor_ids_json,
+      request_status=excluded.request_status,
+      operational_stage=excluded.operational_stage,
+      blocker_code=excluded.blocker_code,
+      blocker_reason=excluded.blocker_reason,
+      child_task_id=excluded.child_task_id,
+      rejection_reason_code=excluded.rejection_reason_code,
+      updated_at=excluded.updated_at,
+      expires_at=excluded.expires_at,
+      version=excluded.version
+  </insert>
+
+  <update id="updateExpectedVersion">
+    update a2a_requests set
+      policy_version=#{request.policyVersion},
+      policy_snapshot_json=cast(#{request.policySnapshotJson} as jsonb),
+      policy_snapshot_hash=#{request.policySnapshotHash},
+      approval_status=#{request.approvalStatus},
+      approval_count=#{request.approvalCount},
+      required_approval_count=#{request.requiredApprovalCount},
+      approval_actor_ids_json=cast(#{request.approvalActorIdsJson} as jsonb),
+      request_status=#{request.requestStatus},
+      operational_stage=#{request.operationalStage},
+      blocker_code=#{request.blockerCode},
+      blocker_reason=#{request.blockerReason},
+      child_task_id=#{request.childTaskId},
+      rejection_reason_code=#{request.rejectionReasonCode},
+      updated_at=#{request.updatedAt},
+      expires_at=#{request.expiresAt},
+      version=#{request.version}
+    where tenant_id=#{request.tenantId}
+      and a2a_request_id=#{request.requestId}
+      and version=#{expectedVersion}
+  </update>
+
+  <select id="findById" resultMap="Map">select * from a2a_requests where tenant_id=#{tenantId} and a2a_request_id=#{requestId}</select>
+  <select id="findByIdempotencyKey" resultMap="Map">select * from a2a_requests where tenant_id=#{tenantId} and idempotency_key=#{idempotencyKey}</select>
+  <select id="findByChildTask" resultMap="Map">select * from a2a_requests where tenant_id=#{tenantId} and child_task_id=#{childTaskId}</select>
+  <select id="findByRootTask" resultMap="Map">select * from a2a_requests where tenant_id=#{tenantId} and root_task_id=#{rootTaskId} order by created_at asc limit #{limit}</select>
+  <select id="findBySourceTask" resultMap="Map">select * from a2a_requests where tenant_id=#{tenantId} and source_task_id=#{sourceTaskId} order by created_at desc limit #{limit}</select>
+  <select id="search" resultMap="Map">
+    select * from a2a_requests
+    where tenant_id=#{tenantId}
+    <if test="requestStatus != null and requestStatus != ''">and request_status=#{requestStatus}</if>
+    <if test="text != null and text != ''">
+      and (a2a_request_id ilike concat('%',#{text},'%')
+        or root_task_id ilike concat('%',#{text},'%')
+        or source_task_id ilike concat('%',#{text},'%')
+        or child_task_id ilike concat('%',#{text},'%')
+        or target_domain_id ilike concat('%',#{text},'%')
+        or requested_task_type ilike concat('%',#{text},'%')
+        or operational_stage ilike concat('%',#{text},'%')
+        or blocker_code ilike concat('%',#{text},'%'))
+    </if>
+    order by updated_at desc nulls last, created_at desc limit #{limit}
+  </select>
+</mapper>

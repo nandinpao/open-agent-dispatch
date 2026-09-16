@@ -1,0 +1,8 @@
+package com.opensocket.aievent.core.resourceaccess.contract;
+import java.time.Instant;
+import java.util.List;
+/** Fixed export authorization evidence bound to policy, descriptor, field set and runtime lease. */
+public record ResourceExportAuthorization(String exportAuthorizationId,ResourceRef resourceRef,String principalId,ResourceExportFormat format,List<String> allowedFields,String fieldSetHash,long maximumRows,String readDecisionId,String exportDecisionId,PolicyVersion policyVersion,SecurityEpoch securityEpoch,String descriptorHash,String runtimeLeaseId,long fencingVersion,Instant issuedAt,Instant expiresAt,boolean executable){
+ public ResourceExportAuthorization{exportAuthorizationId=required(exportAuthorizationId,"exportAuthorizationId");principalId=required(principalId,"principalId");if(resourceRef==null||format==null||policyVersion==null||securityEpoch==null||issuedAt==null||expiresAt==null)throw new IllegalArgumentException("export authorization fields are required");allowedFields=allowedFields==null?List.of():List.copyOf(allowedFields);fieldSetHash=required(fieldSetHash,"fieldSetHash");if(maximumRows<0||fencingVersion<0)throw new IllegalArgumentException("maximumRows and fencingVersion must be non-negative");readDecisionId=required(readDecisionId,"readDecisionId");exportDecisionId=required(exportDecisionId,"exportDecisionId");descriptorHash=required(descriptorHash,"descriptorHash");runtimeLeaseId=required(runtimeLeaseId,"runtimeLeaseId");if(!expiresAt.isAfter(issuedAt))throw new IllegalArgumentException("expiresAt must be after issuedAt");}
+ private static String required(String v,String f){if(v==null||v.isBlank())throw new IllegalArgumentException(f+" is required");return v.trim();}
+}

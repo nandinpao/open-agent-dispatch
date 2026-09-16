@@ -12,8 +12,26 @@ management:
         enabled: true
       show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:never}
   info:
+    build:
+      enabled: true
     env:
       enabled: ${MANAGEMENT_INFO_ENV_ENABLED:false}
+
+aeg:
+  iam:
+    # v24 Phase 1: production Event Intake is OAuth2/JWT-only. Required OAuth material has no localhost/empty fallback.
+    token:
+      enabled: ${AEG_IAM_TOKEN_ENABLED:true}
+    machine-token:
+      enabled: ${AEG_IAM_MACHINE_TOKEN_ENABLED:true}
+      issuer: ${AEG_IAM_MACHINE_TOKEN_ISSUER}
+      signing-key-protection-key-base64: ${AEG_IAM_MACHINE_TOKEN_SIGNING_KEY_PROTECTION_KEY_BASE64}
+      legacy-token-endpoint-enabled: ${AEG_IAM_MACHINE_TOKEN_LEGACY_ENDPOINT_ENABLED:false}
+      allow-legacy-audience-parameter: ${AEG_IAM_MACHINE_TOKEN_ALLOW_LEGACY_AUDIENCE_PARAMETER:false}
+    event-intake:
+      # Migration compatibility modes are forbidden by CoreDeploymentModeValidator under the prod profile.
+      mode: ${AEG_IAM_EVENT_INTAKE_MODE:JWT_REQUIRED}
+      audit-enabled: ${AEG_IAM_EVENT_INTAKE_AUDIT_ENABLED:true}
 
 spring:
   data:
@@ -48,8 +66,10 @@ pg:
     enabled: ${PG_MYBATIS_ENABLED:true}
     base-packages:
       - com.opensocket.aievent.database.persistence
+      - com.opensocket.aievent.core.iam.persistence.dao
     mapper-scan-packages:
       - com.opensocket.aievent.database.persistence
+      - com.opensocket.aievent.core.iam.persistence.dao
     configuration:
       map-underscore-to-camel-case: true
       default-statement-timeout: ${PG_MYBATIS_STATEMENT_TIMEOUT:10}
@@ -57,6 +77,7 @@ pg:
       log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
     type-aliases-package:
       - com.opensocket.aievent.database.persistence
+      - com.opensocket.aievent.core.iam.persistence.dao
     mapper-locations:
       - classpath*:mybatis/postgresql/**/*.xml
 
@@ -101,6 +122,15 @@ redis:
         max-rounds: ${REDIS_STREAM_AUTOCLAIM_MAX_ROUNDS:5}
 
 core:
+  api-contract:
+    enforcement: STRICT
+    require-idempotency: true
+    require-correlation-id: true
+    require-expected-version: true
+    require-actor-identity: true
+    require-audit-reason: true
+  audit-evidence:
+    store: MYBATIS
   security:
     internal:
       enabled: ${CORE_INTERNAL_SECURITY_ENABLED:true}
@@ -112,11 +142,20 @@ core:
       audit-log-enabled: ${CORE_INTERNAL_SECURITY_AUDIT_LOG_ENABLED:true}
       gateway-token: ${CORE_GATEWAY_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
       adapter-worker-token: ${CORE_ADAPTER_WORKER_INTERNAL_TOKEN:${ADAPTER_WORKER_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
+      # v24 Phase 1: optional only for non-production compatibility; production JWT_REQUIRED does not require it.
+      event-intake-token: ${CORE_EVENT_INTAKE_INTERNAL_TOKEN:}
       operator-token: ${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
       recovery-operator-token: ${CORE_RECOVERY_OPERATOR_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
       recovery-admin-token: ${CORE_RECOVERY_ADMIN_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
       recovery-approver-token: ${CORE_RECOVERY_APPROVER_INTERNAL_TOKEN:${CORE_RECOVERY_ADMIN_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}}
       actuator-token: ${CORE_ACTUATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
+    admin:
+      # Phase 0P production admin security policy.
+      enabled: ${CORE_ADMIN_AUTH_ENABLED:true}
+      cookie-secure: ${CORE_ADMIN_SESSION_COOKIE_SECURE:true}
+      cookie-same-site: ${CORE_ADMIN_SESSION_COOKIE_SAME_SITE:strict}
+      bootstrap:
+        enabled: ${CORE_ADMIN_BOOTSTRAP_ENABLED:false}
   outbox:
     store: ${CORE_OUTBOX_STORE:MYBATIS}
     dispatcher-enabled: ${CORE_OUTBOX_DISPATCHER_ENABLED:true}
@@ -165,7 +204,7 @@ task:
     scanner-enabled: ${TASK_DISPATCH_RECOVERY_SCANNER_ENABLED:true}
     interval-ms: ${TASK_DISPATCH_RECOVERY_INTERVAL_MS:5000}
     max-batch-size: ${TASK_DISPATCH_RECOVERY_MAX_BATCH_SIZE:50}
-    max-attempts: ${TASK_DISPATCH_RECOVERY_MAX_ATTEMPTS:0}
+    max-attempts: ${TASK_DISPATCH_RECOVERY_MAX_ATTEMPTS:5}
     initial-delay: ${TASK_DISPATCH_RECOVERY_INITIAL_DELAY:30s}
     max-delay: ${TASK_DISPATCH_RECOVERY_MAX_DELAY:10m}
     claim-lease: ${TASK_DISPATCH_RECOVERY_CLAIM_LEASE:30s}
@@ -218,8 +257,8 @@ routing:
   generic-authoritative-maximum-selection-difference-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_SELECTION_DIFFERENCE_RATE:0.20}
   generic-authoritative-auto-rollback-enabled: ${ROUTING_GENERIC_AUTHORITATIVE_AUTO_ROLLBACK_ENABLED:true}
   persisted-legacy-evidence-recovery-enabled: ${ROUTING_PERSISTED_LEGACY_EVIDENCE_RECOVERY_ENABLED:false}
-  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:true}
-  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:true}
+  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:false}
+  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:false}
   require-v2-score-breakdown-in-enforce: ${ROUTING_REQUIRE_V2_SCORE_BREAKDOWN_IN_ENFORCE:true}
   legacy-profile-eligibility-disabled-in-enforce: ${ROUTING_LEGACY_PROFILE_ELIGIBILITY_DISABLED_IN_ENFORCE:true}
   eligibility-engine-mode: ${ROUTING_ELIGIBILITY_ENGINE_MODE:WARN}
@@ -259,6 +298,9 @@ dispatch:
 
 adapter-actions:
   store: ${ADAPTER_ACTION_STORE:MYBATIS}
+  issue:
+    # Production cannot reactivate the legacy TaskTerminal -> AdapterAction Issue write path.
+    legacy-write-enabled: false
 
 adapter-executor:
   mode: ${ADAPTER_EXECUTOR_MODE:external}
@@ -274,11 +316,81 @@ adapter-executor:
     jira-mock-enabled: ${JIRA_EXECUTOR_MOCK_ENABLED:false}
     redmine-mock-enabled: ${REDMINE_EXECUTOR_MOCK_ENABLED:false}
     gitlab-mock-enabled: ${GITLAB_EXECUTOR_MOCK_ENABLED:false}
-    jira-executor-name: ${JIRA_EXECUTOR_NAME:jira-issue-executor}
-    redmine-executor-name: ${REDMINE_EXECUTOR_NAME:redmine-issue-executor}
-    gitlab-executor-name: ${GITLAB_EXECUTOR_NAME:gitlab-issue-executor}
+    scoped-identity-enabled: ${ISSUE_SCOPED_IDENTITY_ENABLED:true}
+    scoped-identity-required: ${ISSUE_SCOPED_IDENTITY_REQUIRED:true}
   audit:
     store: ${ADAPTER_EXECUTOR_AUDIT_STORE:MYBATIS}
 
 task-issue-links:
   store: ${TASK_ISSUE_LINK_STORE:${ADAPTER_ACTION_STORE:MYBATIS}}
+
+
+# Phase 0E Current integration identity model. Legacy executor ENV is compatibility bootstrap only.
+integration-identity:
+  store: ${INTEGRATION_IDENTITY_STORE:MYBATIS}
+  legacy-bootstrap-enabled: ${INTEGRATION_LEGACY_BOOTSTRAP_ENABLED:false}
+  allow-over-privileged-mapping: ${INTEGRATION_ALLOW_OVER_PRIVILEGED_MAPPING:false}
+  secret-resolver: ${INTEGRATION_SECRET_RESOLVER:VAULT}
+  permission-reprobe-on-auth-failure: ${INTEGRATION_PERMISSION_REPROBE_ON_AUTH_FAILURE:true}
+  rotation-grace-period: ${INTEGRATION_ROTATION_GRACE_PERIOD:24h}
+  permission-probe: ${INTEGRATION_PERMISSION_PROBE:PROVIDER}
+  vault:
+    address: ${INTEGRATION_VAULT_ADDRESS:}
+    namespace: ${INTEGRATION_VAULT_NAMESPACE:}
+    token-ref: ${INTEGRATION_VAULT_TOKEN_REF:}
+    managed-mount: ${INTEGRATION_VAULT_MANAGED_MOUNT:secret}
+    managed-prefix: ${INTEGRATION_VAULT_MANAGED_PREFIX:opendispatch/integrations}
+# Production Phase 0F is fail-closed and requires scoped provider identities.
+handoff-context:
+  store: ${HANDOFF_CONTEXT_STORE:MYBATIS}
+  relay-provider: ${HANDOFF_CONTEXT_RELAY_PROVIDER:SCOPED}
+  require-approved-snapshot-for-agent: true
+
+issue-tracking:
+  enabled: ${ISSUE_TRACKING_ENABLED:true}
+
+
+# v24 Phase 4 production Issue orchestration is automatic but fail-closed on ambiguous/missing bindings.
+issue-orchestration:
+  automatic-materialization-enabled: true
+  optional-failed-task-requires-issue: ${ISSUE_ORCHESTRATION_OPTIONAL_FAILED_TASK_REQUIRES_ISSUE:true}
+  policy-id: ${ISSUE_ORCHESTRATION_POLICY_ID:task-issue-sync-policy-v1}
+  policy-version: ${ISSUE_ORCHESTRATION_POLICY_VERSION:1}
+
+# v24 Phase 4 production Issue Projection is canonical external Issue lifecycle authority.
+issue-projection:
+  enabled: ${ISSUE_PROJECTION_ENABLED:true}
+  store: ${ISSUE_PROJECTION_STORE:MYBATIS}
+  relay-provider: ${ISSUE_PROJECTION_RELAY_PROVIDER:SCOPED}
+  max-attempts: ${ISSUE_PROJECTION_MAX_ATTEMPTS:8}
+  reconcile-batch-size: ${ISSUE_PROJECTION_RECONCILE_BATCH_SIZE:100}
+  reconcile-delay-ms: ${ISSUE_PROJECTION_RECONCILE_DELAY_MS:60000}
+  retry-delay-seconds: ${ISSUE_PROJECTION_RETRY_DELAY_SECONDS:300}
+
+# Production Phase 0G uses the database outbox and requires verified webhooks.
+integration-sync:
+  provider-gateway: ${INTEGRATION_SYNC_PROVIDER_GATEWAY:SCOPED}
+  store: ${INTEGRATION_SYNC_STORE:MYBATIS}
+  worker-enabled: ${INTEGRATION_SYNC_WORKER_ENABLED:true}
+  worker-interval-ms: ${INTEGRATION_SYNC_WORKER_INTERVAL_MS:5000}
+  claim-limit: ${INTEGRATION_SYNC_CLAIM_LIMIT:50}
+  max-attempts: ${INTEGRATION_SYNC_MAX_ATTEMPTS:8}
+  circuit-failure-threshold: ${INTEGRATION_SYNC_CIRCUIT_FAILURE_THRESHOLD:5}
+  webhook-security:
+    enabled: ${INTEGRATION_WEBHOOK_SECURITY_ENABLED:true}
+    default-max-body-bytes: ${INTEGRATION_WEBHOOK_MAX_BODY_BYTES:1048576}
+    default-rate-limit-per-minute: ${INTEGRATION_WEBHOOK_RATE_LIMIT_PER_MINUTE:120}
+    clock-skew-seconds: ${INTEGRATION_WEBHOOK_CLOCK_SKEW_SECONDS:30}
+    nonce-cleanup-interval-ms: ${INTEGRATION_WEBHOOK_NONCE_CLEANUP_INTERVAL_MS:60000}
+    nonce-cleanup-batch-size: ${INTEGRATION_WEBHOOK_NONCE_CLEANUP_BATCH_SIZE:5000}
+
+# Phase 1A-2 IAM persistence safety is fail-closed in production.
+aeg:
+  database-platform:
+    lifecycle-mode: ${DATABASE_PLATFORM_LIFECYCLE_MODE:REQUIRED}
+    validate-on-startup: ${DATABASE_PLATFORM_VALIDATE_ON_STARTUP:true}
+  iam:
+    persistence:
+      department-max-depth: ${IAM_DEPARTMENT_MAX_DEPTH:10}
+      role-validation-enabled: ${IAM_DB_ROLE_VALIDATION_ENABLED:true}
+      expected-runtime-role: ${IAM_RUNTIME_DB_USER:opendispatch_runtime}

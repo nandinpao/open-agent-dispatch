@@ -15,6 +15,10 @@ import com.opensocket.aievent.core.dispatch.DispatchRequest;
 import com.opensocket.aievent.core.dispatch.DispatchRequestStatus;
 import com.opensocket.aievent.core.routing.RoutingDecisionRecord;
 import com.opensocket.aievent.core.task.TaskRecord;
+import com.opensocket.aievent.core.task.journey.TaskExecutionJourneyStage;
+import com.opensocket.aievent.core.task.journey.TaskExecutionJourneyStageCode;
+import com.opensocket.aievent.core.task.journey.TaskExecutionJourneyStatus;
+import com.opensocket.aievent.core.task.journey.TaskExecutionJourneyView;
 import com.opensocket.aievent.core.task.evidence.TaskDispatchEvidenceStage;
 import com.opensocket.aievent.core.task.evidence.TaskDispatchEvidenceView;
 import com.opensocket.aievent.core.task.evidence.TaskDispatchRecoveryAction;
@@ -27,15 +31,18 @@ public class TaskRuntimeVerificationService {
     private static final int DEFAULT_LIMIT = 200;
 
     private final TaskDispatchEvidenceService evidenceService;
+    private final TaskExecutionJourneyService journeyService;
 
-    public TaskRuntimeVerificationService(TaskDispatchEvidenceService evidenceService) {
+    public TaskRuntimeVerificationService(TaskDispatchEvidenceService evidenceService, TaskExecutionJourneyService journeyService) {
         this.evidenceService = evidenceService;
+        this.journeyService = journeyService;
     }
 
     public TaskRuntimeVerificationView verify(String taskId, int timeoutSeconds, int limit) {
         int safeTimeout = Math.max(5, Math.min(timeoutSeconds <= 0 ? DEFAULT_TIMEOUT_SECONDS : timeoutSeconds, 3600));
         int safeLimit = Math.max(20, Math.min(limit <= 0 ? DEFAULT_LIMIT : limit, 500));
         TaskDispatchEvidenceView evidence = evidenceService.evidence(taskId, safeLimit);
+        TaskExecutionJourneyView journey = journeyService.journey(taskId);
         OffsetDateTime generatedAt = OffsetDateTime.now(ZoneOffset.UTC);
         TaskRecord task = evidence.getTask();
         DispatchRequest latest = latestDispatchRequest(evidence.getDispatchRequests());
@@ -49,13 +56,13 @@ public class TaskRuntimeVerificationService {
         List<TaskRuntimeVerificationStep> steps = new ArrayList<>();
         steps.add(stepFromEvidence("CONTRACT_READY", "Contract Ready", evidenceStage(evidence, "TASK_CONTRACT"),
                 "Dispatch contract must be ACTIVE before runtime delivery can be trusted."));
-        steps.add(testTaskCreatedStep(task));
-        steps.add(routingSelectedStep(routing));
+        steps.add(stepFromJourney("TEST_TASK_CREATED", "Task Created", journeyStage(journey, TaskExecutionJourneyStageCode.INTAKE), "Task intake evidence is not available yet."));
+        steps.add(stepFromJourney("ROUTING_SELECTED_AGENT", "Routing Selected Agent", journeyStage(journey, TaskExecutionJourneyStageCode.ROUTING), "Routing decision evidence is not available yet."));
         steps.add(dispatchRequestCreatedStep(latest));
-        steps.add(runtimeDeliveredStep(latest));
-        steps.add(agentAckStep(evidence, latest));
-        steps.add(agentResultStep(evidence, latest));
-        steps.add(callbackInboxStep(evidence));
+        steps.add(stepFromJourney("RUNTIME_DELIVERED", "Runtime Delivered", journeyStage(journey, TaskExecutionJourneyStageCode.DELIVERY), "Runtime delivery evidence is not available yet."));
+        steps.add(stepFromJourney("AGENT_ACK", "Agent ACK", journeyStage(journey, TaskExecutionJourneyStageCode.ACK), "Waiting for accepted Agent ACK evidence."));
+        steps.add(stepFromJourney("AGENT_RESULT", "Agent RESULT / ERROR", journeyStage(journey, TaskExecutionJourneyStageCode.RESULT), "Waiting for accepted Agent RESULT/ERROR evidence."));
+        steps.add(callbackInboxJourneyStep(journey));
         steps.add(taskTerminalStep(task, latest));
 
         TaskRuntimeVerificationStep firstBlocking = steps.stream()
@@ -107,13 +114,68 @@ public class TaskRuntimeVerificationService {
             view.setSummary("Runtime E2E verification is waiting at " + (current == null ? "UNKNOWN" : current.getStep()) + ".");
         }
         Map<String, Object> diagnostics = new LinkedHashMap<>();
-        diagnostics.put("authority", "P6_RUNTIME_DELIVERY_E2E_VERIFICATION");
+        diagnostics.put("authority", "V24_TASK_EXECUTION_JOURNEY_V1");
+        diagnostics.put("journeyRevision", journey.revision());
+        diagnostics.put("journeyStatus", journey.status().name());
+        diagnostics.put("journeyCurrentStage", journey.currentStage().name());
         diagnostics.put("timeoutSeconds", safeTimeout);
         diagnostics.put("elapsedSeconds", elapsedSeconds);
         diagnostics.put("latestDispatchStatus", latest == null || latest.getStatus() == null ? null : latest.getStatus().name());
         diagnostics.put("evidenceStatus", evidence.getStatus());
         view.setDiagnostics(diagnostics);
         return view;
+    }
+
+    private TaskRuntimeVerificationStep stepFromJourney(String stepCode, String title, TaskExecutionJourneyStage source, String fallback) {
+        if (source == null) {
+            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of(stepCode, "PENDING", title, fallback);
+            step.setNextAction(nextActionForStep(stepCode));
+            return step;
+        }
+        String status = switch (source.status()) {
+            case SUCCEEDED, NOT_APPLICABLE -> "PASS";
+            case BLOCKED, FAILED_RETRYABLE, FAILED_FINAL, CONFLICT -> "BLOCKED";
+            case NOT_STARTED, PENDING, IN_PROGRESS -> "PENDING";
+        };
+        TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of(stepCode, status, title, firstNonBlank(source.summary(), fallback));
+        step.setObservedAt(first(source.completedAt(), source.lastChangedAt(), source.startedAt()));
+        if ("BLOCKED".equals(status)) step.setBlockingCode(firstNonBlank(source.reasonCode(), "JOURNEY_STAGE_BLOCKED"));
+        if (!"PASS".equals(status)) step.setNextAction(nextActionForStep(stepCode));
+        step.setDetails(details(
+                "journeyStage", source.stage().name(),
+                "journeyStatus", source.status().name(),
+                "reasonCode", source.reasonCode(),
+                "authority", source.authority(),
+                "revision", source.revision(),
+                "retryability", source.retryability().name(),
+                "retryAfter", source.retryAfter(),
+                "evidenceRefs", source.evidenceRefs()));
+        return step;
+    }
+
+    private TaskRuntimeVerificationStep callbackInboxJourneyStep(TaskExecutionJourneyView journey) {
+        TaskExecutionJourneyStage ack = journeyStage(journey, TaskExecutionJourneyStageCode.ACK);
+        TaskExecutionJourneyStage result = journeyStage(journey, TaskExecutionJourneyStageCode.RESULT);
+        boolean ackPresent = hasCallbackEvidence(ack);
+        boolean resultPresent = hasCallbackEvidence(result);
+        TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("CALLBACK_INBOX", ackPresent || resultPresent ? "PASS" : "PENDING",
+                "Callback Inbox", ackPresent || resultPresent ? "Accepted callback evidence is referenced by the canonical TaskExecutionJourney." : "Waiting for accepted callback evidence.");
+        if (!ackPresent && !resultPresent) step.setNextAction("Open Callback Inbox");
+        step.setObservedAt(first(result == null ? null : result.lastChangedAt(), ack == null ? null : ack.lastChangedAt()));
+        step.setDetails(details("authority", "V24_TASK_EXECUTION_JOURNEY_V1", "ackEvidenceRefs", ack == null ? List.of() : ack.evidenceRefs(),
+                "resultEvidenceRefs", result == null ? List.of() : result.evidenceRefs()));
+        return step;
+    }
+
+
+    private boolean hasCallbackEvidence(TaskExecutionJourneyStage stage) {
+        return stage != null && stage.evidenceRefs() != null && stage.evidenceRefs().stream()
+                .anyMatch(ref -> ref != null && "TASK_CALLBACK".equals(ref.evidenceType()));
+    }
+
+    private TaskExecutionJourneyStage journeyStage(TaskExecutionJourneyView journey, TaskExecutionJourneyStageCode code) {
+        if (journey == null || journey.stages() == null) return null;
+        return journey.stages().stream().filter(stage -> stage.stage() == code).findFirst().orElse(null);
     }
 
     private TaskRuntimeVerificationStep stepFromEvidence(String stepCode, String title, TaskDispatchEvidenceStage source, String fallback) {
@@ -130,34 +192,6 @@ public class TaskRuntimeVerificationService {
         return step;
     }
 
-    private TaskRuntimeVerificationStep testTaskCreatedStep(TaskRecord task) {
-        if (task == null) {
-            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("TEST_TASK_CREATED", "BLOCKED", "Test Task Created", "Task record was not found.");
-            step.setBlockingCode("TASK_NOT_FOUND");
-            return step;
-        }
-        TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("TEST_TASK_CREATED", "PASS", "Test Task Created", "Task record exists in Core.");
-        step.setObservedAt(task.getCreatedAt());
-        step.setDetails(details("taskStatus", task.getStatus(), "sourceSystem", task.getSourceSystem(), "taskType", task.getTaskType()));
-        return step;
-    }
-
-    private TaskRuntimeVerificationStep routingSelectedStep(RoutingDecisionRecord routing) {
-        if (routing == null) {
-            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("ROUTING_SELECTED_AGENT", "PENDING", "Routing Selected Agent", "No routing decision has been recorded yet.");
-            step.setNextAction("Run Task-level Readiness");
-            return step;
-        }
-        boolean selected = !blank(routing.getSelectedAgentId());
-        TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("ROUTING_SELECTED_AGENT", selected ? "PASS" : "BLOCKED", "Routing Selected Agent",
-                selected ? "Routing selected Agent " + routing.getSelectedAgentId() + "." : firstNonBlank(routing.getDecisionReason(), "Routing did not select an Agent."));
-        step.setBlockingCode(selected ? null : "ROUTING_NO_SELECTED_AGENT");
-        step.setNextAction(selected ? null : "Run Task-level Readiness");
-        step.setObservedAt(routing.getCreatedAt());
-        step.setDetails(details("decisionId", routing.getDecisionId(), "selectedScore", routing.getSelectedScore(), "routingPolicy", routing.getRoutingPolicy()));
-        return step;
-    }
-
     private TaskRuntimeVerificationStep dispatchRequestCreatedStep(DispatchRequest latest) {
         if (latest == null) {
             TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("DISPATCH_REQUEST_CREATED", "PENDING", "Dispatch Request Created", "No dispatch request has been created for this task yet.");
@@ -170,70 +204,12 @@ public class TaskRuntimeVerificationService {
         return step;
     }
 
-    private TaskRuntimeVerificationStep runtimeDeliveredStep(DispatchRequest latest) {
-        if (latest == null) {
-            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("RUNTIME_DELIVERED", "PENDING", "Runtime Delivered", "Waiting for a dispatch request before runtime delivery can be verified.");
-            step.setNextAction("Retry Dispatch");
-            return step;
-        }
-        if (isDispatchFailed(latest)) {
-            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("RUNTIME_DELIVERED", "BLOCKED", "Runtime Delivered", firstNonBlank(latest.getLastError(), "Dispatch request failed before Agent ACK."));
-            step.setBlockingCode("RUNTIME_DELIVERY_FAILED");
-            step.setNextAction("Retry Latest Dispatch Request");
-            step.setObservedAt(first(latest.getFailedAt(), latest.getTimedOutAt(), latest.getDeadLetterAt(), latest.getUpdatedAt()));
-            step.setDetails(dispatchDetails(latest));
-            return step;
-        }
-        if (latest.getDispatchedAt() != null || dispatchStatusAtLeast(latest, DispatchRequestStatus.DISPATCHED)) {
-            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("RUNTIME_DELIVERED", "PASS", "Runtime Delivered", "Dispatch request reached runtime delivery state.");
-            step.setObservedAt(first(latest.getDispatchedAt(), latest.getUpdatedAt()));
-            step.setDetails(dispatchDetails(latest));
-            return step;
-        }
-        TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("RUNTIME_DELIVERED", "PENDING", "Runtime Delivered", "Dispatch request exists but has not reached runtime delivery yet.");
-        step.setNextAction("Open Agent Diagnostics");
-        step.setDetails(dispatchDetails(latest));
-        return step;
-    }
-
-    private TaskRuntimeVerificationStep agentAckStep(TaskDispatchEvidenceView evidence, DispatchRequest latest) {
-        TaskDispatchEvidenceStage stage = evidenceStage(evidence, "AGENT_ACK");
-        if (latest != null && dispatchStatusAtLeast(latest, DispatchRequestStatus.ACKED)) {
-            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("AGENT_ACK", "PASS", "Agent ACK", "Agent ACK was recorded by Core.");
-            step.setObservedAt(first(latest.getUpdatedAt(), latest.getDispatchedAt()));
-            step.setDetails(dispatchDetails(latest));
-            return step;
-        }
-        TaskRuntimeVerificationStep step = stepFromEvidence("AGENT_ACK", "Agent ACK", stage, "Waiting for Agent ACK callback.");
-        if ("PENDING".equalsIgnoreCase(step.getStatus())) step.setNextAction("Open Agent Diagnostics");
-        return step;
-    }
-
-    private TaskRuntimeVerificationStep agentResultStep(TaskDispatchEvidenceView evidence, DispatchRequest latest) {
-        TaskDispatchEvidenceStage stage = evidenceStage(evidence, "AGENT_RESULT");
-        if (latest != null && dispatchStatusAtLeast(latest, DispatchRequestStatus.COMPLETED)) {
-            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("AGENT_RESULT", "PASS", "Agent RESULT / ERROR", "Agent terminal callback was recorded by Core.");
-            step.setObservedAt(first(latest.getCompletedAt(), latest.getFailedAt(), latest.getUpdatedAt()));
-            step.setDetails(dispatchDetails(latest));
-            return step;
-        }
-        TaskRuntimeVerificationStep step = stepFromEvidence("AGENT_RESULT", "Agent RESULT / ERROR", stage, "Waiting for Agent RESULT or ERROR callback.");
-        if ("PENDING".equalsIgnoreCase(step.getStatus())) step.setNextAction("Open Agent Diagnostics");
-        return step;
-    }
-
-    private TaskRuntimeVerificationStep callbackInboxStep(TaskDispatchEvidenceView evidence) {
-        TaskRuntimeVerificationStep step = stepFromEvidence("CALLBACK_INBOX", "Callback Inbox", evidenceStage(evidence, "CALLBACK_INBOX"), "Waiting for callback inbox evidence.");
-        if ("PENDING".equalsIgnoreCase(step.getStatus())) step.setNextAction("Open Callback Inbox");
-        return step;
-    }
-
     private TaskRuntimeVerificationStep taskTerminalStep(TaskRecord task, DispatchRequest latest) {
         boolean terminal = task != null && task.getStatus() != null && task.getStatus().isTerminal();
-        if (terminal || (latest != null && dispatchStatusAtLeast(latest, DispatchRequestStatus.COMPLETED))) {
-            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("TASK_COMPLETED", "PASS", "Task Completed", "Task reached a terminal state after runtime execution.");
-            step.setObservedAt(first(task == null ? null : task.getTerminalAt(), latest == null ? null : latest.getCompletedAt(), task == null ? null : task.getUpdatedAt()));
-            step.setDetails(details("taskStatus", task == null ? null : task.getStatus(), "dispatchStatus", latest == null ? null : latest.getStatus()));
+        if (terminal) {
+            TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("TASK_COMPLETED", "PASS", "Task Completed", "Authoritative TaskRecord is in a terminal state.");
+            step.setObservedAt(first(task.getTerminalAt(), task.getUpdatedAt()));
+            step.setDetails(details("authority", "TaskRecord", "taskStatus", task.getStatus(), "dispatchStatus", latest == null ? null : latest.getStatus()));
             return step;
         }
         TaskRuntimeVerificationStep step = TaskRuntimeVerificationStep.of("TASK_COMPLETED", "PENDING", "Task Completed", "Task has not reached terminal state yet.");
@@ -276,13 +252,6 @@ public class TaskRuntimeVerificationService {
 
     private boolean isBlocking(String status) {
         return contains(status, "BLOCK") || contains(status, "ERROR") || contains(status, "FAIL") || contains(status, "DEAD") || contains(status, "TIME");
-    }
-
-    private boolean isDispatchFailed(DispatchRequest request) {
-        if (request == null) return false;
-        String status = request.getStatus() == null ? null : request.getStatus().name();
-        return request.getFailedAt() != null || request.getTimedOutAt() != null || request.getDeadLetterAt() != null
-                || contains(status, "FAILED") || contains(status, "TIMED_OUT") || contains(status, "DEAD_LETTER");
     }
 
     private boolean dispatchStatusAtLeast(DispatchRequest request, DispatchRequestStatus expected) {

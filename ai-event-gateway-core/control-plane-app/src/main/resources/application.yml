@@ -4,8 +4,8 @@
 #   - application-dev.yml
 #   - application-prod.yml
 #
-# Default profile is local so a developer can run the service without setting
-# SPRING_PROFILES_ACTIVE. Production deployments must set SPRING_PROFILES_ACTIVE=prod.
+# The base configuration is fail-closed. Direct launches use the secure default profile.
+# Local development must explicitly activate SPRING_PROFILES_ACTIVE=local.
 spring:
   application:
     name: ai-event-gateway-core
@@ -45,21 +45,224 @@ spring:
       - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
       - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
   profiles:
-    default: local
+    default: secure
+  mail:
+    properties:
+      mail.smtp.connectiontimeout: ${SPRING_MAIL_CONNECTION_TIMEOUT_MS:3000}
+      mail.smtp.timeout: ${SPRING_MAIL_TIMEOUT_MS:5000}
+      mail.smtp.writetimeout: ${SPRING_MAIL_WRITE_TIMEOUT_MS:5000}
   jackson:
     # Transitional compatibility only: the runtime mapper is Jackson 3.
     # Set SPRING_JACKSON_USE_JACKSON2_DEFAULTS=false after stored payloads and consumers are verified.
     use-jackson2-defaults: ${SPRING_JACKSON_USE_JACKSON2_DEFAULTS:true}
 
+
+# P2 unified runtime feature-state authority. The endpoint is intentionally non-sensitive
+# and must remain available before the Admin UI selects an authentication session path.
+# PC-S6 isolated scheduler topology and operational SLO telemetry. Defaults are conservative
+# starting points; runtime certification must tune them from observed saturation/backlog evidence.
+opendispatch:
+  operational:
+    schedulers:
+      dispatch:
+        pool-size: ${CORE_DISPATCH_SCHEDULER_POOL_SIZE:2}
+      a2a-remote:
+        pool-size: ${CORE_A2A_REMOTE_SCHEDULER_POOL_SIZE:4}
+      reconciliation:
+        pool-size: ${CORE_RECONCILIATION_SCHEDULER_POOL_SIZE:2}
+      projection:
+        pool-size: ${CORE_PROJECTION_SCHEDULER_POOL_SIZE:2}
+      maintenance:
+        pool-size: ${CORE_MAINTENANCE_SCHEDULER_POOL_SIZE:2}
+    metrics:
+      refresh-ms: ${CORE_OPERATIONAL_METRICS_REFRESH_MS:5000}
+    slo:
+      dispatch-oldest-age-seconds: ${CORE_SLO_DISPATCH_OLDEST_AGE_SECONDS:30}
+      reconciliation-oldest-age-seconds: ${CORE_SLO_RECONCILIATION_OLDEST_AGE_SECONDS:120}
+      remote-tracking-oldest-age-seconds: ${CORE_SLO_REMOTE_TRACKING_OLDEST_AGE_SECONDS:30}
+
+runtime-capabilities:
+  fail-fast: ${AEG_RUNTIME_CAPABILITIES_FAIL_FAST:true}
+
+# Phase 7A-1 backend-only UI capability projection. Keep disabled until Resource Access formal authority is active.
+ui-capability:
+  enabled: ${AEG_UI_CAPABILITY_ENABLED:false}
+  projection-api-enabled: ${AEG_UI_CAPABILITY_PROJECTION_API_ENABLED:false}
+  page-bootstrap-enabled: ${AEG_UI_CAPABILITY_PAGE_BOOTSTRAP_ENABLED:false}
+  access-request-enabled: ${AEG_UI_ACCESS_REQUEST_ENABLED:false}
+  projection:
+    maximum-cache-entries: ${AEG_UI_CAPABILITY_CACHE_MAXIMUM_ENTRIES:10000}
+    maximum-ttl: ${AEG_UI_CAPABILITY_MAXIMUM_TTL:60s}
+
+# P4RA-D decision/shadow source baseline. Business API enforcement remains deferred to P4RA-E.
+resource-access:
+  enabled: ${AEG_RESOURCE_ACCESS_ENABLED:false}
+  management-api-enabled: ${AEG_RESOURCE_ACCESS_MANAGEMENT_API_ENABLED:false}
+  governance-api-enabled: ${AEG_RESOURCE_ACCESS_GOVERNANCE_API_ENABLED:false}
+  decision-api-enabled: ${AEG_RESOURCE_ACCESS_DECISION_API_ENABLED:false}
+  enforcement-mode: ${AEG_RESOURCE_ACCESS_ENFORCEMENT_MODE:OFF}
+  decision-mode: ${AEG_RESOURCE_ACCESS_DECISION_MODE:SHADOW}
+  cache:
+    maximum-entries: ${AEG_RESOURCE_ACCESS_CACHE_MAXIMUM_ENTRIES:10000}
+    maximum-concurrent-loads: ${AEG_RESOURCE_ACCESS_CACHE_MAXIMUM_CONCURRENT_LOADS:128}
+    single-flight-wait-timeout: ${AEG_RESOURCE_ACCESS_CACHE_SINGLE_FLIGHT_WAIT_TIMEOUT:2s}
+    allow-ttl: ${AEG_RESOURCE_ACCESS_CACHE_ALLOW_TTL:30s}
+    deny-ttl: ${AEG_RESOURCE_ACCESS_CACHE_DENY_TTL:5s}
+  task-enabled: ${AEG_RESOURCE_ACCESS_TASK_ENABLED:false}
+  a2a-enabled: ${AEG_RESOURCE_ACCESS_A2A_ENABLED:false}
+  business-data-enabled: ${AEG_RESOURCE_ACCESS_BUSINESS_DATA_ENABLED:false}
+  issue-enabled: ${AEG_RESOURCE_ACCESS_ISSUE_ENABLED:false}
+  integration-enabled: ${AEG_RESOURCE_ACCESS_INTEGRATION_ENABLED:false}
+  external-write-enabled: ${AEG_RESOURCE_ACCESS_EXTERNAL_WRITE_ENABLED:false}
+  attachment-enabled: ${AEG_RESOURCE_ACCESS_ATTACHMENT_ENABLED:false}
+  export-enabled: ${AEG_RESOURCE_ACCESS_EXPORT_ENABLED:false}
+  background-enabled: ${AEG_RESOURCE_ACCESS_BACKGROUND_ENABLED:false}
+  runtime-lease-enabled: ${AEG_RESOURCE_ACCESS_RUNTIME_LEASE_ENABLED:false}
+  scope-snapshot-enabled: ${AEG_RESOURCE_ACCESS_SCOPE_SNAPSHOT_ENABLED:false}
+  runtime-scale-api-enabled: ${AEG_RESOURCE_ACCESS_RUNTIME_SCALE_API_ENABLED:false}
+  attachment:
+    maximum-bytes: ${AEG_RESOURCE_ACCESS_ATTACHMENT_MAXIMUM_BYTES:52428800}
+    handle-ttl: ${AEG_RESOURCE_ACCESS_ATTACHMENT_HANDLE_TTL:2m}
+    allowed-mime-prefixes: ${AEG_RESOURCE_ACCESS_ATTACHMENT_ALLOWED_MIME_PREFIXES:application/pdf,image/,text/plain,application/json,application/zip}
+  export:
+    maximum-rows: ${AEG_RESOURCE_ACCESS_EXPORT_MAXIMUM_ROWS:100000}
+  background:
+    issue-worker-principal-id: ${AEG_RESOURCE_ACCESS_ISSUE_WORKER_PRINCIPAL_ID:opendispatch-issue-worker}
+  runtime-lease:
+    read-ttl: ${AEG_RESOURCE_ACCESS_RUNTIME_LEASE_READ_TTL:15m}
+    write-ttl: ${AEG_RESOURCE_ACCESS_RUNTIME_LEASE_WRITE_TTL:5m}
+    read-recheck: ${AEG_RESOURCE_ACCESS_RUNTIME_LEASE_READ_RECHECK:30s}
+    restricted-recheck: ${AEG_RESOURCE_ACCESS_RUNTIME_LEASE_RESTRICTED_RECHECK:10s}
+  agent-admin-enabled: ${AEG_RESOURCE_ACCESS_AGENT_ADMIN_ENABLED:false}
+  field-visibility-enabled: ${AEG_RESOURCE_ACCESS_FIELD_VISIBILITY_ENABLED:false}
+  explicit-deny-enabled: ${AEG_RESOURCE_ACCESS_EXPLICIT_DENY_ENABLED:false}
+  break-glass-enabled: ${AEG_RESOURCE_ACCESS_BREAK_GLASS_ENABLED:false}
+  shadow-pipeline:
+    # Phase 5J asynchronous observation storage. Keep disabled until PostgreSQL V96/V97 is certified.
+    enabled: ${AEG_RESOURCE_ACCESS_SHADOW_PIPELINE_ENABLED:false}
+    poll-delay-ms: ${AEG_RESOURCE_ACCESS_SHADOW_PIPELINE_POLL_DELAY_MS:250}
+    initial-delay-ms: ${AEG_RESOURCE_ACCESS_SHADOW_PIPELINE_INITIAL_DELAY_MS:5000}
+    partition-interval-ms: ${AEG_RESOURCE_ACCESS_SHADOW_PARTITION_INTERVAL_MS:3600000}
+    partition-initial-delay-ms: ${AEG_RESOURCE_ACCESS_SHADOW_PARTITION_INITIAL_DELAY_MS:15000}
+    retention-interval-ms: ${AEG_RESOURCE_ACCESS_SHADOW_RETENTION_INTERVAL_MS:3600000}
+    retention-initial-delay-ms: ${AEG_RESOURCE_ACCESS_SHADOW_RETENTION_INITIAL_DELAY_MS:60000}
+
 aeg:
+  # Phase 6C-0 remains disabled until Java 25, PostgreSQL V100, Admin UI and multi-node certification pass.
+  enforcement-activation:
+    control-plane-enabled: ${AEG_ENFORCEMENT_ACTIVATION_CONTROL_PLANE_ENABLED:false}
+    # Phase 6C-0 keeps distributed refresh disabled until the environment certification gate passes.
+    revision-sync-enabled: ${AEG_ENFORCEMENT_ACTIVATION_REVISION_SYNC_ENABLED:false}
+    # Phase 6C-1 remains false until the Phase 6C-0 full environment report is PASS.
+    wave0-read-pilot-enabled: ${AEG_ENFORCEMENT_ACTIVATION_WAVE0_READ_PILOT_ENABLED:false}
+    # Contract-only boundary. Task List/Search traffic is explicitly deferred beyond Phase 6C-1.
+    task-list-search-pilot-enabled: ${AEG_ENFORCEMENT_ACTIVATION_TASK_LIST_SEARCH_PILOT_ENABLED:false}
+    node-id: ${AEG_ENFORCEMENT_ACTIVATION_NODE_ID:${HOSTNAME:local}}
+    revision-sync-interval-ms: ${AEG_ENFORCEMENT_ACTIVATION_REVISION_SYNC_INTERVAL_MS:2000}
+    revision-sync-initial-delay-ms: ${AEG_ENFORCEMENT_ACTIVATION_REVISION_SYNC_INITIAL_DELAY_MS:3000}
+    cluster-node-stale-after: ${AEG_ENFORCEMENT_ACTIVATION_CLUSTER_NODE_STALE_AFTER:PT15S}
   database-platform:
     enabled: ${DATABASE_PLATFORM_ENABLED:true}
     health-enabled: ${DATABASE_PLATFORM_HEALTH_ENABLED:true}
     validate-on-startup: ${DATABASE_PLATFORM_VALIDATE_ON_STARTUP:false}
+    lifecycle-mode: ${DATABASE_PLATFORM_LIFECYCLE_MODE:SETUP_TOLERANT}
     require-data-source: ${DATABASE_PLATFORM_REQUIRE_DATASOURCE:true}
     require-sql-session-factory: ${DATABASE_PLATFORM_REQUIRE_SQL_SESSION_FACTORY:true}
     require-flyway: ${DATABASE_PLATFORM_REQUIRE_FLYWAY:true}
     validation-timeout: ${DATABASE_PLATFORM_VALIDATION_TIMEOUT:2s}
+    probe-interval: ${DATABASE_PLATFORM_PROBE_INTERVAL:15s}
+    degraded-probe-interval: ${DATABASE_PLATFORM_DEGRADED_PROBE_INTERVAL:30s}
+  iam:
+    credentials:
+      # Optional, bounded compatibility adapter. Release profiles keep it disabled.
+      # It can verify a linked old password but cannot create a session, principal, role or permission.
+      legacy-password-adapter-enabled: ${AEG_IAM_LEGACY_PASSWORD_ADAPTER_ENABLED:false}
+    authentication:
+      # Phase 1A-3 is foundation-only. Keep disabled until the IAM API/security adapter is activated.
+      enabled: ${AEG_IAM_AUTHENTICATION_ENABLED:false}
+      mfa-key-id: ${AEG_IAM_AUTHENTICATION_MFA_KEY_ID:iam-mfa-v1}
+      mfa-master-key-base64: ${AEG_IAM_AUTHENTICATION_MFA_MASTER_KEY_BASE64:}
+      secret-pepper-base64: ${AEG_IAM_AUTHENTICATION_SECRET_PEPPER_BASE64:}
+      totp-window: ${AEG_IAM_AUTHENTICATION_TOTP_WINDOW:1}
+    rbac:
+      # Phase 1A-4 is foundation/shadow-only. Existing business API enforcement remains legacy.
+      enabled: ${AEG_IAM_RBAC_ENABLED:false}
+      cache-maximum-size: ${AEG_IAM_RBAC_CACHE_MAXIMUM_SIZE:10000}
+      cache-ttl: ${AEG_IAM_RBAC_CACHE_TTL:30s}
+      invalidation-channel: ${AEG_IAM_RBAC_INVALIDATION_CHANNEL:opendispatch:iam:cache-invalidation}
+      shadow-match-sampling-rate: ${AEG_IAM_RBAC_SHADOW_MATCH_SAMPLING_RATE:0.01}
+      shadow-sample-queue-capacity: ${AEG_IAM_RBAC_SHADOW_SAMPLE_QUEUE_CAPACITY:4096}
+      shadow-max-metadata-entries: ${AEG_IAM_RBAC_SHADOW_MAX_METADATA_ENTRIES:16}
+    federation:
+      # P2.4 enterprise federation. Keep disabled until OIDC provider configuration, callback URL
+      # and a dedicated state/PKCE derivation secret have been provisioned. External IdP claims
+      # authenticate a canonical Person only; OpenDispatch remains the authorization authority.
+      enabled: ${AEG_IAM_FEDERATION_ENABLED:false}
+      oidc-callback-url: ${AEG_IAM_FEDERATION_OIDC_CALLBACK_URL:http://localhost:18080/api/session/federation/oidc/callback}
+      state-secret-base64: ${AEG_IAM_FEDERATION_STATE_SECRET_BASE64:}
+      login-attempt-ttl: ${AEG_IAM_FEDERATION_LOGIN_ATTEMPT_TTL:5m}
+    token:
+      # Phase 1A-5 is foundation-only. Keep disabled until IAM token endpoints are activated.
+      enabled: ${AEG_IAM_TOKEN_ENABLED:false}
+      secret-pepper-base64: ${AEG_IAM_TOKEN_SECRET_PEPPER_BASE64:}
+    machine-token:
+      # Phase 12.1: Spring Security 7 Authorization Server owns the OAuth protocol;
+      # OpenDispatch IAM remains the canonical Service Account/RBAC/Machine Boundary authority.
+      enabled: ${AEG_IAM_MACHINE_TOKEN_ENABLED:false}
+      issuer: ${AEG_IAM_MACHINE_TOKEN_ISSUER:http://localhost:18080}
+      access-token-ttl: ${AEG_IAM_MACHINE_TOKEN_ACCESS_TTL:10m}
+      minimum-access-token-ttl: ${AEG_IAM_MACHINE_TOKEN_MINIMUM_ACCESS_TTL:1m}
+      clock-skew: ${AEG_IAM_MACHINE_TOKEN_CLOCK_SKEW:30s}
+      signing-key-rotation: ${AEG_IAM_MACHINE_TOKEN_SIGNING_KEY_ROTATION:30d}
+      signing-key-verification-grace: ${AEG_IAM_MACHINE_TOKEN_SIGNING_KEY_VERIFICATION_GRACE:1h}
+      rsa-key-size: ${AEG_IAM_MACHINE_TOKEN_RSA_KEY_SIZE:3072}
+      signing-key-protection-key-id: ${AEG_IAM_MACHINE_TOKEN_SIGNING_KEY_PROTECTION_KEY_ID:iam-machine-jwt-v1}
+      signing-key-protection-key-base64: ${AEG_IAM_MACHINE_TOKEN_SIGNING_KEY_PROTECTION_KEY_BASE64:}
+      token-endpoint-rate-limit-per-minute: ${AEG_IAM_MACHINE_TOKEN_RATE_LIMIT_PER_MINUTE:120}
+      per-client-rate-limit-per-minute: ${AEG_IAM_MACHINE_TOKEN_PER_CLIENT_RATE_LIMIT_PER_MINUTE:30}
+      jwks-cache-max-age-seconds: ${AEG_IAM_MACHINE_TOKEN_JWKS_CACHE_MAX_AGE_SECONDS:300}
+      # Standard endpoint: POST /oauth2/token. The legacy /oauth/token endpoint is opt-in only.
+      legacy-token-endpoint-enabled: ${AEG_IAM_MACHINE_TOKEN_LEGACY_ENDPOINT_ENABLED:false}
+      # Transitional compatibility. New clients SHOULD send RFC 8707-style resource= instead of audience=.
+      allow-legacy-audience-parameter: ${AEG_IAM_MACHINE_TOKEN_ALLOW_LEGACY_AUDIENCE_PARAMETER:true}
+      # Comma-separated/list property. Forwarded/X-Forwarded-For is trusted only when the direct peer is in this list.
+      trusted-proxy-cidrs: ${AEG_IAM_MACHINE_TOKEN_TRUSTED_PROXY_CIDRS:}
+    event-intake:
+      # Phase 9 migration: LEGACY_ONLY -> SHADOW -> DUAL_ACCEPT -> JWT_REQUIRED.
+      # JWT authority never enters the Human R3 route-permission registry.
+      mode: ${AEG_IAM_EVENT_INTAKE_MODE:LEGACY_ONLY}
+      required-scope: ${AEG_IAM_EVENT_INTAKE_REQUIRED_SCOPE:events.intake}
+      audience: ${AEG_IAM_EVENT_INTAKE_AUDIENCE:opendispatch-event-api}
+      require-api-prefix: ${AEG_IAM_EVENT_INTAKE_REQUIRE_API_PREFIX:true}
+      audit-enabled: ${AEG_IAM_EVENT_INTAKE_AUDIT_ENABLED:true}
+    api:
+      # Phase 1A-7 runtime remains disabled until the executable Maven/Docker integration gate passes.
+      enabled: ${AEG_IAM_API_ENABLED:false}
+      default-page-size: ${AEG_IAM_API_DEFAULT_PAGE_SIZE:20}
+      maximum-page-size: ${AEG_IAM_API_MAXIMUM_PAGE_SIZE:100}
+      cursor-ttl: ${AEG_IAM_API_CURSOR_TTL:15m}
+      cursor-signing-secret-base64: ${AEG_IAM_API_CURSOR_SIGNING_SECRET_BASE64:}
+      require-idempotency: ${AEG_IAM_API_REQUIRE_IDEMPOTENCY:true}
+      require-audit-reason-for-sensitive-actions: ${AEG_IAM_API_REQUIRE_AUDIT_REASON:true}
+    runtime:
+      # All-or-nothing executable composition. Enabling this also requires API, Authentication, RBAC and Token.
+      enabled: ${AEG_IAM_RUNTIME_ENABLED:false}
+      session-cookie-name: ${AEG_IAM_RUNTIME_SESSION_COOKIE_NAME:OPENDISPATCH_SESSION}
+      session-cookie-secure: ${AEG_IAM_RUNTIME_SESSION_COOKIE_SECURE:true}
+      session-cookie-same-site: ${AEG_IAM_RUNTIME_SESSION_COOKIE_SAME_SITE:Lax}
+      session-cookie-path: ${AEG_IAM_RUNTIME_SESSION_COOKIE_PATH:/}
+      session-cookie-signing-secret-base64: ${AEG_IAM_RUNTIME_SESSION_COOKIE_SIGNING_SECRET_BASE64:}
+      root-installation-enabled: ${AEG_IAM_ROOT_INSTALLATION_ENABLED:true}
+      root-installation-fail-closed: ${AEG_IAM_ROOT_INSTALLATION_FAIL_CLOSED:true}
+      root-initial-password: ${AEG_IAM_ROOT_INITIAL_PASSWORD:}
+      root-initial-password-file: ${AEG_IAM_ROOT_INITIAL_PASSWORD_FILE:}
+      root-password-change-session-ttl: ${AEG_IAM_ROOT_PASSWORD_CHANGE_SESSION_TTL:10m}
+      login-challenge-ttl: ${AEG_IAM_RUNTIME_LOGIN_CHALLENGE_TTL:5m}
+      one-time-secret-delivery-directory: ${AEG_IAM_RUNTIME_ONE_TIME_SECRET_DELIVERY_DIRECTORY:}
+      activation-base-url: ${AEG_IAM_RUNTIME_ACTIVATION_BASE_URL:http://localhost:3000}
+      activation-delivery-default-method: ${AEG_IAM_RUNTIME_ACTIVATION_DELIVERY_DEFAULT_METHOD:DEVELOPMENT_FILE}
+      activation-email-enabled: ${AEG_IAM_RUNTIME_ACTIVATION_EMAIL_ENABLED:false}
+      activation-mail-from: ${AEG_IAM_RUNTIME_ACTIVATION_MAIL_FROM:}
 
 server:
   port: ${SERVER_PORT:18080}
@@ -72,6 +275,13 @@ server:
         same-site: ${CORE_ADMIN_SESSION_COOKIE_SAME_SITE:lax}
 
 management:
+  health:
+    # SMTP is optional during initialization. Enable only after activation email is configured.
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
+  info:
+    build:
+      enabled: true
   endpoints:
     web:
       exposure:
@@ -130,6 +340,15 @@ management:
 
 
 core:
+  api-contract:
+    enforcement: AUDIT
+    require-idempotency: true
+    require-correlation-id: true
+    require-expected-version: true
+    require-actor-identity: true
+    require-audit-reason: true
+  audit-evidence:
+    store: MEMORY
   deployment:
     mode: ${CORE_DEPLOYMENT_MODE:MODULAR_MONOLITH}
 
@@ -154,30 +373,31 @@ core:
 
   security:
     internal:
-      # I5 security baseline. Keep disabled for local migration; enable in integrated/dev/prod deployments.
-      enabled: ${CORE_INTERNAL_SECURITY_ENABLED:false}
+      # Phase 0P fail-closed baseline. Only application-local.yml may default this to false.
+      enabled: ${CORE_INTERNAL_SECURITY_ENABLED:true}
       token-header-name: ${CORE_INTERNAL_TOKEN_HEADER:X-Cluster-Token}
       legacy-token-header-name: ${CORE_INTERNAL_LEGACY_TOKEN_HEADER:X-Internal-Token}
-      allow-legacy-token-header: ${CORE_INTERNAL_ALLOW_LEGACY_TOKEN_HEADER:true}
-      protect-api-mutations: ${CORE_INTERNAL_PROTECT_API_MUTATIONS:false}
-      permit-actuator-health-info: ${CORE_INTERNAL_PERMIT_ACTUATOR_HEALTH_INFO:true}
+      allow-legacy-token-header: ${CORE_INTERNAL_ALLOW_LEGACY_TOKEN_HEADER:false}
+      protect-api-mutations: ${CORE_INTERNAL_PROTECT_API_MUTATIONS:true}
+      permit-actuator-health-info: ${CORE_INTERNAL_PERMIT_ACTUATOR_HEALTH_INFO:false}
       audit-log-enabled: ${CORE_INTERNAL_SECURITY_AUDIT_LOG_ENABLED:true}
       gateway-token: ${CORE_GATEWAY_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
       adapter-worker-token: ${CORE_ADAPTER_WORKER_INTERNAL_TOKEN:${ADAPTER_WORKER_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
-      event-intake-token: ${CORE_EVENT_INTAKE_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
+      # v24 Phase 1: Event Intake legacy token is explicit-only; never inherit Operator/Cluster authority.
+      event-intake-token: ${CORE_EVENT_INTAKE_INTERNAL_TOKEN:}
       operator-token: ${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
       recovery-operator-token: ${CORE_RECOVERY_OPERATOR_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
       recovery-admin-token: ${CORE_RECOVERY_ADMIN_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}
       recovery-approver-token: ${CORE_RECOVERY_APPROVER_INTERNAL_TOKEN:${CORE_RECOVERY_ADMIN_INTERNAL_TOKEN:${CORE_OPERATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}}}
       actuator-token: ${CORE_ACTUATOR_INTERNAL_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
     admin:
-      # P4-A Core-owned human authentication. Disabled by default until credentials are explicitly configured.
-      enabled: ${CORE_ADMIN_AUTH_ENABLED:false}
+      # Phase 0P fail-closed baseline. Local development may explicitly disable this in application-local.yml.
+      enabled: ${CORE_ADMIN_AUTH_ENABLED:true}
       session-timeout: ${CORE_ADMIN_SESSION_TIMEOUT:30m}
       session-cookie-name: ${CORE_ADMIN_SESSION_COOKIE_NAME:OPENDISPATCH_ADMIN_SESSION}
       session-redis-namespace: ${CORE_ADMIN_SESSION_REDIS_NAMESPACE:opendispatch:core:admin:sessions}
-      cookie-secure: ${CORE_ADMIN_SESSION_COOKIE_SECURE:false}
-      cookie-same-site: ${CORE_ADMIN_SESSION_COOKIE_SAME_SITE:lax}
+      cookie-secure: ${CORE_ADMIN_SESSION_COOKIE_SECURE:true}
+      cookie-same-site: ${CORE_ADMIN_SESSION_COOKIE_SAME_SITE:strict}
       bootstrap:
         user-id: ${CORE_ADMIN_BOOTSTRAP_USER_ID:admin}
         username: ${CORE_ADMIN_BOOTSTRAP_USERNAME:admin}
@@ -188,7 +408,7 @@ core:
         roles: ${CORE_ADMIN_BOOTSTRAP_ROLES:ADMIN}
         allowed-tenant-ids: ${CORE_ADMIN_BOOTSTRAP_ALLOWED_TENANTS:}
         default-tenant-id: ${CORE_ADMIN_BOOTSTRAP_DEFAULT_TENANT:}
-        enabled: ${CORE_ADMIN_BOOTSTRAP_ENABLED:true}
+        enabled: ${CORE_ADMIN_BOOTSTRAP_ENABLED:false}
       accounts:
         - user-id: ${CORE_ADMIN_E2E_ADMIN_USER_ID:admin-e2e}
           username: ${CORE_ADMIN_E2E_ADMIN_USERNAME:admin-e2e}
@@ -415,7 +635,7 @@ task:
     scanner-enabled: ${TASK_DISPATCH_RECOVERY_SCANNER_ENABLED:true}
     interval-ms: ${TASK_DISPATCH_RECOVERY_INTERVAL_MS:5000}
     max-batch-size: ${TASK_DISPATCH_RECOVERY_MAX_BATCH_SIZE:50}
-    max-attempts: ${TASK_DISPATCH_RECOVERY_MAX_ATTEMPTS:0}
+    max-attempts: ${TASK_DISPATCH_RECOVERY_MAX_ATTEMPTS:5}
     initial-delay: ${TASK_DISPATCH_RECOVERY_INITIAL_DELAY:30s}
     max-delay: ${TASK_DISPATCH_RECOVERY_MAX_DELAY:10m}
     claim-lease: ${TASK_DISPATCH_RECOVERY_CLAIM_LEASE:30s}
@@ -491,8 +711,8 @@ routing:
   generic-authoritative-maximum-selection-difference-rate: ${ROUTING_GENERIC_AUTHORITATIVE_MAX_SELECTION_DIFFERENCE_RATE:0.20}
   generic-authoritative-auto-rollback-enabled: ${ROUTING_GENERIC_AUTHORITATIVE_AUTO_ROLLBACK_ENABLED:true}
   persisted-legacy-evidence-recovery-enabled: ${ROUTING_PERSISTED_LEGACY_EVIDENCE_RECOVERY_ENABLED:false}
-  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:true}
-  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:true}
+  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:false}
+  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:false}
   require-v2-score-breakdown-in-enforce: ${ROUTING_REQUIRE_V2_SCORE_BREAKDOWN_IN_ENFORCE:true}
   legacy-profile-eligibility-disabled-in-enforce: ${ROUTING_LEGACY_PROFILE_ELIGIBILITY_DISABLED_IN_ENFORCE:true}
   eligibility-engine-mode: ${ROUTING_ELIGIBILITY_ENGINE_MODE:SHADOW}
@@ -557,6 +777,8 @@ adapter-actions:
     one-per-task: ${MCP_ACTION_ONE_PER_TASK:true}
     adapter-name: ${MCP_ADAPTER_NAME:mcp-default}
   issue:
+    # v24 Phase 4: legacy AdapterAction Issue writes are compatibility-only; canonical Projection is default.
+    legacy-write-enabled: ${ISSUE_ACTION_LEGACY_WRITE_ENABLED:false}
     enabled: ${ISSUE_ACTION_ENABLED:false}
     create-on-completed-task: ${ISSUE_ACTION_CREATE_ON_COMPLETED_TASK:false}
     create-on-failed-task: ${ISSUE_ACTION_CREATE_ON_FAILED_TASK:true}
@@ -606,26 +828,8 @@ adapter-executor:
     jira-mock-enabled: ${JIRA_EXECUTOR_MOCK_ENABLED:false}
     redmine-mock-enabled: ${REDMINE_EXECUTOR_MOCK_ENABLED:false}
     gitlab-mock-enabled: ${GITLAB_EXECUTOR_MOCK_ENABLED:false}
-    jira-executor-name: ${JIRA_EXECUTOR_NAME:jira-issue-executor}
-    redmine-executor-name: ${REDMINE_EXECUTOR_NAME:redmine-issue-executor}
-    gitlab-executor-name: ${GITLAB_EXECUTOR_NAME:gitlab-issue-executor}
-    redmine:
-      enabled: ${REDMINE_EXECUTOR_ENABLED:false}
-      base-url: ${REDMINE_EXECUTOR_BASE_URL:}
-      api-key: ${REDMINE_EXECUTOR_API_KEY:}
-      project-id: ${REDMINE_EXECUTOR_PROJECT_ID:}
-      tracker-id: ${REDMINE_EXECUTOR_TRACKER_ID:}
-      issue-url-template: ${REDMINE_EXECUTOR_ISSUE_URL_TEMPLATE:}
-      priority-critical: ${REDMINE_EXECUTOR_PRIORITY_CRITICAL:CRITICAL}
-      priority-high: ${REDMINE_EXECUTOR_PRIORITY_HIGH:HIGH}
-      priority-medium: ${REDMINE_EXECUTOR_PRIORITY_MEDIUM:MIDDLE}
-      priority-low: ${REDMINE_EXECUTOR_PRIORITY_LOW:LOW}
-    gitlab:
-      enabled: ${GITLAB_EXECUTOR_ENABLED:false}
-      base-url: ${GITLAB_EXECUTOR_BASE_URL:}
-      private-token: ${GITLAB_EXECUTOR_PRIVATE_TOKEN:}
-      project-id: ${GITLAB_EXECUTOR_PROJECT_ID:}
-      issue-url-template: ${GITLAB_EXECUTOR_ISSUE_URL_TEMPLATE:}
+    scoped-identity-enabled: ${ISSUE_SCOPED_IDENTITY_ENABLED:true}
+    scoped-identity-required: ${ISSUE_SCOPED_IDENTITY_REQUIRED:true}
   audit:
     store: ${ADAPTER_EXECUTOR_AUDIT_STORE:MYBATIS}
     payload-snapshot-enabled: ${ADAPTER_EXECUTOR_AUDIT_PAYLOAD_SNAPSHOT_ENABLED:true}
@@ -641,4 +845,94 @@ agent-remediation:
 
 task-issue-links:
   store: ${TASK_ISSUE_LINK_STORE:${ADAPTER_ACTION_STORE:MYBATIS}}
+
+
+
+# Phase 0E Current integration identity model. Legacy executor ENV is compatibility bootstrap only.
+integration-identity:
+  store: ${INTEGRATION_IDENTITY_STORE:MYBATIS}
+  legacy-bootstrap-enabled: ${INTEGRATION_LEGACY_BOOTSTRAP_ENABLED:false}
+  allow-over-privileged-mapping: ${INTEGRATION_ALLOW_OVER_PRIVILEGED_MAPPING:false}
+  secret-resolver: ${INTEGRATION_SECRET_RESOLVER:ENV_REFERENCE}
+  managed-secret-directory: ${INTEGRATION_MANAGED_SECRET_DIRECTORY:/var/lib/opendispatch/integration-secrets}
+  permission-reprobe-on-auth-failure: ${INTEGRATION_PERMISSION_REPROBE_ON_AUTH_FAILURE:true}
+  rotation-grace-period: ${INTEGRATION_ROTATION_GRACE_PERIOD:24h}
+  permission-probe: ${INTEGRATION_PERMISSION_PROBE:PROVIDER}
+# Phase 0F Handoff Context and Cross-Project Relay.
+handoff-context:
+  store: ${HANDOFF_CONTEXT_STORE:MYBATIS}
+  relay-provider: ${HANDOFF_CONTEXT_RELAY_PROVIDER:SCOPED}
+  default-attachment-policy: ${HANDOFF_CONTEXT_DEFAULT_ATTACHMENT_POLICY:ATTACHMENT_METADATA_ONLY}
+  require-approved-snapshot-for-agent: ${HANDOFF_CONTEXT_REQUIRE_APPROVED_SNAPSHOT_FOR_AGENT:true}
+  agent-context-audit-enabled: ${HANDOFF_CONTEXT_AGENT_AUDIT_ENABLED:true}
+
+issue-tracking:
+  enabled: ${ISSUE_TRACKING_ENABLED:true}
+
+
+# v24 Phase 4 canonical Task RESULT -> Issue policy/projection authority.
+issue-orchestration:
+  automatic-materialization-enabled: ${ISSUE_ORCHESTRATION_AUTOMATIC_MATERIALIZATION_ENABLED:true}
+  optional-failed-task-requires-issue: ${ISSUE_ORCHESTRATION_OPTIONAL_FAILED_TASK_REQUIRES_ISSUE:true}
+  policy-id: ${ISSUE_ORCHESTRATION_POLICY_ID:task-issue-sync-policy-v1}
+  policy-version: ${ISSUE_ORCHESTRATION_POLICY_VERSION:1}
+
+# v24 Phase 4 canonical external Issue Projection lifecycle authority.
+issue-projection:
+  enabled: ${ISSUE_PROJECTION_ENABLED:true}
+  store: ${ISSUE_PROJECTION_STORE:MYBATIS}
+  relay-provider: ${ISSUE_PROJECTION_RELAY_PROVIDER:SCOPED}
+  max-attempts: ${ISSUE_PROJECTION_MAX_ATTEMPTS:8}
+  reconcile-batch-size: ${ISSUE_PROJECTION_RECONCILE_BATCH_SIZE:100}
+  reconcile-delay-ms: ${ISSUE_PROJECTION_RECONCILE_DELAY_MS:60000}
+  retry-delay-seconds: ${ISSUE_PROJECTION_RETRY_DELAY_SECONDS:300}
+
+# Phase 0G Issue Projection and Sync Reliability.
+integration-sync:
+  provider-gateway: ${INTEGRATION_SYNC_PROVIDER_GATEWAY:SCOPED}
+  store: ${INTEGRATION_SYNC_STORE:MYBATIS}
+  worker-enabled: ${INTEGRATION_SYNC_WORKER_ENABLED:true}
+  worker-interval-ms: ${INTEGRATION_SYNC_WORKER_INTERVAL_MS:5000}
+  claim-limit: ${INTEGRATION_SYNC_CLAIM_LIMIT:50}
+  max-attempts: ${INTEGRATION_SYNC_MAX_ATTEMPTS:8}
+  circuit-failure-threshold: ${INTEGRATION_SYNC_CIRCUIT_FAILURE_THRESHOLD:5}
+  projection-worker-enabled: true
+  legacy-worker-enabled: false
+  projection-worker-interval-ms: 5000
+  webhook-security:
+    enabled: ${INTEGRATION_WEBHOOK_SECURITY_ENABLED:true}
+    default-max-body-bytes: ${INTEGRATION_WEBHOOK_MAX_BODY_BYTES:1048576}
+    default-rate-limit-per-minute: ${INTEGRATION_WEBHOOK_RATE_LIMIT_PER_MINUTE:120}
+    clock-skew-seconds: ${INTEGRATION_WEBHOOK_CLOCK_SKEW_SECONDS:30}
+    nonce-cleanup-interval-ms: ${INTEGRATION_WEBHOOK_NONCE_CLEANUP_INTERVAL_MS:60000}
+    nonce-cleanup-batch-size: ${INTEGRATION_WEBHOOK_NONCE_CLEANUP_BATCH_SIZE:5000}
+
+issue-external-change:
+  store: ${ISSUE_EXTERNAL_CHANGE_STORE:MYBATIS}
+
+issue-relay:
+  store: ${ISSUE_RELAY_STORE:MYBATIS}
+  edge-max-attempts: ${ISSUE_RELAY_EDGE_MAX_ATTEMPTS:8}
+  retry-base-seconds: ${ISSUE_RELAY_RETRY_BASE_SECONDS:30}
+  due-claim-limit: ${ISSUE_RELAY_DUE_CLAIM_LIMIT:100}
+
+issue-projection-recovery:
+  store: ${ISSUE_PROJECTION_RECOVERY_STORE:MYBATIS}
+  max-queue-depth: ${ISSUE_PROJECTION_MAX_QUEUE_DEPTH:1000}
+  claim-limit: ${ISSUE_PROJECTION_RECOVERY_CLAIM_LIMIT:100}
+  claim-lease-seconds: ${ISSUE_PROJECTION_RECOVERY_CLAIM_LEASE_SECONDS:60}
+  circuit-failure-threshold: ${ISSUE_PROJECTION_CIRCUIT_FAILURE_THRESHOLD:5}
+  index-delay-seconds: ${ISSUE_PROJECTION_INDEX_DELAY_SECONDS:30}
+
+phase3:
+  release:
+    runtime-certified: ${PHASE3_RUNTIME_CERTIFIED:false}
+    postgresql-certified: ${PHASE3_POSTGRESQL_CERTIFIED:false}
+    worker-chaos-certified: ${PHASE3_WORKER_CHAOS_CERTIFIED:false}
+    admin-ui-certified: ${PHASE3_ADMIN_UI_CERTIFIED:false}
+    jira-live-certified: ${PHASE3_JIRA_LIVE_CERTIFIED:false}
+    redmine-live-certified: ${PHASE3_REDMINE_LIVE_CERTIFIED:false}
+    cross-provider-relay-certified: ${PHASE3_CROSS_PROVIDER_RELAY_CERTIFIED:false}
+    evidence-ledger-persisted: ${PHASE3_EVIDENCE_LEDGER_PERSISTED:false}
+    signed-evidence: ${PHASE3_SIGNED_EVIDENCE:false}
 

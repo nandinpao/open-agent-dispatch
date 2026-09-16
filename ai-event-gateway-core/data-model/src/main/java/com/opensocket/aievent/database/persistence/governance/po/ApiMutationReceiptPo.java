@@ -1,0 +1,2 @@
+package com.opensocket.aievent.database.persistence.governance.po; import java.time.OffsetDateTime; import lombok.*;
+@Getter @Setter @NoArgsConstructor public class ApiMutationReceiptPo {private String tenantId,receiptId,requestMethod,requestPath,idempotencyKey,requestHash,actorType,actorId,auditReason,correlationId,authorizationDecisionId,permissionPoint,status,responseHash,resultResourceType,resultResourceId,syncStatus;private Long expectedVersion,resultVersion;private OffsetDateTime createdAt,completedAt;}

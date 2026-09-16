@@ -14,6 +14,11 @@ public class AgentSetupRequest {
     private String agentId;
     private String agentName;
     private String ownerTeam;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
+    private String businessOwnerUserId;
+    private String technicalStewardUserId;
+    private String responsibilityRoleId;
     private String description;
     private String purpose;
     private String runtimeType = "Docker";
@@ -25,7 +30,7 @@ public class AgentSetupRequest {
     private boolean createSupplyProfile = false;
     private boolean createDefaultDispatchRule = false;
     private int capacityLimit = 1;
-    private String operatorId = "admin-ui";
+    private String operatorId;
     private List<String> defaultCapabilities = List.of();
     private List<String> defaultTaskTypes = List.of();
     private Map<String, Object> metadata = new LinkedHashMap<>();

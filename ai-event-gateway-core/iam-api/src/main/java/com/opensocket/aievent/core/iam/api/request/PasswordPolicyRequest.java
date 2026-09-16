@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record PasswordPolicyRequest(@Min(14) @Max(256) int minimumLength,@Min(0) @Max(50) int historyCount,@Min(1) int failedAttemptThreshold,@Min(1) int lockoutMinutes){}

@@ -4,13 +4,18 @@
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>control-plane-parent</artifactId>
-        <version>1.0.0-p25.7.4-p5-callback-transition-governance-fix</version>
+        <version>0.8.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>execution-control</artifactId>
     <name>execution-control</name>
     <description>Dispatch, callback, retry, timeout recovery, dead-letter and Netty outbound execution boundary.</description>
     <dependencies>
+    <dependency>
+      <groupId>com.opensocket</groupId>
+      <artifactId>a2a-application</artifactId>
+      <version>${project.version}</version>
+    </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -18,6 +23,10 @@
         <dependency>
             <groupId>com.opensocket</groupId>
             <artifactId>data-model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>a2a-contracts</artifactId>
         </dependency>
         <dependency>
             <groupId>com.opensocket</groupId>

@@ -36,6 +36,13 @@ public class InMemoryTaskExecutionAttemptRepository implements TaskExecutionAtte
     }
 
     @Override
+    public Optional<TaskExecutionAttempt> findLatestByAssignmentId(String assignmentId) {
+        return attempts.values().stream()
+                .filter(attempt -> assignmentId.equals(attempt.getAssignmentId()))
+                .max(Comparator.comparing(TaskExecutionAttempt::getCreatedAt));
+    }
+
+    @Override
     public List<TaskExecutionAttempt> findByTaskId(String taskId, int limit) {
         return attempts.values().stream()
                 .filter(attempt -> taskId.equals(attempt.getTaskId()))

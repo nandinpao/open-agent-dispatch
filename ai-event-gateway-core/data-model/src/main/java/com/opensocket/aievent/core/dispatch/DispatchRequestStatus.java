@@ -7,6 +7,8 @@ public enum DispatchRequestStatus {
     REJECTED,
     CANCELLED,
     DISPATCHING,
+    /** Network send started but the transport outcome is not yet known. Automatic resend is forbidden. */
+    DELIVERY_UNKNOWN,
     DISPATCHED,
     ACKED,
     RUNNING,

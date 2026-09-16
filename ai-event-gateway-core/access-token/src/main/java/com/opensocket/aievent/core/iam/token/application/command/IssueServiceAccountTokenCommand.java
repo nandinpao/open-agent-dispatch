@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.token.application.command;import com.opensocket.aievent.core.iam.token.domain.TokenScope;import java.time.*;public record IssueServiceAccountTokenCommand(String tenantId,String serviceAccountId,String name,TokenScope scope,Duration ttl,String actorId,String correlationId){}

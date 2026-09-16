@@ -28,7 +28,7 @@ public class ScheduledAgentRemediationWorkflowLeaseRecovery {
 
     @Scheduled(
             fixedDelayString = "${agent-remediation.workflow.stale-lease-reaper.fixed-delay-ms:60000}",
-            initialDelayString = "${agent-remediation.workflow.stale-lease-reaper.initial-delay-ms:30000}")
+            initialDelayString = "${agent-remediation.workflow.stale-lease-reaper.initial-delay-ms:30000}", scheduler = "maintenanceOperationalScheduler")
     public void recoverExpiredWorkflowExecutionLeases() {
         if (!enabled) {
             return;

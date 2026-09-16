@@ -1,14 +1,17 @@
 package com.opensocket.aievent.core.agent.assignment;
 
+
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,30 +32,43 @@ import com.opensocket.aievent.core.agent.contract.DispatchSourceSystemOption;
  */
 @Service
 public class AgentAssignmentService {
-    private final AgentAssignmentRepository repository;
+    private final AgentAssignmentPersistence persistence;
+    private final AgentAdvisoryRecommendationCoordinator advisoryRecommendationCoordinator;
 
-    @Autowired
     public AgentAssignmentService(AgentAssignmentRepository repository) {
-        this.repository = repository;
+        this.persistence = new AgentAssignmentPersistence(repository);
+        this.advisoryRecommendationCoordinator = new AgentAdvisoryRecommendationCoordinator(this.persistence);
     }
 
+    /**
+     * Phase 9E Advanced Selection Strategy contracts.
+     *
+     * These entries are explicit future-readiness contracts only. They are not
+     * registered in SelectionStrategyRegistry.SUPPORTED_STRATEGIES and therefore
+     * cannot affect Current Routing, Runtime Eligibility or Assignments.
+     */
+    public List<AgentAdvancedSelectionStrategyContract> advancedSelectionStrategyContracts() {
+        return AgentAdvancedSelectionStrategyCatalog.contracts();
+    }
+
+
     public List<DispatchPolicy> searchDispatchPolicies(String tenantId, String status, int limit) {
-        return repository.searchDispatchPolicies(defaultTenant(tenantId), normalizeOptional(status), normalizeLimit(limit));
+        return persistence.searchDispatchPolicies(defaultTenant(tenantId), normalizeOptional(status), normalizeLimit(limit));
     }
 
     public List<DispatchPolicyScope> findDispatchPolicyScopes(String tenantId, String policyCode, Boolean active) {
         if (blank(policyCode)) return List.of();
-        return repository.findDispatchPolicyScopes(defaultTenant(tenantId), normalizeCode(policyCode), active);
+        return persistence.findDispatchPolicyScopes(defaultTenant(tenantId), normalizeCode(policyCode), active);
     }
 
     public List<DispatchPolicyRequiredCapability> findDispatchPolicyRequiredCapabilities(String tenantId, String policyCode, Boolean blocking) {
         if (blank(policyCode)) return List.of();
-        return repository.findDispatchPolicyRequiredCapabilities(defaultTenant(tenantId), normalizeCode(policyCode), blocking);
+        return persistence.findDispatchPolicyRequiredCapabilities(defaultTenant(tenantId), normalizeCode(policyCode), blocking);
     }
 
     public DispatchPolicy getDispatchPolicy(String tenantId, String policyCode) {
         if (blank(policyCode)) throw new IllegalArgumentException("policyCode is required");
-        return repository.findDispatchPolicyByCode(defaultTenant(tenantId), normalizeCode(policyCode))
+        return persistence.findDispatchPolicyByCode(defaultTenant(tenantId), normalizeCode(policyCode))
                 .orElseThrow(() -> new IllegalArgumentException("Dispatch Flow policy projection not found: " + policyCode));
     }
 
@@ -63,7 +79,7 @@ public class AgentAssignmentService {
         OffsetDateTime now = now();
         String tenantId = defaultTenant(request.getTenantId());
         String policyCode = normalizeCode(request.getPolicyCode());
-        DispatchPolicy policy = repository.findDispatchPolicyByCode(tenantId, policyCode).orElseGet(DispatchPolicy::new);
+        DispatchPolicy policy = persistence.findDispatchPolicyByCode(tenantId, policyCode).orElseGet(DispatchPolicy::new);
         if (blank(policy.getPolicyId())) {
             policy.setPolicyId("dispatch-policy-" + UUID.randomUUID());
             policy.setCreatedAt(now);
@@ -82,7 +98,7 @@ public class AgentAssignmentService {
         metadata.put("dispatchFlowProjection", true);
         policy.setMetadata(metadata);
         policy.setUpdatedAt(now);
-        return repository.saveDispatchPolicy(policy);
+        return persistence.saveDispatchPolicy(policy);
     }
 
     @Transactional
@@ -105,16 +121,17 @@ public class AgentAssignmentService {
         scope.setMetadata(body.getMetadata());
         scope.setCreatedAt(firstNonNull(body.getCreatedAt(), now));
         scope.setUpdatedAt(now);
-        return repository.saveDispatchPolicyScope(scope);
+        return persistence.saveDispatchPolicyScope(scope);
     }
 
     @Transactional
     public DispatchPolicyRequiredCapability upsertDispatchPolicyRequiredCapability(String policyCode, DispatchPolicyRequiredCapability request) {
         DispatchPolicy policy = getDispatchPolicy(request == null ? null : request.getTenantId(), policyCode);
         if (request == null || blank(request.getCapabilityCode())) throw new IllegalArgumentException("capabilityCode is required");
-        String capabilityCode = normalizeCode(request.getCapabilityCode());
-        AgentCapabilityCatalog capability = repository.findCapabilityByCode(policy.getTenantId(), capabilityCode)
-                .orElseThrow(() -> new IllegalArgumentException("Required capability must reference Capability Catalog: " + capabilityCode));
+        String capabilityCode = normalizeCapabilityCode(request.getCapabilityCode());
+        AgentCapabilityCatalog capability = persistence.findCanonicalCapabilityByCode(policy.getTenantId(), capabilityCode)
+                .filter(item -> "ACTIVE".equalsIgnoreCase(item.getStatus()))
+                .orElseThrow(() -> new IllegalArgumentException("Required capability must reference an ACTIVE Canonical Capability: " + capabilityCode));
         OffsetDateTime now = now();
         DispatchPolicyRequiredCapability rule = new DispatchPolicyRequiredCapability();
         rule.setTenantId(policy.getTenantId());
@@ -130,7 +147,7 @@ public class AgentAssignmentService {
         rule.setMetadata(request.getMetadata());
         rule.setCreatedAt(firstNonNull(request.getCreatedAt(), now));
         rule.setUpdatedAt(now);
-        return repository.saveDispatchPolicyRequiredCapability(rule);
+        return persistence.saveDispatchPolicyRequiredCapability(rule);
     }
 
     @Transactional
@@ -138,7 +155,7 @@ public class AgentAssignmentService {
         DispatchPolicy policy = getDispatchPolicy(request == null ? null : request.getTenantId(), policyCode);
         if (request == null || blank(request.getFeatureCode())) throw new IllegalArgumentException("featureCode is required");
         String featureCode = normalizeCode(request.getFeatureCode());
-        RuntimeFeatureCatalog feature = repository.findRuntimeFeatureByCode(policy.getTenantId(), featureCode)
+        RuntimeFeatureCatalog feature = persistence.findRuntimeFeatureByCode(policy.getTenantId(), featureCode)
                 .orElseThrow(() -> new IllegalArgumentException("Runtime feature must reference Runtime Feature Catalog: " + featureCode));
         OffsetDateTime now = now();
         DispatchPolicyRequiredRuntimeFeature rule = new DispatchPolicyRequiredRuntimeFeature();
@@ -154,7 +171,7 @@ public class AgentAssignmentService {
         rule.setMetadata(request.getMetadata());
         rule.setCreatedAt(firstNonNull(request.getCreatedAt(), now));
         rule.setUpdatedAt(now);
-        return repository.saveDispatchPolicyRequiredRuntimeFeature(rule);
+        return persistence.saveDispatchPolicyRequiredRuntimeFeature(rule);
     }
 
     @Transactional
@@ -166,7 +183,7 @@ public class AgentAssignmentService {
         rule.setRuleId(firstNonBlank(rule.getRuleId(), "dispatch-policy-quality-" + UUID.randomUUID()));
         rule.setCreatedAt(firstNonNull(rule.getCreatedAt(), now()));
         rule.setUpdatedAt(now());
-        return repository.saveDispatchPolicyQualityRule(rule);
+        return persistence.saveDispatchPolicyQualityRule(rule);
     }
 
     @Transactional
@@ -178,11 +195,110 @@ public class AgentAssignmentService {
         rule.setRuleId(firstNonBlank(rule.getRuleId(), "dispatch-policy-score-" + UUID.randomUUID()));
         rule.setCreatedAt(firstNonNull(rule.getCreatedAt(), now()));
         rule.setUpdatedAt(now());
-        return repository.saveDispatchPolicyScoringRule(rule);
+        return persistence.saveDispatchPolicyScoringRule(rule);
     }
 
+
+    /**
+     * Phase 9B Agent Quality Observation.
+     *
+     * These metrics are observation-only evidence for operators. They must not feed
+     * Selection Strategy, Runtime Eligibility, capability gate checks, or hidden routing gates.
+     */
+    public List<AgentQualityMetricsDaily> findAgentQualityDaily(String tenantId, String agentId, int limit) {
+        if (blank(agentId)) return List.of();
+        return persistence.findAgentQualityMetricsDaily(defaultTenant(tenantId), agentId, normalizeLimit(limit));
+    }
+
+    public List<AgentQualityMetricsWindow> findAgentQualityWindows(String tenantId, String agentId, String metricWindow, int limit) {
+        if (blank(agentId)) return List.of();
+        return persistence.findAgentQualityMetricsWindow(defaultTenant(tenantId), agentId, firstNonBlank(metricWindow, "24h"), normalizeLimit(limit));
+    }
+
+    @Transactional
+    public AgentQualityMetricsWindow upsertAgentQualityWindow(AgentQualityMetricsWindow request) {
+        if (request == null) throw new IllegalArgumentException("agent quality metrics body is required");
+        if (blank(request.getAgentId())) throw new IllegalArgumentException("agentId is required");
+        OffsetDateTime now = now();
+        request.setTenantId(defaultTenant(request.getTenantId()));
+        request.setMetricId(firstNonBlank(request.getMetricId(), "agent-quality-window-" + UUID.randomUUID()));
+        request.setMetricWindow(firstNonBlank(request.getMetricWindow(), "24h"));
+        request.setSource(firstNonBlank(request.getSource(), "QUALITY_OBSERVATION"));
+        request.setCalculatedAt(firstNonNull(request.getCalculatedAt(), now));
+        request.setCreatedAt(firstNonNull(request.getCreatedAt(), now));
+        request.setUpdatedAt(now);
+        Map<String, Object> metadata = new LinkedHashMap<>(request.getMetadata());
+        metadata.put("qualityObservationVersion", "9B");
+        metadata.put("observationOnly", true);
+        metadata.put("selectionImpact", "NONE");
+        metadata.putIfAbsent("minimumSample", 30);
+        metadata.putIfAbsent("decayWindow", "7d");
+        metadata.putIfAbsent("responsibilityScope", "UNKNOWN");
+        request.setMetadata(metadata);
+        return persistence.saveAgentQualityMetricsWindow(request);
+    }
+
+    public List<RuntimeQualityMetricsDaily> findRuntimeQualityDaily(String tenantId, String runtimeId, int limit) {
+        if (blank(runtimeId)) return List.of();
+        return persistence.findRuntimeQualityMetricsDaily(defaultTenant(tenantId), runtimeId, normalizeLimit(limit));
+    }
+
+    public List<SupplyProfileQualitySnapshot> searchSupplyProfileQualitySnapshots(String tenantId, String agentId, String runtimeId, String metricWindow, int limit) {
+        return persistence.searchSupplyProfileQualitySnapshots(defaultTenant(tenantId), normalizeOptional(agentId), normalizeOptional(runtimeId), firstNonBlank(metricWindow, "24h"), normalizeLimit(limit));
+    }
+
+    public SupplyProfileQualitySnapshot getSupplyProfileQualitySnapshot(String tenantId, String profileCode, String metricWindow) {
+        if (blank(profileCode)) throw new IllegalArgumentException("profileCode is required");
+        return persistence.findSupplyProfileQualitySnapshot(defaultTenant(tenantId), normalizeCode(profileCode), firstNonBlank(metricWindow, "24h"))
+                .orElseThrow(() -> new IllegalArgumentException("Supply profile quality snapshot not found: " + profileCode));
+    }
+
+
+    /**
+     * Phase 9C Advisory Recommendation.
+     *
+     * Recommendations are generated from Capability Registry and Agent Quality Observation evidence.
+     * They are advisory-only: accepting a recommendation records operator intent and audit evidence,
+     * but it must not directly mutate Source Flow, Agent Pool, Pool Member, Runtime Eligibility, or Selection Strategy.
+     */
+    public List<AgentAdvisoryRecommendation> searchAdvisoryRecommendations(String tenantId,
+                                                                           String targetPoolId,
+                                                                           String agentId,
+                                                                           String status,
+                                                                           String evidenceWindow,
+                                                                           int limit) {
+        return advisoryRecommendationCoordinator.search(tenantId, targetPoolId, agentId, status, evidenceWindow, limit);
+    }
+
+    public List<AgentAdvisoryRecommendation> generateAdvisoryRecommendations(String tenantId,
+                                                                             String targetPoolId,
+                                                                             String agentId,
+                                                                             String evidenceWindow,
+                                                                             int limit) {
+        return advisoryRecommendationCoordinator.generate(tenantId, targetPoolId, agentId, evidenceWindow, limit);
+    }
+
+    @Transactional
+    public AgentAdvisoryRecommendation acceptAdvisoryRecommendation(String tenantId, String recommendationId, AgentAdvisoryRecommendationDecisionCommand command) {
+        return advisoryRecommendationCoordinator.accept(tenantId, recommendationId, command);
+    }
+
+    @Transactional
+    public AgentAdvisoryRecommendation rejectAdvisoryRecommendation(String tenantId, String recommendationId, AgentAdvisoryRecommendationDecisionCommand command) {
+        return advisoryRecommendationCoordinator.reject(tenantId, recommendationId, command);
+    }
+
+    /**
+     * Phase 9A Capability Registry 2.0 query.
+     *
+     * This returns reference/search/governance metadata only. The catalog itself is not a routing selector;
+     * Current routing uses Source Flow -> Agent Pool -> Task Required Capability -> Runtime Eligibility -> Routing Score.
+     */
+    @Transactional(readOnly = true)
     public List<AgentCapabilityCatalog> searchCapabilities(String tenantId, String status, String ignoredTaskDefinitionId, int limit) {
-        return repository.searchCapabilities(defaultTenant(tenantId), blank(status) ? null : status.trim().toUpperCase(), null, normalizeLimit(limit));
+        // Stage 2 canonical closure: public/admin capability lookup projects capability_definitions.
+        // agent_capability_catalog remains migration storage only and is not an operator authority.
+        return persistence.searchCanonicalCapabilities(defaultTenant(tenantId), blank(status) ? null : status.trim().toUpperCase(), normalizeLimit(limit));
     }
 
     @Transactional
@@ -192,7 +308,7 @@ public class AgentAssignmentService {
         OffsetDateTime now = now();
         String tenantId = defaultTenant(request.getTenantId());
         String capabilityCode = normalizeCode(request.getCapabilityCode());
-        AgentCapabilityCatalog capability = repository.findCapabilityByCode(tenantId, capabilityCode).orElseGet(AgentCapabilityCatalog::new);
+        AgentCapabilityCatalog capability = persistence.findCapabilityByCode(tenantId, capabilityCode).orElseGet(AgentCapabilityCatalog::new);
         if (blank(capability.getCapabilityId())) {
             capability.setCapabilityId("capability-" + UUID.randomUUID());
             capability.setCreatedAt(now);
@@ -205,14 +321,24 @@ public class AgentAssignmentService {
         capability.setStatus(normalizeCapabilityStatus(request.getStatus()));
         capability.setVersion(Math.max(1, request.getVersion() <= 0 ? capability.getVersion() : request.getVersion()));
         capability.setRequiresApproval(request.isRequiresApproval());
-        capability.setMetadata(request.getMetadata());
+        capability.setRequiresCertification(request.isRequiresCertification());
+        capability.setRequiresRuntimeProbe(request.isRequiresRuntimeProbe());
+        // Phase 9A: Capability Registry is explicitly reference-only for Current dispatch.
+        // Keep legacy is_dispatch_eligible false so operators cannot interpret this as a routing gate.
+        capability.setDispatchEligible(false);
+        Map<String, Object> metadata = new LinkedHashMap<>(request.getMetadata());
+        metadata.put("capabilityRegistryVersion", "2.0");
+        metadata.put("referenceOnly", true);
+        metadata.put("routingGate", false);
+        metadata.putIfAbsent("capabilitySource", firstNonBlank(String.valueOf(metadata.getOrDefault("capabilitySource", "")), "ADMIN_REGISTRY"));
+        capability.setMetadata(metadata);
         capability.setUpdatedAt(now);
-        return repository.saveCapabilityCatalog(capability);
+        return persistence.saveCapabilityCatalog(capability);
     }
 
     public List<AgentCapabilityAssignment> findAgentCapabilities(String agentId) {
         if (blank(agentId)) return List.of();
-        return repository.findAgentCapabilityAssignmentsByAgent(agentId);
+        return persistence.findAgentCapabilityAssignmentsByAgent(agentId);
     }
 
     @Transactional
@@ -220,12 +346,17 @@ public class AgentAssignmentService {
         AgentCapabilityCommand request = command == null ? new AgentCapabilityCommand() : command;
         if (blank(agentId)) throw new IllegalArgumentException("agentId is required");
         if (blank(request.getCapabilityCode())) throw new IllegalArgumentException("capabilityCode is required");
-        String tenantId = defaultTenant(firstNonBlank(request.getTenantId(), inferAgentTenantId(agentId)));
-        String capabilityCode = normalizeCode(request.getCapabilityCode());
-        AgentCapabilityCatalog catalog = repository.findCapabilityByCode(tenantId, capabilityCode)
-                .orElseThrow(() -> new IllegalArgumentException("Capability Catalog entry not found: " + capabilityCode));
+        String tenantId = defaultTenant(blank(request.getTenantId()) ? inferAgentTenantId(agentId) : request.getTenantId());
+        String capabilityCode = normalizeCapabilityCode(request.getCapabilityCode());
+        AgentCapabilityCatalog catalog = persistence.findCanonicalCapabilityByCode(tenantId, capabilityCode)
+                .filter(item -> "ACTIVE".equalsIgnoreCase(item.getStatus()))
+                .orElseThrow(() -> new IllegalArgumentException("ACTIVE Canonical Capability not found: " + capabilityCode));
         OffsetDateTime now = now();
-        AgentCapabilityAssignment assignment = repository.findAgentCapabilityAssignmentByAgentAndCapability(agentId, capabilityCode).orElseGet(AgentCapabilityAssignment::new);
+        AgentCapabilityAssignment assignment = persistence.findAgentCapabilityAssignmentByAgentAndCapability(agentId, capabilityCode).orElseGet(AgentCapabilityAssignment::new);
+        if (!blank(assignment.getAssignmentId()) && !capabilityCode.equals(assignment.getCapabilityCode())) {
+            // Stage 2 identity closure: an explicitly reassigned legacy-cased row is rewritten to the canonical code.
+            persistence.deleteAgentCapabilityAssignment(agentId, assignment.getAssignmentId());
+        }
         if (blank(assignment.getAssignmentId())) {
             assignment.setAssignmentId("agent-capability-" + UUID.randomUUID());
             assignment.setCreatedAt(now);
@@ -235,16 +366,24 @@ public class AgentAssignmentService {
         assignment.setCapabilityCode(capabilityCode);
         assignment.setCapabilityName(firstNonBlank(catalog.getCapabilityName(), capabilityCode));
         assignment.setStatus(catalog.isRequiresApproval() ? AgentCapabilityAssignmentStatus.PENDING_APPROVAL : AgentCapabilityAssignmentStatus.APPROVED);
+        assignment.setSource(firstNonBlank(request.getSource(), "ADMIN_DECLARATION"));
+        assignment.setEvidenceRef(request.getEvidenceRef());
         assignment.setRequestedBy(firstNonBlank(request.getOperatorId(), "system"));
         assignment.setRequestedAt(now);
-        assignment.setReason(firstNonBlank(request.getReason(), "Capability requested."));
-        assignment.setMetadata(request.getMetadata());
+        assignment.setReason(firstNonBlank(request.getReason(), "Canonical Capability assigned by an authorized administrator."));
+        Map<String, Object> assignmentMetadata = new LinkedHashMap<>(request.getMetadata());
+        assignmentMetadata.put("capabilityAuthority", "CAPABILITY_DEFINITIONS");
+        assignmentMetadata.put("canonicalCapability", true);
+        assignmentMetadata.put("referenceOnly", false);
+        assignmentMetadata.put("routingGate", true);
+        assignmentMetadata.putIfAbsent("capabilityVersion", String.valueOf(Math.max(1, catalog.getVersion())));
+        assignment.setMetadata(assignmentMetadata);
         if (assignment.getStatus() == AgentCapabilityAssignmentStatus.APPROVED) {
             assignment.setApprovedBy(firstNonBlank(request.getOperatorId(), "system"));
             assignment.setApprovedAt(now);
         }
         assignment.setUpdatedAt(now);
-        return repository.saveAgentCapabilityAssignment(assignment);
+        return persistence.saveAgentCapabilityAssignment(assignment);
     }
 
     @Transactional public AgentCapabilityAssignment approveAgentCapability(String agentId, String assignmentId, AgentCapabilityCommand command) { return transitionCapability(agentId, assignmentId, AgentCapabilityAssignmentStatus.APPROVED, command); }
@@ -255,17 +394,17 @@ public class AgentAssignmentService {
     @Transactional
     public AgentCapabilityAssignment removeAgentCapability(String agentId, String assignmentId, AgentCapabilityCommand command) {
         AgentCapabilityAssignment assignment = loadCapability(agentId, assignmentId);
-        repository.deleteAgentCapabilityAssignment(agentId, assignmentId);
+        persistence.deleteAgentCapabilityAssignment(agentId, assignmentId);
         return assignment;
     }
 
     public List<RuntimeResource> searchRuntimeResources(String tenantId, String status, String trustStatus, int limit) {
-        return repository.searchRuntimeResources(defaultTenant(tenantId), normalizeOptional(status), normalizeOptional(trustStatus), normalizeLimit(limit));
+        return persistence.searchRuntimeResources(defaultTenant(tenantId), normalizeOptional(status), normalizeOptional(trustStatus), normalizeLimit(limit));
     }
 
     public RuntimeResource getRuntimeResource(String tenantId, String runtimeId) {
         if (blank(runtimeId)) throw new IllegalArgumentException("runtimeId is required");
-        return repository.findRuntimeResourceById(defaultTenant(tenantId), runtimeId)
+        return persistence.findRuntimeResourceById(defaultTenant(tenantId), runtimeId)
                 .orElseThrow(() -> new IllegalArgumentException("Runtime Resource not found: " + runtimeId));
     }
 
@@ -276,8 +415,8 @@ public class AgentAssignmentService {
         OffsetDateTime now = now();
         String tenantId = defaultTenant(request.getTenantId());
         RuntimeResource resource = !blank(request.getRuntimeId())
-                ? repository.findRuntimeResourceById(tenantId, request.getRuntimeId()).orElseGet(RuntimeResource::new)
-                : repository.findRuntimeResourceByCode(tenantId, normalizeCode(request.getRuntimeCode())).orElseGet(RuntimeResource::new);
+                ? persistence.findRuntimeResourceById(tenantId, request.getRuntimeId()).orElseGet(RuntimeResource::new)
+                : persistence.findRuntimeResourceByCode(tenantId, normalizeCode(request.getRuntimeCode())).orElseGet(RuntimeResource::new);
         if (blank(resource.getRuntimeId())) {
             resource.setRuntimeId(firstNonBlank(request.getRuntimeId(), "runtime-" + UUID.randomUUID()));
             resource.setCreatedAt(now);
@@ -291,17 +430,17 @@ public class AgentAssignmentService {
         resource.setCapacityLimit(request.getCapacityLimit());
         resource.setMetadata(request.getMetadata());
         resource.setUpdatedAt(now);
-        return repository.saveRuntimeResource(resource);
+        return persistence.saveRuntimeResource(resource);
     }
 
     public List<AgentRuntimeBinding> findRuntimeBindingsByAgent(String agentId, String status) {
         if (blank(agentId)) return List.of();
-        return repository.findRuntimeBindingsByAgent(agentId, normalizeOptional(status));
+        return persistence.findRuntimeBindingsByAgent(agentId, normalizeOptional(status));
     }
 
     public AgentRuntimeBinding getActiveRuntimeBinding(String agentId) {
         if (blank(agentId)) return null;
-        return repository.findActiveRuntimeBindingByAgent(agentId).orElse(null);
+        return persistence.findActiveRuntimeBindingByAgent(agentId).orElse(null);
     }
 
     public Optional<AgentRuntimeBinding> ensureActiveRuntimeBindingForRuntimeObservation(String tenantId, String agentId, String runtimeId, String runtimeCode, String gatewayNodeId) {
@@ -326,7 +465,7 @@ public class AgentAssignmentService {
         if (blank(body.getRuntimeId())) throw new IllegalArgumentException("runtimeId is required");
         OffsetDateTime now = now();
         String tenantId = defaultTenant(body.getTenantId());
-        AgentRuntimeBinding binding = repository.findActiveRuntimeBindingByTenantAndAgent(tenantId, agentId).orElseGet(AgentRuntimeBinding::new);
+        AgentRuntimeBinding binding = persistence.findActiveRuntimeBindingByTenantAndAgent(tenantId, agentId).orElseGet(AgentRuntimeBinding::new);
         if (blank(binding.getBindingId())) {
             binding.setBindingId(firstNonBlank(body.getBindingId(), "runtime-binding-" + UUID.randomUUID()));
             binding.setCreatedAt(now);
@@ -347,23 +486,23 @@ public class AgentAssignmentService {
         binding.setRiskLimit(firstNonBlank(body.getRiskLimit(), "MIDDLE"));
         binding.setMetadata(body.getMetadata());
         binding.setUpdatedAt(now);
-        return repository.saveRuntimeBinding(binding);
+        return persistence.saveRuntimeBinding(binding);
     }
 
     @Transactional
     public AgentRuntimeBinding transitionRuntimeBinding(String agentId, String bindingId, String targetStatus, AgentRuntimeBinding request) {
         if (blank(agentId)) throw new IllegalArgumentException("agentId is required");
         if (blank(bindingId)) throw new IllegalArgumentException("bindingId is required");
-        AgentRuntimeBinding binding = repository.findRuntimeBinding(bindingId)
+        AgentRuntimeBinding binding = persistence.findRuntimeBinding(bindingId)
                 .orElseThrow(() -> new IllegalArgumentException("Runtime Binding not found: " + bindingId));
         if (!agentId.equals(binding.getAgentId())) throw new IllegalArgumentException("Runtime Binding does not belong to Agent " + agentId);
         binding.setBindingStatus(normalizeBindingStatus(targetStatus));
         binding.setUpdatedAt(now());
-        return repository.saveRuntimeBinding(binding);
+        return persistence.saveRuntimeBinding(binding);
     }
 
     public List<RuntimeFeatureCatalog> searchRuntimeFeatures(String tenantId, String status, int limit) {
-        return repository.searchRuntimeFeatures(defaultTenant(tenantId), normalizeOptional(status), normalizeLimit(limit));
+        return persistence.searchRuntimeFeatures(defaultTenant(tenantId), normalizeOptional(status), normalizeLimit(limit));
     }
 
     @Transactional
@@ -372,7 +511,7 @@ public class AgentAssignmentService {
         OffsetDateTime now = now();
         String tenantId = defaultTenant(request.getTenantId());
         String featureCode = normalizeCode(request.getFeatureCode());
-        RuntimeFeatureCatalog feature = repository.findRuntimeFeatureByCode(tenantId, featureCode).orElseGet(RuntimeFeatureCatalog::new);
+        RuntimeFeatureCatalog feature = persistence.findRuntimeFeatureByCode(tenantId, featureCode).orElseGet(RuntimeFeatureCatalog::new);
         if (blank(feature.getFeatureId())) {
             feature.setFeatureId("runtime-feature-" + UUID.randomUUID());
             feature.setCreatedAt(now);
@@ -386,11 +525,11 @@ public class AgentAssignmentService {
         feature.setVersion(Math.max(1, request.getVersion() <= 0 ? feature.getVersion() : request.getVersion()));
         feature.setMetadata(request.getMetadata());
         feature.setUpdatedAt(now);
-        return repository.saveRuntimeFeatureCatalog(feature);
+        return persistence.saveRuntimeFeatureCatalog(feature);
     }
 
-    public List<AgentRuntimeFeatureObservation> findRuntimeFeatureObservations(String agentId) { return blank(agentId) ? List.of() : repository.findRuntimeFeatureObservationsByAgent(agentId); }
-    public List<AgentRuntimeFeatureTrust> findRuntimeFeatureTrusts(String agentId) { return blank(agentId) ? List.of() : repository.findRuntimeFeatureTrustsByAgent(agentId); }
+    public List<AgentRuntimeFeatureObservation> findRuntimeFeatureObservations(String agentId) { return blank(agentId) ? List.of() : persistence.findRuntimeFeatureObservationsByAgent(agentId); }
+    public List<AgentRuntimeFeatureTrust> findRuntimeFeatureTrusts(String agentId) { return blank(agentId) ? List.of() : persistence.findRuntimeFeatureTrustsByAgent(agentId); }
 
     @Transactional
     public AgentRuntimeFeatureTrust observeRuntimeFeature(String agentId, AgentRuntimeFeatureCommand command) {
@@ -400,7 +539,7 @@ public class AgentAssignmentService {
         OffsetDateTime now = now();
         String tenantId = defaultTenant(request.getTenantId());
         String featureCode = normalizeCode(request.getFeatureCode());
-        AgentRuntimeFeatureTrust trust = repository.findRuntimeFeatureTrustByAgentAndFeature(agentId, featureCode).orElseGet(AgentRuntimeFeatureTrust::new);
+        AgentRuntimeFeatureTrust trust = persistence.findRuntimeFeatureTrustByAgentAndFeature(agentId, featureCode).orElseGet(AgentRuntimeFeatureTrust::new);
         if (blank(trust.getTrustId())) {
             trust.setTrustId("runtime-feature-trust-" + UUID.randomUUID());
             trust.setCreatedAt(now);
@@ -414,7 +553,7 @@ public class AgentAssignmentService {
         trust.setReason(firstNonBlank(request.getReason(), "Runtime feature observed."));
         trust.setMetadata(request.getMetadata());
         trust.setUpdatedAt(now);
-        return repository.saveRuntimeFeatureTrust(trust);
+        return persistence.saveRuntimeFeatureTrust(trust);
     }
 
     @Transactional public AgentRuntimeFeatureTrust verifyRuntimeFeature(String agentId, String trustId, AgentRuntimeFeatureCommand command) { return transitionRuntimeFeatureTrust(agentId, trustId, AgentRuntimeFeatureTrustStatus.VERIFIED); }
@@ -476,13 +615,13 @@ public class AgentAssignmentService {
             assignment.setRevokedAt(now());
         }
         if (command != null && !blank(command.getReason())) assignment.setReason(command.getReason());
-        return repository.saveAgentCapabilityAssignment(assignment);
+        return persistence.saveAgentCapabilityAssignment(assignment);
     }
 
     private AgentCapabilityAssignment loadCapability(String agentId, String assignmentId) {
         if (blank(agentId)) throw new IllegalArgumentException("agentId is required");
         if (blank(assignmentId)) throw new IllegalArgumentException("assignmentId is required");
-        AgentCapabilityAssignment assignment = repository.findAgentCapabilityAssignment(assignmentId)
+        AgentCapabilityAssignment assignment = persistence.findAgentCapabilityAssignment(assignmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Agent capability assignment not found: " + assignmentId));
         if (!agentId.equals(assignment.getAgentId())) throw new IllegalArgumentException("Capability assignment does not belong to Agent " + agentId);
         return assignment;
@@ -491,16 +630,16 @@ public class AgentAssignmentService {
     private AgentRuntimeFeatureTrust transitionRuntimeFeatureTrust(String agentId, String trustId, AgentRuntimeFeatureTrustStatus target) {
         if (blank(agentId)) throw new IllegalArgumentException("agentId is required");
         if (blank(trustId)) throw new IllegalArgumentException("trustId is required");
-        AgentRuntimeFeatureTrust trust = repository.findRuntimeFeatureTrust(trustId)
+        AgentRuntimeFeatureTrust trust = persistence.findRuntimeFeatureTrust(trustId)
                 .orElseThrow(() -> new IllegalArgumentException("Runtime feature trust not found: " + trustId));
         if (!agentId.equals(trust.getAgentId())) throw new IllegalArgumentException("Runtime feature trust does not belong to Agent " + agentId);
         trust.setTrustStatus(target);
         trust.setUpdatedAt(now());
-        return repository.saveRuntimeFeatureTrust(trust);
+        return persistence.saveRuntimeFeatureTrust(trust);
     }
 
     private String inferAgentTenantId(String agentId) {
-        return repository.findActiveRuntimeBindingByAgent(agentId)
+        return persistence.findActiveRuntimeBindingByAgent(agentId)
                 .map(AgentRuntimeBinding::getTenantId)
                 .orElseThrow(() -> new IllegalArgumentException("tenantId is required"));
     }
@@ -517,7 +656,9 @@ public class AgentAssignmentService {
         };
     }
     private String normalizeOptional(String value) { return blank(value) ? null : value.trim().toUpperCase(); }
+    private String trimOptional(String value) { return blank(value) ? null : value.trim(); }
     private String normalizeCode(String value) { return blank(value) ? null : value.trim().toUpperCase(); }
+    private String normalizeCapabilityCode(String value) { return blank(value) ? null : value.trim().toLowerCase(java.util.Locale.ROOT); }
     private int normalizeLimit(int limit) { return limit <= 0 ? 500 : Math.min(limit, 5000); }
     private OffsetDateTime now() { return OffsetDateTime.now(ZoneOffset.UTC); }
     private String defaultTenant(String tenantId) { if (blank(tenantId)) throw new IllegalArgumentException("tenantId is required"); return tenantId.trim(); }

@@ -17,6 +17,17 @@ public class OutboxEventRecord {
     @ToString.Include
     private String aggregateId;
     private String payloadJson;
+    private String payloadVersion;
+    private String tenantId;
+    private String rootTaskId;
+    private String taskId;
+    private String correlationId;
+    private String causationId;
+    private String traceId;
+    private String spanId;
+    private String actorType;
+    private String actorId;
+    private String lineageStatus;
     private OutboxEventStatus status;
     private int attemptCount;
     private OffsetDateTime nextAttemptAt;
@@ -32,6 +43,17 @@ public class OutboxEventRecord {
     public void setAggregateType(String v){aggregateType=v;}
     public void setAggregateId(String v){aggregateId=v;}
     public void setPayloadJson(String v){payloadJson=v;}
+    public void setPayloadVersion(String v){payloadVersion=v;}
+    public void setTenantId(String v){tenantId=v;}
+    public void setRootTaskId(String v){rootTaskId=v;}
+    public void setTaskId(String v){taskId=v;}
+    public void setCorrelationId(String v){correlationId=v;}
+    public void setCausationId(String v){causationId=v;}
+    public void setTraceId(String v){traceId=v;}
+    public void setSpanId(String v){spanId=v;}
+    public void setActorType(String v){actorType=v;}
+    public void setActorId(String v){actorId=v;}
+    public void setLineageStatus(String v){lineageStatus=v;}
     public void setStatus(OutboxEventStatus v){status=v;}
     public void setAttemptCount(int v){attemptCount=Math.max(0,v);}
     public void setNextAttemptAt(OffsetDateTime v){nextAttemptAt=v;}

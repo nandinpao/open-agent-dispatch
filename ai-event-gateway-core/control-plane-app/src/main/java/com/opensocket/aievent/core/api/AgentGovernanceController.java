@@ -9,16 +9,19 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.opensocket.aievent.core.agent.AgentDirectoryService;
+import com.opensocket.aievent.core.api.security.ServerActorAuthority;
 import com.opensocket.aievent.core.agent.governance.AgentApprovalStatus;
 import com.opensocket.aievent.core.agent.governance.AgentConnectionAuthorizationRequest;
 import com.opensocket.aievent.core.agent.governance.AgentConnectionRepairActionCommand;
@@ -47,6 +50,12 @@ import com.opensocket.aievent.core.agent.governance.AgentSecurityEventType;
 import com.opensocket.aievent.core.runtime.CoreRuntimeDisconnectClient;
 import com.opensocket.aievent.core.runtime.RuntimeDisconnectException;
 import com.opensocket.aievent.core.runtime.RuntimeDisconnectResult;
+import com.opensocket.aievent.core.resourceaccess.contract.ResourceAction;
+import com.opensocket.aievent.core.resourceaccess.contract.ResourceListScopeQueryPlan;
+import com.opensocket.aievent.core.resourceaccess.contract.ResourceType;
+import com.opensocket.aievent.core.resourceaccess.contract.VisibilityLevel;
+import com.opensocket.aievent.core.resourceaccess.runtime.ScopedAgentQueryService;
+import com.opensocket.aievent.core.resourceaccess.runtime.ScopedBusinessResourceAccessCoordinator;
 
 @RestController
 public class AgentGovernanceController {
@@ -55,13 +64,37 @@ public class AgentGovernanceController {
     private final AgentGovernanceService agentGovernanceService;
     private final AgentDirectoryService agentDirectoryService;
     private final CoreRuntimeDisconnectClient runtimeDisconnectClient;
+    private final ScopedBusinessResourceAccessCoordinator scopedAccess;
+    private final ScopedAgentQueryService scopedAgents;
 
+    /** Test/backward-compatible constructor; production Spring uses the scoped constructor below when available. */
     public AgentGovernanceController(AgentGovernanceService agentGovernanceService,
                                      AgentDirectoryService agentDirectoryService,
                                      CoreRuntimeDisconnectClient runtimeDisconnectClient) {
+        this(agentGovernanceService, agentDirectoryService, runtimeDisconnectClient,
+                (ScopedBusinessResourceAccessCoordinator) null, (ScopedAgentQueryService) null);
+    }
+
+    private AgentGovernanceController(AgentGovernanceService agentGovernanceService,
+                                      AgentDirectoryService agentDirectoryService,
+                                      CoreRuntimeDisconnectClient runtimeDisconnectClient,
+                                      ScopedBusinessResourceAccessCoordinator scopedAccess,
+                                      ScopedAgentQueryService scopedAgents) {
         this.agentGovernanceService = agentGovernanceService;
         this.agentDirectoryService = agentDirectoryService;
         this.runtimeDisconnectClient = runtimeDisconnectClient;
+        this.scopedAccess = scopedAccess;
+        this.scopedAgents = scopedAgents;
+    }
+
+    @Autowired
+    public AgentGovernanceController(AgentGovernanceService agentGovernanceService,
+                                     AgentDirectoryService agentDirectoryService,
+                                     CoreRuntimeDisconnectClient runtimeDisconnectClient,
+                                     ObjectProvider<ScopedBusinessResourceAccessCoordinator> scopedAccessProvider,
+                                     ObjectProvider<ScopedAgentQueryService> scopedAgentsProvider) {
+        this(agentGovernanceService, agentDirectoryService, runtimeDisconnectClient,
+                scopedAccessProvider.getIfAvailable(), scopedAgentsProvider.getIfAvailable());
     }
 
     @PostMapping("/internal/agents/enrollments")
@@ -84,11 +117,13 @@ public class AgentGovernanceController {
     @GetMapping("/admin/agent-enrollments")
     public List<AgentEnrollmentRequest> searchEnrollments(@RequestParam(required = false) AgentEnrollmentStatus status,
                                                           @RequestParam(defaultValue = "100") int limit) {
+        requireTenantWide("admin.agent.governance.search.enrollments", ResourceType.AGENT, VisibilityLevel.SENSITIVE, "RS3_AGENT_ENROLLMENTS");
         return agentGovernanceService.searchEnrollments(status, limit);
     }
 
     @PostMapping("/admin/agent-enrollments")
     public AgentEnrollmentRequest createEnrollment(@RequestBody AgentEnrollmentRequest request) {
+        if (scopedAccess != null && request != null) request.setTenantId(scopedAccess.activeTenantId());
         String claimedAgentId = request == null ? null : firstNonBlank(request.getClaimedAgentId(), request.getAgentName());
         String tenantId = request == null ? null : request.getTenantId();
         log.info("admin_agent_enrollment_create_received tenantId={} claimedAgentId={} agentName={} agentType={}",
@@ -115,32 +150,64 @@ public class AgentGovernanceController {
     @PostMapping("/admin/agent-enrollments/{enrollmentId}/approve")
     public AgentProfile approveEnrollment(@PathVariable String enrollmentId,
                                           @RequestBody(required = false) AgentEnrollmentApprovalCommand request) {
-        return agentGovernanceService.approveEnrollment(enrollmentId, request);
+        AgentEnrollmentApprovalCommand body = request == null ? new AgentEnrollmentApprovalCommand() : request;
+        body.setApprovedBy(authoritativeActor(body.getApprovedBy()));
+        if (scopedAccess != null) {
+            body.setTenantId(scopedAccess.activeTenantId());
+            if (scopedAgents != null && (body.getOwnerDepartmentId() != null || body.getOwnerGroupId() != null)) {
+                String candidateAgentId = body.getAgentId() == null || body.getAgentId().isBlank() ? "pending-" + enrollmentId : body.getAgentId();
+                ResourceListScopeQueryPlan plan = scopedAccess.plan("admin.agent.governance.approve.enrollment", ResourceType.AGENT, VisibilityLevel.SENSITIVE, "RS3_AGENT_ENROLLMENT_OWNER");
+                scopedAgents.requireAssignableOwner(plan, scopedAccess.activeTenantId(), candidateAgentId, body.getOwnerDepartmentId(), body.getOwnerGroupId());
+            } else {
+                requireTenantWide("admin.agent.governance.approve.enrollment", ResourceType.AGENT, VisibilityLevel.SENSITIVE, "RS3_AGENT_ENROLLMENT_APPROVAL");
+            }
+        }
+        return agentGovernanceService.approveEnrollment(enrollmentId, body);
     }
 
     @PostMapping("/admin/agent-enrollments/{enrollmentId}/reject")
     public AgentEnrollmentRequest rejectEnrollment(@PathVariable String enrollmentId,
                                                    @RequestBody(required = false) AgentEnrollmentRejectCommand request) {
-        AgentEnrollmentRequest saved = agentGovernanceService.rejectEnrollment(enrollmentId, request);
+        requireTenantWide("admin.agent.governance.reject.enrollment", ResourceType.AGENT, VisibilityLevel.SENSITIVE, "RS3_AGENT_ENROLLMENT_REJECT");
+        AgentEnrollmentRejectCommand requested = request == null ? new AgentEnrollmentRejectCommand(null, null) : request;
+        AgentEnrollmentRejectCommand body = new AgentEnrollmentRejectCommand(authoritativeActor(requested.rejectedBy()), requested.reason());
+        AgentEnrollmentRequest saved = agentGovernanceService.rejectEnrollment(enrollmentId, body);
         String agentId = firstNonBlank(saved.getClaimedAgentId(), saved.getAgentName());
-        enforceRuntimeDisconnect(agentId, null, request == null ? null : request.rejectedBy(),
-                request == null ? "Enrollment rejected by Core governance" : firstNonBlank(request.reason(), "Enrollment rejected by Core governance"));
+        enforceRuntimeDisconnect(agentId, null, body.rejectedBy(), firstNonBlank(body.reason(), "Enrollment rejected by Core governance"));
         return saved;
     }
 
     @GetMapping("/admin/agents")
     public List<AgentProfile> searchAgents(@RequestParam(required = false) AgentApprovalStatus approvalStatus,
                                            @RequestParam(defaultValue = "100") int limit) {
-        return agentGovernanceService.searchProfiles(approvalStatus, limit);
+        if (scopedAccess == null || scopedAgents == null) return agentGovernanceService.searchProfiles(approvalStatus, limit);
+        ResourceListScopeQueryPlan plan = scopedAccess.plan("admin.agent.governance.search.agents", ResourceType.AGENT, VisibilityLevel.STANDARD, "RS3_AGENT_LIST");
+        return scopedAgents.search(approvalStatus, limit, plan);
     }
 
     @GetMapping("/admin/agents/{agentId}")
     public AgentProfile getAgent(@PathVariable String agentId) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.governance.get.agent", ResourceAction.ActionKind.READ, false, VisibilityLevel.STANDARD, "RS3_AGENT_DETAIL");
         return agentGovernanceService.getProfile(agentId);
     }
 
     @PutMapping("/admin/agents/{agentId}")
     public AgentProfile updateAgent(@PathVariable String agentId, @RequestBody(required = false) AgentProfileUpdateCommand request) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.governance.update.agent", ResourceAction.ActionKind.UPDATE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_UPDATE");
+        AgentProfileUpdateCommand body = request == null ? new AgentProfileUpdateCommand() : request;
+        body.setOperatorId(authoritativeActor(body.getOperatorId()));
+        request = body;
+        if (scopedAccess != null) {
+            String activeTenant = scopedAccess.activeTenantId();
+            request.setTenantId(activeTenant);
+            if (scopedAgents != null && (request.getOwnerDepartmentId() != null || request.getOwnerGroupId() != null)) {
+                ResourceListScopeQueryPlan plan = scopedAccess.plan("admin.agent.governance.update.agent", ResourceType.AGENT, VisibilityLevel.SENSITIVE, "RS3_AGENT_REASSIGN_OWNER");
+                AgentProfile current = agentGovernanceService.getProfile(agentId);
+                String department = request.getOwnerDepartmentId() == null ? current.getOwnerDepartmentId() : request.getOwnerDepartmentId();
+                String group = request.getOwnerGroupId() == null ? current.getOwnerGroupId() : request.getOwnerGroupId();
+                scopedAgents.requireAssignableOwner(plan, activeTenant, agentId, department, group);
+            }
+        }
         AgentProfile saved = agentGovernanceService.updateProfile(agentId, request);
         if (!saved.allowsConnection()) {
             enforceRuntimeDisconnect(agentId, null, request == null ? null : request.getOperatorId(),
@@ -153,24 +220,34 @@ public class AgentGovernanceController {
     @PostMapping("/admin/agents/{agentId}/credentials/issue")
     public AgentProfile issueCredential(@PathVariable String agentId,
                                         @RequestBody(required = false) AgentCredentialIssueCommand request) {
-        return agentGovernanceService.issueCredential(agentId, request);
+        authorizeAgent(ResourceType.AGENT_CREDENTIAL_METADATA, agentId, "admin.agent.governance.issue.credential", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SECRET_METADATA, "RS3_AGENT_CREDENTIAL_ISSUE");
+        AgentCredentialIssueCommand body = request == null ? new AgentCredentialIssueCommand() : request;
+        body.setOperatorId(authoritativeActor(body.getOperatorId()));
+        return agentGovernanceService.issueCredential(agentId, body);
     }
 
     @PostMapping("/admin/agents/{agentId}/approve")
     public AgentProfile approveAgent(@PathVariable String agentId,
                                      @RequestBody(required = false) AgentProfileApprovalCommand request) {
-        return agentGovernanceService.approveAgent(agentId, request);
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.governance.approve.agent", ResourceAction.ActionKind.APPROVE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_APPROVE");
+        AgentProfileApprovalCommand body = request == null ? new AgentProfileApprovalCommand() : request;
+        body.setOperatorId(authoritativeActor(body.getOperatorId()));
+        return agentGovernanceService.approveAgent(agentId, body);
     }
 
     @PostMapping("/admin/agents/{agentId}/enable")
     public AgentProfile enableAgent(@PathVariable String agentId, @RequestBody(required = false) AgentAdminActionRequest request) {
-        AgentAdminActionRequest body = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.governance.enable.agent", ResourceAction.ActionKind.UPDATE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_ENABLE");
+        AgentAdminActionRequest requested = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        AgentAdminActionRequest body = new AgentAdminActionRequest(authoritativeActor(requested.operatorId()), requested.reason(), requested.gatewayNodeId());
         return agentGovernanceService.enableAgent(agentId, body.operatorId(), body.reason());
     }
 
     @PostMapping("/admin/agents/{agentId}/disable")
     public AgentProfile disableAgent(@PathVariable String agentId, @RequestBody(required = false) AgentAdminActionRequest request) {
-        AgentAdminActionRequest body = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.governance.disable.agent", ResourceAction.ActionKind.UPDATE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_DISABLE");
+        AgentAdminActionRequest requested = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        AgentAdminActionRequest body = new AgentAdminActionRequest(authoritativeActor(requested.operatorId()), requested.reason(), requested.gatewayNodeId());
         AgentProfile saved = agentGovernanceService.disableAgent(agentId, body.operatorId(), body.reason());
         enforceRuntimeDisconnect(agentId, body.gatewayNodeId(), body.operatorId(), firstNonBlank(body.reason(), "Agent disabled by Core governance"));
         return saved;
@@ -178,7 +255,9 @@ public class AgentGovernanceController {
 
     @PostMapping("/admin/agents/{agentId}/suspend")
     public AgentProfile suspendAgent(@PathVariable String agentId, @RequestBody(required = false) AgentAdminActionRequest request) {
-        AgentAdminActionRequest body = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.governance.suspend.agent", ResourceAction.ActionKind.UPDATE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_SUSPEND");
+        AgentAdminActionRequest requested = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        AgentAdminActionRequest body = new AgentAdminActionRequest(authoritativeActor(requested.operatorId()), requested.reason(), requested.gatewayNodeId());
         AgentProfile saved = agentGovernanceService.suspendAgent(agentId, body.operatorId(), body.reason());
         enforceRuntimeDisconnect(agentId, body.gatewayNodeId(), body.operatorId(), firstNonBlank(body.reason(), "Agent suspended by Core governance"));
         return saved;
@@ -186,7 +265,9 @@ public class AgentGovernanceController {
 
     @PostMapping("/admin/agents/{agentId}/revoke")
     public AgentProfile revokeAgent(@PathVariable String agentId, @RequestBody(required = false) AgentAdminActionRequest request) {
-        AgentAdminActionRequest body = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.governance.revoke.agent", ResourceAction.ActionKind.UPDATE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_REVOKE");
+        AgentAdminActionRequest requested = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        AgentAdminActionRequest body = new AgentAdminActionRequest(authoritativeActor(requested.operatorId()), requested.reason(), requested.gatewayNodeId());
         AgentProfile saved = agentGovernanceService.revokeAgent(agentId, body.operatorId(), body.reason());
         enforceRuntimeDisconnect(agentId, body.gatewayNodeId(), body.operatorId(), firstNonBlank(body.reason(), "Agent revoked by Core governance"));
         return saved;
@@ -196,13 +277,17 @@ public class AgentGovernanceController {
     @PostMapping("/admin/agents/{agentId}/disconnect")
     public RuntimeDisconnectResult disconnectAgentRuntime(@PathVariable String agentId,
                                                          @RequestBody(required = false) AgentAdminActionRequest request) {
-        AgentAdminActionRequest body = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.disconnect.agent.runtime", ResourceAction.ActionKind.EXECUTE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_RUNTIME_DISCONNECT");
+        AgentAdminActionRequest requested = request == null ? new AgentAdminActionRequest(null, null, null) : request;
+        AgentAdminActionRequest body = new AgentAdminActionRequest(authoritativeActor(requested.operatorId()), requested.reason(), requested.gatewayNodeId());
         return enforceRuntimeDisconnect(agentId, body.gatewayNodeId(), body.operatorId(), firstNonBlank(body.reason(), "Manual Core runtime disconnect request"));
     }
 
     @PostMapping("/admin/agents/runtime-disconnect/reconcile")
     public RuntimeDisconnectReconcileReport reconcileBlockedAgentRuntimes(@RequestBody(required = false) RuntimeDisconnectReconcileRequest request) {
-        RuntimeDisconnectReconcileRequest body = request == null ? new RuntimeDisconnectReconcileRequest(null, null, 500, false) : request;
+        requireTenantWide("admin.agent.governance.reconcile.blocked.agent.runtimes", ResourceType.AGENT_SERVICE_SCOPE, VisibilityLevel.SENSITIVE, "RS3_AGENT_RUNTIME_RECONCILE");
+        RuntimeDisconnectReconcileRequest requested = request == null ? new RuntimeDisconnectReconcileRequest(null, null, 500, false) : request;
+        RuntimeDisconnectReconcileRequest body = new RuntimeDisconnectReconcileRequest(authoritativeActor(requested.operatorId()), requested.gatewayNodeId(), requested.limit(), requested.includeAgentsWithoutOwner());
         int limit = body.limit() == null ? 500 : Math.max(1, Math.min(5000, body.limit()));
         List<RuntimeDisconnectReconcileItem> items = new ArrayList<>();
         int evaluated = 0;
@@ -236,7 +321,9 @@ public class AgentGovernanceController {
     @PostMapping("/admin/agents/{agentId}/disconnect-all")
     public RuntimeDisconnectResult disconnectAllAgentRuntimeSessions(@PathVariable String agentId,
                                                                     @RequestBody(required = false) AgentClusterDisconnectRequest request) {
-        AgentClusterDisconnectRequest body = request == null ? new AgentClusterDisconnectRequest(null, null, List.of()) : request;
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.disconnect.all.agent.runtime.sessions", ResourceAction.ActionKind.EXECUTE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_RUNTIME_DISCONNECT_ALL");
+        AgentClusterDisconnectRequest requested = request == null ? new AgentClusterDisconnectRequest(null, null, List.of()) : request;
+        AgentClusterDisconnectRequest body = new AgentClusterDisconnectRequest(authoritativeActor(requested.operatorId()), requested.reason(), requested.gatewayNodeIds());
         List<String> requestedGatewayNodeIds = body.gatewayNodeIds() == null ? List.of() : body.gatewayNodeIds().stream()
                 .filter(value -> value != null && !value.isBlank())
                 .distinct()
@@ -446,6 +533,7 @@ public class AgentGovernanceController {
     @PostMapping("/admin/agents/{agentId}/security/duplicate-runtime/enforce")
     public AgentSecurityEnforcementResponse enforceDuplicateRuntimeSecurity(@PathVariable String agentId,
                                                                            @RequestBody(required = false) AgentDuplicateRuntimeSecurityCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.enforce.duplicate.runtime.security", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_DUPLICATE_RUNTIME_ENFORCE");
         AgentDuplicateRuntimeSecurityCommand body = request == null ? new AgentDuplicateRuntimeSecurityCommand() : request;
         AgentProfile profile = agentGovernanceService.enforceDuplicateRuntimeSecurity(agentId, body);
         RuntimeDisconnectResult disconnectResult = null;
@@ -475,6 +563,7 @@ public class AgentGovernanceController {
     @PostMapping("/admin/agents/{agentId}/security/duplicate-runtime/resolve")
     public AgentSecurityEnforcementResponse resolveDuplicateRuntimeSecurity(@PathVariable String agentId,
                                                                            @RequestBody(required = false) AgentDuplicateRuntimeResolveCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.resolve.duplicate.runtime.security", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_DUPLICATE_RUNTIME_RESOLVE");
         AgentProfile profile = agentGovernanceService.resolveDuplicateRuntimeSecurity(agentId, request);
         return new AgentSecurityEnforcementResponse(
                 agentId,
@@ -494,12 +583,14 @@ public class AgentGovernanceController {
 
     @GetMapping("/admin/agents/{agentId}/security/enforcement-policy")
     public AgentSecurityEnforcementPolicy getAgentSecurityEnforcementPolicy(@PathVariable String agentId) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.get.agent.security.enforcement.policy", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_AGENT_SECURITY_POLICY_READ");
         return agentGovernanceService.getSecurityEnforcementPolicy(agentId);
     }
 
     @PutMapping("/admin/agents/{agentId}/security/enforcement-policy")
     public AgentSecurityEnforcementPolicy updateAgentSecurityEnforcementPolicy(@PathVariable String agentId,
                                                                                @RequestBody(required = false) AgentSecurityEnforcementPolicyUpdateCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.update.agent.security.enforcement.policy", ResourceAction.ActionKind.UPDATE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_SECURITY_POLICY_UPDATE");
         return agentGovernanceService.updateSecurityEnforcementPolicy(agentId, request);
     }
 
@@ -521,16 +612,23 @@ public class AgentGovernanceController {
     @GetMapping("/admin/agent-security-events")
     public List<AgentSecurityEvent> searchSecurityEvents(@RequestParam(required = false) String agentId,
                                                          @RequestParam(defaultValue = "100") int limit) {
+        if (agentId == null || agentId.isBlank()) {
+            requireTenantWide("admin.agent.governance.search.security.events", ResourceType.AGENT_SERVICE_SCOPE, VisibilityLevel.SENSITIVE, "RS3_AGENT_SECURITY_EVENTS_TENANT");
+        } else {
+            authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.search.security.events", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_AGENT_SECURITY_EVENTS");
+        }
         return agentGovernanceService.searchSecurityEvents(agentId, limit);
     }
 
     @GetMapping("/admin/agents/{agentId}/latest-auth-failure")
     public AgentLatestAuthFailureResponse latestAuthFailure(@PathVariable String agentId) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.latest.auth.failure", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_AGENT_LATEST_AUTH_FAILURE");
         return agentGovernanceService.latestAuthFailure(agentId);
     }
 
     @GetMapping("/admin/agents/{agentId}/connection-repair-actions")
     public AgentConnectionRepairActionsResponse connectionRepairActions(@PathVariable String agentId) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.connection.repair.actions", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_AGENT_REPAIR_ACTIONS");
         return agentGovernanceService.connectionRepairActions(agentId);
     }
 
@@ -538,6 +636,7 @@ public class AgentGovernanceController {
     public AgentConnectionRepairActionResult executeConnectionRepairAction(@PathVariable String agentId,
                                                                            @PathVariable String actionCode,
                                                                            @RequestBody(required = false) AgentConnectionRepairActionCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.governance.execute.connection.repair.action", ResourceAction.ActionKind.EXECUTE, true, VisibilityLevel.SENSITIVE, "RS3_AGENT_REPAIR_EXECUTE");
         return agentGovernanceService.executeConnectionRepairAction(agentId, actionCode, request);
     }
 
@@ -577,6 +676,23 @@ public class AgentGovernanceController {
                         "AUTH_OTHER"
                 },
                 OffsetDateTime.now(ZoneOffset.UTC));
+    }
+
+    private String authoritativeActor(String requestedActorId) {
+        String actorId = ServerActorAuthority.requireActorId();
+        ServerActorAuthority.rejectSpoofedActor(requestedActorId, actorId);
+        return actorId;
+    }
+
+    private void authorizeAgent(ResourceType type, String agentId, String permission, ResourceAction.ActionKind kind,
+                                boolean sideEffecting, VisibilityLevel visibility, String purpose) {
+        if (scopedAccess == null) return;
+        scopedAccess.authorize(type, agentId, permission, kind, sideEffecting, visibility, purpose);
+    }
+
+    private void requireTenantWide(String permission, ResourceType type, VisibilityLevel visibility, String purpose) {
+        if (scopedAccess == null) return;
+        scopedAccess.requireTenantWide(permission, type, visibility, purpose);
     }
 
     public record AgentAdminActionRequest(String operatorId, String reason, String gatewayNodeId) {}

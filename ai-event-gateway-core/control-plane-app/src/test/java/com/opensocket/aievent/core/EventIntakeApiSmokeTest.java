@@ -34,7 +34,7 @@ class EventIntakeApiSmokeTest {
         assertThat(status.getStatusCode()).isEqualTo(HttpStatus.OK);
         Map<String, Object> statusData = data(status);
         assertThat(status.getBody()).containsEntry("code", "OK");
-        assertThat(statusData).containsEntry("version", "1.0.0-p25.7.4-p5-callback-transition-governance-fix");
+        assertThat(statusData).containsEntry("version", "0.8.2-SNAPSHOT");
         assertThat(statusData).containsEntry("dedupStore", "MEMORY");
 
         ResponseEntity<Map> first = rest.postForEntity("/api/events/intake", request(), Map.class);

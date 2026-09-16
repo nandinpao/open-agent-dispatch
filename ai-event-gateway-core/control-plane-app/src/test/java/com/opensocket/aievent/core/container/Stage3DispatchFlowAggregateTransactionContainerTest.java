@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowAgentView;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowManagementService;
 import com.opensocket.aievent.core.dispatch.flow.DispatchFlowRequiredSkillView;

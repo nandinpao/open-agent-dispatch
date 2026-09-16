@@ -23,6 +23,7 @@ import com.opensocket.aievent.core.agent.contract.DispatchContractTraceRequest;
 import com.opensocket.aievent.core.agent.contract.DispatchContractTraceResponse;
 import com.opensocket.aievent.core.contract.DispatchContractTestTaskService;
 import com.opensocket.aievent.core.contract.DispatchContractTraceService;
+import com.opensocket.aievent.core.http.context.OpenDispatchRequestContextHolder;
 import com.opensocket.aievent.core.source.SourceSystemManagementService;
 import com.opensocket.aievent.core.source.SourceSystemView;
 
@@ -108,7 +109,21 @@ public class DispatchContractController {
     @PostMapping("/test-task")
     public DispatchContractTestTaskResponse createTestTask(@RequestBody(required = false) DispatchContractTestTaskRequest request) {
         try {
-            return testTaskService.createTestTask(request == null ? new DispatchContractTestTaskRequest() : request);
+            DispatchContractTestTaskRequest command = request == null
+                    ? new DispatchContractTestTaskRequest() : request;
+            String authorizedTenant = OpenDispatchRequestContextHolder.current()
+                    .map(value -> value.tenantId() == null ? "" : value.tenantId().trim())
+                    .orElse("");
+            if (authorizedTenant.isBlank()) {
+                throw new IllegalArgumentException("AUTH_TENANT_CONTEXT_REQUIRED");
+            }
+            String requestedTenant = command.getTenantId() == null ? "" : command.getTenantId().trim();
+            if (!requestedTenant.isBlank() && !authorizedTenant.equals(requestedTenant)) {
+                throw new IllegalArgumentException("AUTH_TENANT_MISMATCH");
+            }
+            // Tenant provenance is server-resolved from the authenticated request context.
+            command.setTenantId(authorizedTenant);
+            return testTaskService.createTestTask(command);
         } catch (IllegalArgumentException ex) {
             throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, ex.getMessage());
         }

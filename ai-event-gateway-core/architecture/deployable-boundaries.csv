@@ -1,0 +1,6 @@
+deployable,boundary_type,current_mode,m8_status,database_owner,integration_contract,extraction_priority
+control-plane-app,control-plane,modular-monolith,production-default,shared-core-db,module-events/internal-api,retain
+adapter-worker-app,worker,optional-external,deployable,none,adapter-worker-http-v1,1
+agent-control-service,candidate,embedded,planned,agent-control schema,agent-directory-api/events,2
+execution-control-service,candidate,embedded,planned,execution schema,dispatch/callback API/events,3
+incident-task-control,candidate,embedded,do-not-split-yet,incident/task schemas,module events,4

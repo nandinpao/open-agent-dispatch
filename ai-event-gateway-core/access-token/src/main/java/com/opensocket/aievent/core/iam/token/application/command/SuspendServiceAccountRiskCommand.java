@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.token.application.command;import com.opensocket.aievent.core.iam.token.domain.ServiceAccountRiskLevel;public record SuspendServiceAccountRiskCommand(String tenantId,String serviceAccountId,ServiceAccountRiskLevel riskLevel,String reason,String actorId,String correlationId){}

@@ -2,6 +2,10 @@ package com.opensocket.aievent.core.api;
 
 import java.util.List;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,14 +46,31 @@ import com.opensocket.aievent.core.agent.contract.DispatchContractChainInspectio
 import com.opensocket.aievent.core.agent.contract.DispatchContractReadinessRequest;
 import com.opensocket.aievent.core.agent.contract.DispatchContractReadinessResponse;
 import com.opensocket.aievent.core.agent.contract.DispatchSourceSystemOption;
+import com.opensocket.aievent.core.resourceaccess.contract.ResourceAction;
+import com.opensocket.aievent.core.resourceaccess.contract.ResourceType;
+import com.opensocket.aievent.core.resourceaccess.contract.VisibilityLevel;
+import com.opensocket.aievent.core.resourceaccess.runtime.ScopedBusinessResourceAccessCoordinator;
 
 @RestController
 @RequestMapping("/admin")
 public class AgentAssignmentController {
     private final AgentAssignmentService service;
+    private final ScopedBusinessResourceAccessCoordinator scopedAccess;
 
+    /** Backward-compatible constructor used by existing controller tests. */
     public AgentAssignmentController(AgentAssignmentService service) {
+        this(service, (ScopedBusinessResourceAccessCoordinator) null);
+    }
+
+    private AgentAssignmentController(AgentAssignmentService service, ScopedBusinessResourceAccessCoordinator scopedAccess) {
         this.service = service;
+        this.scopedAccess = scopedAccess;
+    }
+
+    @Autowired
+    public AgentAssignmentController(AgentAssignmentService service,
+                                     ObjectProvider<ScopedBusinessResourceAccessCoordinator> scopedAccessProvider) {
+        this(service, scopedAccessProvider.getIfAvailable());
     }
 
     @GetMapping("/dispatch-policies")
@@ -140,31 +161,31 @@ public class AgentAssignmentController {
         return service.advancedSelectionStrategyContracts();
     }
 
+    /**
+     * V38 compatibility read: Pool Capability Policy is no longer a routing authority.
+     * Historical in-memory values were never durable and are intentionally not projected.
+     */
     @GetMapping("/agent-pool-policies/capabilities")
     public List<AgentPoolCapabilityPolicy> poolCapabilityPolicies(@RequestParam(required = false) String tenantId,
                                                                   @RequestParam(required = false) String targetPoolId,
                                                                   @RequestParam(defaultValue = "200") int limit) {
-        return service.searchAgentPoolCapabilityPolicies(tenantId, targetPoolId, limit);
+        return List.of();
     }
 
+    /** V38: mutate the Task/Flow Required Capability instead of creating a second Pool gate. */
     @PutMapping("/agent-pool-policies/capabilities/{targetPoolId}")
     public AgentPoolCapabilityPolicy upsertPoolCapabilityPolicy(@PathVariable String targetPoolId,
                                                                 @RequestBody(required = false) AgentPoolCapabilityPolicy request,
                                                                 @RequestParam(required = false) String tenantId) {
-        try {
-            AgentPoolCapabilityPolicy body = request == null ? new AgentPoolCapabilityPolicy() : request;
-            body.setTenantId(tenantId == null || tenantId.isBlank() ? body.getTenantId() : tenantId);
-            body.setTargetPoolId(targetPoolId);
-            return service.upsertAgentPoolCapabilityPolicy(body);
-        } catch (IllegalArgumentException ex) {
-            throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, ex.getMessage());
-        }
+        throw new ResponseStatusException(HttpStatus.GONE,
+                "POOL_CAPABILITY_POLICY_ROUTING_AUTHORITY_RETIRED: Configure Required Capability on the canonical Dispatch Flow/Task contract. Flow selects the Pool; Required Capability filters eligible Agents.");
     }
 
     @GetMapping("/quality/agents/{agentId}/daily")
     public List<AgentQualityMetricsDaily> agentQualityDaily(@PathVariable String agentId,
                                                             @RequestParam(required = false) String tenantId,
                                                             @RequestParam(defaultValue = "90") int limit) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.agent.quality.daily", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_AGENTQUALITYDAILY");
         return service.findAgentQualityDaily(tenantId, agentId, limit);
     }
 
@@ -173,6 +194,7 @@ public class AgentAssignmentController {
                                                                @RequestParam(required = false) String tenantId,
                                                                @RequestParam(defaultValue = "24h") String metricWindow,
                                                                @RequestParam(defaultValue = "30") int limit) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.agent.quality.windows", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_AGENTQUALITYWINDOWS");
         return service.findAgentQualityWindows(tenantId, agentId, metricWindow, limit);
     }
 
@@ -180,6 +202,7 @@ public class AgentAssignmentController {
     public AgentQualityMetricsWindow upsertAgentQualityWindow(@PathVariable String agentId,
                                                               @RequestBody(required = false) AgentQualityMetricsWindow request,
                                                               @RequestParam(required = false) String tenantId) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.upsert.agent.quality.window", ResourceAction.ActionKind.UPDATE, true, VisibilityLevel.SENSITIVE, "RS3_UPSERTAGENTQUALITYWINDOW");
         try {
             AgentQualityMetricsWindow body = request == null ? new AgentQualityMetricsWindow() : request;
             body.setTenantId(tenantId == null || tenantId.isBlank() ? body.getTenantId() : tenantId);
@@ -267,24 +290,21 @@ public class AgentAssignmentController {
     public AgentCapabilityCatalog upsertCapability(@PathVariable String capabilityCode,
                                                    @RequestBody(required = false) AgentCapabilityCatalog request,
                                                    @RequestParam(required = false) String tenantId) {
-        try {
-            AgentCapabilityCatalog body = request == null ? new AgentCapabilityCatalog() : request;
-            body.setTenantId(tenantId == null || tenantId.isBlank() ? body.getTenantId() : tenantId);
-            body.setCapabilityCode(capabilityCode);
-            return service.upsertCapability(body);
-        } catch (IllegalArgumentException ex) {
-            throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, ex.getMessage());
-        }
+        throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST,
+                "Legacy Capability Catalog mutation is retired. Use /admin/capability-definitions/" + capabilityCode
+                        + " as the Canonical Capability authority.");
     }
 
     @GetMapping("/agents/{agentId}/capabilities")
     public List<AgentCapabilityAssignment> agentCapabilities(@PathVariable String agentId) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.agent.capabilities", ResourceAction.ActionKind.READ, false, VisibilityLevel.STANDARD, "RS3_AGENTCAPABILITIES");
         return service.findAgentCapabilities(agentId);
     }
 
     @PostMapping("/agents/{agentId}/capabilities")
     public AgentCapabilityAssignment requestAgentCapability(@PathVariable String agentId,
                                                             @RequestBody(required = false) AgentCapabilityCommand request) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.request.agent.capability", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_REQUESTAGENTCAPABILITY");
         return service.requestAgentCapability(agentId, request == null ? new AgentCapabilityCommand() : request);
     }
 
@@ -292,6 +312,7 @@ public class AgentAssignmentController {
     public AgentCapabilityAssignment approveAgentCapability(@PathVariable String agentId,
                                                             @PathVariable String assignmentId,
                                                             @RequestBody(required = false) AgentCapabilityCommand request) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.approve.agent.capability", ResourceAction.ActionKind.APPROVE, true, VisibilityLevel.SENSITIVE, "RS3_APPROVEAGENTCAPABILITY");
         return service.approveAgentCapability(agentId, assignmentId, request == null ? new AgentCapabilityCommand() : request);
     }
 
@@ -299,6 +320,7 @@ public class AgentAssignmentController {
     public AgentCapabilityAssignment suspendAgentCapability(@PathVariable String agentId,
                                                             @PathVariable String assignmentId,
                                                             @RequestBody(required = false) AgentCapabilityCommand request) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.suspend.agent.capability", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_SUSPENDAGENTCAPABILITY");
         return service.suspendAgentCapability(agentId, assignmentId, request == null ? new AgentCapabilityCommand() : request);
     }
 
@@ -306,6 +328,7 @@ public class AgentAssignmentController {
     public AgentCapabilityAssignment resumeAgentCapability(@PathVariable String agentId,
                                                            @PathVariable String assignmentId,
                                                            @RequestBody(required = false) AgentCapabilityCommand request) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.resume.agent.capability", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_RESUMEAGENTCAPABILITY");
         return service.resumeAgentCapability(agentId, assignmentId, request == null ? new AgentCapabilityCommand() : request);
     }
 
@@ -313,6 +336,7 @@ public class AgentAssignmentController {
     public AgentCapabilityAssignment revokeAgentCapability(@PathVariable String agentId,
                                                            @PathVariable String assignmentId,
                                                            @RequestBody(required = false) AgentCapabilityCommand request) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.revoke.agent.capability", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_REVOKEAGENTCAPABILITY");
         return service.revokeAgentCapability(agentId, assignmentId, request == null ? new AgentCapabilityCommand() : request);
     }
 
@@ -320,6 +344,7 @@ public class AgentAssignmentController {
     public AgentCapabilityAssignment removeAgentCapability(@PathVariable String agentId,
                                                            @PathVariable String assignmentId,
                                                            @RequestBody(required = false) AgentCapabilityCommand request) {
+        authorizeAgent(ResourceType.AGENT, agentId, "admin.agent.assignment.remove.agent.capability", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_REMOVEAGENTCAPABILITY");
         return service.removeAgentCapability(agentId, assignmentId, request == null ? new AgentCapabilityCommand() : request);
     }
 
@@ -354,12 +379,14 @@ public class AgentAssignmentController {
     @GetMapping("/agents/{agentId}/runtime-bindings")
     public List<AgentRuntimeBinding> runtimeBindings(@PathVariable String agentId,
                                                      @RequestParam(required = false) String status) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.runtime.bindings", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_RUNTIMEBINDINGS");
         return service.findRuntimeBindingsByAgent(agentId, status);
     }
 
     @PostMapping("/agents/{agentId}/runtime-bindings")
     public AgentRuntimeBinding createRuntimeBinding(@PathVariable String agentId,
                                                     @RequestBody(required = false) AgentRuntimeBinding request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.create.runtime.binding", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_CREATERUNTIMEBINDING");
         return service.upsertRuntimeBinding(agentId, request == null ? new AgentRuntimeBinding() : request);
     }
 
@@ -367,6 +394,7 @@ public class AgentAssignmentController {
     public AgentRuntimeBinding upsertRuntimeBinding(@PathVariable String agentId,
                                                     @PathVariable String bindingId,
                                                     @RequestBody(required = false) AgentRuntimeBinding request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.upsert.runtime.binding", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_UPSERTRUNTIMEBINDING");
         AgentRuntimeBinding body = request == null ? new AgentRuntimeBinding() : request;
         body.setBindingId(bindingId);
         return service.upsertRuntimeBinding(agentId, body);
@@ -377,6 +405,7 @@ public class AgentAssignmentController {
                                                         @PathVariable String bindingId,
                                                         @PathVariable String targetStatus,
                                                         @RequestBody(required = false) AgentRuntimeBinding request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.transition.runtime.binding", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_TRANSITIONRUNTIMEBINDING");
         return service.transitionRuntimeBinding(agentId, bindingId, targetStatus, request == null ? new AgentRuntimeBinding() : request);
     }
 
@@ -399,17 +428,20 @@ public class AgentAssignmentController {
 
     @GetMapping("/agents/{agentId}/runtime-features/observations")
     public List<AgentRuntimeFeatureObservation> runtimeFeatureObservations(@PathVariable String agentId) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.runtime.feature.observations", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_RUNTIMEFEATUREOBSERVATIONS");
         return service.findRuntimeFeatureObservations(agentId);
     }
 
     @GetMapping("/agents/{agentId}/runtime-features/trust")
     public List<AgentRuntimeFeatureTrust> runtimeFeatureTrusts(@PathVariable String agentId) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.runtime.feature.trusts", ResourceAction.ActionKind.READ, false, VisibilityLevel.SENSITIVE, "RS3_RUNTIMEFEATURETRUSTS");
         return service.findRuntimeFeatureTrusts(agentId);
     }
 
     @PostMapping("/agents/{agentId}/runtime-features/trust")
     public AgentRuntimeFeatureTrust observeRuntimeFeature(@PathVariable String agentId,
                                                           @RequestBody(required = false) AgentRuntimeFeatureCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.observe.runtime.feature", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_OBSERVERUNTIMEFEATURE");
         return service.observeRuntimeFeature(agentId, request == null ? new AgentRuntimeFeatureCommand() : request);
     }
 
@@ -417,6 +449,7 @@ public class AgentAssignmentController {
     public AgentRuntimeFeatureTrust verifyRuntimeFeature(@PathVariable String agentId,
                                                          @PathVariable String trustId,
                                                          @RequestBody(required = false) AgentRuntimeFeatureCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.verify.runtime.feature", ResourceAction.ActionKind.APPROVE, true, VisibilityLevel.SENSITIVE, "RS3_VERIFYRUNTIMEFEATURE");
         return service.verifyRuntimeFeature(agentId, trustId, request == null ? new AgentRuntimeFeatureCommand() : request);
     }
 
@@ -424,6 +457,7 @@ public class AgentAssignmentController {
     public AgentRuntimeFeatureTrust trustRuntimeFeature(@PathVariable String agentId,
                                                         @PathVariable String trustId,
                                                         @RequestBody(required = false) AgentRuntimeFeatureCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.trust.runtime.feature", ResourceAction.ActionKind.APPROVE, true, VisibilityLevel.SENSITIVE, "RS3_TRUSTRUNTIMEFEATURE");
         return service.trustRuntimeFeature(agentId, trustId, request == null ? new AgentRuntimeFeatureCommand() : request);
     }
 
@@ -431,6 +465,7 @@ public class AgentAssignmentController {
     public AgentRuntimeFeatureTrust suspendRuntimeFeatureTrust(@PathVariable String agentId,
                                                                @PathVariable String trustId,
                                                                @RequestBody(required = false) AgentRuntimeFeatureCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.suspend.runtime.feature.trust", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_SUSPENDRUNTIMEFEATURETRUST");
         return service.suspendRuntimeFeatureTrust(agentId, trustId, request == null ? new AgentRuntimeFeatureCommand() : request);
     }
 
@@ -438,6 +473,7 @@ public class AgentAssignmentController {
     public AgentRuntimeFeatureTrust resumeRuntimeFeatureTrust(@PathVariable String agentId,
                                                               @PathVariable String trustId,
                                                               @RequestBody(required = false) AgentRuntimeFeatureCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.resume.runtime.feature.trust", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_RESUMERUNTIMEFEATURETRUST");
         return service.resumeRuntimeFeatureTrust(agentId, trustId, request == null ? new AgentRuntimeFeatureCommand() : request);
     }
 
@@ -445,6 +481,7 @@ public class AgentAssignmentController {
     public AgentRuntimeFeatureTrust revokeRuntimeFeatureTrust(@PathVariable String agentId,
                                                               @PathVariable String trustId,
                                                               @RequestBody(required = false) AgentRuntimeFeatureCommand request) {
+        authorizeAgent(ResourceType.AGENT_SERVICE_SCOPE, agentId, "admin.agent.assignment.revoke.runtime.feature.trust", ResourceAction.ActionKind.MANAGE, true, VisibilityLevel.SENSITIVE, "RS3_REVOKERUNTIMEFEATURETRUST");
         return service.revokeRuntimeFeatureTrust(agentId, trustId, request == null ? new AgentRuntimeFeatureCommand() : request);
     }
 
@@ -467,4 +504,10 @@ public class AgentAssignmentController {
     public List<DispatchSourceSystemOption> sourceSystemsFromContracts(@RequestParam(required = false) String tenantId) {
         return service.sourceSystemsFromContracts(tenantId);
     }
+    private void authorizeAgent(ResourceType type, String agentId, String permission, ResourceAction.ActionKind kind,
+                                boolean sideEffecting, VisibilityLevel visibility, String purpose) {
+        if (scopedAccess == null) return;
+        scopedAccess.authorize(type, agentId, permission, kind, sideEffecting, visibility, purpose);
+    }
+
 }

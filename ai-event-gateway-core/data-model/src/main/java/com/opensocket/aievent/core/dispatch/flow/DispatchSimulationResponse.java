@@ -19,6 +19,8 @@ public class DispatchSimulationResponse {
     private String eventType;
     private String errorCode;
     private String matchedFlowId;
+    private String flowVersion;
+    private String evaluationMode;
     private String matchedRuleId;
     private String resolutionType;
     private String targetPoolId;
@@ -55,6 +57,10 @@ public class DispatchSimulationResponse {
     public void setErrorCode(String errorCode) { this.errorCode = errorCode; }
     public String getMatchedFlowId() { return matchedFlowId; }
     public void setMatchedFlowId(String matchedFlowId) { this.matchedFlowId = matchedFlowId; }
+    public String getFlowVersion() { return flowVersion; }
+    public void setFlowVersion(String flowVersion) { this.flowVersion = flowVersion; }
+    public String getEvaluationMode() { return evaluationMode; }
+    public void setEvaluationMode(String evaluationMode) { this.evaluationMode = evaluationMode; }
     public String getMatchedRuleId() { return matchedRuleId; }
     public void setMatchedRuleId(String matchedRuleId) { this.matchedRuleId = matchedRuleId; }
     public String getResolutionType() { return resolutionType; }

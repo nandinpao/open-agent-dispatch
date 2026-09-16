@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.opensocket</groupId><artifactId>control-plane-parent</artifactId><version>0.8.2-SNAPSHOT</version><relativePath>../pom.xml</relativePath></parent>
+  <artifactId>a2a-api</artifactId>
+  <name>a2a-api</name>
+  <description>HTTP adapter for A2A use cases. Contains no persistence, runtime, or provider integration.</description>
+  <dependencies>
+    <dependency><groupId>com.opensocket</groupId><artifactId>a2a-contracts</artifactId></dependency>
+    <dependency><groupId>com.opensocket</groupId><artifactId>resource-access-contracts</artifactId></dependency>
+    <dependency><groupId>com.opensocket</groupId><artifactId>security-principal-contracts</artifactId></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-context</artifactId></dependency>
+    <dependency><groupId>org.springframework</groupId><artifactId>spring-web</artifactId></dependency>
+    <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-core</artifactId></dependency>
+  </dependencies>
+</project>

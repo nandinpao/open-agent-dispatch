@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.task.dao.TaskParticipantDao">
+  <resultMap id="Map" type="com.opensocket.aievent.database.persistence.task.po.TaskParticipantPo">
+    <id property="participantId" column="participant_id"/><result property="tenantId" column="tenant_id"/>
+    <result property="taskId" column="task_id"/><result property="participantType" column="participant_type"/>
+    <result property="participantRefId" column="participant_ref_id"/><result property="participantRole" column="participant_role"/>
+    <result property="visibilityLevel" column="visibility_level"/><result property="operationLevel" column="operation_level"/>
+    <result property="createdAt" column="created_at"/><result property="createdBy" column="created_by"/><result property="version" column="version"/>
+  </resultMap>
+  <insert id="insert">
+    insert into task_participants(tenant_id,participant_id,task_id,participant_type,participant_ref_id,participant_role,visibility_level,operation_level,created_at,created_by,version)
+    values(#{participant.tenantId},#{participant.participantId},#{participant.taskId},#{participant.participantType},#{participant.participantRefId},#{participant.participantRole},#{participant.visibilityLevel},#{participant.operationLevel},coalesce(#{participant.createdAt},now()),#{participant.createdBy},#{participant.version})
+    on conflict (tenant_id,task_id,participant_type,participant_ref_id,participant_role) do nothing
+  </insert>
+  <select id="findById" resultMap="Map">select * from task_participants where tenant_id=#{tenantId} and participant_id=#{participantId}</select>
+  <select id="findNatural" resultMap="Map">select * from task_participants where tenant_id=#{tenantId} and task_id=#{taskId} and participant_type=#{participantType} and participant_ref_id=#{participantRefId} and participant_role=#{participantRole} limit 1</select>
+  <select id="findByTask" resultMap="Map">select * from task_participants where tenant_id=#{tenantId} and task_id=#{taskId} order by participant_role,created_at limit #{limit}</select>
+  <delete id="delete">delete from task_participants where tenant_id=#{tenantId} and participant_id=#{participantId}</delete>
+</mapper>

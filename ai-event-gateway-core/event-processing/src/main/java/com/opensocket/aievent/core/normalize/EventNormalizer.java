@@ -2,6 +2,7 @@ package com.opensocket.aievent.core.normalize;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -24,7 +25,7 @@ public class EventNormalizer {
     public NormalizedEvent normalize(EventIntakeRequest request) {
         NormalizedEvent event = new NormalizedEvent(
                 UUID.randomUUID().toString(),
-                cleanUpper(request.getTenantId()),
+                cleanTenantIdentifier(request.getTenantId()),
                 cleanUpper(request.getSourceSystem()),
                 normalizeEventStage(request.getEventStage()),
                 cleanUpper(defaultString(request.getOriginSourceSystem(), request.getSourceSystem())),
@@ -37,12 +38,19 @@ public class EventNormalizer {
                 cleanUpper(defaultString(request.getErrorCode(), UNKNOWN)),
                 cleanUpperNullable(request.getRequestedSkill()),
                 cleanUpperNullable(request.getHandoffMode()),
-                cleanIdentifierNullable(request.getCorrelationId()),
+                request.serverWorkloadContext() == null
+                        ? cleanIdentifierNullable(request.getCorrelationId())
+                        : cleanIdentifierNullable(request.serverWorkloadContext().correlationId()),
                 cleanIdentifierNullable(request.getParentTaskId()),
                 EventSeverity.parse(request.getSeverity()),
                 normalizeMessage(request.getMessage()),
                 request.getOccurredAt() == null ? OffsetDateTime.now(ZoneOffset.UTC) : request.getOccurredAt(),
-                request.getAttributes() == null ? Map.of() : Map.copyOf(request.getAttributes())
+                request.getAttributes() == null ? Map.of() : Map.copyOf(request.getAttributes()),
+                request.serverWorkloadContext() == null
+                        ? com.opensocket.aievent.core.workload.WorkloadContext.unattributed(
+                                cleanTenantIdentifier(request.getTenantId()), cleanUpper(request.getSourceSystem()),
+                                cleanIdentifierNullable(request.getCorrelationId()), java.time.Instant.now())
+                        : request.serverWorkloadContext()
         );
         String classificationStatus = UNKNOWN.equals(event.eventType()) ? CLASSIFICATION_UNCLASSIFIED : CLASSIFICATION_CLASSIFIED;
         log.debug("event_normalized eventId={} tenantId={} sourceSystem={} eventStage={} originSourceSystem={} targetSystem={} objectType={} eventType={} errorCode={} classificationStatus={} requestedSkill={} handoffMode={} correlationId={} parentTaskId={} attributeKeys={}",
@@ -56,14 +64,18 @@ public class EventNormalizer {
     }
 
     private String cleanUpper(String value) {
-        return defaultString(value, "UNKNOWN").trim().replaceAll("\\s+", "_").toUpperCase();
+        return defaultString(value, "UNKNOWN").trim().replaceAll("\\s+", "_").toUpperCase(Locale.ROOT);
+    }
+
+    private String cleanTenantIdentifier(String value) {
+        return defaultString(value, "UNKNOWN").trim().replaceAll("\\s+", "_");
     }
 
 
     private String cleanUpperNullable(String value) {
         return value == null || value.isBlank()
                 ? null
-                : value.trim().replaceAll("\\s+", "_").toUpperCase();
+                : value.trim().replaceAll("\\s+", "_").toUpperCase(Locale.ROOT);
     }
 
     private String cleanIdentifierNullable(String value) {

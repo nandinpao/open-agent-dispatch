@@ -35,6 +35,7 @@ public class AdapterActionExecutionService {
     @Autowired(required = false)
     private TaskIssueLinkRepository taskIssueLinkRepository = TaskIssueLinkRepository.noop();
 
+    @Autowired
     public AdapterActionExecutionService(AdapterActionRepository repository,
                                          List<AdapterActionExecutor> executors,
                                          AdapterActionExecutionProperties properties,
@@ -47,6 +48,25 @@ public class AdapterActionExecutionService {
         this.circuitBreaker = circuitBreaker;
         this.auditService = auditService;
         this.incidentFacade = incidentFacade;
+        log.info("adapter_action_executor_runtime_config mode={} effectiveEnabled={} autoExecutePending={} batchSize={} executorCount={} mockEnabled={} issueDefaultVendor={}",
+                properties.getMode(),
+                properties.isEnabled(),
+                properties.isAutoExecutePending(),
+                properties.getBatchSize(),
+                this.executors.size(),
+                properties.getMock().isEnabled(),
+                properties.getIssue().getDefaultVendor());
+    }
+
+    public AdapterActionExecutionService(AdapterActionRepository repository,
+                                         List<AdapterActionExecutor> executors,
+                                         AdapterActionExecutionProperties properties,
+                                         AdapterExecutorCircuitBreaker circuitBreaker,
+                                         AdapterExecutorAuditService auditService,
+                                         IncidentFacade incidentFacade,
+                                         TaskIssueLinkRepository taskIssueLinkRepository) {
+        this(repository, executors, properties, circuitBreaker, auditService, incidentFacade);
+        this.taskIssueLinkRepository = taskIssueLinkRepository == null ? TaskIssueLinkRepository.noop() : taskIssueLinkRepository;
     }
 
     public AdapterAction execute(String actionId) {
@@ -80,11 +100,96 @@ public class AdapterActionExecutionService {
         return summary;
     }
 
+    public AdapterAction reconcileUncertainIssueOutcome(String actionId,
+                                                            String resolution,
+                                                            String reason,
+                                                            String issueId,
+                                                            String issueUrl,
+                                                            String issueStatus,
+                                                            String responseRef) {
+        AdapterAction action = repository.findById(actionId)
+                .orElseThrow(() -> new IllegalArgumentException("Adapter action not found: " + actionId));
+        if (action.getAdapterType() != AdapterType.ISSUE_TRACKING || !mutatingIssueAction(action.getActionType())) {
+            throw new IllegalStateException("ISSUE_PROVIDER_RECONCILIATION_MUTATING_ISSUE_ACTION_REQUIRED");
+        }
+        if (action.getStatus() != AdapterActionStatus.FAILED
+                || action.getLastError() == null
+                || !action.getLastError().contains("ISSUE_PROVIDER_OUTCOME_UNCERTAIN")) {
+            throw new IllegalStateException("ISSUE_PROVIDER_RECONCILIATION_UNCERTAIN_OUTCOME_REQUIRED");
+        }
+        String decision = resolution == null ? "" : resolution.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!"CONFIRMED_APPLIED".equals(decision) && !"CONFIRMED_NOT_APPLIED".equals(decision)) {
+            throw new IllegalArgumentException("resolution must be CONFIRMED_APPLIED or CONFIRMED_NOT_APPLIED");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("reason is required for provider outcome reconciliation");
+        }
+        if ("CONFIRMED_APPLIED".equals(decision)
+                && action.getActionType() == AdapterActionType.ISSUE_CREATE
+                && (issueId == null || issueId.isBlank())) {
+            throw new IllegalArgumentException("issueId is required when reconciling an uncertain CREATE as applied");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        AdapterActionStatus before = action.getStatus();
+        java.util.Map<String,Object> payload = new java.util.LinkedHashMap<>(action.getPayload() == null ? java.util.Map.of() : action.getPayload());
+        payload.put("providerReconciliationDecision", decision);
+        payload.put("providerReconciliationReason", reason.trim());
+        payload.put("providerReconciledAt", now.toString());
+        if (issueId != null && !issueId.isBlank()) payload.put("linkedIssueId", issueId.trim());
+        if (issueUrl != null && !issueUrl.isBlank()) payload.put("issueUrl", issueUrl.trim());
+        if (issueStatus != null && !issueStatus.isBlank()) payload.put("providerReconciledIssueStatus", issueStatus.trim());
+        action.setPayload(payload);
+
+        if ("CONFIRMED_APPLIED".equals(decision)) {
+            action.setStatus(AdapterActionStatus.COMPLETED);
+            action.setCompletedAt(now);
+            action.setFailedAt(null);
+            action.setNextAttemptAt(null);
+            action.setLastError(null);
+            action.setResponseRef(responseRef == null || responseRef.isBlank() ? "provider-reconciled-applied" : responseRef.trim());
+            action.setReason("Provider outcome reconciled as applied: " + reason.trim());
+            action.setUpdatedAt(now);
+            AdapterAction saved = repository.save(action);
+            AdapterExecutionResult result = AdapterExecutionResult.success("provider-outcome-reconciliation", saved.getResponseRef());
+            result.setIssueVendor("REDMINE");
+            result.setIssueId(firstNonBlank(issueId, payloadText(payload, "linkedIssueId", "issueId", "externalIssueId")));
+            result.setIssueUrl(firstNonBlank(issueUrl, payloadText(payload, "issueUrl", "webUrl", "url")));
+            result.setIssueStatus(firstNonBlank(issueStatus, "reconciled"));
+            result.setErrorCode("ISSUE_PROVIDER_OUTCOME_RECONCILED_APPLIED");
+            result.setProviderHealthImpact("HEALTHY");
+            result.setProviderOutcomeCertainty("CONFIRMED");
+            enrichReconciliationEvidence(result, saved);
+            recordIssueReadModel(saved, result, now);
+            auditService.record(saved, before, saved.getStatus(), result, "Provider uncertain outcome reconciled as applied: " + reason.trim());
+            return saved;
+        }
+
+        action.setStatus(AdapterActionStatus.PENDING);
+        action.setFailedAt(null);
+        action.setNextAttemptAt(now);
+        action.setLastError(null);
+        action.setReason("Provider outcome reconciled as not applied; retry is allowed: " + reason.trim());
+        action.setUpdatedAt(now);
+        AdapterAction saved = repository.save(action);
+        recordIssueReadModel(saved, null, now);
+        AdapterExecutionResult result = AdapterExecutionResult.success("provider-outcome-reconciliation", "confirmed-not-applied-retry-allowed");
+        result.setErrorCode("ISSUE_PROVIDER_OUTCOME_RECONCILED_NOT_APPLIED");
+        result.setProviderHealthImpact("HEALTHY");
+        result.setProviderOutcomeCertainty("CONFIRMED");
+        enrichReconciliationEvidence(result, saved);
+        auditService.record(saved, before, saved.getStatus(), result, "Provider uncertain outcome reconciled as not applied; retry allowed: " + reason.trim());
+        return saved;
+    }
+
     public AdapterAction retry(String actionId) {
         AdapterAction action = repository.findById(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Adapter action not found: " + actionId));
         if (action.getStatus() != AdapterActionStatus.FAILED && action.getStatus() != AdapterActionStatus.EXECUTOR_UNAVAILABLE) {
             throw new IllegalStateException("Only FAILED or EXECUTOR_UNAVAILABLE adapter action can be retried: " + actionId);
+        }
+        if (action.getLastError() != null && action.getLastError().contains("ISSUE_PROVIDER_OUTCOME_UNCERTAIN")) {
+            throw new IllegalStateException("ISSUE_PROVIDER_OUTCOME_UNCERTAIN_RECONCILIATION_REQUIRED: inspect Redmine before retrying this mutating operation");
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         AdapterActionStatus before = action.getStatus();
@@ -113,10 +218,7 @@ public class AdapterActionExecutionService {
             throw new IllegalStateException("Adapter action is waiting for backoff until " + action.getNextAttemptAt());
         }
 
-        AdapterActionExecutor executor = executors.stream()
-                .filter(e -> e.supports(action))
-                .findFirst()
-                .orElse(null);
+        AdapterActionExecutor executor = findSupportingExecutor(action);
 
         if (executor == null) {
             log.warn("adapter_action_executor_missing actionId={} taskId={} adapterType={} actionType={}",
@@ -137,7 +239,8 @@ public class AdapterActionExecutionService {
         action.setAttemptCount(action.getAttemptCount() + 1);
         action.setMaxAttempts(properties.getMaxAttempts());
         action.setExecutorName(executor.name());
-        repository.save(action);
+        action = repository.save(action);
+        recordIssueReadModel(action, null, now);
         auditService.record(action, before, action.getStatus(), AdapterExecutionResult.success(executor.name(), "executing"), "Adapter action moved to EXECUTING");
 
         log.info("adapter_action_executor_invoked actionId={} taskId={} executor={} adapterType={} actionType={} attemptNo={}",
@@ -179,7 +282,12 @@ public class AdapterActionExecutionService {
             return saved;
         }
 
-        circuitBreaker.recordFailure(executor.name());
+        if (countsAsCircuitFailure(result)) {
+            circuitBreaker.recordFailure(executor.name());
+        } else {
+            // Provider-level business denial/validation/rate-limit is not an executor outage.
+            circuitBreaker.recordSuccess(executor.name());
+        }
         action.setLastError(result.getError());
         AdapterAction saved = applyFailure(action, result, finishedAt);
         log.warn("adapter_action_execution_failed actionId={} taskId={} adapterType={} actionType={} executor={} status={} retryable={} error={}",
@@ -191,9 +299,13 @@ public class AdapterActionExecutionService {
 
     private void recordIssueReadModel(AdapterAction action, AdapterExecutionResult result, OffsetDateTime observedAt) {
         if (action == null || action.getAdapterType() != AdapterType.ISSUE_TRACKING) return;
+        log.info("task_issue_link_persist_started taskId={} incidentId={} actionId={} actionStatus={} resultOutcome={}",
+                action.getTaskId(), action.getIncidentId(), action.getActionId(), action.getStatus(), result == null ? null : result.getOutcome());
         try {
             TaskIssueLink link;
-            if (result != null && result.isSuccess()) {
+            if (result == null && action.getStatus() == AdapterActionStatus.EXECUTING) {
+                link = TaskIssueLink.inProgressFrom(action, observedAt);
+            } else if (result != null && result.isSuccess()) {
                 link = TaskIssueLink.terminalFrom(
                         action,
                         result.getIssueVendor(),
@@ -207,27 +319,89 @@ public class AdapterActionExecutionService {
             } else {
                 String error = result == null ? action.getLastError() : result.getError();
                 boolean retryable = result != null && result.isRetryable();
+                String syncStatus = issueFailureSyncStatus(action, result);
+                boolean linkRetryable = TaskIssueLink.SYNC_FAILED_RETRYABLE.equals(syncStatus);
                 link = TaskIssueLink.terminalFrom(
                         action,
                         null,
                         null,
                         null,
                         action.getStatus() == null ? null : action.getStatus().name().toLowerCase(java.util.Locale.ROOT),
-                        action.getStatus() == AdapterActionStatus.PENDING || action.getStatus() == AdapterActionStatus.RETRY_WAITING || action.getStatus() == AdapterActionStatus.EXECUTOR_UNAVAILABLE
-                                ? TaskIssueLink.SYNC_PENDING
-                                : TaskIssueLink.SYNC_FAILED,
-                        retryable || action.getStatus() == AdapterActionStatus.RETRY_WAITING || action.getStatus() == AdapterActionStatus.EXECUTOR_UNAVAILABLE,
+                        syncStatus,
+                        linkRetryable,
                         error,
                         observedAt);
             }
+            if (result != null) {
+                link.setProviderFailureCode(result.getErrorCode());
+                link.setProviderStatusCode(result.getProviderStatusCode());
+                link.setProviderHealthImpact(result.getProviderHealthImpact());
+                link.setProviderOutcomeCertainty(result.getProviderOutcomeCertainty());
+                link.setOperationFingerprint(result.getOperationFingerprint());
+                link.setCorrelationId(result.getCorrelationId());
+                link.setA2aRequestId(result.getA2aRequestId());
+                link.setSourceSystemId(result.getSourceSystemId());
+                link.setConnectionId(result.getConnectionId());
+                link.setProjectMappingId(result.getProjectMappingId());
+                link.setExternalProjectId(result.getExternalProjectId());
+                link.setTechnicalPrincipalId(result.getTechnicalPrincipalId());
+                link.setCredentialId(result.getCredentialId());
+                link.setCredentialVersion(result.getCredentialVersion());
+                if (result.getIdempotencyKey() != null) link.setIdempotencyKey(result.getIdempotencyKey());
+                if (result.getTenantId() != null) link.setTenantId(result.getTenantId());
+            }
+            preservePreviousProviderEvidence(link);
             taskIssueLinkRepository.save(link);
+            log.info("task_issue_link_persist_completed taskId={} incidentId={} actionId={} linkId={} syncStatus={} issueVendor={} issueId={} issueUrl={} providerStatusCode={} providerOutcomeCertainty={} retryable={}",
+                    action.getTaskId(), action.getIncidentId(), action.getActionId(), link.getLinkId(), link.getSyncStatus(), link.getIssueVendor(), link.getIssueId(), link.getIssueUrl(),
+                    link.getProviderStatusCode(), link.getProviderOutcomeCertainty(), link.isIssueRetryable());
             log.info("issue_sync_read_model_saved taskId={} incidentId={} actionId={} adapterType={} actionType={} syncStatus={} issueVendor={} issueId={} issueUrl={} retryable={} error={}",
                     action.getTaskId(), action.getIncidentId(), action.getActionId(), action.getAdapterType(), action.getActionType(),
                     link.getSyncStatus(), link.getIssueVendor(), link.getIssueId(), link.getIssueUrl(), link.isIssueRetryable(), link.getSyncError());
         } catch (RuntimeException ex) {
+            log.warn("task_issue_link_persist_failed taskId={} incidentId={} actionId={} exceptionClass={} reason={}",
+                    action.getTaskId(), action.getIncidentId(), action.getActionId(), ex.getClass().getName(), ex.getMessage());
             log.warn("issue_sync_read_model_failed taskId={} incidentId={} actionId={} reason={}",
                     action.getTaskId(), action.getIncidentId(), action.getActionId(), ex.getMessage());
             // Adapter execution success/failure must remain authoritative even if the read-model write fails.
+        }
+    }
+
+    /**
+     * Keep the Java read-model transition aligned with the database transition guard.
+     * Once execution has entered IN_PROGRESS, a retryable execution failure must be
+     * projected as FAILED_RETRYABLE; moving back to PENDING is explicitly forbidden.
+     */
+    private String issueFailureSyncStatus(AdapterAction action, AdapterExecutionResult result) {
+        AdapterActionStatus status = action == null ? null : action.getStatus();
+        if (status == AdapterActionStatus.PENDING) return TaskIssueLink.SYNC_PENDING;
+        if (status == AdapterActionStatus.RETRY_WAITING || status == AdapterActionStatus.EXECUTOR_UNAVAILABLE) {
+            return TaskIssueLink.SYNC_FAILED_RETRYABLE;
+        }
+        if (status == AdapterActionStatus.FAILED || status == AdapterActionStatus.CANCELLED) {
+            return TaskIssueLink.SYNC_FAILED_PERMANENT;
+        }
+        if (result != null && result.isRetryable()) return TaskIssueLink.SYNC_FAILED_RETRYABLE;
+        return TaskIssueLink.SYNC_FAILED_PERMANENT;
+    }
+
+    private void preservePreviousProviderEvidence(TaskIssueLink link) {
+        if (link == null || link.getIdempotencyKey() == null || link.getIdempotencyKey().isBlank()) return;
+        try {
+            TaskIssueLink previous = taskIssueLinkRepository.findByTenantAndIdempotencyKey(link.getTenantId(), link.getIdempotencyKey()).orElse(null);
+            if (previous == null) return;
+            if (link.getTechnicalPrincipalId() == null) link.setTechnicalPrincipalId(previous.getTechnicalPrincipalId());
+            if (link.getCredentialId() == null) link.setCredentialId(previous.getCredentialId());
+            if (link.getCredentialVersion() == null) link.setCredentialVersion(previous.getCredentialVersion());
+            if (link.getOperationFingerprint() == null) link.setOperationFingerprint(previous.getOperationFingerprint());
+            if (link.getConnectionId() == null) link.setConnectionId(previous.getConnectionId());
+            if (link.getProjectMappingId() == null) link.setProjectMappingId(previous.getProjectMappingId());
+            if (link.getExternalProjectId() == null) link.setExternalProjectId(previous.getExternalProjectId());
+            if (link.getCorrelationId() == null) link.setCorrelationId(previous.getCorrelationId());
+            if (link.getA2aRequestId() == null) link.setA2aRequestId(previous.getA2aRequestId());
+            if (link.getSourceSystemId() == null) link.setSourceSystemId(previous.getSourceSystemId());
+        } catch (RuntimeException ignored) {
+            // Reconciliation/read-model preservation is best effort and must never rewrite provider action authority.
         }
     }
 
@@ -246,6 +420,48 @@ public class AdapterActionExecutionService {
                     action.getIncidentId(), action.getTaskId(), action.getActionId(), ex.getMessage());
             // Some test facades intentionally do not implement incident issue links.
         }
+    }
+
+    private boolean mutatingIssueAction(AdapterActionType type) {
+        return type == AdapterActionType.ISSUE_CREATE
+                || type == AdapterActionType.ISSUE_UPDATE
+                || type == AdapterActionType.ISSUE_COMMENT
+                || type == AdapterActionType.ISSUE_UPDATE_COMMENT;
+    }
+
+    private String payloadText(java.util.Map<String,Object> payload, String... keys) {
+        if (payload == null) return null;
+        for (String key : keys) {
+            Object value = payload.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) return String.valueOf(value).trim();
+        }
+        return null;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String value : values) if (value != null && !value.isBlank()) return value.trim();
+        return null;
+    }
+
+    private void enrichReconciliationEvidence(AdapterExecutionResult result, AdapterAction action) {
+        java.util.Map<String,Object> payload = action.getPayload();
+        result.setTenantId(payloadText(payload, "tenantId"));
+        result.setCorrelationId(payloadText(payload, "correlationId"));
+        result.setSourceSystemId(payloadText(payload, "sourceSystemId", "sourceSystem", "executorDomainId"));
+        result.setConnectionId(payloadText(payload, "connectionId"));
+        result.setProjectMappingId(payloadText(payload, "projectMappingId"));
+        result.setExternalProjectId(payloadText(payload, "externalProjectId", "projectId"));
+        result.setIdempotencyKey(action.getIdempotencyKey());
+    }
+
+    private AdapterActionExecutor findSupportingExecutor(AdapterAction action) {
+        for (AdapterActionExecutor executor : executors) {
+            if (executor.supports(action)) {
+                return executor;
+            }
+        }
+        return null;
     }
 
     private AdapterAction markExecutorUnavailable(AdapterAction action, String error) {
@@ -293,6 +509,18 @@ public class AdapterActionExecutionService {
             action.setNextAttemptAt(null);
         }
         return repository.save(action);
+    }
+
+    private boolean countsAsCircuitFailure(AdapterExecutionResult result) {
+        if (result == null) return true;
+        String impact = result.getProviderHealthImpact();
+        if ("HEALTHY".equalsIgnoreCase(impact) || "THROTTLED".equalsIgnoreCase(impact) || "NONE".equalsIgnoreCase(impact)) {
+            return false;
+        }
+        // Only provider/executor failures that can represent shared runtime degradation
+        // participate in the executor circuit. Configuration/preflight failures explicitly
+        // marked NONE must not open a global circuit for unrelated tenants/credentials.
+        return !result.isSuccess();
     }
 
     private Duration backoff(int attemptCount) {

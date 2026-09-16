@@ -13,8 +13,11 @@ public class FlowRuleRuntimeMatch {
     private String tenantId;
     private String flowId;
     private String flowCode;
+    private String flowVersion;
     private String ruleId;
     private String ruleCode;
+    private Integer priority = 100;
+    private String serviceCode;
     private String ruleScope;
     private String eventStage;
     private String sourceSystem;
@@ -38,6 +41,11 @@ public class FlowRuleRuntimeMatch {
     private boolean sourceDefaultPool;
     private Boolean explicitActionAuthorizationRequired = Boolean.TRUE;
     private Integer requirementModelVersion = 1;
+    private String issueSyncPolicy = "OPTIONAL";
+    private String ruleIssueSyncPolicy;
+    private String flowIssueSyncPolicy;
+    private String issueSyncPolicySource = "SYSTEM_FALLBACK";
+    private boolean flowIssuePolicyExplicitlyManaged;
     private String matchReason;
 
     public String getTenantId() { return tenantId; }
@@ -46,10 +54,16 @@ public class FlowRuleRuntimeMatch {
     public void setFlowId(String flowId) { this.flowId = flowId; }
     public String getFlowCode() { return flowCode; }
     public void setFlowCode(String flowCode) { this.flowCode = flowCode; }
+    public String getFlowVersion() { return flowVersion; }
+    public void setFlowVersion(String flowVersion) { this.flowVersion = flowVersion; }
     public String getRuleId() { return ruleId; }
     public void setRuleId(String ruleId) { this.ruleId = ruleId; }
     public String getRuleCode() { return ruleCode; }
     public void setRuleCode(String ruleCode) { this.ruleCode = ruleCode; }
+    public Integer getPriority() { return priority; }
+    public void setPriority(Integer priority) { this.priority = priority == null ? 100 : priority; }
+    public String getServiceCode() { return serviceCode; }
+    public void setServiceCode(String serviceCode) { this.serviceCode = serviceCode; }
     public String getRuleScope() { return ruleScope; }
     public void setRuleScope(String ruleScope) { this.ruleScope = ruleScope; }
     public String getEventStage() { return eventStage; }
@@ -96,6 +110,16 @@ public class FlowRuleRuntimeMatch {
     public void setExplicitActionAuthorizationRequired(Boolean explicitActionAuthorizationRequired) { this.explicitActionAuthorizationRequired = explicitActionAuthorizationRequired; }
     public Integer getRequirementModelVersion() { return requirementModelVersion; }
     public void setRequirementModelVersion(Integer requirementModelVersion) { this.requirementModelVersion = requirementModelVersion; }
+    public String getIssueSyncPolicy() { return issueSyncPolicy; }
+    public void setIssueSyncPolicy(String issueSyncPolicy) { this.issueSyncPolicy = issueSyncPolicy; }
+    public String getRuleIssueSyncPolicy() { return ruleIssueSyncPolicy; }
+    public void setRuleIssueSyncPolicy(String ruleIssueSyncPolicy) { this.ruleIssueSyncPolicy = ruleIssueSyncPolicy; }
+    public String getFlowIssueSyncPolicy() { return flowIssueSyncPolicy; }
+    public void setFlowIssueSyncPolicy(String flowIssueSyncPolicy) { this.flowIssueSyncPolicy = flowIssueSyncPolicy; }
+    public String getIssueSyncPolicySource() { return issueSyncPolicySource; }
+    public void setIssueSyncPolicySource(String issueSyncPolicySource) { this.issueSyncPolicySource = issueSyncPolicySource; }
+    public boolean isFlowIssuePolicyExplicitlyManaged() { return flowIssuePolicyExplicitlyManaged; }
+    public void setFlowIssuePolicyExplicitlyManaged(boolean value) { this.flowIssuePolicyExplicitlyManaged = value; }
     public String getMatchReason() { return matchReason; }
     public void setMatchReason(String matchReason) { this.matchReason = matchReason; }
 }

@@ -23,6 +23,7 @@ class EventNormalizerOptionalFieldsTest {
 
         NormalizedEvent event = normalizer.normalize(request);
 
+        assertThat(event.tenantId()).isEqualTo("tenant-a");
         assertThat(event.targetSystem()).isNull();
         assertThat(event.errorCode()).isEqualTo("UNKNOWN");
         assertThat(event.requestedSkill()).isNull();
@@ -31,6 +32,20 @@ class EventNormalizerOptionalFieldsTest {
         assertThat(event.parentTaskId()).isNull();
     }
 
+
+    @Test
+    void shouldPreserveOpaqueTenantIdentifierCaseWhileNormalizingEventCodes() {
+        EventIntakeRequest request = new EventIntakeRequest();
+        request.setTenantId(" Tenant-A ");
+        request.setSourceSystem("erp");
+        request.setEventType("payment_blocked");
+
+        NormalizedEvent event = normalizer.normalize(request);
+
+        assertThat(event.tenantId()).isEqualTo("Tenant-A");
+        assertThat(event.sourceSystem()).isEqualTo("ERP");
+        assertThat(event.eventType()).isEqualTo("PAYMENT_BLOCKED");
+    }
 
     @Test
     void shouldAcceptSourceSystemOnlyIntakeAndNormalizeUnknownClassification() {

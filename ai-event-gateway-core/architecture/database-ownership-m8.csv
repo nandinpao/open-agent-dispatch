@@ -1,0 +1,9 @@
+logical_schema,owner_module,current_database,future_deployable,migration_mode
+incident,incident,core-postgresql,core-control-plane,retain
+processing,event-processing,core-postgresql,core-control-plane,retain
+agent_control,agent-control,core-postgresql,agent-control-service,expand-copy-cutover
+orchestration,task-orchestration,core-postgresql,core-control-plane,retain
+execution,execution-control,core-postgresql,execution-control-service,expand-copy-cutover
+adapter_action,adapter-action,core-postgresql,core-control-plane,worker-has-no-db-access
+domain_events,domain-events,core-postgresql,core-control-plane,retain
+integration_events,integration-events,core-postgresql,event-relay-or-control-plane,retain-then-extract

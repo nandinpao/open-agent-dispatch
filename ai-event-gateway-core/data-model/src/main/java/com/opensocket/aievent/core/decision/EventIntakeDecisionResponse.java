@@ -3,6 +3,8 @@ package com.opensocket.aievent.core.decision;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+import com.opensocket.aievent.core.intake.IntakeAuthorityView;
+
 public record EventIntakeDecisionResponse(
         String eventId,
         String fingerprint,
@@ -46,6 +48,20 @@ public record EventIntakeDecisionResponse(
         String parentTaskId,
         String primaryStatus,
         String primaryReasonCode,
-        String nextAction
+        String nextAction,
+        IntakeAuthorityView intakeAuthority
 ) {
+    public EventIntakeDecisionResponse {
+        if (intakeAuthority == null) intakeAuthority = IntakeAuthorityView.notEvaluated();
+    }
+
+    public EventIntakeDecisionResponse withIntakeAuthority(IntakeAuthorityView value) {
+        return new EventIntakeDecisionResponse(eventId, fingerprint, incidentId, decisionType, duplicate, occurrenceCount, severity, actions,
+                taskCreated, taskId, taskType, taskSuppressed, taskDecisionReason, assignmentCreated, assignmentId, selectedAgentId,
+                selectedGatewayNodeId, selectedSiteId, routingDecisionId, assignmentStatus, assignmentReason, dispatchRequestCreated,
+                dispatchRequestId, dispatchStatus, dispatchReviewMode, dispatchEligibilityStatus, dispatchGatewayPath, dispatchReason,
+                dispatchSuppressed, mcpCalled, issueCreated, reason, decidedAt, eventStage, originSourceSystem, targetSystem, requestedSkill,
+                handoffMode, correlationId, parentTaskId, primaryStatus, primaryReasonCode, nextAction,
+                value == null ? IntakeAuthorityView.notEvaluated() : value);
+    }
 }

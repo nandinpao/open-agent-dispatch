@@ -10,6 +10,12 @@ public class AgentEnrollmentApprovalCommand {
     private String agentName;
     private String agentType;
     private String ownerTeam;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
+    private String businessOwnerUserId;
+    private String technicalStewardUserId;
+    private String responsibilityRoleId;
+    private String serviceDomainId;
     private String description;
     private String comment;
     private List<String> capabilities = List.of();
@@ -32,6 +38,18 @@ public class AgentEnrollmentApprovalCommand {
     public void setAgentType(String agentType) { this.agentType = agentType; }
     public String getOwnerTeam() { return ownerTeam; }
     public void setOwnerTeam(String ownerTeam) { this.ownerTeam = ownerTeam; }
+    public String getOwnerDepartmentId() { return ownerDepartmentId; }
+    public void setOwnerDepartmentId(String ownerDepartmentId) { this.ownerDepartmentId = ownerDepartmentId; }
+    public String getOwnerGroupId() { return ownerGroupId; }
+    public void setOwnerGroupId(String ownerGroupId) { this.ownerGroupId = ownerGroupId; }
+    public String getBusinessOwnerUserId() { return businessOwnerUserId; }
+    public void setBusinessOwnerUserId(String value) { this.businessOwnerUserId = value; }
+    public String getTechnicalStewardUserId() { return technicalStewardUserId; }
+    public void setTechnicalStewardUserId(String value) { this.technicalStewardUserId = value; }
+    public String getResponsibilityRoleId() { return responsibilityRoleId; }
+    public void setResponsibilityRoleId(String value) { this.responsibilityRoleId = value; }
+    public String getServiceDomainId() { return serviceDomainId; }
+    public void setServiceDomainId(String value) { this.serviceDomainId = value; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     public String getComment() { return comment; }

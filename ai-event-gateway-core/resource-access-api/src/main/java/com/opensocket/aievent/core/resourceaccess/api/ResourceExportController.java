@@ -1,0 +1,13 @@
+package com.opensocket.aievent.core.resourceaccess.api;
+import com.opensocket.aievent.core.resourceaccess.contract.*;import java.util.*;import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;import org.springframework.http.MediaType;import org.springframework.web.bind.annotation.*;
+/** Export authorization and final artifact checkpoint. Artifact generation remains in the owning domain. */
+@RestController @RequestMapping(path="/api/resource-access/artifacts/exports",produces=MediaType.APPLICATION_JSON_VALUE)
+@ConditionalOnProperty(prefix="resource-access",name={"enabled","export-enabled"},havingValue="true")
+public final class ResourceExportController {private final ResourceExportAuthorizationPort exports;private final ResourceAuthorizationApiContextPort contexts;public ResourceExportController(ResourceExportAuthorizationPort e,ResourceAuthorizationApiContextPort c){exports=e;contexts=c;}
+ @PostMapping(path="/authorize",consumes=MediaType.APPLICATION_JSON_VALUE)
+    public ResourceExportAuthorization authorize(@RequestHeader("Idempotency-Key") String idempotency,@RequestBody ExportBody b){var c=contexts.current();ResourceRef ref=new ResourceRef(c.authentication().activeTenant().tenantId(),b.resourceType(),required(b.resourceId(),"resourceId"));return exports.authorize(new ResourceExportCommand(ref,b.format(),b.fields(),b.estimatedRowCount(),required(b.purpose(),"purpose"),required(idempotency,"Idempotency-Key"),c.correlationId(),Map.of()));}
+ @PostMapping(path="/{authorizationId}/commit",consumes=MediaType.APPLICATION_JSON_VALUE)
+    public ExportArtifactCommitResult commit(@PathVariable String authorizationId,@RequestBody ExportCommitBody b){var c=contexts.current();return exports.authorizeCommit(new ExportArtifactCommitCommand(c.authentication().activeTenant().tenantId(),required(authorizationId,"authorizationId"),required(b.runtimeLeaseId(),"runtimeLeaseId"),b.fencingVersion(),b.rowCount(),required(b.fieldSetHash(),"fieldSetHash"),required(b.artifactSha256(),"artifactSha256"),b.artifactSizeBytes(),c.correlationId()));}
+ public record ExportBody(ResourceType resourceType,String resourceId,ResourceExportFormat format,List<String> fields,long estimatedRowCount,String purpose){public ExportBody{if(resourceType==null||format==null)throw new IllegalArgumentException("resourceType and format are required");fields=fields==null?List.of():List.copyOf(fields);}}
+ public record ExportCommitBody(String runtimeLeaseId,long fencingVersion,long rowCount,String fieldSetHash,String artifactSha256,long artifactSizeBytes){}
+ private static String required(String v,String f){if(v==null||v.isBlank())throw new IllegalArgumentException(f+" is required");return v.trim();}}

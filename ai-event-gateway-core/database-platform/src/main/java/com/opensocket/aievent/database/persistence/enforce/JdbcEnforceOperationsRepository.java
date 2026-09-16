@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.opensocket.aievent.core.enforce.EnforceArtifactRetentionRecord;
 import com.opensocket.aievent.core.enforce.EnforceLegacyFinalReportItem;
 import com.opensocket.aievent.core.enforce.EnforceObservabilitySnapshot;

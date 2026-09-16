@@ -1,0 +1,4 @@
+package com.opensocket.aievent.core.integration.identity;
+public interface ProviderMetadataProbeGateway {
+ ProviderMetadataSnapshot probe(IntegrationConnection connection,IntegrationPrincipal principal,IntegrationCredentialMetadata credential,IntegrationProjectMapping mapping,ProviderMetadataProbeRequest request);
+}

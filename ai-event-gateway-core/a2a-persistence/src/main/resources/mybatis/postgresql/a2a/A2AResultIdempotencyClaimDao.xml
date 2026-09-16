@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.a2a.dao.A2AResultIdempotencyClaimDao">
+ <resultMap id="Map" type="com.opensocket.aievent.database.persistence.a2a.po.A2AResultIdempotencyClaimPo"><id property="idempotencyKey" column="idempotency_key"/><result property="tenantId" column="tenant_id"/><result property="requestId" column="a2a_request_id"/><result property="resultId" column="a2a_result_id"/><result property="acceptanceAttemptId" column="acceptance_attempt_id"/><result property="resultFingerprint" column="result_fingerprint"/><result property="claimedAt" column="claimed_at"/></resultMap>
+ <insert id="insert">insert into a2a_result_idempotency_claims(tenant_id,idempotency_key,a2a_request_id,a2a_result_id,acceptance_attempt_id,result_fingerprint,claimed_at) values(#{claim.tenantId},#{claim.idempotencyKey},#{claim.requestId},#{claim.resultId},#{claim.acceptanceAttemptId},#{claim.resultFingerprint},coalesce(#{claim.claimedAt},now())) on conflict(tenant_id,idempotency_key) do nothing</insert>
+ <select id="findByIdempotencyKey" resultMap="Map">select * from a2a_result_idempotency_claims where tenant_id=#{tenantId} and idempotency_key=#{idempotencyKey}</select>
+</mapper>

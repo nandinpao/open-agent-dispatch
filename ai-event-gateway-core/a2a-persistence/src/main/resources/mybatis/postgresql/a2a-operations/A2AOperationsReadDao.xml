@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.a2a.operations.A2AOperationsReadDao">
+  <resultMap id="OperationsListMap" type="com.opensocket.aievent.database.persistence.a2a.operations.A2AOperationsListItemPo">
+    <id property="requestId" column="request_id"/>
+    <result property="rootTaskId" column="root_task_id"/>
+    <result property="sourceTaskId" column="source_task_id"/>
+    <result property="childTaskId" column="child_task_id"/>
+    <result property="sourceDomainId" column="source_domain_id"/>
+    <result property="targetDomainId" column="target_domain_id"/>
+    <result property="requestedTaskType" column="requested_task_type"/>
+    <result property="requestStatus" column="request_status"/>
+    <result property="operationalStage" column="operational_stage"/>
+    <result property="childTaskStatus" column="child_task_status"/>
+    <result property="dispatchStatus" column="dispatch_status"/>
+    <result property="runtimeStatus" column="runtime_status"/>
+    <result property="resultStatus" column="result_status"/>
+    <result property="cancellationStatus" column="cancellation_status"/>
+    <result property="aggregationStatus" column="aggregation_status"/>
+    <result property="blockerCode" column="blocker_code"/>
+    <result property="blockerMessage" column="blocker_message"/>
+    <result property="recommendedAction" column="recommended_action"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+    <result property="version" column="version"/>
+  </resultMap>
+
+  <!--
+    P1B list projection intentionally uses one tenant-scoped SQL statement. Full evidence remains
+    composed by A2AOperationsWorkspaceService only for the selected request detail.
+  -->
+  <select id="search" resultMap="OperationsListMap">
+    with authority_projection as (
+      select
+        r.a2a_request_id as request_id,
+        r.root_task_id,
+        r.source_task_id,
+        r.child_task_id,
+        r.source_domain_id,
+        r.target_domain_id,
+        r.requested_task_type,
+        r.request_status,
+        r.operational_stage,
+        coalesce(t.status, 'NOT_CREATED') as child_task_status,
+        coalesce(d.status, 'NOT_REQUESTED') as dispatch_status,
+        case
+          when d.status in ('DISPATCHING', 'DISPATCHED') then 'DELIVERING'
+          when d.status = 'ACKED' then 'ACKNOWLEDGED'
+          when d.status = 'RUNNING' then 'RUNNING'
+          when d.status = 'COMPLETED' then 'COMPLETED'
+          when d.status in ('FAILED', 'TIMED_OUT', 'DEAD_LETTER') then 'FAILED'
+          when d.status = 'CANCELLED' then 'CANCELLED'
+          when a.assignment_id is not null and nullif(a.agent_session_id, '') is not null then 'SESSION_BOUND'
+          when a.assignment_id is not null then 'ASSIGNED'
+          else 'NOT_STARTED'
+        end as runtime_status,
+        case when q.quarantine_id is not null then 'QUARANTINED'
+             else coalesce(res.result_status, 'PENDING') end as result_status,
+        coalesce(c.status, 'NOT_REQUESTED') as cancellation_status,
+        coalesce(ag.aggregate_status, 'NOT_COMPUTED') as aggregation_status,
+        case
+          when rec.case_id is not null then coalesce(nullif(rec.reason_code, ''), 'MANUAL_REVIEW_REQUIRED')
+          when coalesce(r.blocker_code, 'NONE') &lt;&gt; 'NONE' then r.blocker_code
+          when q.quarantine_id is not null then 'RESULT_QUARANTINED'
+          when r.request_status = 'WAITING_APPROVAL' then 'A2A_APPROVAL_REQUIRED'
+          when r.request_status = 'WAIT_HUMAN' then 'MANUAL_REVIEW_REQUIRED'
+          when t.status = 'WAITING_CONTEXT' then 'HANDOFF_REQUIRED'
+          when r.request_status = 'APPROVED' and t.task_id is null then 'CHILD_TASK_CREATION_PENDING'
+          when d.status in ('FAILED', 'TIMED_OUT', 'DEAD_LETTER') then concat('DISPATCH_', d.status)
+          when d.status = 'RETRY_WAITING' then 'DISPATCH_RETRY_WAITING'
+          when t.status = 'WAITING_HUMAN' then 'TASK_WAITING_HUMAN'
+          when c.cancellation_id is not null and c.status &lt;&gt; 'ACKNOWLEDGED'
+            then concat('CANCELLATION_', c.status)
+          when res.a2a_result_id is null and r.request_status = 'RUNNING' and a.assignment_id is null
+            then 'ASSIGNMENT_EVIDENCE_MISSING'
+          else 'NONE'
+        end as blocker_code,
+        coalesce(rec.reason, q.reason, r.blocker_reason, t.lifecycle_reason, d.last_error, d.reason, c.last_error, c.reason,
+          case
+            when r.request_status = 'WAITING_APPROVAL' then 'A2A approval is required before Child Task creation.'
+            when r.request_status = 'WAIT_HUMAN' then 'Automated recovery could not prove a safe outcome.'
+            when r.request_status = 'APPROVED' and t.task_id is null then 'Task Authority has not produced Child Task evidence.'
+            when res.a2a_result_id is null and r.request_status = 'RUNNING' and a.assignment_id is null
+              then 'A2A is RUNNING but no active Assignment evidence exists.'
+            else 'No active blocker'
+          end) as blocker_message,
+        case
+          when rec.case_id is not null then coalesce(rec.recommended_action, 'Resolve the reconciliation case with an audit reason.')
+          when q.quarantine_id is not null then 'Review the quarantined evidence; do not replace the canonical Result or bypass fencing.'
+          when r.request_status = 'WAITING_APPROVAL' then 'Approve or reject the A2A request through the governed action.'
+          when r.request_status = 'WAIT_HUMAN' then 'Inspect the evidence timeline and resolve the open reconciliation case.'
+          when t.status = 'WAITING_CONTEXT' then 'Approve or reject the immutable Handoff Snapshot before dispatch.'
+          when r.request_status = 'APPROVED' and t.task_id is null then 'Run reconciliation; never create a duplicate Child Task manually.'
+          when d.status in ('FAILED', 'TIMED_OUT', 'DEAD_LETTER') then 'Retry only through Dispatch Authority after reviewing the failure evidence.'
+          when d.status = 'RETRY_WAITING' then 'Review the retry reason or wait for the scheduled Dispatch retry.'
+          when t.status = 'WAITING_HUMAN' then 'Open the Child Task and apply a governed recovery action.'
+          when c.cancellation_id is not null and c.status &lt;&gt; 'ACKNOWLEDGED' then 'Inspect Cancellation Evidence and Reconciliation status.'
+          when res.a2a_result_id is null and r.request_status = 'RUNNING' and a.assignment_id is null
+            then 'Run reconciliation and inspect the Child Task dispatch history.'
+          else null
+        end as recommended_action,
+        r.created_at,
+        r.updated_at,
+        r.version
+      from a2a_requests r
+      left join tasks t
+        on t.tenant_id = r.tenant_id and t.task_id = r.child_task_id
+      left join lateral (
+        select ta.assignment_id, ta.agent_session_id, ta.status, ta.updated_at
+        from task_assignments ta
+        where ta.tenant_id = r.tenant_id
+          and ta.task_id = r.child_task_id
+          and ta.status in ('ASSIGNED', 'AWAITING_REVIEW')
+        order by ta.created_at desc
+        limit 1
+      ) a on true
+      left join lateral (
+        select dr.dispatch_request_id, dr.status, dr.last_error, dr.reason, dr.updated_at
+        from dispatch_requests dr
+        where dr.tenant_id = r.tenant_id and dr.task_id = r.child_task_id
+        order by dr.updated_at desc nulls last, dr.created_at desc
+        limit 1
+      ) d on true
+      left join a2a_results res
+        on res.tenant_id = r.tenant_id and res.a2a_request_id = r.a2a_request_id
+      left join lateral (
+        select ac.cancellation_id, ac.status, ac.reason, ac.last_error, ac.updated_at
+        from a2a_cancellations ac
+        where ac.tenant_id = r.tenant_id and ac.a2a_request_id = r.a2a_request_id
+        order by ac.requested_at desc
+        limit 1
+      ) c on true
+      left join lateral (
+        select rq.quarantine_id, rq.reason_code, rq.reason, rq.quarantined_at
+        from a2a_result_quarantine rq
+        where rq.tenant_id = r.tenant_id
+          and rq.a2a_request_id = r.a2a_request_id
+          and rq.status = 'OPEN'
+        order by rq.quarantined_at desc
+        limit 1
+      ) q on true
+      left join lateral (
+        select rc.case_id, rc.reason_code, rc.reason, rc.recommended_action, rc.updated_at
+        from a2a_reconciliation_cases rc
+        where rc.tenant_id = r.tenant_id
+          and rc.a2a_request_id = r.a2a_request_id
+          and rc.status in ('OPEN','READY','CLAIMED','EXECUTING','RETRY_WAITING','WAIT_HUMAN')
+        order by rc.created_at desc
+        limit 1
+      ) rec on true
+      left join a2a_parent_aggregations ag
+        on ag.tenant_id = r.tenant_id
+       and ag.parent_task_id = coalesce(res.parent_task_id, r.source_task_id)
+      where r.tenant_id = #{tenantId}
+    )
+    select * from authority_projection
+    <where>
+      <if test="requestStatus != null and requestStatus != ''">
+        request_status = #{requestStatus}
+      </if>
+      <if test="blockerCode != null and blockerCode != ''">
+        and blocker_code = #{blockerCode}
+      </if>
+      <if test="blockerOnly">and blocker_code &lt;&gt; 'NONE'</if>
+      <if test="operationalStage != null and operationalStage != ''">and operational_stage = #{operationalStage}</if>
+      <if test="sourceDomainId != null and sourceDomainId != ''">and source_domain_id = #{sourceDomainId}</if>
+      <if test="targetDomainId != null and targetDomainId != ''">and target_domain_id = #{targetDomainId}</if>
+      <if test="text != null and text != ''">
+        and (
+          request_id ilike concat('%', #{text}, '%')
+          or root_task_id ilike concat('%', #{text}, '%')
+          or source_task_id ilike concat('%', #{text}, '%')
+          or child_task_id ilike concat('%', #{text}, '%')
+          or source_domain_id ilike concat('%', #{text}, '%')
+          or target_domain_id ilike concat('%', #{text}, '%')
+          or requested_task_type ilike concat('%', #{text}, '%')
+          or blocker_code ilike concat('%', #{text}, '%')
+        )
+      </if>
+    </where>
+    order by
+      <choose><when test="sortBy == 'createdAt'">created_at</when><when test="sortBy == 'requestStatus'">request_status</when><otherwise>updated_at</otherwise></choose>
+      ${sortDirection} nulls last, created_at ${sortDirection}
+    offset #{offset} limit #{limit}
+  </select>
+  <select id="count" resultType="long">
+    with authority_projection as (
+      select
+        r.a2a_request_id as request_id,
+        r.root_task_id,
+        r.source_task_id,
+        r.child_task_id,
+        r.source_domain_id,
+        r.target_domain_id,
+        r.requested_task_type,
+        r.request_status,
+        r.operational_stage,
+        coalesce(t.status, 'NOT_CREATED') as child_task_status,
+        coalesce(d.status, 'NOT_REQUESTED') as dispatch_status,
+        case
+          when d.status in ('DISPATCHING', 'DISPATCHED') then 'DELIVERING'
+          when d.status = 'ACKED' then 'ACKNOWLEDGED'
+          when d.status = 'RUNNING' then 'RUNNING'
+          when d.status = 'COMPLETED' then 'COMPLETED'
+          when d.status in ('FAILED', 'TIMED_OUT', 'DEAD_LETTER') then 'FAILED'
+          when d.status = 'CANCELLED' then 'CANCELLED'
+          when a.assignment_id is not null and nullif(a.agent_session_id, '') is not null then 'SESSION_BOUND'
+          when a.assignment_id is not null then 'ASSIGNED'
+          else 'NOT_STARTED'
+        end as runtime_status,
+        case when q.quarantine_id is not null then 'QUARANTINED'
+             else coalesce(res.result_status, 'PENDING') end as result_status,
+        coalesce(c.status, 'NOT_REQUESTED') as cancellation_status,
+        coalesce(ag.aggregate_status, 'NOT_COMPUTED') as aggregation_status,
+        case
+          when rec.case_id is not null then coalesce(nullif(rec.reason_code, ''), 'MANUAL_REVIEW_REQUIRED')
+          when coalesce(r.blocker_code, 'NONE') &lt;&gt; 'NONE' then r.blocker_code
+          when q.quarantine_id is not null then 'RESULT_QUARANTINED'
+          when r.request_status = 'WAITING_APPROVAL' then 'A2A_APPROVAL_REQUIRED'
+          when r.request_status = 'WAIT_HUMAN' then 'MANUAL_REVIEW_REQUIRED'
+          when t.status = 'WAITING_CONTEXT' then 'HANDOFF_REQUIRED'
+          when r.request_status = 'APPROVED' and t.task_id is null then 'CHILD_TASK_CREATION_PENDING'
+          when d.status in ('FAILED', 'TIMED_OUT', 'DEAD_LETTER') then concat('DISPATCH_', d.status)
+          when d.status = 'RETRY_WAITING' then 'DISPATCH_RETRY_WAITING'
+          when t.status = 'WAITING_HUMAN' then 'TASK_WAITING_HUMAN'
+          when c.cancellation_id is not null and c.status &lt;&gt; 'ACKNOWLEDGED'
+            then concat('CANCELLATION_', c.status)
+          when res.a2a_result_id is null and r.request_status = 'RUNNING' and a.assignment_id is null
+            then 'ASSIGNMENT_EVIDENCE_MISSING'
+          else 'NONE'
+        end as blocker_code,
+        coalesce(rec.reason, q.reason, r.blocker_reason, t.lifecycle_reason, d.last_error, d.reason, c.last_error, c.reason,
+          case
+            when r.request_status = 'WAITING_APPROVAL' then 'A2A approval is required before Child Task creation.'
+            when r.request_status = 'WAIT_HUMAN' then 'Automated recovery could not prove a safe outcome.'
+            when r.request_status = 'APPROVED' and t.task_id is null then 'Task Authority has not produced Child Task evidence.'
+            when res.a2a_result_id is null and r.request_status = 'RUNNING' and a.assignment_id is null
+              then 'A2A is RUNNING but no active Assignment evidence exists.'
+            else 'No active blocker'
+          end) as blocker_message,
+        case
+          when rec.case_id is not null then coalesce(rec.recommended_action, 'Resolve the reconciliation case with an audit reason.')
+          when q.quarantine_id is not null then 'Review the quarantined evidence; do not replace the canonical Result or bypass fencing.'
+          when r.request_status = 'WAITING_APPROVAL' then 'Approve or reject the A2A request through the governed action.'
+          when r.request_status = 'WAIT_HUMAN' then 'Inspect the evidence timeline and resolve the open reconciliation case.'
+          when t.status = 'WAITING_CONTEXT' then 'Approve or reject the immutable Handoff Snapshot before dispatch.'
+          when r.request_status = 'APPROVED' and t.task_id is null then 'Run reconciliation; never create a duplicate Child Task manually.'
+          when d.status in ('FAILED', 'TIMED_OUT', 'DEAD_LETTER') then 'Retry only through Dispatch Authority after reviewing the failure evidence.'
+          when d.status = 'RETRY_WAITING' then 'Review the retry reason or wait for the scheduled Dispatch retry.'
+          when t.status = 'WAITING_HUMAN' then 'Open the Child Task and apply a governed recovery action.'
+          when c.cancellation_id is not null and c.status &lt;&gt; 'ACKNOWLEDGED' then 'Inspect Cancellation Evidence and Reconciliation status.'
+          when res.a2a_result_id is null and r.request_status = 'RUNNING' and a.assignment_id is null
+            then 'Run reconciliation and inspect the Child Task dispatch history.'
+          else null
+        end as recommended_action,
+        r.created_at,
+        r.updated_at,
+        r.version
+      from a2a_requests r
+      left join tasks t
+        on t.tenant_id = r.tenant_id and t.task_id = r.child_task_id
+      left join lateral (
+        select ta.assignment_id, ta.agent_session_id, ta.status, ta.updated_at
+        from task_assignments ta
+        where ta.tenant_id = r.tenant_id
+          and ta.task_id = r.child_task_id
+          and ta.status in ('ASSIGNED', 'AWAITING_REVIEW')
+        order by ta.created_at desc
+        limit 1
+      ) a on true
+      left join lateral (
+        select dr.dispatch_request_id, dr.status, dr.last_error, dr.reason, dr.updated_at
+        from dispatch_requests dr
+        where dr.tenant_id = r.tenant_id and dr.task_id = r.child_task_id
+        order by dr.updated_at desc nulls last, dr.created_at desc
+        limit 1
+      ) d on true
+      left join a2a_results res
+        on res.tenant_id = r.tenant_id and res.a2a_request_id = r.a2a_request_id
+      left join lateral (
+        select ac.cancellation_id, ac.status, ac.reason, ac.last_error, ac.updated_at
+        from a2a_cancellations ac
+        where ac.tenant_id = r.tenant_id and ac.a2a_request_id = r.a2a_request_id
+        order by ac.requested_at desc
+        limit 1
+      ) c on true
+      left join lateral (
+        select rq.quarantine_id, rq.reason_code, rq.reason, rq.quarantined_at
+        from a2a_result_quarantine rq
+        where rq.tenant_id = r.tenant_id
+          and rq.a2a_request_id = r.a2a_request_id
+          and rq.status = 'OPEN'
+        order by rq.quarantined_at desc
+        limit 1
+      ) q on true
+      left join lateral (
+        select rc.case_id, rc.reason_code, rc.reason, rc.recommended_action, rc.updated_at
+        from a2a_reconciliation_cases rc
+        where rc.tenant_id = r.tenant_id
+          and rc.a2a_request_id = r.a2a_request_id
+          and rc.status in ('OPEN','READY','CLAIMED','EXECUTING','RETRY_WAITING','WAIT_HUMAN')
+        order by rc.created_at desc
+        limit 1
+      ) rec on true
+      left join a2a_parent_aggregations ag
+        on ag.tenant_id = r.tenant_id
+       and ag.parent_task_id = coalesce(res.parent_task_id, r.source_task_id)
+      where r.tenant_id = #{tenantId}
+    )
+    select count(*) from authority_projection
+    <where>
+      <if test="requestStatus != null and requestStatus != ''">
+        request_status = #{requestStatus}
+      </if>
+      <if test="blockerCode != null and blockerCode != ''">
+        and blocker_code = #{blockerCode}
+      </if>
+      <if test="blockerOnly">and blocker_code &lt;&gt; 'NONE'</if>
+      <if test="operationalStage != null and operationalStage != ''">and operational_stage = #{operationalStage}</if>
+      <if test="sourceDomainId != null and sourceDomainId != ''">and source_domain_id = #{sourceDomainId}</if>
+      <if test="targetDomainId != null and targetDomainId != ''">and target_domain_id = #{targetDomainId}</if>
+      <if test="text != null and text != ''">
+        and (
+          request_id ilike concat('%', #{text}, '%')
+          or root_task_id ilike concat('%', #{text}, '%')
+          or source_task_id ilike concat('%', #{text}, '%')
+          or child_task_id ilike concat('%', #{text}, '%')
+          or source_domain_id ilike concat('%', #{text}, '%')
+          or target_domain_id ilike concat('%', #{text}, '%')
+          or requested_task_type ilike concat('%', #{text}, '%')
+          or blocker_code ilike concat('%', #{text}, '%')
+        )
+      </if>
+    </where>
+  </select>
+</mapper>

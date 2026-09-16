@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.response;import java.time.Instant;public record TokenSummaryResponse(String tokenId,String tokenType,String principalType,String principalId,String name,String prefix,String last4,String status,Instant issuedAt,Instant expiresAt,Instant lastUsedAt,long version){}

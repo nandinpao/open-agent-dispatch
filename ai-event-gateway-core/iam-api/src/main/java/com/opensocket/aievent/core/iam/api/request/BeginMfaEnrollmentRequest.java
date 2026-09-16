@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record BeginMfaEnrollmentRequest(@NotBlank @Size(max=200) String accountLabel,@NotBlank @Size(max=200) String issuer){}

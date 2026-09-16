@@ -1,16 +1,19 @@
 package com.opensocket.aievent.core.dispatch.flow;
 
-import java.util.LinkedHashSet;
+
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.opensocket.aievent.core.task.TaskRecord;
+import com.opensocket.aievent.core.task.domain.TaskIssueSyncPolicy;
 
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
@@ -37,6 +40,7 @@ public class FlowRuleRoutingService {
     private static final Logger log = LoggerFactory.getLogger(FlowRuleRoutingService.class);
     private final ObservationRegistry observationRegistry;
     private final FlowRuleRoutingRepository repository;
+    private boolean legacyCreateOnCompletedCompatibilityEnabled;
 
     public FlowRuleRoutingService() {
         this(null, ObservationRegistry.create());
@@ -61,7 +65,31 @@ public class FlowRuleRoutingService {
                         : observationRegistryProvider.getIfAvailable(ObservationRegistry::create));
     }
 
+
+    /**
+     * Route-B compatibility bridge for Flows that only received V232/V234 migration defaults.
+     * An explicitly managed Flow/Rule always wins; this switch only preserves the old
+     * create-on-completed behavior until an administrator saves a canonical Flow policy.
+     */
+    @Value("${adapter-actions.issue.create-on-completed-task:false}")
+    void setLegacyCreateOnCompletedCompatibilityEnabled(boolean enabled) {
+        this.legacyCreateOnCompletedCompatibilityEnabled = enabled;
+    }
+
     public FlowRuleRoutingPlan resolve(TaskRecord task) {
+        return resolve(task, Map.of());
+    }
+
+    public FlowRuleRoutingPlan resolve(TaskRecord task, Map<String,Object> matchAttributes) {
+        return resolve(task, matchAttributes, false);
+    }
+
+    /** C7 Draft-safe simulation path. Production resolution remains ACTIVE/ENABLED-only. */
+    public FlowRuleRoutingPlan resolveForSimulation(TaskRecord task, Map<String,Object> matchAttributes) {
+        return resolve(task, matchAttributes, true);
+    }
+
+    private FlowRuleRoutingPlan resolve(TaskRecord task, Map<String,Object> matchAttributes, boolean simulationMode) {
         Observation observation = FlowRuleRoutingObservationDocumentation.FLOW_RULE_RESOLUTION
                 .observation(observationRegistry)
                 .lowCardinalityKeyValue(LowCardinalityKeyNames.RESULT.withValue("processing"))
@@ -78,7 +106,7 @@ public class FlowRuleRoutingService {
                 .highCardinalityKeyValue(HighCardinalityKeyNames.EVENT_TYPE.withValue(valueOrNone(task == null ? null : task.getEventType())));
         return observation.observe(() -> {
             try {
-                return resolveInternal(task, observation);
+                return resolveInternal(task, observation, matchAttributes == null ? Map.of() : matchAttributes, simulationMode);
             } catch (RuntimeException ex) {
                 low(observation, LowCardinalityKeyNames.RESULT, "error");
                 low(observation, LowCardinalityKeyNames.BLOCKING_REASON_CODE, "evaluation_error");
@@ -87,7 +115,7 @@ public class FlowRuleRoutingService {
         });
     }
 
-    private FlowRuleRoutingPlan resolveInternal(TaskRecord task, Observation observation) {
+    private FlowRuleRoutingPlan resolveInternal(TaskRecord task, Observation observation, Map<String,Object> matchAttributes, boolean simulationMode) {
         if (task == null) {
             markNotMatched(observation, "task_missing");
             log.warn("flow_rule_plan_not_matched reason={} taskId=-", "Task is required for R6 Flow Rule routing");
@@ -126,18 +154,19 @@ public class FlowRuleRoutingService {
             plan.setDefaultPoolId(task.getTargetPoolId());
             plan.setSelectionStrategy("LOWEST_LOAD");
             plan.setRequiredSkills(List.of());
+            plan.setMatchAttributes(matchAttributes);
             plan.setReason("R9 Flow Rule routing plan resolved from task evidence: flowId=" + flowId
                     + ", ruleId=" + ruleId + ", eventStage=" + eventStage
                     + ", requestedSkill=" + requestedSkill);
-            enrichRequirementContractFromPersistedRule(task, plan, eventStage, source, target, eventType, requestedSkill);
+            enrichRequirementContractFromPersistedRule(task, plan, eventStage, source, target, eventType, requestedSkill, matchAttributes, simulationMode);
         } else {
             resolutionOrigin = ResolutionOrigin.DATABASE;
-            plan = resolvePersistedFlowRule(task, eventStage, source, target, eventType, requestedSkill);
+            plan = resolvePersistedFlowRule(task, eventStage, source, target, eventType, requestedSkill, matchAttributes, simulationMode);
         }
         if (plan == null || !plan.isMatched()) {
             String blockingCode = plan != null && plan.getReason() != null && plan.getReason().startsWith("Flow Rule DB lookup failed")
                     ? "repository_error"
-                    : "no_active_flow_rule";
+                    : (plan != null && plan.isAmbiguous() ? "flow_rule_ambiguous" : "flow_rule_no_match");
             markNotMatched(observation, blockingCode);
             low(observation, LowCardinalityKeyNames.RESOLUTION_SOURCE, resolutionOrigin.name().toLowerCase(Locale.ROOT));
             low(observation, LowCardinalityKeyNames.EVENT_STAGE, eventStage);
@@ -147,12 +176,14 @@ public class FlowRuleRoutingService {
             high(observation, HighCardinalityKeyNames.REQUESTED_SKILL, requestedSkill);
             high(observation, HighCardinalityKeyNames.FLOW_ID, flowId);
             high(observation, HighCardinalityKeyNames.RULE_ID, ruleId);
-            log.warn("flow_rule_plan_not_matched taskId={} sourceSystem={} eventStage={} eventType={} objectType={} errorCode={} targetSystem={} matchedFlowId={} matchedRuleId={} requestedSkill={} routingPath={} reason={}",
-                    task.getTaskId(), source, eventStage, eventType, normalize(task.getObjectType()), normalize(task.getErrorCode()), target, flowId, ruleId, requestedSkill, task.getRoutingPath(),
-                    plan == null ? "No persisted Flow-owned Rule matched" : plan.getReason());
-            return FlowRuleRoutingPlan.notMatched("SOURCE_FLOW_NOT_FOUND: no ACTIVE Source Flow or default Pool could be resolved for sourceSystem="
-                    + source + ", eventStage=" + eventStage + ", eventType=" + eventType
-                    + ". Create or activate the Source Flow and set its default Agent Pool.");
+            log.warn("flow_rule_plan_not_matched taskId={} sourceSystem={} eventStage={} eventType={} objectType={} errorCode={} targetSystem={} matchedFlowId={} matchedRuleId={} requestedSkill={} routingPath={} matchResult={} reason={}",
+                    task.getTaskId(), source, eventStage, eventType, normalize(task.getObjectType()), normalize(task.getErrorCode()), target, flowId, ruleId, requestedSkill,
+                    plan == null ? null : plan.getRoutingPath(), plan == null ? null : plan.getMatchResult(),
+                    plan == null ? "No persisted deterministic Flow Rule matched" : plan.getReason());
+            if (plan != null) return plan;
+            FlowRuleRoutingPlan noMatch = FlowRuleRoutingPlan.notMatched("No deterministic Flow Rule matched; semantic triage required.");
+            noMatch.setRoutingPath("FLOW_RULE_NO_MATCH_TRIAGE");
+            return noMatch;
         }
         low(observation, LowCardinalityKeyNames.RESULT, "matched");
         low(observation, LowCardinalityKeyNames.MATCHED, "true");
@@ -186,9 +217,11 @@ public class FlowRuleRoutingService {
             String source,
             String target,
             String eventType,
-            String requestedSkill) {
+            String requestedSkill,
+            Map<String,Object> matchAttributes,
+            boolean simulationMode) {
         FlowRuleRoutingPlan persisted = resolvePersistedFlowRule(
-                task, eventStage, source, target, eventType, requestedSkill);
+                task, eventStage, source, target, eventType, requestedSkill, matchAttributes, simulationMode);
         if (persisted == null || !persisted.isMatched()) {
             log.debug("flow_rule_requirement_contract_enrichment_skipped taskId={} matchedFlowId={} matchedRuleId={} reason=PERSISTED_RULE_NOT_FOUND",
                     task.getTaskId(), authoritativePlan.getFlowId(), authoritativePlan.getRuleId());
@@ -215,11 +248,13 @@ public class FlowRuleRoutingService {
         authoritativePlan.setExplicitActionAuthorizationRequired(
                 persisted.getExplicitActionAuthorizationRequired());
         authoritativePlan.setRequirementModelVersion(persisted.getRequirementModelVersion());
-        log.debug("flow_rule_requirement_contract_enriched taskId={} matchedFlowId={} matchedRuleId={} capabilityRequirementMode={} requiredOperation={} sideEffectLevel={} candidatePoolMode={} requirementModelVersion={} authoritativeRoutingUnchanged=true",
+        authoritativePlan.setIssueSyncPolicy(firstNonBlank(persisted.getIssueSyncPolicy(), authoritativePlan.getIssueSyncPolicy(), "OPTIONAL"));
+        authoritativePlan.setIssueSyncPolicySource(firstNonBlank(persisted.getIssueSyncPolicySource(), authoritativePlan.getIssueSyncPolicySource(), "SYSTEM_FALLBACK"));
+        log.debug("flow_rule_requirement_contract_enriched taskId={} matchedFlowId={} matchedRuleId={} capabilityRequirementMode={} requiredOperation={} sideEffectLevel={} candidatePoolMode={} issueSyncPolicy={} issueSyncPolicySource={} requirementModelVersion={} authoritativeRoutingUnchanged=true",
                 task.getTaskId(), authoritativePlan.getFlowId(), authoritativePlan.getRuleId(),
                 authoritativePlan.getCapabilityRequirementMode(), authoritativePlan.getRequiredOperation(),
-                authoritativePlan.getSideEffectLevel(), authoritativePlan.getCandidatePoolMode(),
-                authoritativePlan.getRequirementModelVersion());
+                authoritativePlan.getSideEffectLevel(), authoritativePlan.getCandidatePoolMode(), authoritativePlan.getIssueSyncPolicy(),
+                authoritativePlan.getIssueSyncPolicySource(), authoritativePlan.getRequirementModelVersion());
     }
 
     private String standardCapabilityRequirementMode(String persistedMode, List<String> requiredSkills, String requestedSkill) {
@@ -229,9 +264,9 @@ public class FlowRuleRoutingService {
     }
 
     private String standardCandidatePoolMode(String persistedMode) {
-        // Backward-compatible persisted token retained for current verifier compatibility.
-        // Actual candidate authority is targetPoolId + AgentPoolRoutingRepository.
-        return "EXPLICIT_FLOW_AGENTS";
+        // V38-7A1: Agent Pool membership is the canonical candidate boundary.
+        // Persisted legacy tokens must never switch runtime back to flow_agent_assignments.
+        return "SOURCE_SYSTEM_POOL";
     }
 
     private boolean hasRequiredCapability(List<String> requiredSkills) {
@@ -244,7 +279,7 @@ public class FlowRuleRoutingService {
         return !blank(normalizedLeft) && normalizedLeft.equals(normalizedRight);
     }
 
-    private FlowRuleRoutingPlan resolvePersistedFlowRule(TaskRecord task, String eventStage, String source, String target, String eventType, String requestedSkill) {
+    private FlowRuleRoutingPlan resolvePersistedFlowRule(TaskRecord task, String eventStage, String source, String target, String eventType, String requestedSkill, Map<String,Object> matchAttributes, boolean simulationMode) {
         if (task == null) {
             log.warn("flow_rule_db_lookup_skipped reason=TASK_MISSING");
             return null;
@@ -254,9 +289,100 @@ public class FlowRuleRoutingService {
                     task.getTaskId(), task.getTenantId(), source, eventStage, eventType, normalize(task.getObjectType()), normalize(task.getErrorCode()), requestedSkill);
             return null;
         }
-        log.info("flow_rule_db_lookup_started taskId={} tenantId={} sourceSystem={} eventStage={} eventType={} objectType={} errorCode={} requestedSkill={} repository={}",
-                task.getTaskId(), task.getTenantId(), source, eventStage, eventType, normalize(task.getObjectType()), normalize(task.getErrorCode()), requestedSkill,
-                repository.getClass().getName());
+        FlowRuleRuntimeQuery query = runtimeQuery(task, eventStage, source, target, eventType, requestedSkill, matchAttributes);
+        try {
+            FlowRuleEvaluation evaluation = simulationMode ? repository.evaluateForSimulation(query) : repository.evaluate(query);
+            if (evaluation == null) {
+                return FlowRuleRoutingPlan.notMatched("Flow Rule evaluator returned no decision");
+            }
+            if (evaluation.isAmbiguous()) {
+                FlowRuleRoutingPlan plan = FlowRuleRoutingPlan.ambiguous(
+                        "FLOW_RULE_SAME_PRIORITY_AMBIGUOUS: minimumPriority=" + evaluation.minimumMatchedPriority()
+                                + "; ruleIds=" + evaluation.minimumPriorityMatches().stream().map(c -> c.rule().getRuleId()).toList());
+                plan.setEvaluation(evaluation);
+                plan.setMatchAttributes(matchAttributes);
+                plan.setFlowEvaluationSetRef("PENDING_TASK_MATERIALIZATION");
+                return plan;
+            }
+            if (evaluation.isNoMatch()) {
+                String closest = evaluation.closestRules().isEmpty() ? "none"
+                        : evaluation.closestRules().stream()
+                                .map(c -> c.rule().getRuleId() + " missing=" + c.failedCriteria())
+                                .toList().toString();
+                String lifecycleScope = simulationMode
+                        ? "No enabled deterministic Flow Rule on the explicitly selected Draft/Active Flow matched"
+                        : "No ACTIVE deterministic Flow Rule matched";
+                FlowRuleRoutingPlan plan = FlowRuleRoutingPlan.notMatched(
+                        lifecycleScope + "; semantic triage required. closest=" + closest);
+                plan.setRoutingPath("FLOW_RULE_NO_MATCH_TRIAGE");
+                plan.setEvaluation(evaluation);
+                plan.setMatchAttributes(matchAttributes);
+                plan.setFlowEvaluationSetRef("PENDING_TASK_MATERIALIZATION");
+                return plan;
+            }
+            FlowRuleRuntimeMatch match = evaluation.selectedMatch().orElseThrow(
+                    () -> new IllegalStateException("MATCHED evaluation must contain exactly one minimum-priority winner"));
+            FlowRuleRoutingPlan plan = new FlowRuleRoutingPlan();
+            plan.setMatchResult(FlowMatchDecision.MatchResult.MATCHED);
+            plan.setEvaluation(evaluation);
+            plan.setMatchAttributes(matchAttributes);
+            plan.setFlowEvaluationSetRef("PENDING_TASK_MATERIALIZATION");
+            plan.setFlowId(match.getFlowId());
+            plan.setFlowVersion(match.getFlowVersion());
+            plan.setRuleId(match.getRuleId());
+            plan.setServiceCode(match.getServiceCode());
+            plan.setEventStage(firstNonBlank(match.getEventStage(), eventStage));
+            plan.setRuleScope(firstNonBlank(match.getRuleScope(), scopeFor(eventStage)));
+            String skill = firstNonBlank(match.getRequestedSkill(), firstOf(match.getRequiredSkills()), requestedSkill);
+            plan.setRequestedSkill(skill);
+            plan.setTargetSystem(firstNonBlank(match.getTargetSystem(), target));
+            plan.setHandoffMode(firstNonBlank(match.getHandoffMode(), cleanRoutingToken(task.getHandoffMode())));
+            plan.setRoutingPath("FLOW_RULE");
+            plan.setRequiredSkills(match.getRequiredSkills());
+            plan.setTargetPoolId(match.getTargetPoolId());
+            plan.setTargetPoolCode(match.getTargetPoolCode());
+            plan.setDefaultPoolId(match.getDefaultPoolId());
+            plan.setSelectionStrategy(firstNonBlank(match.getSelectionStrategy(), "LOWEST_LOAD"));
+            plan.setSourceDefaultPool(false);
+            plan.setCapabilityRequirementMode(standardCapabilityRequirementMode(match.getCapabilityRequirementMode(), match.getRequiredSkills(), match.getRequestedSkill()));
+            plan.setRequiredOperation(match.getRequiredOperation());
+            plan.setSideEffectLevel(firstNonBlank(match.getSideEffectLevel(), "NONE"));
+            plan.setCandidatePoolMode(standardCandidatePoolMode(match.getCandidatePoolMode()));
+            plan.setRoutingStrategy(firstNonBlank(match.getRoutingStrategy(), "WEIGHTED_SCORE"));
+            plan.setExplicitActionAuthorizationRequired(match.getExplicitActionAuthorizationRequired());
+            plan.setRequirementModelVersion(match.getRequirementModelVersion());
+            IssuePolicyResolution issuePolicy = resolveIssuePolicy(match);
+            plan.setIssueSyncPolicy(issuePolicy.policy());
+            plan.setIssueSyncPolicySource(issuePolicy.source());
+            plan.setReason(firstNonBlank(match.getMatchReason(), "A0-R3 deterministic Flow Rule matched"));
+            log.info("a0r3_flow_match_plan_resolved taskId={} matchedFlowId={} matchedRuleId={} serviceCode={} priority={} requiredCapabilities={} ruleIssueSyncPolicy={} flowIssueSyncPolicy={} flowIssuePolicyExplicitlyManaged={} issueSyncPolicySource={} effectiveIssueSyncPolicy={} evaluatedRuleCount={}",
+                    task.getTaskId(), plan.getFlowId(), plan.getRuleId(), plan.getServiceCode(), match.getPriority(), plan.getRequiredSkills(),
+                    match.getRuleIssueSyncPolicy(), match.getFlowIssueSyncPolicy(), match.isFlowIssuePolicyExplicitlyManaged(), plan.getIssueSyncPolicySource(), plan.getIssueSyncPolicy(), evaluation.evaluatedRules().size());
+            return plan;
+        } catch (RuntimeException ex) {
+            log.warn("a0r3_flow_match_failed taskId={} sourceSystem={} eventStage={} eventType={} reason={}",
+                    task.getTaskId(), source, eventStage, eventType, ex.getMessage());
+            return FlowRuleRoutingPlan.notMatched("Flow Rule DB lookup failed: " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+        }
+    }
+
+    private IssuePolicyResolution resolveIssuePolicy(FlowRuleRuntimeMatch match) {
+        String policy = firstNonBlank(match.getIssueSyncPolicy(), "OPTIONAL");
+        String source = firstNonBlank(match.getIssueSyncPolicySource(), "SYSTEM_FALLBACK");
+        boolean inheritedFlowDefault = "FLOW_DEFAULT".equalsIgnoreCase(source)
+                && blank(match.getRuleIssueSyncPolicy());
+        boolean migrationOnlyOptional = inheritedFlowDefault
+                && "OPTIONAL".equalsIgnoreCase(policy)
+                && !match.isFlowIssuePolicyExplicitlyManaged();
+        if (legacyCreateOnCompletedCompatibilityEnabled && migrationOnlyOptional) {
+            log.warn("dispatch_flow_issue_policy_legacy_compatibility_applied flowId={} ruleId={} persistedFlowPolicy={} effectiveIssueSyncPolicy=REQUIRED source=LEGACY_CREATE_ON_COMPLETED_COMPAT reason=MIGRATION_ONLY_FLOW_WITH_LEGACY_CREATE_ON_COMPLETED",
+                    match.getFlowId(), match.getRuleId(), match.getFlowIssueSyncPolicy());
+            return new IssuePolicyResolution("REQUIRED", "LEGACY_CREATE_ON_COMPLETED_COMPAT");
+        }
+        return new IssuePolicyResolution(policy, source);
+    }
+
+    private FlowRuleRuntimeQuery runtimeQuery(TaskRecord task, String eventStage, String source, String target, String eventType, String requestedSkill, Map<String,Object> matchAttributes) {
         FlowRuleRuntimeQuery query = new FlowRuleRuntimeQuery();
         query.setTenantId(task.getTenantId());
         query.setFlowId(cleanIdentifier(task.getMatchedFlowId()));
@@ -267,43 +393,24 @@ public class FlowRuleRoutingService {
         query.setEventType(eventType);
         query.setObjectType(task.getObjectType());
         query.setErrorCode(task.getErrorCode());
+        query.setSeverity(task.getSeverity() == null ? null : task.getSeverity().name());
+        // requestedSkill remains compatibility/evidence input only; Jdbc evaluator never uses it as a match criterion.
         query.setRequestedSkill(requestedSkill);
-        try {
-            return repository.findBestMatch(query).map(match -> {
-                FlowRuleRoutingPlan plan = new FlowRuleRoutingPlan();
-                plan.setMatched(true);
-                plan.setFlowId(match.getFlowId());
-                plan.setRuleId(match.getRuleId());
-                plan.setEventStage(firstNonBlank(match.getEventStage(), eventStage));
-                plan.setRuleScope(firstNonBlank(match.getRuleScope(), scopeFor(eventStage)));
-                String skill = firstNonBlank(match.getRequestedSkill(), firstOf(match.getRequiredSkills()), requestedSkill);
-                plan.setRequestedSkill(skill);
-                plan.setTargetSystem(firstNonBlank(match.getTargetSystem(), target));
-                plan.setHandoffMode(firstNonBlank(match.getHandoffMode(), cleanRoutingToken(task.getHandoffMode())));
-                plan.setRoutingPath(match.isSourceDefaultPool() ? "SOURCE_FLOW_DEFAULT_POOL" : "FLOW_RULE");
-                plan.setRequiredSkills(List.of());
-                plan.setTargetPoolId(match.getTargetPoolId());
-                plan.setTargetPoolCode(match.getTargetPoolCode());
-                plan.setDefaultPoolId(match.getDefaultPoolId());
-                plan.setSelectionStrategy(firstNonBlank(match.getSelectionStrategy(), "LOWEST_LOAD"));
-                plan.setSourceDefaultPool(match.isSourceDefaultPool());
-                plan.setCapabilityRequirementMode("NONE");
-                plan.setRequiredOperation(match.getRequiredOperation());
-                plan.setSideEffectLevel(firstNonBlank(match.getSideEffectLevel(), "NONE"));
-                plan.setCandidatePoolMode(standardCandidatePoolMode(match.getCandidatePoolMode()));
-                plan.setRoutingStrategy(firstNonBlank(match.getRoutingStrategy(), "WEIGHTED_SCORE"));
-                plan.setExplicitActionAuthorizationRequired(match.getExplicitActionAuthorizationRequired());
-                plan.setRequirementModelVersion(match.getRequirementModelVersion());
-                plan.setReason(firstNonBlank(match.getMatchReason(), "Persisted Flow-owned Dispatch Rule matched"));
-                log.info("flow_rule_db_match_resolved taskId={} matchedFlowId={} matchedRuleId={} targetPoolId={} sourceDefaultPool={} eventStage={} sourceSystem={} eventType={} objectType={} errorCode={}",
-                        task.getTaskId(), plan.getFlowId(), plan.getRuleId(), plan.getTargetPoolId(), plan.isSourceDefaultPool(), plan.getEventStage(), source, eventType, normalize(task.getObjectType()), normalize(task.getErrorCode()));
-                return plan;
-            }).orElse(null);
-        } catch (RuntimeException ex) {
-            log.warn("flow_rule_db_match_failed taskId={} sourceSystem={} eventStage={} eventType={} reason={}",
-                    task.getTaskId(), source, eventStage, eventType, ex.getMessage());
-            return FlowRuleRoutingPlan.notMatched("Flow Rule DB lookup failed: " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
-        }
+        query.setMatchAttributes(matchAttributes);
+        return query;
+    }
+
+    /**
+     * Persist A0-R3 FlowMatchDecision only after the Task row is materialized. Calling this more than
+     * once is safe: the JDBC adapter uses deterministic IDs plus a one-authority-decision-per-Task index.
+     */
+    public void recordAuthoritativeDecision(TaskRecord task, FlowRuleRoutingPlan plan) {
+        if (task == null || plan == null || plan.getEvaluation() == null || repository == null) return;
+        String eventStage = firstNonBlank(normalize(task.getEventStage()), "EXTERNAL");
+        String source = firstNonBlank(normalize(task.getSourceSystem()), normalize(task.getOriginSourceSystem()));
+        FlowRuleRuntimeQuery query = runtimeQuery(task, eventStage, source, normalize(task.getTargetSystem()),
+                firstNonBlank(normalize(task.getEventType()), "*"), normalize(task.getRequestedSkill()), plan.getMatchAttributes());
+        repository.recordAuthoritativeDecision(task.getTaskId(), task.getVersion(), query, plan.getEvaluation());
     }
 
     public void applyToTask(TaskRecord task, FlowRuleRoutingPlan plan) {
@@ -320,10 +427,25 @@ public class FlowRuleRoutingService {
         task.setAssignedPoolId(firstNonBlank(plan.getTargetPoolId(), task.getAssignedPoolId()));
         task.setRoutingPath(plan.getRoutingPath());
         task.setRoutingPolicy("FLOW_RULE");
-        task.setRequiredCapabilities(List.of());
-        log.debug("flow_rule_plan_applied taskId={} matchedFlowId={} matchedRuleId={} targetPoolId={} sourceDefaultPool={} eventStage={} targetSystem={} handoffMode={} routingPath={}",
+        if (!blank(plan.getServiceCode())) task.setTaskTypeCode(plan.getServiceCode());
+        task.setRequiredCapabilities(plan.getRequiredSkills());
+        task.setIssueSyncPolicy(issueSyncPolicy(plan.getIssueSyncPolicy()));
+        task.setIssueSyncPolicySource(firstNonBlank(plan.getIssueSyncPolicySource(), "SYSTEM_FALLBACK"));
+        task.setIssueSyncPolicyInheritanceMode("NONE");
+        task.setIssueSyncPolicyInheritedFromTaskId(null);
+        log.debug("flow_rule_plan_applied taskId={} matchedFlowId={} matchedRuleId={} targetPoolId={} sourceDefaultPool={} eventStage={} targetSystem={} handoffMode={} routingPath={} issueSyncPolicy={} issueSyncPolicySource={}",
                 task.getTaskId(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getTargetPoolId(), plan.isSourceDefaultPool(), task.getEventStage(),
-                task.getTargetSystem(), task.getHandoffMode(), task.getRoutingPath());
+                task.getTargetSystem(), task.getHandoffMode(), task.getRoutingPath(), task.getIssueSyncPolicy(), task.getIssueSyncPolicySource());
+    }
+
+    private TaskIssueSyncPolicy issueSyncPolicy(String value) {
+        String normalized = firstNonBlank(normalize(value), "OPTIONAL");
+        try {
+            return TaskIssueSyncPolicy.valueOf(normalized);
+        } catch (IllegalArgumentException ex) {
+            log.warn("flow_rule_issue_sync_policy_invalid value={} fallback=OPTIONAL", value);
+            return TaskIssueSyncPolicy.OPTIONAL;
+        }
     }
 
     private void markNotMatched(Observation observation, String blockingReasonCode) {
@@ -406,4 +528,6 @@ public class FlowRuleRoutingService {
     private boolean blank(String value) {
         return value == null || value.isBlank();
     }
+    private record IssuePolicyResolution(String policy, String source) {}
+
 }

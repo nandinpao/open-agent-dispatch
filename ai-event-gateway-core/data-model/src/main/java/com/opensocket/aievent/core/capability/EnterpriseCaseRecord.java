@@ -1,0 +1,4 @@
+package com.opensocket.aievent.core.capability;
+import java.time.OffsetDateTime;import java.util.List;
+/** Canonical enterprise problem record. External issues are projections; Child Tasks never own the Case. */
+public record EnterpriseCaseRecord(String caseId,String tenantId,String sourceTaskRef,String planId,String runId,String aggregationId,int aggregationVersion,String aggregationArtifactId,String classification,List<String> affectedResources,String rootCause,Double confidence,List<String> recommendedActions,String humanDecision,String accountableRef,String status,int version,String correlationId,String traceId,OffsetDateTime createdAt,OffsetDateTime updatedAt){public EnterpriseCaseRecord{affectedResources=affectedResources==null?List.of():List.copyOf(affectedResources);recommendedActions=recommendedActions==null?List.of():List.copyOf(recommendedActions);}}

@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import java.time.Instant;public record AuthenticatePasswordCommand(String username,char[] password,String requestedTenantId,String ipAddress,String userAgent,String correlationId,Instant occurredAt){}

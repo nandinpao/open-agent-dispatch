@@ -872,6 +872,50 @@
         limit #{limit}
     </select>
 
+
+    <!-- Stage 2: canonical capability_definitions is the only mutable WHAT authority.
+         This projection keeps the existing AgentCapabilityCatalog DTO without granting
+         authority back to agent_capability_catalog. -->
+    <select id="findCanonicalCapabilityByCode" resultMap="AgentCapabilityCatalogMap">
+        select tenant_id, capability_id, capability_code, display_name as capability_name,
+               category, capability_type, semantic_domain as domain,
+               null::text as resource_type, coalesce(operations_json-&gt;&gt;0, 'ANALYZE') as operation,
+               coalesce(data_classes_json-&gt;&gt;0, 'INTERNAL') as data_class, null::text as service_level,
+               false as legacy_task_coupling, 'CANONICAL' as migration_status, description,
+               null::text as task_definition_id, null::text as source_system, null::text as task_type,
+               null::text as risk_level, status, version, null::text as owner_team,
+               false as requires_approval, false as requires_certification, false as requires_runtime_probe,
+               (upper(status) = 'ACTIVE') as is_dispatch_eligible, null::timestamptz as effective_from,
+               case when upper(status) = 'RETIRED' then updated_at else null::timestamptz end as retired_at,
+               jsonb_build_object('authority','CAPABILITY_DEFINITIONS','canonical',true,'referenceOnly',false)::text as metadata_json,
+               created_at, updated_at
+          from capability_definitions
+         where tenant_id = #{tenantId}
+           and lower(capability_code) = lower(#{capabilityCode})
+    </select>
+
+    <select id="searchCanonicalCapabilities" resultMap="AgentCapabilityCatalogMap">
+        select tenant_id, capability_id, capability_code, display_name as capability_name,
+               category, capability_type, semantic_domain as domain,
+               null::text as resource_type, coalesce(operations_json-&gt;&gt;0, 'ANALYZE') as operation,
+               coalesce(data_classes_json-&gt;&gt;0, 'INTERNAL') as data_class, null::text as service_level,
+               false as legacy_task_coupling, 'CANONICAL' as migration_status, description,
+               null::text as task_definition_id, null::text as source_system, null::text as task_type,
+               null::text as risk_level, status, version, null::text as owner_team,
+               false as requires_approval, false as requires_certification, false as requires_runtime_probe,
+               (upper(status) = 'ACTIVE') as is_dispatch_eligible, null::timestamptz as effective_from,
+               case when upper(status) = 'RETIRED' then updated_at else null::timestamptz end as retired_at,
+               jsonb_build_object('authority','CAPABILITY_DEFINITIONS','canonical',true,'referenceOnly',false)::text as metadata_json,
+               created_at, updated_at
+          from capability_definitions
+         where tenant_id = #{tenantId}
+        <if test="status != null and status != ''">
+           and upper(status) = upper(#{status})
+        </if>
+         order by capability_code asc
+         limit #{limit}
+    </select>
+
     <insert id="upsertCapabilityBinding">
         insert into assignment_profile_capability_bindings (
             tenant_id, binding_id, profile_code, capability_code, capability_name, binding_mode,
@@ -1448,7 +1492,7 @@
     <select id="findCapabilityAssignmentByAgentAndCapability" resultMap="AgentCapabilityAssignmentMap">
         select <include refid="CapabilityAssignmentColumns" />
         from agent_capability_assignments
-        where agent_id = #{agentId} and capability_code = #{capabilityCode}
+        where agent_id = #{agentId} and lower(capability_code) = lower(#{capabilityCode})
     </select>
 
     <select id="findCapabilityAssignmentsByAgent" resultMap="AgentCapabilityAssignmentMap">

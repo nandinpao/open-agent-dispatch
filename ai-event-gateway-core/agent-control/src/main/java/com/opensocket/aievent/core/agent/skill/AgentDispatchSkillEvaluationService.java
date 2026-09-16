@@ -140,6 +140,15 @@ public class AgentDispatchSkillEvaluationService {
         enriched.setAgentName(profile.getAgentName());
         enriched.setAgentType(profile.getAgentType());
         enriched.setOwnerTeam(profile.getOwnerTeam());
+        enriched.setOwnerDepartmentId(profile.getOwnerDepartmentId());
+        enriched.setOwnerGroupId(profile.getOwnerGroupId());
+        enriched.setBusinessOwnerUserId(profile.getBusinessOwnerUserId());
+        enriched.setTechnicalStewardUserId(profile.getTechnicalStewardUserId());
+        enriched.setResponsibilityRoleId(profile.getResponsibilityRoleId());
+        enriched.setResponsibilityBindingId(profile.getResponsibilityBindingId());
+        enriched.setOwnershipReviewStatus(profile.getOwnershipReviewStatus());
+        enriched.setOwnershipReviewReason(profile.getOwnershipReviewReason());
+        enriched.setNextOwnershipReviewAt(profile.getNextOwnershipReviewAt());
         enriched.setDescription(profile.getDescription());
         enriched.setApprovalStatus(profile.getApprovalStatus());
         enriched.setEnabled(profile.isEnabled());

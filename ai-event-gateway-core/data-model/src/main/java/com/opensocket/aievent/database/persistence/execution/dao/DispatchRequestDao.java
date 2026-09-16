@@ -29,6 +29,13 @@ public interface DispatchRequestDao {
             @Param("request") DispatchRequestPo request,
             @Param("workerId") String workerId,
             @Param("expectedClaimUntil") OffsetDateTime expectedClaimUntil);
+    int markClaimDispatching(@Param("dispatchRequestId") String dispatchRequestId,
+            @Param("workerId") String workerId, @Param("expectedClaimUntil") OffsetDateTime expectedClaimUntil,
+            @Param("heartbeatAt") OffsetDateTime heartbeatAt);
+    int heartbeatClaim(@Param("dispatchRequestId") String dispatchRequestId,
+            @Param("workerId") String workerId, @Param("expectedClaimUntil") OffsetDateTime expectedClaimUntil,
+            @Param("heartbeatAt") OffsetDateTime heartbeatAt, @Param("extendedUntil") OffsetDateTime extendedUntil);
+    List<DispatchRequestPo> findRecoveryCandidates(@Param("now") OffsetDateTime now, @Param("limit") int limit);
     int transitionStatus(
             @Param("dispatchRequestId") String dispatchRequestId,
             @Param("allowedStatuses") List<String> allowedStatuses,
@@ -44,6 +51,13 @@ public interface DispatchRequestDao {
             @Param("retryWaitingAt") OffsetDateTime retryWaitingAt,
             @Param("nextRetryAt") OffsetDateTime nextRetryAt,
             @Param("updatedAt") OffsetDateTime updatedAt,
-            @Param("clearClaim") boolean clearClaim);
+            @Param("clearClaim") boolean clearClaim,
+            @Param("outboxStatus") String outboxStatus,
+            @Param("ackEvidenceId") String ackEvidenceId,
+            @Param("ackedAt") OffsetDateTime ackedAt,
+            @Param("recoveryClassification") String recoveryClassification,
+            @Param("uncertainSince") OffsetDateTime uncertainSince,
+            @Param("lastReconciledAt") OffsetDateTime lastReconciledAt,
+            @Param("reconciliationCountIncrement") Integer reconciliationCountIncrement);
     List<DispatchRequestPo> recent(@Param("limit") int limit);
 }

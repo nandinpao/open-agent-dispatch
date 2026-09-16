@@ -1,13 +1,13 @@
 package com.opensocket.aievent.database.persistence.agent.converter;
 
-import java.time.OffsetDateTime;
+
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import com.opensocket.aievent.database.persistence.spi.DatabasePersistenceConverter;
-import com.opensocket.aievent.core.agent.AgentQuery;
+
 import com.opensocket.aievent.core.agent.AgentSnapshot;
 import com.opensocket.aievent.core.agent.AgentStatus;
 import com.opensocket.aievent.database.persistence.agent.po.AgentSnapshotPo;
@@ -25,6 +25,7 @@ public class AgentDirectoryPersistenceConverter {
     public AgentSnapshotPo toPo(AgentSnapshot agent) {
             AgentSnapshotPo po = new AgentSnapshotPo();
             po.setAgentId(agent.getAgentId());
+            po.setTenantId(agent.getTenantId());
             po.setAgentType(agent.getAgentType());
             po.setOwnerGatewayNodeId(agent.getOwnerGatewayNodeId());
             po.setAgentSessionId(agent.getAgentSessionId());
@@ -62,6 +63,7 @@ public class AgentDirectoryPersistenceConverter {
     public AgentSnapshot toAgent(AgentSnapshotPo po) {
             AgentSnapshot agent = new AgentSnapshot();
             agent.setAgentId(po.getAgentId());
+            agent.setTenantId(po.getTenantId());
             agent.setAgentType(po.getAgentType());
             agent.setOwnerGatewayNodeId(po.getOwnerGatewayNodeId());
             agent.setAgentSessionId(po.getAgentSessionId());

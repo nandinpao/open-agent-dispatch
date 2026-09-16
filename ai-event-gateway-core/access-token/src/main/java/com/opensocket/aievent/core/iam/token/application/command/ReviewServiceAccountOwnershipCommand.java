@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.token.application.command;import java.time.*;public record ReviewServiceAccountOwnershipCommand(String tenantId,String serviceAccountId,String ownerUserId,String ownerDepartmentId,Instant nextReviewAt,String actorId,String correlationId){}

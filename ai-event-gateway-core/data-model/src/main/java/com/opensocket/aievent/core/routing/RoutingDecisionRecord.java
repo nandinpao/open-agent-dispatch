@@ -6,6 +6,7 @@ import java.util.List;
 public class RoutingDecisionRecord {
     private String decisionId;
     private String taskId;
+    private String tenantId;
     private String incidentId;
     private RoutingPolicy routingPolicy;
     private RoutingDecisionStatus status;
@@ -23,6 +24,8 @@ public class RoutingDecisionRecord {
     public void setDecisionId(String decisionId) { this.decisionId = decisionId; }
     public String getTaskId() { return taskId; }
     public void setTaskId(String taskId) { this.taskId = taskId; }
+    public String getTenantId() { return tenantId; }
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
     public String getIncidentId() { return incidentId; }
     public void setIncidentId(String incidentId) { this.incidentId = incidentId; }
     public RoutingPolicy getRoutingPolicy() { return routingPolicy; }

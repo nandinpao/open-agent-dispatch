@@ -107,9 +107,8 @@ public class AdapterActionExecutionProperties {
         private boolean jiraMockEnabled = false;
         private boolean redmineMockEnabled = false;
         private boolean gitlabMockEnabled = false;
-        private String jiraExecutorName = "jira-issue-executor";
-        private String redmineExecutorName = "redmine-issue-executor";
-        private String gitlabExecutorName = "gitlab-issue-executor";
+        private boolean connectorRuntimeEnabled = true;
+        private boolean connectorRuntimeRequired = true;
         private final Redmine redmine = new Redmine();
         private final Gitlab gitlab = new Gitlab();
 
@@ -121,12 +120,15 @@ public class AdapterActionExecutionProperties {
         public void setRedmineMockEnabled(boolean redmineMockEnabled) { this.redmineMockEnabled = redmineMockEnabled; }
         public boolean isGitlabMockEnabled() { return gitlabMockEnabled; }
         public void setGitlabMockEnabled(boolean gitlabMockEnabled) { this.gitlabMockEnabled = gitlabMockEnabled; }
-        public String getJiraExecutorName() { return jiraExecutorName; }
-        public void setJiraExecutorName(String jiraExecutorName) { this.jiraExecutorName = jiraExecutorName == null ? "jira-issue-executor" : jiraExecutorName; }
-        public String getRedmineExecutorName() { return redmineExecutorName; }
-        public void setRedmineExecutorName(String redmineExecutorName) { this.redmineExecutorName = redmineExecutorName == null ? "redmine-issue-executor" : redmineExecutorName; }
-        public String getGitlabExecutorName() { return gitlabExecutorName; }
-        public void setGitlabExecutorName(String gitlabExecutorName) { this.gitlabExecutorName = gitlabExecutorName == null ? "gitlab-issue-executor" : gitlabExecutorName; }
+        public boolean isConnectorRuntimeEnabled() { return connectorRuntimeEnabled; }
+        public void setConnectorRuntimeEnabled(boolean connectorRuntimeEnabled) { this.connectorRuntimeEnabled = connectorRuntimeEnabled; }
+        public boolean isConnectorRuntimeRequired() { return connectorRuntimeRequired; }
+        public void setConnectorRuntimeRequired(boolean connectorRuntimeRequired) { this.connectorRuntimeRequired = connectorRuntimeRequired; }
+        /** Stage 7 compatibility aliases: accepted by old YAML but never restore scoped-identity authority. */
+        @Deprecated public boolean isScopedIdentityEnabled() { return false; }
+        @Deprecated public void setScopedIdentityEnabled(boolean ignored) { }
+        @Deprecated public boolean isScopedIdentityRequired() { return false; }
+        @Deprecated public void setScopedIdentityRequired(boolean ignored) { }
         public Redmine getRedmine() { return redmine; }
         public Gitlab getGitlab() { return gitlab; }
     }

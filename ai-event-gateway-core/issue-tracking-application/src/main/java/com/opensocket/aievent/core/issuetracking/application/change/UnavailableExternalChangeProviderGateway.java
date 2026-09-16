@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.issuetracking.application.change;
+import com.opensocket.aievent.core.issuetracking.change.*;
+public final class UnavailableExternalChangeProviderGateway implements ExternalChangeProviderGateway { public ProviderSyncResult appendComment(ProviderCommentSyncCommand c){return ProviderSyncResult.failure(true,null,"PROVIDER_GATEWAY_UNAVAILABLE","Scoped provider change gateway is unavailable.");} public ProviderSyncResult createRelation(ProviderRelationSyncCommand c){return ProviderSyncResult.failure(true,null,"PROVIDER_GATEWAY_UNAVAILABLE","Scoped provider change gateway is unavailable.");} public String mode(){return "UNAVAILABLE";} }

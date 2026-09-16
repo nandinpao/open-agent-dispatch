@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,9 +52,15 @@ import com.opensocket.aievent.core.agent.skill.TaskDispatchContractResolveReques
 import com.opensocket.aievent.core.agent.skill.TaskDispatchContractResolveResult;
 import com.opensocket.aievent.core.agent.skill.TaskDispatchContractResolverService;
 import com.opensocket.aievent.core.agent.governance.AgentProfileUpdateCommand;
+import com.opensocket.aievent.core.resourceaccess.contract.ResourceAction;
+import com.opensocket.aievent.core.resourceaccess.contract.ResourceType;
+import com.opensocket.aievent.core.resourceaccess.contract.VisibilityLevel;
+import com.opensocket.aievent.core.resourceaccess.runtime.ScopedBusinessResourceAccessCoordinator;
+
 
 @RestController
 public class AgentSkillRegistryController {
+    private ScopedBusinessResourceAccessCoordinator scopedAccess;
     private final AgentSkillRegistryService skillRegistryService;
     private final AgentGovernanceService agentGovernanceService;
     private final AgentDirectoryService agentDirectoryService;
@@ -74,6 +82,12 @@ public class AgentSkillRegistryController {
             return;
         }
         throw new StandardApiException(StandardApiErrorCode.BAD_REQUEST, message);
+    }
+
+
+    @Autowired(required = false)
+    void setScopedAccess(ObjectProvider<ScopedBusinessResourceAccessCoordinator> provider) {
+        this.scopedAccess = provider == null ? null : provider.getIfAvailable();
     }
 
     @GetMapping("/admin/agent-skills/metadata")
@@ -198,6 +212,7 @@ public class AgentSkillRegistryController {
 
     @GetMapping("/admin/agents/{agentId}/skills/drift")
     public AgentCapabilityDriftReport detectAgentSkillDrift(@PathVariable String agentId) {
+        authorizeAgent(agentId, "admin.agent.skill.registry.detect.agent.skill.drift", ResourceAction.ActionKind.READ, false, "RS3_AGENT_SKILL_DETECTAGENTSKILLDRIFT");
         AgentProfile profile = agentGovernanceService.getProfile(agentId);
         List<AgentRuntimeCapabilityItem> runtimeItems = agentDirectoryService.findRuntimeCapabilityItems(agentId);
         return skillRegistryService.detectAgentDrift(profile, runtimeItems);
@@ -297,6 +312,7 @@ public class AgentSkillRegistryController {
 
     @PostMapping("/admin/agents/{agentId}/skills/remediation-proposal")
     public AgentSkillRemediationProposal proposeAgentSkillRemediation(@PathVariable String agentId) {
+        authorizeAgent(agentId, "admin.agent.skill.registry.propose.agent.skill.remediation", ResourceAction.ActionKind.MANAGE, true, "RS3_AGENT_SKILL_PROPOSEAGENTSKILLREMEDIATION");
         AgentProfile profile = agentGovernanceService.getProfile(agentId);
         List<AgentRuntimeCapabilityItem> runtimeItems = agentDirectoryService.findRuntimeCapabilityItems(agentId);
         return skillRegistryService.proposeAgentRemediation(profile, runtimeItems);
@@ -310,12 +326,14 @@ public class AgentSkillRegistryController {
     @GetMapping("/admin/agents/{agentId}/skills/approved")
     public List<AgentApprovedSkill> getApprovedSkills(@PathVariable String agentId,
                                                       @RequestParam(defaultValue = "true") boolean enabledOnly) {
+        authorizeAgent(agentId, "admin.agent.skill.registry.get.approved.skills", ResourceAction.ActionKind.READ, false, "RS3_AGENT_SKILL_GETAPPROVEDSKILLS");
         return skillRegistryService.getApprovedSkills(agentId, enabledOnly);
     }
 
     @PutMapping("/admin/agents/{agentId}/skills/approved")
     public AgentApprovedSkillSyncResult replaceApprovedSkills(@PathVariable String agentId,
                                                               @RequestBody(required = false) AgentApprovedSkillSyncCommand request) {
+        authorizeAgent(agentId, "admin.agent.skill.registry.replace.approved.skills", ResourceAction.ActionKind.MANAGE, true, "RS3_AGENT_SKILL_REPLACEAPPROVEDSKILLS");
         AgentProfile profile = agentGovernanceService.getProfile(agentId);
         AgentApprovedSkillSyncCommand body = request == null ? new AgentApprovedSkillSyncCommand() : request;
         skillRegistryService.replaceApprovedSkills(agentId, body, profile);
@@ -331,6 +349,7 @@ public class AgentSkillRegistryController {
     @PostMapping("/admin/agents/{agentId}/skills/sync-approved-capabilities")
     public AgentApprovedSkillSyncResult syncApprovedSkillsAndCapabilities(@PathVariable String agentId,
                                                                           @RequestBody(required = false) AgentApprovedSkillSyncCommand request) {
+        authorizeAgent(agentId, "admin.agent.skill.registry.sync.approved.skills.and.capabilities", ResourceAction.ActionKind.MANAGE, true, "RS3_AGENT_SKILL_SYNCAPPROVEDSKILLSANDCAPABILITIES");
         AgentProfile profile = agentGovernanceService.getProfile(agentId);
         AgentApprovedSkillSyncCommand body = request == null ? new AgentApprovedSkillSyncCommand() : request;
         AgentApprovedSkillSyncResult preview = skillRegistryService.buildSyncResult(agentId, profile, body.getSkillCodes(), false, "Preview approved skill/profile capability union before synchronization.");
@@ -344,6 +363,7 @@ public class AgentSkillRegistryController {
     @PostMapping("/admin/agents/{agentId}/skills/evaluate")
     public AgentSkillEvaluationResult evaluateAgentSkill(@PathVariable String agentId,
                                                          @RequestBody(required = false) AgentSkillEvaluationRequest request) {
+        authorizeAgent(agentId, "admin.agent.skill.registry.evaluate.agent.skill", ResourceAction.ActionKind.EXECUTE, true, "RS3_AGENT_SKILL_EVALUATEAGENTSKILL");
         AgentProfile profile = agentGovernanceService.getProfile(agentId);
         List<AgentRuntimeCapabilityItem> runtimeItems = agentDirectoryService.findRuntimeCapabilityItems(agentId);
         return skillRegistryService.evaluate(profile, runtimeItems, request);
@@ -399,6 +419,11 @@ public class AgentSkillRegistryController {
 
 
     public record SkillDriftPolicyEvaluationRequest(String operatorId, Integer limit, boolean persistEvents) {}
+    private void authorizeAgent(String agentId, String permission, ResourceAction.ActionKind kind, boolean sideEffecting, String purpose) {
+        if (scopedAccess == null) return;
+        scopedAccess.authorize(ResourceType.AGENT, agentId, permission, kind, sideEffecting, VisibilityLevel.SENSITIVE, purpose);
+    }
+
     public record SkillDriftPolicyAction(String agentId, String skillCode, String driftType, String severity, String recommendedEnforcement, String suggestedAction) {}
     public record SkillDriftPolicyEvaluationResponse(
             int scannedAgents,

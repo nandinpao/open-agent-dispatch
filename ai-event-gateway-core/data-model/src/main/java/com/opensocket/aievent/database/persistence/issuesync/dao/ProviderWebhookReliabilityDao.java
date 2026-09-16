@@ -1,0 +1,32 @@
+package com.opensocket.aievent.database.persistence.issuesync.dao;
+import java.time.OffsetDateTime; import java.util.*; import org.apache.ibatis.annotations.*;
+import com.opensocket.aievent.database.persistence.issuesync.po.*;
+@Mapper public interface ProviderWebhookReliabilityDao {
+ int upsertInbox(@Param("value") ProviderWebhookInboxPo value);
+ int insertInbox(@Param("value") ProviderWebhookInboxPo value);
+ int updateInboxExpectedVersion(@Param("value") ProviderWebhookInboxPo value,@Param("expectedVersion")long expectedVersion,@Param("claimTokenHash")String claimTokenHash);
+ ProviderWebhookInboxPo findInbox(@Param("tenantId")String tenantId,@Param("inboxId")String inboxId);
+ ProviderWebhookInboxPo findByProviderEvent(@Param("tenantId")String tenantId,@Param("connectionId")String connectionId,@Param("providerEventId")String providerEventId);
+ ProviderWebhookInboxPo findByNonce(@Param("tenantId")String tenantId,@Param("connectionId")String connectionId,@Param("nonce")String nonce);
+ List<ProviderWebhookInboxPo> listInbox(@Param("tenantId")String tenantId,@Param("status")String status,@Param("limit")int limit);
+ List<ProviderWebhookInboxPo> listDue(@Param("now")OffsetDateTime now,@Param("limit")int limit);
+ List<ProviderWebhookInboxPo> claimDue(@Param("now")OffsetDateTime now,@Param("leaseUntil")OffsetDateTime leaseUntil,@Param("workerId")String workerId,@Param("claimTokenHash")String claimTokenHash,@Param("processingAttemptId")String processingAttemptId,@Param("limit")int limit);
+ int recoverStaleClaims(@Param("now")OffsetDateTime now,@Param("limit")int limit);
+ int insertObservation(@Param("value") ExternalIssueObservationPo value);
+ ExternalIssueObservationPo findObservationByInbox(@Param("tenantId")String tenantId,@Param("inboxId")String inboxId);
+ ExternalIssueObservationPo latestObservation(@Param("tenantId")String tenantId,@Param("connectionId")String connectionId,@Param("externalIssueId")String externalIssueId);
+ List<ExternalIssueObservationPo> listObservations(@Param("tenantId")String tenantId,@Param("connectionId")String connectionId,@Param("externalIssueId")String externalIssueId,@Param("limit")int limit);
+ int upsertObservedState(@Param("value") ExternalIssueObservedStatePo value);
+ int upsertObservedStateIfNewer(@Param("value") ExternalIssueObservedStatePo value);
+ ExternalIssueObservedStatePo findObservedState(@Param("tenantId")String tenantId,@Param("connectionId")String connectionId,@Param("externalIssueId")String externalIssueId);
+ int upsertConflict(@Param("value") ExternalIssueConflictPo value);
+ int updateConflictExpectedVersion(@Param("value") ExternalIssueConflictPo value,@Param("expectedVersion")long expectedVersion);
+ ExternalIssueConflictPo findConflict(@Param("tenantId")String tenantId,@Param("conflictId")String conflictId);
+ ExternalIssueConflictPo findConflictByResolutionIdempotency(@Param("tenantId")String tenantId,@Param("idempotencyKey")String idempotencyKey);
+ List<ExternalIssueConflictPo> listConflicts(@Param("tenantId")String tenantId,@Param("status")String status,@Param("limit")int limit);
+ int insertConflictEvent(@Param("value") ExternalIssueConflictEventPo value);
+ ExternalIssueConflictEventPo latestConflictEvent(@Param("tenantId")String tenantId,@Param("conflictId")String conflictId);
+ List<ExternalIssueConflictEventPo> listConflictEvents(@Param("tenantId")String tenantId,@Param("conflictId")String conflictId,@Param("limit")int limit);
+ int insertReplayEvidence(@Param("value") WebhookReplayEvidencePo value);
+ List<WebhookReplayEvidencePo> listReplayEvidence(@Param("tenantId")String tenantId,@Param("inboxId")String inboxId,@Param("limit")int limit);
+}

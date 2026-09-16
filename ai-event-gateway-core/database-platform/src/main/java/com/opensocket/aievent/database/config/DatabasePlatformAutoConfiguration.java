@@ -11,10 +11,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 import com.opensocket.aievent.database.health.DatabasePlatformHealthIndicator;
 
-import tools.jackson.databind.ObjectMapper;
 
 @AutoConfiguration
 @ConditionalOnClass({DataSource.class, SqlSessionFactory.class, Flyway.class})
@@ -28,16 +28,9 @@ public class DatabasePlatformAutoConfiguration {
             ObjectProvider<DataSource> dataSources,
             ObjectProvider<SqlSessionFactory> sqlSessionFactories,
             ObjectProvider<Flyway> flyways,
-            DatabasePlatformProperties properties) {
-        return new DatabasePlatformRuntimeInspector(dataSources, sqlSessionFactories, flyways, properties);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    DatabasePlatformMybatisTypeHandlerRegistrar databasePlatformMybatisTypeHandlerRegistrar(
-            ObjectProvider<SqlSessionFactory> sqlSessionFactories,
-            ObjectMapper objectMapper) {
-        return new DatabasePlatformMybatisTypeHandlerRegistrar(sqlSessionFactories, objectMapper);
+            DatabasePlatformProperties properties,
+            Environment environment) {
+        return new DatabasePlatformRuntimeInspector(dataSources, sqlSessionFactories, flyways, properties, environment);
     }
 
     @Bean(name = "aiEventGatewayDatabasePlatform")

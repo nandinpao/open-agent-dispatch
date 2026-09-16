@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import com.opensocket.aievent.core.iam.authentication.domain.CredentialSubjectType;import java.time.Instant;public record VerifyMfaCommand(CredentialSubjectType subjectType,String subjectId,String code,boolean recoveryCode,String correlationId,Instant occurredAt){}

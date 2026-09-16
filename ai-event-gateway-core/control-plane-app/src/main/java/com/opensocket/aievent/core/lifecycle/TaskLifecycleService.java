@@ -21,6 +21,9 @@ public class TaskLifecycleService {
     public TaskRecord timeout(String taskId,String reason){return facade.timeoutTask(taskId,firstNonBlank(reason,"Manually timed out"),OffsetDateTime.now(ZoneOffset.UTC));}
     public TaskRecord cancel(String taskId,String reason){return facade.cancelTask(taskId,firstNonBlank(reason,"Manually cancelled"),OffsetDateTime.now(ZoneOffset.UTC));}
     public TaskRecord reassign(String taskId,String reason){return facade.reassignTask(taskId,firstNonBlank(reason,"Manually reassigned"),OffsetDateTime.now(ZoneOffset.UTC));}
+    public TaskRecord hold(String taskId,String reason){return facade.holdTask(taskId,firstNonBlank(reason,"Held by Security Incident control"),OffsetDateTime.now(ZoneOffset.UTC));}
+    public TaskRecord resume(String taskId,String reason){return facade.resumeTask(taskId,firstNonBlank(reason,"Released from Security Incident hold"),OffsetDateTime.now(ZoneOffset.UTC));}
+    public TaskRecord forceFail(String taskId,String reason){return facade.forceFailTask(taskId,firstNonBlank(reason,"Force-failed by Security Incident operator"),OffsetDateTime.now(ZoneOffset.UTC));}
     public LifecycleScanResult processTimeoutsAndReassignments(){
         var p=properties.getTask();
         TaskLifecyclePolicy policy=new TaskLifecyclePolicy(p.isTimeoutEnabled(),p.isAutoReassignEnabled(),p.getCreatedTimeout(),p.getAssignedTimeout(),p.getDispatchedTimeout(),p.getRunningTimeout(),p.getMaxReassignments(),p.getMaxBatchSize());

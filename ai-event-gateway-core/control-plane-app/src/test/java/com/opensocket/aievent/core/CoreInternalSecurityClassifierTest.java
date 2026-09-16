@@ -25,6 +25,8 @@ class CoreInternalSecurityClassifierTest {
                 .contains(CoreInternalSecurityRole.GATEWAY);
         assertThat(classifier.requiredRole(request("POST", "/internal/control-plane/tasks/task-001/result")))
                 .contains(CoreInternalSecurityRole.GATEWAY);
+        assertThat(classifier.requiredRole(request("GET", "/internal/control-plane/tasks/task-001/capability-delegations/del-001/closure-evidence")))
+                .contains(CoreInternalSecurityRole.GATEWAY);
         assertThat(classifier.requiredRole(request("POST", "/internal/agents/authorize-connection")))
                 .contains(CoreInternalSecurityRole.GATEWAY);
         assertThat(classifier.requiredRole(request("POST", "/internal/agents/security-events")))
@@ -47,6 +49,13 @@ class CoreInternalSecurityClassifierTest {
         assertThat(classifier.requiredRole(request("GET", "/actuator/info"))).isEmpty();
         assertThat(classifier.requiredRole(request("GET", "/actuator/prometheus")))
                 .contains(CoreInternalSecurityRole.ACTUATOR);
+    }
+
+    @Test
+    void shouldLeaveCanonicalHumanSessionToIamSecurityChain() {
+        assertThat(classifier.requiredRole(request("POST", "/api/session/login"))).isEmpty();
+        assertThat(classifier.requiredRole(request("POST", "/api/session/switch-tenant"))).isEmpty();
+        assertThat(classifier.requiredRole(request("GET", "/api/session"))).isEmpty();
     }
 
     @Test

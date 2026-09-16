@@ -93,6 +93,9 @@ public class DispatchRequestService implements TaskDispatchPort {
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         request.setStatus(immediate ? DispatchRequestStatus.APPROVED : DispatchRequestStatus.RETRY_WAITING);
+        request.setOutboxStatus(immediate ? DispatchOutboxStatus.PENDING : DispatchOutboxStatus.FAILED_RETRYABLE);
+        request.setRecoveryClassification(DispatchRecoveryClassification.NONE);
+        request.setUncertainSince(null);
         request.setReason(reason == null || reason.isBlank() ? (immediate ? queuedReason() : "Dispatch retry scheduled") : reason);
         request.setUpdatedAt(now);
         request.setFailedAt(null);
@@ -125,6 +128,8 @@ public class DispatchRequestService implements TaskDispatchPort {
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         request.setStatus(DispatchRequestStatus.DEAD_LETTER);
+        request.setOutboxStatus(DispatchOutboxStatus.DEAD_LETTER);
+        request.setRecoveryClassification(DispatchRecoveryClassification.RETRY_EXHAUSTED);
         request.setReason(reason == null || reason.isBlank() ? "Moved to dead letter by reviewer" : reason);
         request.setLastError(request.getReason());
         request.setFailedAt(now);
@@ -134,7 +139,7 @@ public class DispatchRequestService implements TaskDispatchPort {
         eventPublisher.publish(new DispatchDeadLetteredEvent(
                 "dispatch-dead-letter-" + saved.getDispatchRequestId() + "-" + saved.getAttemptCount(), saved.getDispatchRequestId(), saved.getAssignmentId(),
                 saved.getTaskId(), saved.getIncidentId(), saved.getAgentId(), saved.getAttemptCount(),
-                saved.getReason(), now));
+                saved.getReason(), saved.getTenantId(), now));
         return saved;
     }
 
@@ -150,6 +155,7 @@ public class DispatchRequestService implements TaskDispatchPort {
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         request.setStatus(DispatchRequestStatus.CANCELLED);
+        request.setOutboxStatus(DispatchOutboxStatus.DEAD_LETTER);
         request.setReason(reason == null || reason.isBlank() ? "Cancelled by reviewer" : reason);
         request.setUpdatedAt(now);
         return repository.save(request);
@@ -160,7 +166,12 @@ public class DispatchRequestService implements TaskDispatchPort {
         DispatchEligibilityService.EligibilityResult eligibility = eligibilityService.check(assignment, task);
         DispatchRequest request = new DispatchRequest();
         request.setDispatchRequestId("dispatch-" + UUID.randomUUID());
+        request.setTenantId(task == null ? assignment.getTenantId() : task.getTenantId());
         request.setAssignmentId(assignment.getAssignmentId());
+        boolean currentA0R7 = "A0-R7-V206".equals(assignment.getExecutionAuthorityVersion());
+        request.setExecutionAuthorityVersion(currentA0R7 ? "A0-R7-V206" : "LEGACY");
+        request.setCanonicalExecutionAssignmentId(currentA0R7 ? assignment.getCanonicalExecutionAssignmentId() : null);
+        request.setAuthorityProvenance(currentA0R7 ? DispatchAuthorityProvenance.A0_R7_CANONICAL : DispatchAuthorityProvenance.LEGACY_COMPATIBILITY);
         request.setTaskId(assignment.getTaskId());
         request.setIncidentId(assignment.getIncidentId());
         request.setAgentId(assignment.getAgentId());
@@ -172,6 +183,11 @@ public class DispatchRequestService implements TaskDispatchPort {
         request.setDispatchMethod(DispatchMethod.INTERNAL_GATEWAY_HTTP);
         request.setGatewayDispatchPath(properties.getGatewayDispatchPath());
         request.setDispatchToken("dispatch-token-" + UUID.randomUUID());
+        request.setDispatchTokenHash(DispatchAssignmentEvidenceService.hash(request.getDispatchToken()));
+        request.setFencingTokenHash(DispatchAssignmentEvidenceService.hash(assignment.getFencingToken()));
+        request.setRuntimeSessionId(assignment.getAgentSessionId());
+        request.setOutboxStatus(DispatchOutboxStatus.PENDING);
+        request.setRecoveryClassification(DispatchRecoveryClassification.NONE);
         request.setCreatedAt(now);
         request.setUpdatedAt(now);
         request.setCommand(command(request, task, assignment));
@@ -251,6 +267,7 @@ public class DispatchRequestService implements TaskDispatchPort {
             command.setTaskType(task.getTaskType() == null ? null : task.getTaskType().name());
             command.setPriority(task.getPriority() == null ? null : task.getPriority().name());
             command.setRoutingPolicy(task.getRoutingPolicy());
+            command.setCorrelationId(task.getCorrelationId());
             command.setRequiredCapabilities(task.getRequiredCapabilities());
             Map<String, Object> input = new LinkedHashMap<>();
             input.put("incidentId", task.getIncidentId());

@@ -1,0 +1,6 @@
+package com.opensocket.aievent.core.issuetracking.relay;
+import java.time.OffsetDateTime; import java.util.Objects;
+public record CanonicalIssueRelation(String tenantId,String relationId,String relationType,String parentTaskId,String childTaskId,String sourceTaskIssueLinkId,String targetTaskIssueLinkId,CanonicalRelationStatus status,long version,OffsetDateTime createdAt,OffsetDateTime updatedAt,String correlationId) {
+ public CanonicalIssueRelation { tenantId=req(tenantId,"tenantId");relationId=req(relationId,"relationId");relationType=req(relationType,"relationType");parentTaskId=req(parentTaskId,"parentTaskId");childTaskId=req(childTaskId,"childTaskId");sourceTaskIssueLinkId=norm(sourceTaskIssueLinkId);targetTaskIssueLinkId=norm(targetTaskIssueLinkId);status=Objects.requireNonNull(status,"status is required");if(version<1)throw new IllegalArgumentException("version must be positive");createdAt=Objects.requireNonNull(createdAt,"createdAt is required");updatedAt=Objects.requireNonNull(updatedAt,"updatedAt is required");correlationId=norm(correlationId); }
+ private static String req(String v,String n){Objects.requireNonNull(v,n+" is required");String x=v.trim();if(x.isEmpty())throw new IllegalArgumentException(n+" is required");return x;} private static String norm(String v){return v==null?"":v.trim();}
+}

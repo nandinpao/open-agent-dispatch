@@ -1,0 +1,6 @@
+package com.opensocket.aievent.core.integration.issue.webhook;
+public enum ExternalIssueConflictClassification {
+ NONE, EXTERNAL_FIELD_CHANGED, EXTERNAL_ISSUE_DELETED, PERMISSION_REVOKED,
+ MAPPING_SCHEMA_DRIFT, DUPLICATE_EXTERNAL_ISSUE, PROVIDER_IDENTITY_CHANGED,
+ STALE_OR_OUT_OF_ORDER_EVENT
+}

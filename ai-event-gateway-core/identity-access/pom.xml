@@ -1,20 +1,19 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version='1.0' encoding='UTF-8'?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>control-plane-parent</artifactId>
-        <version>1.0.0-p25.7.4-p5-callback-transition-governance-fix</version>
+        <version>0.8.2-SNAPSHOT</version>
     </parent>
-
     <artifactId>identity-access</artifactId>
     <name>identity-access</name>
-    <description>Core human identity, roles, permissions, tenant access and session principal contracts.</description>
-
+    <description>Legacy YML/environment human identity compatibility adapter for the Phase 1 migration window.</description>
     <dependencies>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>security-principal-contracts</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -45,4 +44,37 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-legacy-identity-boundary</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>true</searchTransitive>
+                                    <excludes>
+                                        <exclude>com.opensocket:identity-core</exclude>
+                                        <exclude>com.opensocket:organization-access</exclude>
+                                        <exclude>com.opensocket:rbac</exclude>
+                                        <exclude>com.opensocket:authentication</exclude>
+                                        <exclude>com.opensocket:access-token</exclude>
+                                        <exclude>com.opensocket:iam-persistence</exclude>
+                                        <exclude>com.opensocket:iam-api</exclude>
+                                    </excludes>
+                                    <message>identity-access is legacy-only and may depend on security-principal-contracts, not new IAM implementations.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

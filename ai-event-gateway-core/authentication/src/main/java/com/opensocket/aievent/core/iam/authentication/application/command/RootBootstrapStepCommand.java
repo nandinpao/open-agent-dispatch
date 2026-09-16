@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import java.time.Instant;public record RootBootstrapStepCommand(Step step,String actorId,String correlationId,Instant occurredAt,long expectedVersion){public enum Step{PASSWORD_CONFIGURED,MFA_CONFIGURED,TENANT_CREATED,TENANT_ADMIN_CREATED,COMPLETE}}

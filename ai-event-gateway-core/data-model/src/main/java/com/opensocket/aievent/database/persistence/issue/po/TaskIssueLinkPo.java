@@ -5,10 +5,37 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.time.OffsetDateTime;
 
-@Getter
-@Setter
-@NoArgsConstructor
+@Getter @Setter @NoArgsConstructor
 public class TaskIssueLinkPo {
+    private String tenantId;
+    private String linkId;
+    private String connectionId;
+    private String projectMappingId;
+    private String providerType;
+    private String externalProjectId;
+    private String externalProjectKey;
+    private String externalIssueId;
+    private String externalIssueKey;
+    private String externalIssueUrl;
+    private String linkRole;
+    private String linkState;
+    private String projectionStrategy;
+    private String payloadHash;
+    private String idempotencyKey;
+    private long resourceVersion;
+    private String lastProviderEventId;
+    private String conflictStatus;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
+    private String requesterDepartmentId;
+    private String requesterGroupId;
+    private String executorDepartmentId;
+    private String executorGroupId;
+    private String scopeStatus;
+    private String scopeSourceType;
+    private String scopeSourceId;
+    private Long scopeSourceVersion;
+    private OffsetDateTime scopeInheritedAt;
     private String taskId;
     private String incidentId;
     private String dispatchRequestId;
@@ -28,6 +55,17 @@ public class TaskIssueLinkPo {
     private String issueCommentPreview;
     private OffsetDateTime lastSyncedAt;
     private String syncError;
+    private String providerFailureCode;
+    private Integer providerStatusCode;
+    private String providerHealthImpact;
+    private String providerOutcomeCertainty;
+    private String operationFingerprint;
+    private String correlationId;
+    private String a2aRequestId;
+    private String sourceSystemId;
+    private String technicalPrincipalId;
+    private String credentialId;
+    private String credentialVersion;
     private String message;
     private OffsetDateTime lastAdapterActionAt;
     private OffsetDateTime createdAt;

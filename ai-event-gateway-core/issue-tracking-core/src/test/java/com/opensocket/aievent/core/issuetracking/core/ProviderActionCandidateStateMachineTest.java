@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.issuetracking.core;
+import static org.junit.jupiter.api.Assertions.*;import org.junit.jupiter.api.Test;import com.opensocket.aievent.core.issuetracking.change.ProviderActionCandidateStatus;
+class ProviderActionCandidateStateMachineTest {@Test void terminalCandidatesCannotReenterApproval(){var machine=new ProviderActionCandidateStateMachine();assertFalse(machine.allowed(ProviderActionCandidateStatus.EXECUTED,ProviderActionCandidateStatus.APPROVED));assertThrows(IllegalStateException.class,()->machine.requireTransition(ProviderActionCandidateStatus.REJECTED,ProviderActionCandidateStatus.EXECUTION_PENDING));}}

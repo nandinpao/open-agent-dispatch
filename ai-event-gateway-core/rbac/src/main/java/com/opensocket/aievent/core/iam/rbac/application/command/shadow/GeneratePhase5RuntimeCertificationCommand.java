@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.iam.rbac.application.command.shadow;
+public record GeneratePhase5RuntimeCertificationCommand(String sourceVersion,String postgresqlCleanStatus,String postgresqlUpgradeStatus,String applicationContextStatus,String adminUiBuildStatus,String playwrightStatus,String loadTestStatus,String pipelineStatus,String evidenceJson,String actorId,String correlationId,String auditReason){}

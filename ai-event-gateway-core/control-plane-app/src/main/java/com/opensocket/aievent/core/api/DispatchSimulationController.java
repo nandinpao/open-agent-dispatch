@@ -8,16 +8,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.opensocket.aievent.core.dispatch.flow.DispatchSimulationRequest;
 import com.opensocket.aievent.core.dispatch.flow.DispatchSimulationResponse;
-import com.opensocket.aievent.core.routing.RoutingSimulationService;
+import com.opensocket.aievent.core.dispatch.flow.DispatchSimulationApplicationService;
 
 /** Current Dispatch no-side-effect simulation API. */
 @RestController
 @RequestMapping("/admin/dispatch")
 public class DispatchSimulationController {
-    private final RoutingSimulationService routingSimulationService;
+    private final DispatchSimulationApplicationService simulationApplicationService;
 
-    public DispatchSimulationController(RoutingSimulationService routingSimulationService) {
-        this.routingSimulationService = routingSimulationService;
+    public DispatchSimulationController(DispatchSimulationApplicationService simulationApplicationService) {
+        this.simulationApplicationService = simulationApplicationService;
     }
 
     /**
@@ -29,6 +29,6 @@ public class DispatchSimulationController {
                                                @RequestParam String tenantId) {
         DispatchSimulationRequest simulationRequest = request == null ? new DispatchSimulationRequest() : request;
         simulationRequest.setTenantId(tenantId);
-        return routingSimulationService.simulate(simulationRequest);
+        return simulationApplicationService.simulate(simulationRequest);
     }
 }

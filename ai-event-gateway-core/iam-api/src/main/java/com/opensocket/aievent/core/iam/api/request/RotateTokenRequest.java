@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record RotateTokenRequest(@Min(0) @Max(900) long overlapSeconds){}

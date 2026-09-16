@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import com.opensocket.aievent.core.iam.authentication.domain.CredentialSubjectType;import java.time.Instant;public record BeginTotpEnrollmentCommand(CredentialSubjectType subjectType,String subjectId,String accountLabel,String issuer,String actorId,String correlationId,Instant occurredAt){}

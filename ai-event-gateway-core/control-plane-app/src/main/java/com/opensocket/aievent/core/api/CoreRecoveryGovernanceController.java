@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.opensocket.aievent.core.agent.AgentDirectoryFacade;
+import com.opensocket.aievent.core.api.security.ServerActorAuthority;
 import com.opensocket.aievent.core.agent.AgentSnapshot;
 import com.opensocket.aievent.core.assignment.AssignmentDecisionResult;
 import com.opensocket.aievent.core.config.RecoveryGovernanceProperties;
@@ -562,11 +563,12 @@ public class CoreRecoveryGovernanceController {
     }
 
     private String operatorId(RecoveryGovernanceActionRequest request, HttpServletRequest httpRequest, String principal) {
+        String authoritativeActor = ServerActorAuthority.requireActorId();
         String bodyOperator = request == null ? null : trimToNull(request.operatorId());
-        if (recoveryGovernanceProperties.isAllowBodyOperatorIdOverride() && bodyOperator != null) {
-            return bodyOperator;
-        }
-        return firstNonBlank(header(httpRequest, "X-Operator-Id"), principal, bodyOperator, "admin-ui");
+        ServerActorAuthority.rejectSpoofedActor(bodyOperator, authoritativeActor);
+        String headerOperator = header(httpRequest, "X-Operator-Id");
+        ServerActorAuthority.rejectSpoofedActor(headerOperator, authoritativeActor);
+        return authoritativeActor;
     }
 
     private String clientAddress(HttpServletRequest request) {

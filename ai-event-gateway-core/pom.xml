@@ -1,31 +1,60 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version='1.0' encoding='UTF-8'?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.0.6</version>
         <relativePath/>
     </parent>
-
     <groupId>com.opensocket</groupId>
     <artifactId>control-plane-parent</artifactId>
-    <version>1.0.0-p25.7.4-p5-callback-transition-governance-fix</version>
+    <version>0.8.2-SNAPSHOT</version>
     <name>control-plane-parent</name>
     <description>AI Event Gateway Core modular monolith parent.</description>
     <packaging>pom</packaging>
-
     <modules>
         <module>kernel</module>
+        <module>a2a-contracts</module>
         <module>data-model</module>
+        <module>a2a-core</module>
+        <module>a2a-application</module>
+        <module>a2a-persistence</module>
+        <module>a2a-api</module>
+        <module>issue-tracking-contracts</module>
+        <module>issue-tracking-core</module>
+        <module>issue-secret-spi</module>
+        <module>issue-tracking-application</module>
+        <module>issue-secret-env</module>
+        <module>issue-secret-vault</module>
         <module>contracts</module>
         <module>database-platform</module>
         <module>domain-events</module>
         <module>service-contracts</module>
         <module>integration-events</module>
+        <module>security-principal-contracts</module>
+        <module>identity-core</module>
+        <module>organization-access</module>
+        <module>rbac</module>
+        <module>authentication</module>
+        <module>access-token</module>
+        <module>iam-persistence</module>
+        <module>iam-api</module>
+        <module>identity-access</module>
+        <module>resource-access-contracts</module>
+        <module>ui-capability-contracts</module>
+        <module>resource-access-core</module>
+        <module>ui-capability-core</module>
+        <module>ui-access-request-application</module>
+        <module>ui-capability-api</module>
+        <module>resource-access-persistence</module>
+        <module>resource-access-api</module>
+        <module>resource-access-runtime-bridge</module>
+        <module>resource-access-enforcement</module>
+        <module>enforcement-activation-contracts</module>
+        <module>enforcement-activation-core</module>
+        <module>enforcement-activation-application</module>
+        <module>enforcement-activation-persistence</module>
         <module>incident</module>
         <module>event-processing</module>
         <module>agent-control</module>
@@ -33,17 +62,16 @@
         <module>execution-control</module>
         <module>adapter-action</module>
         <module>observability</module>
-        <module>identity-access</module>
         <module>control-plane-app</module>
         <module>adapter-worker-app</module>
     </modules>
-
     <properties>
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <maven.compiler.enablePreview>false</maven.compiler.enablePreview>
+        <maven.compiler.proc>full</maven.compiler.proc>
         <lombok.version>1.18.46</lombok.version>
         <snakeyaml.version>2.4</snakeyaml.version>
         <testcontainers.version>1.21.4</testcontainers.version>
@@ -51,8 +79,9 @@
         <mybatis.version>3.5.19</mybatis.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <archunit.version>1.4.2</archunit.version>
+        <bouncycastle.version>1.80</bouncycastle.version>
     </properties>
-
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -63,6 +92,61 @@
             <dependency>
                 <groupId>com.opensocket</groupId>
                 <artifactId>data-model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>a2a-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>a2a-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>a2a-application</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>a2a-persistence</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>a2a-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>issue-tracking-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>issue-tracking-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>issue-secret-spi</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>issue-tracking-application</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>issue-secret-env</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>issue-secret-vault</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -130,7 +214,76 @@
                 <artifactId>identity-access</artifactId>
                 <version>${project.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>resource-access-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>ui-capability-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>resource-access-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>ui-capability-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>ui-access-request-application</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>ui-capability-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>resource-access-persistence</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>resource-access-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>resource-access-runtime-bridge</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>resource-access-enforcement</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>enforcement-activation-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>enforcement-activation-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>enforcement-activation-application</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>enforcement-activation-persistence</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
@@ -154,9 +307,53 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>security-principal-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>identity-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>organization-access</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>rbac</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>authentication</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>access-token</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>iam-persistence</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>iam-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
-
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -165,7 +362,6 @@
             <optional>true</optional>
         </dependency>
     </dependencies>
-
     <build>
         <pluginManagement>
             <plugins>
@@ -176,6 +372,15 @@
                     <configuration>
                         <release>${maven.compiler.release}</release>
                         <enablePreview>${maven.compiler.enablePreview}</enablePreview>
+                        <!--
+                            JDK 23+ no longer runs annotation processors implicitly.
+                            Lombok is a required compile-time processor for the Core model,
+                            so activate processing and name the processor explicitly.
+                        -->
+                        <proc>full</proc>
+                        <annotationProcessors>
+                            <annotationProcessor>lombok.launch.AnnotationProcessorHider$AnnotationProcessor</annotationProcessor>
+                        </annotationProcessors>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>
@@ -192,7 +397,9 @@
                     <executions>
                         <execution>
                             <id>enforce-jdk25-and-maven</id>
-                            <goals><goal>enforce</goal></goals>
+                            <goals>
+                                <goal>enforce</goal>
+                            </goals>
                             <configuration>
                                 <rules>
                                     <requireJavaVersion>
@@ -236,6 +443,10 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>

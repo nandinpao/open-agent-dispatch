@@ -15,6 +15,17 @@ public class AgentProfilePo {
     private String agentName;
     private String agentType;
     private String ownerTeam;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
+    private String businessOwnerUserId;
+    private String technicalStewardUserId;
+    private String responsibilityRoleId;
+    private String responsibilityBindingId;
+    private String ownershipReviewStatus;
+    private String ownershipReviewReason;
+    private OffsetDateTime nextOwnershipReviewAt;
+    private String serviceDomainId;
+    private String trustZoneId;
     private String description;
     private String approvalStatus;
     private boolean enabled;

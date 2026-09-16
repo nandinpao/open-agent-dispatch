@@ -53,7 +53,7 @@ class AgentGovernanceServiceLatestAuthFailureTest {
     }
 
     @Test
-    void shouldIgnoreSuccessfulAuthorizationWhenLookingForLatestFailure() {
+    void shouldResolveHistoricalFailureAfterLaterSuccessfulAuthorization() {
         AgentGovernanceService service = new AgentGovernanceService(new InMemoryAgentGovernanceRepository());
         approveAgent(service, "redmine-agent-001", "valid-token");
 
@@ -72,8 +72,42 @@ class AgentGovernanceServiceLatestAuthFailureTest {
         AgentLatestAuthFailureResponse response = service.latestAuthFailure("redmine-agent-001");
 
         assertThat(authorized.getDecision()).isEqualTo(AgentAuthorizationDecision.ALLOW);
-        assertThat(response.isHasFailure()).isTrue();
-        assertThat(response.getDenyReason()).isEqualTo("CREDENTIAL_INVALID");
+        assertThat(response.isHasFailure()).isFalse();
+        assertThat(response.getDenyReason()).isNull();
+        assertThat(response.getSummary()).contains("resolved");
+        assertThat(response.getTroubleshooting()).extracting(AgentSetupTroubleshootingStep::getCode)
+                .contains("AUTH_FAILURE_RESOLVED");
+        assertThat(response.getMetadata()).containsKeys("lastResolvedSecurityEventId", "resolvedBySecurityEventId", "resolvedAt");
+    }
+
+
+    @Test
+    void shouldTreatDiscoveryOnlyAsPendingObservationEvenWhenApprovedProfileHasOldCredential() {
+        AgentGovernanceService service = new AgentGovernanceService(new InMemoryAgentGovernanceRepository());
+        approveAgent(service, "redmine-agent-001", "valid-token");
+
+        AgentConnectionAuthorizationRequest bad = new AgentConnectionAuthorizationRequest();
+        bad.setAgentId("redmine-agent-001");
+        bad.setClaimedAgentId("redmine-agent-001");
+        bad.setCredentialToken("wrong-token");
+        service.authorizeConnection(bad);
+
+        AgentConnectionAuthorizationRequest discovery = new AgentConnectionAuthorizationRequest();
+        discovery.setAgentId("redmine-agent-001");
+        discovery.setClaimedAgentId("redmine-agent-001");
+        discovery.setMetadata(java.util.Map.of("gatewayCredentialMode", "DISCOVERY_ONLY"));
+        AgentConnectionAuthorizationResult observed = service.authorizeConnection(discovery);
+
+        AgentLatestAuthFailureResponse response = service.latestAuthFailure("redmine-agent-001");
+
+        assertThat(observed.getDecision()).isEqualTo(AgentAuthorizationDecision.DENY);
+        assertThat(observed.getReason()).isEqualTo(AgentAuthorizationDenyReason.AGENT_NOT_APPROVED);
+        assertThat(response.isHasFailure()).isFalse();
+        assertThat(response.getSummary()).contains("discovery-only").contains("pending governance");
+        assertThat(response.getTroubleshooting()).extracting(AgentSetupTroubleshootingStep::getCode)
+                .contains("DISCOVERY_PENDING_GOVERNANCE");
+        assertThat(response.getMetadata()).containsEntry("latestRuntimeState", "PENDING_GOVERNANCE");
+        assertThat(response.getMetadata()).containsKeys("lastResolvedSecurityEventId", "resolvedBySecurityEventId");
     }
 
     @Test
@@ -122,6 +156,9 @@ class AgentGovernanceServiceLatestAuthFailureTest {
         approval.setAgentType("ISSUE_TRACKING");
         approval.setCredentialToken(token);
         approval.setApprovedBy("test");
+        approval.setOwnerDepartmentId("dept-test");
+        approval.setBusinessOwnerUserId("user-owner");
+        approval.setResponsibilityRoleId("role-agent-runtime");
         service.approveEnrollment(saved.getEnrollmentId(), approval);
     }
 }

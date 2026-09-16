@@ -16,7 +16,7 @@ import com.opensocket.aievent.core.routing.RoutingProperties;
 import com.opensocket.aievent.core.routing.cutover.DispatchCutoverDecision;
 import com.opensocket.aievent.core.routing.cutover.DispatchCutoverService;
 import com.opensocket.aievent.core.routing.cutover.GenericAuthoritativeRoutingResult;
-import com.opensocket.aievent.core.routing.cutover.GenericDispatchAuthoritativeService;
+import com.opensocket.aievent.core.routing.authority.DispatchDecisionEngine;
 import com.opensocket.aievent.core.routing.evidence.RoutingEvidenceBuilder;
 import com.opensocket.aievent.core.task.TaskRecord;
 
@@ -35,18 +35,18 @@ public class GenericAuthorityBridge {
 
     private final RoutingProperties properties;
     private final DispatchCutoverService dispatchCutoverService;
-    private final GenericDispatchAuthoritativeService genericAuthoritativeService;
+    private final DispatchDecisionEngine dispatchDecisionEngine;
     private final RoutingEvidenceBuilder routingEvidenceBuilder;
     private final Function<RoutingDecisionRecord, RoutingDecisionRecord> decisionWriter;
 
     public GenericAuthorityBridge(RoutingProperties properties,
                                   DispatchCutoverService dispatchCutoverService,
-                                  GenericDispatchAuthoritativeService genericAuthoritativeService,
+                                  DispatchDecisionEngine dispatchDecisionEngine,
                                   RoutingEvidenceBuilder routingEvidenceBuilder,
                                   Function<RoutingDecisionRecord, RoutingDecisionRecord> decisionWriter) {
         this.properties = properties;
         this.dispatchCutoverService = dispatchCutoverService;
-        this.genericAuthoritativeService = genericAuthoritativeService;
+        this.dispatchDecisionEngine = dispatchDecisionEngine;
         this.routingEvidenceBuilder = routingEvidenceBuilder == null ? new RoutingEvidenceBuilder() : routingEvidenceBuilder;
         this.decisionWriter = decisionWriter;
     }
@@ -58,7 +58,7 @@ public class GenericAuthorityBridge {
         if (task == null || !flowRuleTask) {
             return null;
         }
-        if (genericAuthoritativeService == null || dispatchCutoverService == null
+        if (dispatchDecisionEngine == null || dispatchCutoverService == null
                 || properties == null || !properties.isGenericAuthoritativeEnabled()) {
             decision.setStatus(RoutingDecisionStatus.NO_CANDIDATE);
             decision.setDecisionReason("P11 generic authority is required for new Flow work and is unavailable");
@@ -84,7 +84,7 @@ public class GenericAuthorityBridge {
                     cutover.getDeterministicBucket(), cutover.getReasonCode());
             return save(decision);
         }
-        GenericAuthoritativeRoutingResult result = genericAuthoritativeService.route(task, excluded);
+        GenericAuthoritativeRoutingResult result = dispatchDecisionEngine.decide(task, excluded);
         decision.setRoutingPolicy(RoutingPolicy.FLOW_RULE);
         decision.setCandidates(result.candidates());
         switch (result.status()) {

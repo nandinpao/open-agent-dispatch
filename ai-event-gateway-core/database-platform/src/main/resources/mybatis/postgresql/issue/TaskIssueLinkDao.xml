@@ -1,86 +1,53 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.opensocket.aievent.database.persistence.issue.dao.TaskIssueLinkDao">
-    <resultMap id="TaskIssueLinkPoMap" type="com.opensocket.aievent.database.persistence.issue.po.TaskIssueLinkPo">
-        <id property="taskId" column="task_id"/>
-        <result property="incidentId" column="incident_id"/>
-        <result property="dispatchRequestId" column="dispatch_request_id"/>
-        <result property="assignmentId" column="assignment_id"/>
-        <result property="agentId" column="agent_id"/>
-        <result property="issueVendor" column="issue_vendor"/>
-        <result property="issueId" column="issue_id"/>
-        <result property="issueUrl" column="issue_url"/>
-        <result property="issueStatus" column="issue_status"/>
-        <result property="syncStatus" column="sync_status"/>
-        <result property="issueActionId" column="issue_action_id"/>
-        <result property="issueActionType" column="issue_action_type"/>
-        <result property="issueActionStatus" column="issue_action_status"/>
-        <result property="issueRetryable" column="issue_retryable"/>
-        <result property="issueCommentMode" column="issue_comment_mode"/>
-        <result property="agentSummary" column="agent_summary"/>
-        <result property="issueCommentPreview" column="issue_comment_preview"/>
-        <result property="lastSyncedAt" column="last_synced_at"/>
-        <result property="syncError" column="sync_error"/>
-        <result property="message" column="message"/>
-        <result property="lastAdapterActionAt" column="last_adapter_action_at"/>
-        <result property="createdAt" column="created_at"/>
-        <result property="updatedAt" column="updated_at"/>
-    </resultMap>
-
-    <sql id="TaskIssueLinkColumns">
-        task_id, incident_id, dispatch_request_id, assignment_id, agent_id,
-        issue_vendor, issue_id, issue_url, issue_status, sync_status,
-        issue_action_id, issue_action_type, issue_action_status, issue_retryable,
-        issue_comment_mode, agent_summary, issue_comment_preview,
-        last_synced_at, sync_error, message, last_adapter_action_at,
-        created_at, updated_at
-    </sql>
-
-    <insert id="upsert">
-        insert into task_issue_links (<include refid="TaskIssueLinkColumns"/>) values (
-            #{link.taskId}, #{link.incidentId}, #{link.dispatchRequestId}, #{link.assignmentId}, #{link.agentId},
-            #{link.issueVendor}, #{link.issueId}, #{link.issueUrl}, #{link.issueStatus}, coalesce(#{link.syncStatus}, 'SYNC_PENDING'),
-            #{link.issueActionId}, #{link.issueActionType}, #{link.issueActionStatus}, #{link.issueRetryable},
-            coalesce(#{link.issueCommentMode}, 'APPEND'), #{link.agentSummary}, #{link.issueCommentPreview},
-            #{link.lastSyncedAt}, #{link.syncError}, #{link.message}, #{link.lastAdapterActionAt},
-            coalesce(#{link.createdAt}, now()), coalesce(#{link.updatedAt}, now())
-        ) on conflict (task_id) do update set
-            incident_id = coalesce(excluded.incident_id, task_issue_links.incident_id),
-            dispatch_request_id = coalesce(excluded.dispatch_request_id, task_issue_links.dispatch_request_id),
-            assignment_id = coalesce(excluded.assignment_id, task_issue_links.assignment_id),
-            agent_id = coalesce(excluded.agent_id, task_issue_links.agent_id),
-            issue_vendor = coalesce(excluded.issue_vendor, task_issue_links.issue_vendor),
-            issue_id = coalesce(excluded.issue_id, task_issue_links.issue_id),
-            issue_url = coalesce(excluded.issue_url, task_issue_links.issue_url),
-            issue_status = coalesce(excluded.issue_status, task_issue_links.issue_status),
-            sync_status = excluded.sync_status,
-            issue_action_id = coalesce(excluded.issue_action_id, task_issue_links.issue_action_id),
-            issue_action_type = coalesce(excluded.issue_action_type, task_issue_links.issue_action_type),
-            issue_action_status = coalesce(excluded.issue_action_status, task_issue_links.issue_action_status),
-            issue_retryable = excluded.issue_retryable,
-            issue_comment_mode = coalesce(excluded.issue_comment_mode, task_issue_links.issue_comment_mode),
-            agent_summary = coalesce(excluded.agent_summary, task_issue_links.agent_summary),
-            issue_comment_preview = coalesce(excluded.issue_comment_preview, task_issue_links.issue_comment_preview),
-            last_synced_at = coalesce(excluded.last_synced_at, task_issue_links.last_synced_at),
-            sync_error = excluded.sync_error,
-            message = coalesce(excluded.message, task_issue_links.message),
-            last_adapter_action_at = coalesce(excluded.last_adapter_action_at, task_issue_links.last_adapter_action_at),
-            updated_at = coalesce(excluded.updated_at, now())
-    </insert>
-
-    <select id="findByTaskId" resultMap="TaskIssueLinkPoMap">
-        select * from task_issue_links where task_id = #{taskId}
-    </select>
-
-    <select id="findByTaskIds" resultMap="TaskIssueLinkPoMap">
-        select * from task_issue_links
-        where task_id in
-        <foreach collection="taskIds" item="taskId" open="(" separator="," close=")">
-            #{taskId}
-        </foreach>
-    </select>
-
-    <select id="recent" resultMap="TaskIssueLinkPoMap">
-        select * from task_issue_links order by updated_at desc limit #{limit}
-    </select>
+ <resultMap id="TaskIssueLinkPoMap" type="com.opensocket.aievent.database.persistence.issue.po.TaskIssueLinkPo">
+  <id property="linkId" column="link_id"/><result property="tenantId" column="tenant_id"/><result property="connectionId" column="connection_id"/><result property="projectMappingId" column="project_mapping_id"/><result property="providerType" column="provider_type"/>
+  <result property="externalProjectId" column="external_project_id"/><result property="externalProjectKey" column="external_project_key"/><result property="externalIssueId" column="external_issue_id"/><result property="externalIssueKey" column="external_issue_key"/><result property="externalIssueUrl" column="external_issue_url"/>
+  <result property="linkRole" column="link_role"/><result property="linkState" column="link_state"/><result property="projectionStrategy" column="projection_strategy"/><result property="payloadHash" column="payload_hash"/><result property="idempotencyKey" column="idempotency_key"/><result property="resourceVersion" column="resource_version"/><result property="lastProviderEventId" column="last_provider_event_id"/><result property="conflictStatus" column="conflict_status"/>
+  <result property="ownerDepartmentId" column="owner_department_id"/><result property="ownerGroupId" column="owner_group_id"/><result property="requesterDepartmentId" column="requester_department_id"/><result property="requesterGroupId" column="requester_group_id"/><result property="executorDepartmentId" column="executor_department_id"/><result property="executorGroupId" column="executor_group_id"/><result property="scopeStatus" column="scope_status"/><result property="scopeSourceType" column="scope_source_type"/><result property="scopeSourceId" column="scope_source_id"/><result property="scopeSourceVersion" column="scope_source_version"/><result property="scopeInheritedAt" column="scope_inherited_at"/>
+  <result property="taskId" column="task_id"/><result property="incidentId" column="incident_id"/><result property="dispatchRequestId" column="dispatch_request_id"/><result property="assignmentId" column="assignment_id"/><result property="agentId" column="agent_id"/>
+  <result property="issueVendor" column="issue_vendor"/><result property="issueId" column="issue_id"/><result property="issueUrl" column="issue_url"/><result property="issueStatus" column="issue_status"/><result property="syncStatus" column="sync_status"/>
+  <result property="issueActionId" column="issue_action_id"/><result property="issueActionType" column="issue_action_type"/><result property="issueActionStatus" column="issue_action_status"/><result property="issueRetryable" column="issue_retryable"/><result property="issueCommentMode" column="issue_comment_mode"/>
+  <result property="agentSummary" column="agent_summary"/><result property="issueCommentPreview" column="issue_comment_preview"/><result property="lastSyncedAt" column="last_synced_at"/><result property="syncError" column="sync_error"/><result property="providerFailureCode" column="provider_failure_code"/><result property="providerStatusCode" column="provider_status_code"/><result property="providerHealthImpact" column="provider_health_impact"/><result property="providerOutcomeCertainty" column="provider_outcome_certainty"/><result property="operationFingerprint" column="operation_fingerprint"/><result property="correlationId" column="correlation_id"/><result property="a2aRequestId" column="a2a_request_id"/><result property="sourceSystemId" column="source_system_id"/><result property="technicalPrincipalId" column="technical_principal_id"/><result property="credentialId" column="credential_id"/><result property="credentialVersion" column="credential_version"/><result property="message" column="message"/><result property="lastAdapterActionAt" column="last_adapter_action_at"/><result property="createdAt" column="created_at"/><result property="updatedAt" column="updated_at"/>
+ </resultMap>
+ <sql id="Columns">tenant_id,link_id,connection_id,project_mapping_id,provider_type,external_project_id,external_project_key,external_issue_id,external_issue_key,external_issue_url,link_role,link_state,projection_strategy,payload_hash,idempotency_key,resource_version,last_provider_event_id,conflict_status,owner_department_id,owner_group_id,requester_department_id,requester_group_id,executor_department_id,executor_group_id,scope_status,scope_source_type,scope_source_id,scope_source_version,scope_inherited_at,task_id,incident_id,dispatch_request_id,assignment_id,agent_id,issue_vendor,issue_id,issue_url,issue_status,sync_status,issue_action_id,issue_action_type,issue_action_status,issue_retryable,issue_comment_mode,agent_summary,issue_comment_preview,last_synced_at,sync_error,provider_failure_code,provider_status_code,provider_health_impact,provider_outcome_certainty,operation_fingerprint,correlation_id,a2a_request_id,source_system_id,technical_principal_id,credential_id,credential_version,message,last_adapter_action_at,created_at,updated_at</sql>
+ <insert id="upsert">
+  insert into task_issue_links(<include refid="Columns"/>) values(
+   #{link.tenantId},#{link.linkId},#{link.connectionId},#{link.projectMappingId},#{link.providerType},#{link.externalProjectId},#{link.externalProjectKey},#{link.externalIssueId},#{link.externalIssueKey},#{link.externalIssueUrl},coalesce(#{link.linkRole},'PRIMARY'),coalesce(#{link.linkState},'INTERNAL_LINK'),coalesce(#{link.projectionStrategy},'CREATE_NEW_ISSUE'),#{link.payloadHash},#{link.idempotencyKey},coalesce(#{link.resourceVersion},1),#{link.lastProviderEventId},#{link.conflictStatus},#{link.ownerDepartmentId},#{link.ownerGroupId},#{link.requesterDepartmentId},#{link.requesterGroupId},#{link.executorDepartmentId},#{link.executorGroupId},coalesce(#{link.scopeStatus},'UNRESOLVED'),coalesce(#{link.scopeSourceType},'TASK'),#{link.scopeSourceId},#{link.scopeSourceVersion},#{link.scopeInheritedAt},#{link.taskId},#{link.incidentId},#{link.dispatchRequestId},#{link.assignmentId},#{link.agentId},#{link.issueVendor},#{link.issueId},#{link.issueUrl},#{link.issueStatus},coalesce(#{link.syncStatus},'PENDING'),#{link.issueActionId},#{link.issueActionType},#{link.issueActionStatus},#{link.issueRetryable},coalesce(#{link.issueCommentMode},'APPEND'),#{link.agentSummary},#{link.issueCommentPreview},#{link.lastSyncedAt},#{link.syncError},#{link.providerFailureCode},#{link.providerStatusCode},#{link.providerHealthImpact},#{link.providerOutcomeCertainty},#{link.operationFingerprint},#{link.correlationId},#{link.a2aRequestId},#{link.sourceSystemId},#{link.technicalPrincipalId},#{link.credentialId},#{link.credentialVersion},#{link.message},#{link.lastAdapterActionAt},coalesce(#{link.createdAt},now()),coalesce(#{link.updatedAt},now())
+  ) on conflict(link_id) do update set
+   connection_id=coalesce(excluded.connection_id,task_issue_links.connection_id),project_mapping_id=coalesce(excluded.project_mapping_id,task_issue_links.project_mapping_id),provider_type=coalesce(excluded.provider_type,task_issue_links.provider_type),external_project_id=coalesce(excluded.external_project_id,task_issue_links.external_project_id),external_project_key=coalesce(excluded.external_project_key,task_issue_links.external_project_key),external_issue_id=coalesce(excluded.external_issue_id,task_issue_links.external_issue_id),external_issue_key=coalesce(excluded.external_issue_key,task_issue_links.external_issue_key),external_issue_url=coalesce(excluded.external_issue_url,task_issue_links.external_issue_url),issue_vendor=coalesce(excluded.issue_vendor,task_issue_links.issue_vendor),issue_id=coalesce(excluded.issue_id,task_issue_links.issue_id),issue_url=coalesce(excluded.issue_url,task_issue_links.issue_url),issue_status=coalesce(excluded.issue_status,task_issue_links.issue_status),link_state=excluded.link_state,sync_status=excluded.sync_status,issue_action_id=coalesce(excluded.issue_action_id,task_issue_links.issue_action_id),issue_action_type=coalesce(excluded.issue_action_type,task_issue_links.issue_action_type),issue_action_status=coalesce(excluded.issue_action_status,task_issue_links.issue_action_status),issue_retryable=excluded.issue_retryable,agent_summary=coalesce(excluded.agent_summary,task_issue_links.agent_summary),issue_comment_preview=coalesce(excluded.issue_comment_preview,task_issue_links.issue_comment_preview),last_synced_at=coalesce(excluded.last_synced_at,task_issue_links.last_synced_at),sync_error=excluded.sync_error,provider_failure_code=excluded.provider_failure_code,provider_status_code=excluded.provider_status_code,provider_health_impact=excluded.provider_health_impact,provider_outcome_certainty=excluded.provider_outcome_certainty,operation_fingerprint=coalesce(excluded.operation_fingerprint,task_issue_links.operation_fingerprint),correlation_id=coalesce(excluded.correlation_id,task_issue_links.correlation_id),a2a_request_id=coalesce(excluded.a2a_request_id,task_issue_links.a2a_request_id),source_system_id=coalesce(excluded.source_system_id,task_issue_links.source_system_id),technical_principal_id=coalesce(excluded.technical_principal_id,task_issue_links.technical_principal_id),credential_id=coalesce(excluded.credential_id,task_issue_links.credential_id),credential_version=coalesce(excluded.credential_version,task_issue_links.credential_version),message=coalesce(excluded.message,task_issue_links.message),last_provider_event_id=coalesce(excluded.last_provider_event_id,task_issue_links.last_provider_event_id),conflict_status=excluded.conflict_status,requester_department_id=coalesce(excluded.requester_department_id,task_issue_links.requester_department_id),requester_group_id=coalesce(excluded.requester_group_id,task_issue_links.requester_group_id),executor_department_id=coalesce(excluded.executor_department_id,task_issue_links.executor_department_id),executor_group_id=coalesce(excluded.executor_group_id,task_issue_links.executor_group_id),resource_version=task_issue_links.resource_version+1,updated_at=now()
+ </insert>
+ <select id="findByTenantAndLinkId" resultMap="TaskIssueLinkPoMap">
+  select * from task_issue_links
+  <where>
+   link_id=#{linkId}
+   <if test="tenantId != null and tenantId != ''">and tenant_id=#{tenantId}</if>
+  </where>
+ </select>
+ <select id="findByTenantAndIdempotencyKey" resultMap="TaskIssueLinkPoMap">select * from task_issue_links where tenant_id=#{tenantId} and idempotency_key=#{idempotencyKey}</select>
+ <select id="findByExternalIssue" resultMap="TaskIssueLinkPoMap">select * from task_issue_links where tenant_id=#{tenantId} and connection_id=#{connectionId} and external_project_id=#{externalProjectId} and external_issue_id=#{externalIssueId} order by updated_at desc limit 1</select>
+ <select id="findAllByTenantAndTaskId" resultMap="TaskIssueLinkPoMap">
+  select * from task_issue_links
+  <where>
+   task_id=#{taskId}
+   <if test="tenantId != null and tenantId != ''">and tenant_id=#{tenantId}</if>
+  </where>
+  order by case when link_role='PRIMARY' then 0 else 1 end,updated_at desc
+ </select>
+ <select id="findAllByTenantAndTaskIds" resultMap="TaskIssueLinkPoMap">
+  select * from task_issue_links
+  <where>
+   task_id in <foreach collection="taskIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+   <if test="tenantId != null and tenantId != ''">and tenant_id=#{tenantId}</if>
+  </where>
+  order by updated_at desc
+ </select>
+ <select id="recent" resultMap="TaskIssueLinkPoMap">
+  select * from task_issue_links
+  <where>
+   <if test="tenantId != null and tenantId != ''">tenant_id=#{tenantId}</if>
+  </where>
+  order by updated_at desc limit #{limit}
+ </select>
 </mapper>

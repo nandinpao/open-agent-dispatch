@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.issuesync.dao.IssueSyncDao">
+<resultMap id="RelMap" type="com.opensocket.aievent.database.persistence.issuesync.po.IssueRelationshipPo">
+ <id property="tenantId" column="tenant_id"/>
+ <result property="relationshipId" column="relationship_id"/>
+ <result property="fromTaskIssueLinkId" column="from_task_issue_link_id"/>
+ <result property="toTaskIssueLinkId" column="to_task_issue_link_id"/>
+ <result property="relationshipType" column="relationship_type"/>
+ <result property="providerRelationId" column="provider_relation_id"/>
+ <result property="syncStatus" column="sync_status"/>
+ <result property="payloadHash" column="payload_hash"/>
+ <result property="idempotencyKey" column="idempotency_key"/>
+ <result property="lastErrorCode" column="last_error_code"/>
+ <result property="lastErrorMessage" column="last_error_message"/>
+ <result property="resourceVersion" column="resource_version"/>
+ <result property="createdAt" column="created_at"/>
+ <result property="updatedAt" column="updated_at"/>
+</resultMap>
+<resultMap id="OutMap" type="com.opensocket.aievent.database.persistence.issuesync.po.IntegrationOutboxPo">
+ <id property="tenantId" column="tenant_id"/>
+ <result property="outboxId" column="outbox_id"/>
+ <result property="aggregateType" column="aggregate_type"/>
+ <result property="aggregateId" column="aggregate_id"/>
+ <result property="taskId" column="task_id"/>
+ <result property="taskIssueLinkId" column="task_issue_link_id"/>
+ <result property="issueRelationshipId" column="issue_relationship_id"/>
+ <result property="connectionId" column="connection_id"/>
+ <result property="projectMappingId" column="project_mapping_id"/>
+ <result property="operationType" column="operation_type"/>
+ <result property="eventType" column="event_type"/>
+ <result property="payloadJson" column="payload_json"/>
+ <result property="payloadHash" column="payload_hash"/>
+ <result property="idempotencyKey" column="idempotency_key"/>
+ <result property="status" column="status"/>
+ <result property="priority" column="priority"/>
+ <result property="attemptCount" column="attempt_count"/>
+ <result property="maxAttempts" column="max_attempts"/>
+ <result property="nextAttemptAt" column="next_attempt_at"/>
+ <result property="claimedBy" column="claimed_by"/>
+ <result property="claimUntil" column="claim_until"/>
+ <result property="lastErrorCode" column="last_error_code"/>
+ <result property="lastErrorMessage" column="last_error_message"/>
+ <result property="correlationId" column="correlation_id"/>
+ <result property="causationId" column="causation_id"/>
+ <result property="createdAt" column="created_at"/>
+ <result property="updatedAt" column="updated_at"/>
+ <result property="completedAt" column="completed_at"/>
+</resultMap>
+<resultMap id="InMap" type="com.opensocket.aievent.database.persistence.issuesync.po.IntegrationInboxPo">
+ <id property="tenantId" column="tenant_id"/>
+ <result property="inboxId" column="inbox_id"/>
+ <result property="connectionId" column="connection_id"/>
+ <result property="providerType" column="provider_type"/>
+ <result property="providerEventId" column="provider_event_id"/>
+ <result property="eventType" column="event_type"/>
+ <result property="externalProjectId" column="external_project_id"/>
+ <result property="externalIssueId" column="external_issue_id"/>
+ <result property="signatureVerified" column="signature_verified"/>
+ <result property="payloadJson" column="payload_json"/>
+ <result property="payloadHash" column="payload_hash"/>
+ <result property="status" column="status"/>
+ <result property="replayCount" column="replay_count"/>
+ <result property="receivedAt" column="received_at"/>
+ <result property="processedAt" column="processed_at"/>
+ <result property="lastErrorCode" column="last_error_code"/>
+ <result property="lastErrorMessage" column="last_error_message"/>
+ <result property="correlationId" column="correlation_id"/>
+</resultMap>
+<resultMap id="AttemptMap" type="com.opensocket.aievent.database.persistence.issuesync.po.IntegrationSyncAttemptPo">
+ <id property="tenantId" column="tenant_id"/>
+ <result property="attemptId" column="attempt_id"/>
+ <result property="outboxId" column="outbox_id"/>
+ <result property="attemptNo" column="attempt_no"/>
+ <result property="workerId" column="worker_id"/>
+ <result property="status" column="status"/>
+ <result property="providerStatus" column="provider_status"/>
+ <result property="requestPayloadHash" column="request_payload_hash"/>
+ <result property="responseSummary" column="response_summary"/>
+ <result property="retryable" column="retryable"/>
+ <result property="errorCode" column="error_code"/>
+ <result property="errorMessage" column="error_message"/>
+ <result property="startedAt" column="started_at"/>
+ <result property="completedAt" column="completed_at"/>
+ <result property="correlationId" column="correlation_id"/>
+</resultMap>
+<resultMap id="DeadMap" type="com.opensocket.aievent.database.persistence.issuesync.po.IntegrationDeadLetterPo">
+ <id property="tenantId" column="tenant_id"/>
+ <result property="deadLetterId" column="dead_letter_id"/>
+ <result property="outboxId" column="outbox_id"/>
+ <result property="taskId" column="task_id"/>
+ <result property="taskIssueLinkId" column="task_issue_link_id"/>
+ <result property="operationType" column="operation_type"/>
+ <result property="payloadJson" column="payload_json"/>
+ <result property="payloadHash" column="payload_hash"/>
+ <result property="failureCode" column="failure_code"/>
+ <result property="failureMessage" column="failure_message"/>
+ <result property="attemptCount" column="attempt_count"/>
+ <result property="status" column="status"/>
+ <result property="openedAt" column="opened_at"/>
+ <result property="retriedAt" column="retried_at"/>
+ <result property="resolvedAt" column="resolved_at"/>
+ <result property="resolvedBy" column="resolved_by"/>
+ <result property="resolutionReason" column="resolution_reason"/>
+ <result property="correlationId" column="correlation_id"/>
+</resultMap>
+<resultMap id="ConflictMap" type="com.opensocket.aievent.database.persistence.issuesync.po.IntegrationConflictPo">
+ <id property="tenantId" column="tenant_id"/>
+ <result property="conflictId" column="conflict_id"/>
+ <result property="taskId" column="task_id"/>
+ <result property="taskIssueLinkId" column="task_issue_link_id"/>
+ <result property="inboxId" column="inbox_id"/>
+ <result property="conflictType" column="conflict_type"/>
+ <result property="taskStatus" column="task_status"/>
+ <result property="externalIssueStatus" column="external_issue_status"/>
+ <result property="detailJson" column="detail_json"/>
+ <result property="status" column="status"/>
+ <result property="detectedAt" column="detected_at"/>
+ <result property="resolvedAt" column="resolved_at"/>
+ <result property="resolvedBy" column="resolved_by"/>
+ <result property="resolutionAction" column="resolution_action"/>
+ <result property="resolutionReason" column="resolution_reason"/>
+ <result property="correlationId" column="correlation_id"/>
+</resultMap>
+<resultMap id="CircuitMap" type="com.opensocket.aievent.database.persistence.issuesync.po.IntegrationCircuitBreakerPo">
+ <id property="tenantId" column="tenant_id"/>
+ <result property="connectionId" column="connection_id"/>
+ <result property="projectMappingId" column="project_mapping_id"/>
+ <result property="state" column="state"/>
+ <result property="consecutiveFailures" column="consecutive_failures"/>
+ <result property="failureThreshold" column="failure_threshold"/>
+ <result property="openedAt" column="opened_at"/>
+ <result property="nextProbeAt" column="next_probe_at"/>
+ <result property="lastSuccessAt" column="last_success_at"/>
+ <result property="lastFailureAt" column="last_failure_at"/>
+ <result property="lastErrorCode" column="last_error_code"/>
+ <result property="updatedAt" column="updated_at"/>
+</resultMap>
+
+<insert id="upsertRelationship">insert into issue_relationships(tenant_id,relationship_id,from_task_issue_link_id,to_task_issue_link_id,relationship_type,provider_relation_id,sync_status,payload_hash,idempotency_key,last_error_code,last_error_message,resource_version,created_at,updated_at)
+values(#{value.tenantId},#{value.relationshipId},#{value.fromTaskIssueLinkId},#{value.toTaskIssueLinkId},#{value.relationshipType},#{value.providerRelationId},#{value.syncStatus},#{value.payloadHash},#{value.idempotencyKey},#{value.lastErrorCode},#{value.lastErrorMessage},#{value.resourceVersion},#{value.createdAt},#{value.updatedAt})
+on conflict(tenant_id,relationship_id) do update set provider_relation_id=coalesce(excluded.provider_relation_id,issue_relationships.provider_relation_id),sync_status=excluded.sync_status,last_error_code=excluded.last_error_code,last_error_message=excluded.last_error_message,resource_version=issue_relationships.resource_version+1,updated_at=now()</insert>
+<select id="findRelationship" resultMap="RelMap">select * from issue_relationships where tenant_id=#{tenantId} and relationship_id=#{relationshipId}</select>
+<select id="listRelationships" resultMap="RelMap">select * from issue_relationships where tenant_id=#{tenantId} and (from_task_issue_link_id=#{linkId} or to_task_issue_link_id=#{linkId}) order by created_at desc limit #{limit}</select>
+
+<select id="listDueTenants" resultType="string">select distinct tenant_id from integration_outbox where status in ('PENDING','FAILED_RETRYABLE') and next_attempt_at&lt;=#{now} and (claim_until is null or claim_until&lt;#{now}) order by tenant_id limit #{limit}</select>
+<insert id="upsertOutbox">insert into integration_outbox(tenant_id,outbox_id,aggregate_type,aggregate_id,task_id,task_issue_link_id,issue_relationship_id,connection_id,project_mapping_id,operation_type,event_type,payload_json,payload_hash,idempotency_key,status,priority,attempt_count,max_attempts,next_attempt_at,claimed_by,claim_until,last_error_code,last_error_message,correlation_id,causation_id,created_at,updated_at,completed_at)
+values(#{value.tenantId},#{value.outboxId},#{value.aggregateType},#{value.aggregateId},#{value.taskId},#{value.taskIssueLinkId},#{value.issueRelationshipId},#{value.connectionId},#{value.projectMappingId},#{value.operationType},#{value.eventType},cast(#{value.payloadJson} as jsonb),#{value.payloadHash},#{value.idempotencyKey},#{value.status},#{value.priority},#{value.attemptCount},#{value.maxAttempts},#{value.nextAttemptAt},#{value.claimedBy},#{value.claimUntil},#{value.lastErrorCode},#{value.lastErrorMessage},#{value.correlationId},#{value.causationId},#{value.createdAt},#{value.updatedAt},#{value.completedAt})
+on conflict(tenant_id,outbox_id) do update set status=excluded.status,attempt_count=excluded.attempt_count,next_attempt_at=excluded.next_attempt_at,claimed_by=excluded.claimed_by,claim_until=excluded.claim_until,last_error_code=excluded.last_error_code,last_error_message=excluded.last_error_message,updated_at=now(),completed_at=excluded.completed_at</insert>
+<select id="findOutbox" resultMap="OutMap">select * from integration_outbox where tenant_id=#{tenantId} and outbox_id=#{outboxId}</select>
+<select id="findOutboxByIdempotencyKey" resultMap="OutMap">select * from integration_outbox where tenant_id=#{tenantId} and idempotency_key=#{idempotencyKey}</select>
+<select id="claimDue" resultMap="OutMap">with due as (select outbox_id from integration_outbox where tenant_id=#{tenantId} and status in ('PENDING','FAILED_RETRYABLE') and next_attempt_at&lt;=#{now} and (claim_until is null or claim_until&lt;#{now}) order by priority,created_at for update skip locked limit #{limit}) update integration_outbox o set status='CLAIMED',claimed_by=#{workerId},claim_until=#{claimUntil},updated_at=now() from due where o.tenant_id=#{tenantId} and o.outbox_id=due.outbox_id returning o.*</select>
+
+<insert id="upsertInbox">insert into integration_inbox(tenant_id,inbox_id,connection_id,provider_type,provider_event_id,event_type,external_project_id,external_issue_id,signature_verified,payload_json,payload_hash,status,replay_count,received_at,processed_at,last_error_code,last_error_message,correlation_id)
+values(#{value.tenantId},#{value.inboxId},#{value.connectionId},#{value.providerType},#{value.providerEventId},#{value.eventType},#{value.externalProjectId},#{value.externalIssueId},#{value.signatureVerified},cast(#{value.payloadJson} as jsonb),#{value.payloadHash},#{value.status},#{value.replayCount},#{value.receivedAt},#{value.processedAt},#{value.lastErrorCode},#{value.lastErrorMessage},#{value.correlationId})
+on conflict(tenant_id,inbox_id) do update set status=excluded.status,replay_count=excluded.replay_count,processed_at=excluded.processed_at,last_error_code=excluded.last_error_code,last_error_message=excluded.last_error_message,row_version=integration_inbox.row_version+1</insert>
+<select id="findInboxByProviderEvent" resultMap="InMap">select * from integration_inbox where tenant_id=#{tenantId} and connection_id=#{connectionId} and provider_event_id=#{providerEventId}</select>
+<select id="listInbox" resultMap="InMap">select * from integration_inbox where tenant_id=#{tenantId} order by received_at desc limit #{limit}</select>
+
+<insert id="insertAttempt">insert into integration_sync_attempts(tenant_id,attempt_id,outbox_id,attempt_no,worker_id,status,provider_status,request_payload_hash,response_summary,retryable,error_code,error_message,started_at,completed_at,correlation_id) values(#{value.tenantId},#{value.attemptId},#{value.outboxId},#{value.attemptNo},#{value.workerId},#{value.status},#{value.providerStatus},#{value.requestPayloadHash},#{value.responseSummary},#{value.retryable},#{value.errorCode},#{value.errorMessage},#{value.startedAt},#{value.completedAt},#{value.correlationId})</insert>
+<select id="listAttempts" resultMap="AttemptMap">select * from integration_sync_attempts where tenant_id=#{tenantId} and outbox_id=#{outboxId} order by attempt_no limit #{limit}</select>
+
+<insert id="upsertDeadLetter">insert into integration_dead_letters(tenant_id,dead_letter_id,outbox_id,task_id,task_issue_link_id,operation_type,payload_json,payload_hash,failure_code,failure_message,attempt_count,status,opened_at,retried_at,resolved_at,resolved_by,resolution_reason,correlation_id) values(#{value.tenantId},#{value.deadLetterId},#{value.outboxId},#{value.taskId},#{value.taskIssueLinkId},#{value.operationType},cast(#{value.payloadJson} as jsonb),#{value.payloadHash},#{value.failureCode},#{value.failureMessage},#{value.attemptCount},#{value.status},#{value.openedAt},#{value.retriedAt},#{value.resolvedAt},#{value.resolvedBy},#{value.resolutionReason},#{value.correlationId}) on conflict(tenant_id,dead_letter_id) do update set status=excluded.status,retried_at=excluded.retried_at,resolved_at=excluded.resolved_at,resolved_by=excluded.resolved_by,resolution_reason=excluded.resolution_reason</insert>
+<select id="findDeadLetter" resultMap="DeadMap">select * from integration_dead_letters where tenant_id=#{tenantId} and dead_letter_id=#{deadLetterId}</select>
+<select id="findDeadLetterByOutbox" resultMap="DeadMap">select * from integration_dead_letters where tenant_id=#{tenantId} and outbox_id=#{outboxId}</select>
+<select id="listDeadLetters" resultMap="DeadMap">select * from integration_dead_letters where tenant_id=#{tenantId} and (#{status} is null or status=#{status}) order by opened_at desc limit #{limit}</select>
+
+<insert id="upsertConflict">insert into integration_conflicts(tenant_id,conflict_id,task_id,task_issue_link_id,inbox_id,conflict_type,task_status,external_issue_status,detail_json,status,detected_at,resolved_at,resolved_by,resolution_action,resolution_reason,correlation_id) values(#{value.tenantId},#{value.conflictId},#{value.taskId},#{value.taskIssueLinkId},#{value.inboxId},#{value.conflictType},#{value.taskStatus},#{value.externalIssueStatus},cast(#{value.detailJson} as jsonb),#{value.status},#{value.detectedAt},#{value.resolvedAt},#{value.resolvedBy},#{value.resolutionAction},#{value.resolutionReason},#{value.correlationId}) on conflict(tenant_id,conflict_id) do update set status=excluded.status,resolved_at=excluded.resolved_at,resolved_by=excluded.resolved_by,resolution_action=excluded.resolution_action,resolution_reason=excluded.resolution_reason</insert>
+<select id="findConflict" resultMap="ConflictMap">select * from integration_conflicts where tenant_id=#{tenantId} and conflict_id=#{conflictId}</select>
+<select id="listConflicts" resultMap="ConflictMap">select * from integration_conflicts where tenant_id=#{tenantId} and (#{status} is null or status=#{status}) order by detected_at desc limit #{limit}</select>
+
+<insert id="upsertCircuitBreaker">insert into integration_circuit_breakers(tenant_id,connection_id,project_mapping_id,state,consecutive_failures,failure_threshold,opened_at,next_probe_at,last_success_at,last_failure_at,last_error_code,updated_at) values(#{value.tenantId},#{value.connectionId},#{value.projectMappingId},#{value.state},#{value.consecutiveFailures},#{value.failureThreshold},#{value.openedAt},#{value.nextProbeAt},#{value.lastSuccessAt},#{value.lastFailureAt},#{value.lastErrorCode},#{value.updatedAt}) on conflict(tenant_id,connection_id) do update set state=excluded.state,consecutive_failures=excluded.consecutive_failures,failure_threshold=excluded.failure_threshold,opened_at=excluded.opened_at,next_probe_at=excluded.next_probe_at,last_success_at=excluded.last_success_at,last_failure_at=excluded.last_failure_at,last_error_code=excluded.last_error_code,updated_at=excluded.updated_at</insert>
+<select id="findCircuitBreaker" resultMap="CircuitMap">select * from integration_circuit_breakers where tenant_id=#{tenantId} and connection_id=#{connectionId}</select>
+
+</mapper>

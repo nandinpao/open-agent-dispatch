@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.a2a.dao.A2APolicyDao">
+ <resultMap id="Map" type="com.opensocket.aievent.database.persistence.a2a.po.A2APolicyPo">
+  <id property="policyId" column="policy_id"/><result property="tenantId" column="tenant_id"/><result property="policyCode" column="policy_code"/><result property="policyName" column="policy_name"/>
+  <result property="sourceDomainId" column="source_domain_id"/><result property="sourceDepartmentId" column="source_department_id"/><result property="sourceGroupId" column="source_group_id"/><result property="sourceAgentPoolId" column="source_agent_pool_id"/><result property="sourceAgentId" column="source_agent_id"/>
+  <result property="targetDomainId" column="target_domain_id"/><result property="targetDepartmentId" column="target_department_id"/><result property="targetGroupId" column="target_group_id"/><result property="targetAgentPoolId" column="target_agent_pool_id"/>
+  <result property="governanceOwnerDepartmentId" column="governance_owner_department_id"/><result property="governanceOwnerGroupId" column="governance_owner_group_id"/><result property="governanceScopeClass" column="governance_scope_class"/><result property="governanceScopeStatus" column="governance_scope_status"/>
+  <result property="allowedTaskTypesJson" column="allowed_task_types_json"/><result property="allowedServiceCodesJson" column="allowed_service_codes_json"/><result property="allowedCapabilityCodesJson" column="allowed_capability_codes_json"/><result property="maxSensitivityLevel" column="max_sensitivity_level"/><result property="approvalMode" column="approval_mode"/><result property="maxHopCount" column="max_hop_count"/><result property="rateLimitPerMinute" column="rate_limit_per_minute"/><result property="timeoutSeconds" column="timeout_seconds"/><result property="issueProjectionPolicy" column="issue_projection_policy"/><result property="handoffContextPolicyId" column="handoff_context_policy_id"/><result property="handoffContextRequirement" column="handoff_context_requirement"/><result property="resultAggregationPolicy" column="result_aggregation_policy"/><result property="aggregationQuorum" column="aggregation_quorum"/><result property="cancellationPolicy" column="cancellation_policy"/><result property="failurePropagationPolicy" column="failure_propagation_policy"/><result property="allowReturnToExistingDomain" column="allow_return_to_existing_domain"/><result property="enabled" column="enabled"/><result property="effectiveAt" column="effective_at"/><result property="expiresAt" column="expires_at"/><result property="version" column="version"/><result property="createdAt" column="created_at"/><result property="updatedAt" column="updated_at"/>
+ </resultMap>
+ <insert id="upsert">insert into a2a_policies(tenant_id,policy_id,policy_code,policy_name,source_domain_id,source_department_id,source_group_id,source_agent_pool_id,source_agent_id,target_domain_id,target_department_id,target_group_id,target_agent_pool_id,governance_owner_department_id,governance_owner_group_id,governance_scope_class,governance_scope_status,allowed_task_types_json,allowed_service_codes_json,allowed_capability_codes_json,max_sensitivity_level,approval_mode,max_hop_count,rate_limit_per_minute,timeout_seconds,issue_projection_policy,handoff_context_policy_id,handoff_context_requirement,result_aggregation_policy,aggregation_quorum,cancellation_policy,failure_propagation_policy,allow_return_to_existing_domain,enabled,effective_at,expires_at,version,created_at,updated_at) values(#{policy.tenantId},#{policy.policyId},#{policy.policyCode},#{policy.policyName},#{policy.sourceDomainId},#{policy.sourceDepartmentId},#{policy.sourceGroupId},#{policy.sourceAgentPoolId},#{policy.sourceAgentId},#{policy.targetDomainId},#{policy.targetDepartmentId},#{policy.targetGroupId},#{policy.targetAgentPoolId},#{policy.governanceOwnerDepartmentId},#{policy.governanceOwnerGroupId},#{policy.governanceScopeClass},#{policy.governanceScopeStatus},cast(#{policy.allowedTaskTypesJson} as jsonb),cast(#{policy.allowedServiceCodesJson} as jsonb),cast(#{policy.allowedCapabilityCodesJson} as jsonb),#{policy.maxSensitivityLevel},#{policy.approvalMode},#{policy.maxHopCount},#{policy.rateLimitPerMinute},#{policy.timeoutSeconds},#{policy.issueProjectionPolicy},#{policy.handoffContextPolicyId},#{policy.handoffContextRequirement},#{policy.resultAggregationPolicy},#{policy.aggregationQuorum},#{policy.cancellationPolicy},#{policy.failurePropagationPolicy},#{policy.allowReturnToExistingDomain},#{policy.enabled},#{policy.effectiveAt},#{policy.expiresAt},#{policy.version},coalesce(#{policy.createdAt},now()),coalesce(#{policy.updatedAt},now())) on conflict(tenant_id,policy_id) do update set policy_name=excluded.policy_name,source_domain_id=excluded.source_domain_id,source_department_id=excluded.source_department_id,source_group_id=excluded.source_group_id,source_agent_pool_id=excluded.source_agent_pool_id,source_agent_id=excluded.source_agent_id,target_domain_id=excluded.target_domain_id,target_department_id=excluded.target_department_id,target_group_id=excluded.target_group_id,target_agent_pool_id=excluded.target_agent_pool_id,governance_owner_department_id=excluded.governance_owner_department_id,governance_owner_group_id=excluded.governance_owner_group_id,governance_scope_class=excluded.governance_scope_class,governance_scope_status=excluded.governance_scope_status,allowed_task_types_json=excluded.allowed_task_types_json,allowed_service_codes_json=excluded.allowed_service_codes_json,allowed_capability_codes_json=excluded.allowed_capability_codes_json,max_sensitivity_level=excluded.max_sensitivity_level,approval_mode=excluded.approval_mode,max_hop_count=excluded.max_hop_count,rate_limit_per_minute=excluded.rate_limit_per_minute,timeout_seconds=excluded.timeout_seconds,issue_projection_policy=excluded.issue_projection_policy,handoff_context_policy_id=excluded.handoff_context_policy_id,handoff_context_requirement=excluded.handoff_context_requirement,result_aggregation_policy=excluded.result_aggregation_policy,aggregation_quorum=excluded.aggregation_quorum,cancellation_policy=excluded.cancellation_policy,failure_propagation_policy=excluded.failure_propagation_policy,allow_return_to_existing_domain=excluded.allow_return_to_existing_domain,enabled=excluded.enabled,effective_at=excluded.effective_at,expires_at=excluded.expires_at,version=a2a_policies.version+1,updated_at=now()</insert>
+ <select id="findById" resultMap="Map">select * from a2a_policies where tenant_id=#{tenantId} and policy_id=#{policyId}</select>
+ <select id="search" resultMap="Map">
+  select * from a2a_policies
+  where tenant_id=#{tenantId}
+  <if test="sourceDomainId != null and sourceDomainId != ''">and upper(source_domain_id)=upper(#{sourceDomainId})</if>
+  <if test="targetDomainId != null and targetDomainId != ''">and upper(target_domain_id)=upper(#{targetDomainId})</if>
+  order by policy_code limit #{limit}
+ </select>
+ <select id="searchScoped" resultMap="Map">
+  select p.* from a2a_policies p
+  where p.tenant_id=#{tenantId}
+  <if test="sourceDomainId != null and sourceDomainId != ''">and upper(p.source_domain_id)=upper(#{sourceDomainId})</if>
+  <if test="targetDomainId != null and targetDomainId != ''">and upper(p.target_domain_id)=upper(#{targetDomainId})</if>
+  <choose>
+   <when test="scope.denyAll">and 1=0</when>
+   <when test="!scope.tenantWide">
+    and (
+      1=0
+      <if test="scope.exactDepartmentIds != null and !scope.exactDepartmentIds.isEmpty()">
+       or p.source_department_id in <foreach collection="scope.exactDepartmentIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+       or p.target_department_id in <foreach collection="scope.exactDepartmentIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+      </if>
+      <if test="scope.subtreeDepartmentRootIds != null and !scope.subtreeDepartmentRootIds.isEmpty()">
+       or exists (select 1 from org_department_closure dc where dc.tenant_id=p.tenant_id and dc.descendant_department_id=p.source_department_id and dc.ancestor_department_id in <foreach collection="scope.subtreeDepartmentRootIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+       or exists (select 1 from org_department_closure dc where dc.tenant_id=p.tenant_id and dc.descendant_department_id=p.target_department_id and dc.ancestor_department_id in <foreach collection="scope.subtreeDepartmentRootIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+      </if>
+      <if test="scope.groupIds != null and !scope.groupIds.isEmpty()">
+       or p.source_group_id in <foreach collection="scope.groupIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+       or p.target_group_id in <foreach collection="scope.groupIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+      </if>
+      <if test="scope.explicitPolicyIds != null and !scope.explicitPolicyIds.isEmpty()">
+       or p.policy_id in <foreach collection="scope.explicitPolicyIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+      </if>
+    )
+   </when>
+  </choose>
+  <if test="scope.excludedPolicyIds != null and !scope.excludedPolicyIds.isEmpty()">
+   and p.policy_id not in <foreach collection="scope.excludedPolicyIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+  </if>
+  <if test="scope.deniedDepartmentIds != null and !scope.deniedDepartmentIds.isEmpty()">
+   and (p.source_department_id is null or p.source_department_id not in <foreach collection="scope.deniedDepartmentIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+   and (p.target_department_id is null or p.target_department_id not in <foreach collection="scope.deniedDepartmentIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+  </if>
+  <if test="scope.deniedSubtreeDepartmentRootIds != null and !scope.deniedSubtreeDepartmentRootIds.isEmpty()">
+   and not exists (select 1 from org_department_closure dc where dc.tenant_id=p.tenant_id and dc.descendant_department_id=p.source_department_id and dc.ancestor_department_id in <foreach collection="scope.deniedSubtreeDepartmentRootIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+   and not exists (select 1 from org_department_closure dc where dc.tenant_id=p.tenant_id and dc.descendant_department_id=p.target_department_id and dc.ancestor_department_id in <foreach collection="scope.deniedSubtreeDepartmentRootIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+  </if>
+  <if test="scope.deniedGroupIds != null and !scope.deniedGroupIds.isEmpty()">
+   and (p.source_group_id is null or p.source_group_id not in <foreach collection="scope.deniedGroupIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+   and (p.target_group_id is null or p.target_group_id not in <foreach collection="scope.deniedGroupIds" item="id" open="(" separator="," close=")">#{id}</foreach>)
+  </if>
+  order by p.policy_code limit #{limit}
+ </select>
+ <select id="findDirectional" resultMap="Map">select * from a2a_policies where tenant_id=#{tenantId} and upper(source_domain_id)=upper(#{sourceDomainId}) and upper(target_domain_id)=upper(#{targetDomainId}) and enabled=true and (effective_at is null or effective_at &lt;= #{at}) and (expires_at is null or expires_at &gt; #{at}) order by policy_code</select>
+</mapper>

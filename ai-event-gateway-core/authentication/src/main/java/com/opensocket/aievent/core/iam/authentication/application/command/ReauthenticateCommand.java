@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import java.time.Instant;import java.util.Set;public record ReauthenticateCommand(String sessionId,char[] password,String mfaCode,Set<String> purposes,String correlationId,Instant occurredAt){}

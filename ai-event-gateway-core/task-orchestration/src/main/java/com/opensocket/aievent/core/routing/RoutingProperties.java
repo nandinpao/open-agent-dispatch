@@ -43,7 +43,7 @@ public class RoutingProperties {
     private boolean persistedLegacyEvidenceRecoveryEnabled = true;
 
     /** P3: optional skill version compatibility hints, e.g. CAPABILITY_REVIEW@2 or SKILL_VERSION:CAPABILITY_REVIEW:2. */
-    private boolean skillVersionCompatibilityEnabled = true;
+    private boolean skillVersionCompatibilityEnabled = false;
     private boolean skillVersionEnforced = true;
 
     /**
@@ -94,10 +94,10 @@ public class RoutingProperties {
                 ? Duration.ofMinutes(5)
                 : assignmentLeaseTtl;
     }
-    public boolean isSkillAwareEnabled() { return skillAwareEnabled; }
-    public void setSkillAwareEnabled(boolean skillAwareEnabled) { this.skillAwareEnabled = skillAwareEnabled; }
-    public boolean isSkillAwareEnforced() { return skillAwareEnforced; }
-    public void setSkillAwareEnforced(boolean skillAwareEnforced) { this.skillAwareEnforced = skillAwareEnforced; }
+    public boolean isSkillAwareEnabled() { return false; }
+    public void setSkillAwareEnabled(boolean skillAwareEnabled) { /* Stage 7 retired compatibility property: no-op. */ }
+    public boolean isSkillAwareEnforced() { return false; }
+    public void setSkillAwareEnforced(boolean skillAwareEnforced) { /* Stage 7 retired compatibility property: no-op. */ }
     public boolean isPoisonAgentExclusionEnabled() { return poisonAgentExclusionEnabled; }
     public void setPoisonAgentExclusionEnabled(boolean poisonAgentExclusionEnabled) { this.poisonAgentExclusionEnabled = poisonAgentExclusionEnabled; }
     public int getPoisonAgentFailureThreshold() { return poisonAgentFailureThreshold; }
@@ -110,10 +110,10 @@ public class RoutingProperties {
     public void setZeroSpecialCaseRuntimeEnabled(boolean value) { this.zeroSpecialCaseRuntimeEnabled = value; }
     public boolean isPersistedLegacyEvidenceRecoveryEnabled() { return persistedLegacyEvidenceRecoveryEnabled; }
     public void setPersistedLegacyEvidenceRecoveryEnabled(boolean value) { this.persistedLegacyEvidenceRecoveryEnabled = value; }
-    public boolean isSkillVersionCompatibilityEnabled() { return skillVersionCompatibilityEnabled; }
-    public void setSkillVersionCompatibilityEnabled(boolean skillVersionCompatibilityEnabled) { this.skillVersionCompatibilityEnabled = skillVersionCompatibilityEnabled; }
-    public boolean isSkillVersionEnforced() { return skillVersionEnforced; }
-    public void setSkillVersionEnforced(boolean skillVersionEnforced) { this.skillVersionEnforced = skillVersionEnforced; }
+    public boolean isSkillVersionCompatibilityEnabled() { return false; }
+    public void setSkillVersionCompatibilityEnabled(boolean skillVersionCompatibilityEnabled) { /* Stage 7 retired compatibility property: no-op. */ }
+    public boolean isSkillVersionEnforced() { return false; }
+    public void setSkillVersionEnforced(boolean skillVersionEnforced) { /* Stage 7 retired compatibility property: no-op. */ }
     public String getEligibilityEngineMode() { return eligibilityEngineMode; }
     public void setEligibilityEngineMode(String eligibilityEngineMode) { this.eligibilityEngineMode = blank(eligibilityEngineMode) ? EligibilityEngineMode.SHADOW.name() : eligibilityEngineMode; }
     public EligibilityEngineMode resolvedEligibilityEngineMode() { return EligibilityEngineMode.parse(eligibilityEngineMode); }

@@ -39,6 +39,7 @@ import com.opensocket.aievent.core.task.TaskRecord;
 import com.opensocket.aievent.core.task.TaskStatus;
 import com.opensocket.aievent.core.timeline.AdminFailureQueueResponse;
 import com.opensocket.aievent.core.timeline.DispatchTimelineService;
+import com.opensocket.aievent.core.timeline.TaskExecutionJourneyService;
 
 /** Focused MVC contract tests for the Core Admin task facade. */
 class CoreAdminTaskFacadeControllerMockMvcTest {
@@ -53,6 +54,7 @@ class CoreAdminTaskFacadeControllerMockMvcTest {
     private CallbackInboxService callbackInboxService;
     private TaskFailureQueueService failureQueueService;
     private DispatchTimelineService timelineService;
+    private TaskExecutionJourneyService executionJourneyService;
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -68,6 +70,7 @@ class CoreAdminTaskFacadeControllerMockMvcTest {
         callbackInboxService = mock(CallbackInboxService.class);
         failureQueueService = mock(TaskFailureQueueService.class);
         timelineService = mock(DispatchTimelineService.class);
+        executionJourneyService = mock(TaskExecutionJourneyService.class);
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new CoreAdminTaskFacadeController(
                         taskQuery,
@@ -80,7 +83,8 @@ class CoreAdminTaskFacadeControllerMockMvcTest {
                         dispatchAttemptLedgerService,
                         callbackInboxService,
                         failureQueueService,
-                        timelineService))
+                        timelineService,
+                        executionJourneyService))
                 .setControllerAdvice(new ApiExceptionHandler(), new StandardApiResponseAdvice())
                 .build();
     }

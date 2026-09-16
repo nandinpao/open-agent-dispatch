@@ -17,6 +17,9 @@ public interface DispatchRequestRepository {
     Optional<DispatchRequest> claimById(String dispatchRequestId, ClaimRequest claimRequest);
     List<DispatchRequest> claimExecutable(ClaimRequest claimRequest);
     PersistenceWriteResult saveClaimed(DispatchRequest request, ClaimOwnership ownership);
+    PersistenceWriteResult markClaimDispatching(String dispatchRequestId, ClaimOwnership ownership, OffsetDateTime heartbeatAt);
+    PersistenceWriteResult heartbeatClaim(String dispatchRequestId, ClaimOwnership ownership, OffsetDateTime heartbeatAt, OffsetDateTime extendedUntil);
+    List<DispatchRequest> findRecoveryCandidates(OffsetDateTime now, int limit);
 
     default PersistenceWriteResult transitionStatus(DispatchStatusTransition transition) {
         if (transition == null || transition.getDispatchRequestId() == null || transition.getDispatchRequestId().isBlank()) {
@@ -50,6 +53,11 @@ public interface DispatchRequestRepository {
         request.setRetryWaitingAt(transition.getRetryWaitingAt());
         request.setNextRetryAt(transition.getNextRetryAt());
         request.setUpdatedAt(transition.getUpdatedAt());
+        if (transition.getOutboxStatus() != null) request.setOutboxStatus(transition.getOutboxStatus());
+        if (transition.getAckEvidenceId() != null) request.setAckEvidenceId(transition.getAckEvidenceId());
+        if (transition.getAckedAt() != null) request.setAckedAt(transition.getAckedAt());
+        if (transition.getRecoveryClassification() != null) request.setRecoveryClassification(transition.getRecoveryClassification());
+        if (transition.getUncertainSince() != null) request.setUncertainSince(transition.getUncertainSince());
         if (transition.isClearClaim()) {
             request.setClaimedBy(null);
             request.setClaimStartedAt(null);

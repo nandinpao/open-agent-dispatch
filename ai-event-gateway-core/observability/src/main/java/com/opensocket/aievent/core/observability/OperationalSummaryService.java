@@ -14,7 +14,7 @@ import com.opensocket.aievent.core.action.AdapterAction;
 import com.opensocket.aievent.core.action.AdapterActionFacade;
 import com.opensocket.aievent.core.action.AdapterActionStatus;
 import com.opensocket.aievent.core.agent.AgentControlOperationalQuery;
-import com.opensocket.aievent.core.callback.TaskCallbackRecord;
+
 import com.opensocket.aievent.core.dispatch.ExecutionOperationalQuery;
 import com.opensocket.aievent.core.incident.IncidentOperationalQuery;
 import com.opensocket.aievent.core.integration.IntegrationEventOperationalQuery;

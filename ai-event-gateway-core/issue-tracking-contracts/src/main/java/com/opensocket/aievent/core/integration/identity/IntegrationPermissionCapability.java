@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.integration.identity;
+public enum IntegrationPermissionCapability { AUTHENTICATE, PROJECT_VISIBLE, READ_ISSUE, CREATE_ISSUE, ADD_COMMENT, UPDATE_ISSUE, CREATE_RELATION, READ_ATTACHMENT_METADATA, READ_ATTACHMENT_CONTENT, OBSERVE_STATUS }

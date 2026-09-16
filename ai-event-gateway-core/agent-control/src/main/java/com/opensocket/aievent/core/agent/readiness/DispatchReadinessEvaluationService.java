@@ -26,39 +26,28 @@ import com.opensocket.aievent.core.agent.governance.AgentCapability;
 import com.opensocket.aievent.core.agent.governance.AgentGovernanceRepository;
 import com.opensocket.aievent.core.agent.governance.AgentProfile;
 import com.opensocket.aievent.core.agent.governance.AgentRiskStatus;
-import com.opensocket.aievent.core.agent.skill.AgentSkillDefinition;
-import com.opensocket.aievent.core.agent.skill.AgentSkillEvaluationRequest;
-import com.opensocket.aievent.core.agent.skill.AgentSkillEvaluationResult;
-import com.opensocket.aievent.core.agent.skill.AgentSkillRegistryService;
-import com.opensocket.aievent.core.agent.skill.TaskDispatchContractResolveRequest;
-import com.opensocket.aievent.core.agent.skill.TaskDispatchContractResolveResult;
-import com.opensocket.aievent.core.agent.skill.TaskDispatchContractResolverService;
 
 @Service
 public class DispatchReadinessEvaluationService {
     private final AgentDirectoryService agentDirectoryService;
     private final AgentGovernanceRepository governanceRepository;
-    private final AgentSkillRegistryService skillRegistryService;
-    private final TaskDispatchContractResolverService contractResolverService;
     private final AgentAssignmentService assignmentService;
 
-    public DispatchReadinessEvaluationService(AgentDirectoryService agentDirectoryService,
-                                              AgentGovernanceRepository governanceRepository,
-                                              AgentSkillRegistryService skillRegistryService,
-                                              TaskDispatchContractResolverService contractResolverService) {
-        this(agentDirectoryService, governanceRepository, skillRegistryService, contractResolverService, null);
+    /**
+     * Focused-test constructor. Production wiring must use the canonical assignment service.
+     * Legacy Skill Registry is intentionally not a dependency of current dispatch readiness.
+     */
+    DispatchReadinessEvaluationService(AgentDirectoryService agentDirectoryService,
+                                       AgentGovernanceRepository governanceRepository) {
+        this(agentDirectoryService, governanceRepository, null);
     }
 
     @Autowired
     public DispatchReadinessEvaluationService(AgentDirectoryService agentDirectoryService,
                                               AgentGovernanceRepository governanceRepository,
-                                              AgentSkillRegistryService skillRegistryService,
-                                              TaskDispatchContractResolverService contractResolverService,
                                               AgentAssignmentService assignmentService) {
         this.agentDirectoryService = agentDirectoryService;
         this.governanceRepository = governanceRepository;
-        this.skillRegistryService = skillRegistryService;
-        this.contractResolverService = contractResolverService;
         this.assignmentService = assignmentService;
     }
 
@@ -67,27 +56,23 @@ public class DispatchReadinessEvaluationService {
         String tenantId = requireNonBlank(body.getTenantId(), "tenantId");
         String agentId = trim(body.getAgentId());
         List<String> rawTaskRequirements = normalizeList(body.getRequiredCapabilities());
+        List<String> effectiveCapabilities = effectiveDispatchCapabilities(rawTaskRequirements);
+        List<String> legacyTaskAliases = legacyTaskAliases(rawTaskRequirements, effectiveCapabilities);
         Optional<AgentSnapshot> agent = blank(agentId) ? Optional.empty() : agentDirectoryService.findAgent(agentId);
         AgentProfile profile = blank(agentId) ? null : governanceRepository.findProfile(agentId).orElse(null);
         List<AgentRuntimeCapabilityItem> runtimeItems = blank(agentId) ? List.of() : agentDirectoryService.findRuntimeCapabilityItems(agentId);
 
-        TaskDispatchContractResolveResult contract = contractResolverService.resolve(toContractRequest(body));
-        List<String> effectiveCapabilities = effectiveDispatchCapabilities(rawTaskRequirements, contract);
-        List<String> legacyTaskAliases = legacyTaskAliases(rawTaskRequirements, effectiveCapabilities);
-        AgentProfile skillEvaluationProfile = enrichProfileWithApprovedCapabilityAssignments(agentId, profile);
-        AgentSkillEvaluationResult skillEvaluation = skillRegistryService.evaluate(skillEvaluationProfile, runtimeItems, toSkillRequest(body, effectiveCapabilities));
-
         List<DispatchReadinessCheck> checks = new ArrayList<>();
         checks.add(taskRequiresCapabilitiesCheck(rawTaskRequirements));
         checks.add(effectiveCapabilityContractCheck(rawTaskRequirements, effectiveCapabilities, legacyTaskAliases));
-        checks.add(skillDefinedCheck(tenantId, effectiveCapabilities));
-        checks.add(contractResolvedCheck(contract, effectiveCapabilities));
+        checks.add(capabilityDefinedCheck(tenantId, effectiveCapabilities));
+        checks.add(contractResolvedCheck(effectiveCapabilities));
         checks.add(governanceProfileCheck(agentId, profile));
         checks.add(governanceCapabilityCheck(agentId, profile, effectiveCapabilities));
         checks.add(runtimeAgentCheck(agentId, agent));
         checks.add(runtimeCapabilityCheck(agentId, runtimeItems, agent.orElse(null), effectiveCapabilities));
         checks.add(capacityCheck(agent.orElse(null)));
-        checks.add(skillEvaluationCheck(skillEvaluation));
+        checks.add(canonicalEligibilityCheck(agentId, profile, effectiveCapabilities));
 
         boolean ready = checks.stream().noneMatch(check -> check.getStatus() == DispatchReadinessStatus.FAIL);
         DispatchReadinessEvaluationResult result = new DispatchReadinessEvaluationResult();
@@ -97,21 +82,23 @@ public class DispatchReadinessEvaluationService {
         result.setRawTaskRequirements(rawTaskRequirements);
         result.setEffectiveDispatchCapabilities(effectiveCapabilities);
         result.setLegacyTaskAliases(legacyTaskAliases);
-        result.setContractResolution(contract);
-        result.setSkillEvaluation(skillEvaluation);
-        result.setMatchedSkillCodes(skillEvaluation.getMatchedSkillCodes());
-        result.setMissingRequirements(skillEvaluation.getMissingRequirements());
+        // Legacy compatibility fields remain in the response schema for historical clients only.
+        // Current readiness never consults Skill Registry or Skill-based dispatch contract resolution.
+        result.setContractResolution(null);
+        result.setSkillEvaluation(null);
+        result.setMatchedSkillCodes(List.of());
+        result.setMissingRequirements(List.of());
         result.setChecks(checks);
         result.setRecommendedActions(checks.stream()
                 .map(DispatchReadinessCheck::getFixAction)
                 .filter(action -> action != null)
                 .toList());
-        result.setSummary(ready ? "Agent is dispatch-ready for the requested task contract." : "Agent is not dispatch-ready for the requested task contract.");
+        result.setSummary(ready ? "Agent is dispatch-ready for the requested canonical capability contract." : "Agent is not dispatch-ready for the requested canonical capability contract.");
         result.setBeginnerSummary(ready
-                ? "可以派工：Capability contract、Agent 授權、Runtime 連線/容量與 Task 需求都已對齊。"
-                : "不可派工：請依照失敗項目的建議操作修正 Capability、Agent 授權、Dispatch Flow coverage 或 Runtime 連線/容量。"
+                ? "可以派工：Canonical Capability、Agent 授權、Runtime 連線/容量與 Task 需求都已對齊。"
+                : "不可派工：請依照失敗項目的建議操作修正 Canonical Capability、Agent 授權、Dispatch Flow coverage 或 Runtime 連線/容量。"
         );
-        result.setLabels(labelMap(rawTaskRequirements, effectiveCapabilities, legacyTaskAliases, contract, skillEvaluation));
+        result.setLabels(labelMap(rawTaskRequirements, effectiveCapabilities, legacyTaskAliases));
         result.setEvaluatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return result;
     }
@@ -123,7 +110,7 @@ public class DispatchReadinessEvaluationService {
                     "任務需要的能力",
                     "Task 沒有宣告 requiredCapabilities，Routing 無法知道要找哪種 Agent。"
             );
-            check.setBeginnerHint("若此 Flow 使用 EXPLICIT 模式，請在 Capability Catalog 與 Flow Rule 指定能力；若只是分析型工作，請使用 SOURCE_DEFAULT 並設定 Source Default 與 Agent Source Coverage。");
+            check.setBeginnerHint(" Flow Rule Required Capability； Rule ，A0-R3  NO_MATCH  Triage， Source Default Pool  Flow Match 。");
             return check;
         }
         DispatchReadinessCheck check = DispatchReadinessCheck.pass(
@@ -137,24 +124,29 @@ public class DispatchReadinessEvaluationService {
         return check;
     }
 
-    private DispatchReadinessCheck skillDefinedCheck(String tenantId, List<String> requiredCapabilities) {
-        List<String> missing = new ArrayList<>();
-        List<String> matched = new ArrayList<>();
-        List<AgentSkillDefinition> skills = skillRegistryService.search(null, true);
-        Set<String> catalogCapabilities = capabilityCatalogCodes(tenantId);
-        for (String required : requiredCapabilities) {
-            String normalized = normalize(required);
-            boolean found = catalogCapabilities.contains(normalized) || skills.stream().anyMatch(skill -> skillMatches(required, skill));
-            if (found) matched.add(required); else missing.add(required);
+    private DispatchReadinessCheck capabilityDefinedCheck(String tenantId, List<String> requiredCapabilities) {
+        if (assignmentService == null) {
+            DispatchReadinessCheck check = DispatchReadinessCheck.pass(
+                    "CAPABILITY_DEFINED",
+                    "Canonical Capability is defined",
+                    "Canonical Capability persistence is not wired in this focused test instance; legacy Skill Registry is not used as a fallback."
+            );
+            check.setBeginnerHint("Production readiness validates required capabilities against the Admin-managed Canonical Capability Catalog.");
+            check.setEvidence(requiredCapabilities);
+            return check;
         }
+
+        Set<String> catalogCapabilities = capabilityCatalogCodes(tenantId);
+        List<String> missing = requiredCapabilities.stream()
+                .filter(required -> !catalogCapabilities.contains(normalize(required)))
+                .toList();
         if (!missing.isEmpty()) {
             DispatchReadinessCheck check = DispatchReadinessCheck.fail(
                     "CAPABILITY_DEFINED",
-                    "Capability catalog is defined",
-                    "Capability Catalog does not contain these effective capabilities: " + String.join(", ", missing)
+                    "Canonical Capability is defined",
+                    "Canonical Capability Catalog does not contain these ACTIVE capabilities: " + String.join(", ", missing)
             );
-            check.setBeginnerHint("Capability Catalog is the Admin-managed dispatch vocabulary. Create or enable these capabilities; a Skill Registry taxonomy definition is optional."
-            );
+            check.setBeginnerHint("Create or enable these Capability definitions in Admin UI. Legacy Skill Registry entries cannot satisfy this check.");
             DispatchReadinessFixAction action = new DispatchReadinessFixAction("Create suggested capability definition", "UPSERT_CAPABILITY_DEFINITION", "/settings/capabilities");
             action.setPayload(Map.of("capabilityCodes", missing));
             check.setFixAction(action);
@@ -163,34 +155,30 @@ public class DispatchReadinessEvaluationService {
         }
         DispatchReadinessCheck check = DispatchReadinessCheck.pass(
                 "CAPABILITY_DEFINED",
-                "Capability catalog is defined",
-                matched.isEmpty() ? "No effective dispatch capabilities to check." : "Capability Catalog contains: " + String.join(", ", matched)
+                "Canonical Capability is defined",
+                requiredCapabilities.isEmpty() ? "No effective dispatch capabilities to check." : "Canonical Capability Catalog contains: " + String.join(", ", requiredCapabilities)
         );
-        check.setBeginnerHint("This means Admin UI/Core knows these reusable capabilities. Skill Registry taxonomy is optional and must not block custom capabilities."
-        );
-        check.setEvidence(matched);
+        check.setBeginnerHint("This confirms the task uses the Admin-managed canonical dispatch vocabulary. Legacy Skill taxonomy is historical/read-only and has no authority here.");
+        check.setEvidence(requiredCapabilities);
         return check;
     }
 
-    private DispatchReadinessCheck contractResolvedCheck(TaskDispatchContractResolveResult contract, List<String> effectiveCapabilities) {
-        if (contract == null || !contract.isResolved()) {
+    private DispatchReadinessCheck contractResolvedCheck(List<String> effectiveCapabilities) {
+        if (effectiveCapabilities == null || effectiveCapabilities.isEmpty()) {
             DispatchReadinessCheck check = DispatchReadinessCheck.fail(
                     "DISPATCH_CONTRACT_RESOLVED",
                     "Dispatch capability contract resolved",
-                    "Dispatch contract could not resolve an effective capability contract."
+                    "Task did not provide an explicit canonical capability contract."
             );
-            check.setBeginnerHint("Check taskType/domain/provider/operation/raw requirements against Capability Catalog definitions."
-            );
-            if (contract != null) check.setEvidence(contract.getResolutionReasons());
+            check.setBeginnerHint("Configure Dispatch Flow/Task classification to emit requiredCapabilities that reference Canonical Capability definitions.");
             return check;
         }
         DispatchReadinessCheck check = DispatchReadinessCheck.pass(
                 "DISPATCH_CONTRACT_RESOLVED",
                 "Dispatch capability contract resolved",
-                "Dispatch contract resolved effective capabilities: " + String.join(", ", effectiveCapabilities)
+                "Task provides explicit canonical capabilities: " + String.join(", ", effectiveCapabilities)
         );
-        check.setBeginnerHint("This means the raw task requirement was converted into the effective capability contract used by governance and runtime checks."
-        );
+        check.setBeginnerHint("Legacy Skill matching is not consulted. Dispatch readiness uses the explicit canonical capability contract only.");
         check.setEvidence(effectiveCapabilities);
         return check;
     }
@@ -319,52 +307,26 @@ public class DispatchReadinessEvaluationService {
         return check;
     }
 
-    private DispatchReadinessCheck skillEvaluationCheck(AgentSkillEvaluationResult evaluation) {
-        if (evaluation == null || !evaluation.isEligible()) {
-            DispatchReadinessCheck check = DispatchReadinessCheck.fail("CAPABILITY_CONTRACT_ELIGIBLE", "Capability contract eligibility passed", evaluation == null ? "Capability contract evaluation failed." : evaluation.getReason());
-            check.setBeginnerHint("This final check uses the effective capability contract and Core-approved Admin-managed capabilities. Runtime capability self-reporting is diagnostic only."
+    private DispatchReadinessCheck canonicalEligibilityCheck(String agentId, AgentProfile profile, List<String> requiredCapabilities) {
+        DispatchReadinessCheck governed = governanceCapabilityCheck(agentId, profile, requiredCapabilities);
+        if (governed.getStatus() == DispatchReadinessStatus.FAIL) {
+            DispatchReadinessCheck check = DispatchReadinessCheck.fail(
+                    "CAPABILITY_CONTRACT_ELIGIBLE",
+                    "Canonical capability eligibility passed",
+                    "The Agent is not approved for every capability in the canonical task contract."
             );
-            if (evaluation != null) check.setEvidence(evaluation.getMissingRequirements());
+            check.setBeginnerHint("Approve the required capabilities through Agent Capability Assignment. Legacy Skill approval cannot make an Agent eligible.");
+            check.setEvidence(governed.getEvidence());
             return check;
         }
-        DispatchReadinessCheck check = DispatchReadinessCheck.pass("CAPABILITY_CONTRACT_ELIGIBLE", "Capability contract eligibility passed", evaluation.getReason());
-        check.setBeginnerHint("This means this Agent can be considered a candidate for the resolved capability contract."
+        DispatchReadinessCheck check = DispatchReadinessCheck.pass(
+                "CAPABILITY_CONTRACT_ELIGIBLE",
+                "Canonical capability eligibility passed",
+                "Every capability in the canonical task contract is approved for this Agent."
         );
-        check.setEvidence(evaluation.getMatchedSkillCodes());
+        check.setBeginnerHint("This final capability check is based only on Core-approved Agent Capability Assignment.");
+        check.setEvidence(requiredCapabilities);
         return check;
-    }
-
-    private AgentSkillEvaluationRequest toSkillRequest(DispatchReadinessEvaluationRequest request, List<String> effectiveCapabilities) {
-        AgentSkillEvaluationRequest body = new AgentSkillEvaluationRequest();
-        body.setDomain(request.getDomain());
-        body.setProvider(request.getProvider());
-        String normalizedTaskType = normalize(request.getTaskType());
-        body.setTaskType(effectiveCapabilities != null && effectiveCapabilities.contains(normalizedTaskType) ? request.getTaskType() : null);
-        body.setSiteCode(request.getSiteCode());
-        body.setOperation(request.getOperation());
-        body.setRequiredToolPolicy(request.getRequiredToolPolicy());
-        body.setRequiredCapabilities(effectiveCapabilities);
-        body.setDataClasses(request.getDataClasses());
-        return body;
-    }
-
-    private TaskDispatchContractResolveRequest toContractRequest(DispatchReadinessEvaluationRequest request) {
-        TaskDispatchContractResolveRequest body = new TaskDispatchContractResolveRequest();
-        body.setTaskId(request.getTaskId());
-        body.setTaskType(request.getTaskType());
-        body.setDomain(request.getDomain());
-        body.setProvider(request.getProvider());
-        body.setSiteCode(request.getSiteCode());
-        body.setPlantId(request.getPlantId());
-        body.setObjectType(request.getObjectType());
-        body.setEventType(request.getEventType());
-        body.setErrorCode(request.getErrorCode());
-        body.setOperation(request.getOperation());
-        body.setRequiredToolPolicy(request.getRequiredToolPolicy());
-        body.setRequiredCapabilities(request.getRequiredCapabilities());
-        body.setDataClasses(request.getDataClasses());
-        body.setPayloadMetadata(request.getPayloadMetadata());
-        return body;
     }
 
     private DispatchReadinessCheck effectiveCapabilityContractCheck(List<String> rawTaskRequirements, List<String> effectiveCapabilities, List<String> legacyTaskAliases) {
@@ -395,21 +357,10 @@ public class DispatchReadinessEvaluationService {
         return check;
     }
 
-    private List<String> effectiveDispatchCapabilities(List<String> rawTaskRequirements, TaskDispatchContractResolveResult contract) {
-        LinkedHashSet<String> effective = new LinkedHashSet<>();
-        // Admin-managed direct capabilities are the authoritative task requirement.
-        // matchedSkillCodes are optional taxonomy hints and must not replace a raw CMS/custom
-        // capability with a hard-coded domain expansion such as MES incident response.
-        if (contract != null && contract.getRequiredCapabilities() != null) {
-            contract.getRequiredCapabilities().stream().map(this::normalize).filter(value -> !blank(value)).forEach(effective::add);
-        }
-        if (effective.isEmpty() && contract != null && contract.getMatchedSkillCodes() != null) {
-            contract.getMatchedSkillCodes().stream().map(this::normalize).filter(value -> !blank(value)).forEach(effective::add);
-        }
-        if (effective.isEmpty() && rawTaskRequirements != null) {
-            rawTaskRequirements.stream().map(this::normalize).filter(value -> !blank(value)).forEach(effective::add);
-        }
-        return new ArrayList<>(effective);
+    private List<String> effectiveDispatchCapabilities(List<String> rawTaskRequirements) {
+        // Current dispatch requirements are explicit Canonical Capability references.
+        // Legacy Skill codes/matches must never synthesize or substitute a dispatch capability.
+        return normalizeList(rawTaskRequirements);
     }
 
     private List<String> legacyTaskAliases(List<String> rawTaskRequirements, List<String> effectiveCapabilities) {
@@ -437,63 +388,6 @@ public class DispatchReadinessEvaluationService {
             // Keep diagnostics best-effort when the backing catalog is unavailable.
         }
         return codes;
-    }
-
-    private boolean skillMatches(String required, AgentSkillDefinition skill) {
-        if (skill == null || !skill.isEnabled()) return false;
-        String normalized = normalize(required);
-        if (blank(normalized)) return false;
-        if (normalized.equals(normalize(skill.getSkillCode()))) return true;
-        return skill.getTaskTypes() != null && skill.getTaskTypes().stream().map(this::normalize).anyMatch(normalized::equals);
-    }
-
-    private AgentProfile enrichProfileWithApprovedCapabilityAssignments(String agentId, AgentProfile profile) {
-        if (profile == null || assignmentService == null || blank(agentId)) {
-            return profile;
-        }
-        LinkedHashSet<String> governedApproved = new LinkedHashSet<>();
-        assignmentService.findAgentCapabilities(agentId).stream()
-                .filter(assignment -> assignment != null && assignment.getStatus() == AgentCapabilityAssignmentStatus.APPROVED)
-                .filter(assignment -> assignment.getExpiresAt() == null || assignment.getExpiresAt().isAfter(OffsetDateTime.now(ZoneOffset.UTC)))
-                .map(AgentCapabilityAssignment::getCapabilityCode)
-                .map(this::normalize)
-                .filter(value -> !blank(value))
-                .forEach(governedApproved::add);
-        if (governedApproved.isEmpty()) {
-            return profile;
-        }
-
-        AgentProfile enriched = new AgentProfile();
-        enriched.setAgentId(profile.getAgentId());
-        enriched.setTenantId(profile.getTenantId());
-        enriched.setAgentName(profile.getAgentName());
-        enriched.setAgentType(profile.getAgentType());
-        enriched.setOwnerTeam(profile.getOwnerTeam());
-        enriched.setDescription(profile.getDescription());
-        enriched.setApprovalStatus(profile.getApprovalStatus());
-        enriched.setEnabled(profile.isEnabled());
-        enriched.setRiskStatus(profile.getRiskStatus());
-        enriched.setPolicyVersion(profile.getPolicyVersion());
-        enriched.setCreatedAt(profile.getCreatedAt());
-        enriched.setUpdatedAt(profile.getUpdatedAt());
-        enriched.setCredential(profile.getCredential());
-        enriched.setAuthorizationScopes(profile.getAuthorizationScopes());
-
-        List<AgentCapability> capabilities = new ArrayList<>(profile.getCapabilities() == null ? List.of() : profile.getCapabilities());
-        LinkedHashSet<String> existing = new LinkedHashSet<>();
-        addCapabilities(existing, capabilities);
-        for (String capabilityCode : governedApproved) {
-            if (existing.contains(capabilityCode)) {
-                continue;
-            }
-            AgentCapability capability = new AgentCapability(agentId, capabilityCode);
-            capability.setEnabled(true);
-            capability.setApprovedBy("CORE_ADMIN_ASSIGNMENT");
-            capability.setApprovedAt(OffsetDateTime.now(ZoneOffset.UTC));
-            capabilities.add(capability);
-        }
-        enriched.setCapabilities(capabilities);
-        return enriched;
     }
 
     private void addCapabilities(Set<String> target, List<AgentCapability> capabilities) {
@@ -534,21 +428,21 @@ public class DispatchReadinessEvaluationService {
         return new ArrayList<>(normalized);
     }
 
-    private Map<String, Object> labelMap(List<String> rawTaskRequirements, List<String> effectiveCapabilities, List<String> legacyTaskAliases, TaskDispatchContractResolveResult contract, AgentSkillEvaluationResult evaluation) {
+    private Map<String, Object> labelMap(List<String> rawTaskRequirements, List<String> effectiveCapabilities, List<String> legacyTaskAliases) {
         Map<String, Object> labels = new LinkedHashMap<>();
         labels.put("rawTaskRequirements", rawTaskRequirements);
         labels.put("effectiveDispatchCapabilities", effectiveCapabilities);
         labels.put("legacyTaskAliases", legacyTaskAliases);
         labels.put("requiredCapabilities", effectiveCapabilities);
-        labels.put("matchedCapabilityCodes", evaluation == null ? List.of() : evaluation.getMatchedSkillCodes());
+        labels.put("matchedCapabilityCodes", effectiveCapabilities);
+        labels.put("legacySkillAuthority", "RETIRED_READ_ONLY");
         labels.put("beginnerTerms", Map.of(
                 "Capability Catalog", "能力目錄：系統知道有哪些可重用能力",
                 "Agent Governance", "Agent 授權：公司允許 Agent 使用哪些能力",
-                "Runtime Agent", "Agent 現況：Agent 現在實際回報哪些能力",
-                "Task", "任務：工作單可能帶 legacy alias，但必須解析成 effective capabilities",
-                "Routing", "派工檢查：effective capability、Agent 授權、runtime 連線與容量都符合才會派工；業務 capability 不要求 runtime 自報"
+                "Runtime Agent", "Agent 現況：連線、容量與健康狀態；不建立業務能力權限",
+                "Task", "任務：requiredCapabilities 必須直接引用 Canonical Capability",
+                "Routing", "派工檢查：Canonical Capability、Agent 授權、runtime 連線與容量都符合才會派工"
         ));
-        if (contract != null) labels.put("contractReasons", contract.getResolutionReasons());
         return labels;
     }
 

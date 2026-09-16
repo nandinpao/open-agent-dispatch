@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.opensocket.aievent.core.assignment.AssignmentDecisionResult;
 import com.opensocket.aievent.core.assignment.TaskAssignmentService;
@@ -28,6 +30,7 @@ import com.opensocket.aievent.core.incident.Incident;
 import com.opensocket.aievent.core.incident.IncidentFacade;
 import com.opensocket.aievent.core.incident.IncidentStatus;
 import com.opensocket.aievent.core.routing.RoutingProperties;
+import com.opensocket.aievent.core.task.domain.TaskSeverity;
 
 @Service
 public class TaskDecisionService {
@@ -92,6 +95,7 @@ public class TaskDecisionService {
         this.suppressionPolicy = suppressionPolicy == null ? new IncidentTaskSuppressionPolicy() : suppressionPolicy;
     }
 
+    @Transactional
     public TaskDecisionResult decide(Incident incident, NormalizedEvent event, DedupDecision dedup) {
         if (!properties.isTaskCreationEnabled()) {
             log.info("task_decision_suppressed reason={} eventId={} tenantId={} sourceSystem={} eventStage={} eventType={} correlationId={}",
@@ -114,8 +118,8 @@ public class TaskDecisionService {
         boolean immediateSeverity = properties.getImmediateTaskSeverities().contains(event.severity().name());
         boolean reachedThreshold = dedup.state().getOccurrenceCount() >= properties.getTaskMinOccurrences();
         TaskType responseTaskType = unclassifiedEvent ? TaskType.TRIAGE : TaskType.INCIDENT_RESPONSE;
-        Optional<TaskRecord> existingOpenResponseTask = taskRepository.findOpenByIncidentAndType(
-                incident.getIncidentId(), responseTaskType);
+        Optional<TaskRecord> existingOpenResponseTask = taskRepository.findOpenByTenantAndIncidentAndType(
+                event.tenantId(), incident.getIncidentId(), responseTaskType);
         TaskSuppressionDecision suppression = suppressionPolicy.evaluateResponseTask(
                 incident,
                 event,
@@ -142,7 +146,7 @@ public class TaskDecisionService {
         TaskSuppressionDecision suppression = suppressionPolicy.evaluateEscalationTask(
                 incident,
                 event,
-                taskRepository.findOpenByIncidentAndType(incident.getIncidentId(), TaskType.INCIDENT_ESCALATION));
+                taskRepository.findOpenByTenantAndIncidentAndType(event.tenantId(), incident.getIncidentId(), TaskType.INCIDENT_ESCALATION));
         if (suppression.suppressed()) {
             log.info("task_escalation_suppressed reason={} incidentId={} eventId={} sourceSystem={} eventStage={} eventType={}",
                     suppression.reason(), incident.getIncidentId(), event.eventId(), event.sourceSystem(), event.eventStage(), event.eventType());
@@ -173,7 +177,9 @@ public class TaskDecisionService {
         task.setTaskTypeCode(firstNonBlank(resolution.taskTypeCode(), taskType == TaskType.TRIAGE ? "TRIAGE" : null));
         task.setStatus(TaskStatus.QUEUED);
         task.setPriority(TaskPriority.fromSeverity(event.severity()));
+        task.setSeverity(event.severity() == null ? TaskSeverity.MEDIUM : TaskSeverity.valueOf(event.severity().name()));
         task.setTenantId(event.tenantId());
+        applyOriginScopeSnapshot(task, incident, now);
         task.setSiteId(event.siteId());
         task.setPlantId(event.plantId());
         task.setObjectType(event.objectType());
@@ -183,13 +189,14 @@ public class TaskDecisionService {
         task.setRequestedSkill(event.requestedSkill());
         task.setHandoffMode(event.handoffMode());
         task.setCorrelationId(event.correlationId());
+        task.applyCreationProvenance(event.workloadContext());
         task.setParentTaskId(event.parentTaskId());
         task.setClassificationStatus(classificationStatusFor(event));
         task.setClassificationResultJson("{}");
         task.setRoutingPolicy(routingPolicyForEvent(event));
         task.setRoutingPath(taskType == TaskType.TRIAGE ? "SOURCE_FLOW_TRIAGE_PENDING" : "LEGACY_ROUTING_R3_ENVELOPE_ONLY");
         task.setRequiredCapabilities(resolution.requiredCapabilities());
-        FlowRuleRoutingPlan flowRulePlan = resolveAndApplyFlowRulePlan(task);
+        FlowRuleRoutingPlan flowRulePlan = resolveAndApplyFlowRulePlan(task, event == null ? Map.of() : event.attributes());
         applyR9FormalRoutingGate(task, flowRulePlan);
         String resolvedReason = appendFlowRuleReason(appendResolutionReason(reason, resolution), flowRulePlan);
         task.setCreatedReason(resolvedReason);
@@ -209,7 +216,14 @@ public class TaskDecisionService {
                     "Incident already has open " + taskType + " task " + saved.getTaskId() + " (detected by repository idempotency guard)",
                     List.of(DecisionAction.SUPPRESS_DUPLICATE_TASK, DecisionAction.SUPPRESS_OPEN_INCIDENT_TASK, DecisionAction.SUPPRESS_NEW_TASK));
         }
-        AssignmentDecisionResult assignment = decideDirectAssignment(saved);
+        if (flowRuleRoutingService != null && flowRulePlan != null) {
+            flowRuleRoutingService.recordAuthoritativeDecision(saved, flowRulePlan);
+        }
+        AssignmentDecisionResult assignment = flowRulePlan != null && !flowRulePlan.isMatched()
+                ? AssignmentDecisionResult.none(flowRulePlan.isAmbiguous()
+                        ? "FLOW_RULE_SAME_PRIORITY_AMBIGUOUS: executor selection is blocked until Flow configuration is repaired"
+                        : "FLOW_RULE_NO_MATCH: executor selection is deferred until semantic triage produces a governed plan")
+                : decideDirectAssignment(saved);
         log.info("task_created taskId={} incidentId={} sourceEventId={} taskType={} taskTypeCode={} sourceSystem={} eventStage={} classificationStatus={} requestedSkill={} matchedFlowId={} matchedRuleId={} targetPoolId={} routingPath={} assignmentCreated={} assignmentId={} selectedAgentId={} assignmentStatus={}",
                 saved.getTaskId(), saved.getIncidentId(), saved.getSourceEventId(), saved.getTaskType(), saved.getTaskTypeCode(), saved.getSourceSystem(),
                 saved.getEventStage(), saved.getClassificationStatus(), saved.getRequestedSkill(), saved.getMatchedFlowId(), saved.getMatchedRuleId(), saved.getTargetPoolId(), saved.getRoutingPath(),
@@ -221,6 +235,29 @@ public class TaskDecisionService {
         return TaskDecisionResult.created(saved, saved.getCreatedReason(), actions, assignment);
     }
 
+    /** RS4: Task primary ownership is the immutable origin scope inherited from the RS2 Incident snapshot. */
+    private void applyOriginScopeSnapshot(TaskRecord task, Incident incident, OffsetDateTime now) {
+        if (task == null || incident == null) {
+            return;
+        }
+        String departmentId = firstNonBlank(incident.getOwnerDepartmentId(), "UNASSIGNED");
+        String groupId = firstNonBlank(incident.getOwnerGroupId());
+        String status = firstNonBlank(incident.getScopeStatus(), "UNRESOLVED");
+        task.setOwnerDepartmentId(departmentId);
+        task.setOwnerGroupId(groupId);
+        task.setRequesterDepartmentId(departmentId);
+        task.setRequesterGroupId(groupId);
+        task.setOriginScopeStatus(status);
+        task.setOriginScopeSourceVersion(incident.getScopeSourceVersion());
+        task.setOriginScopeInheritedAt(firstNonNull(incident.getScopeInheritedAt(), now));
+        // Historical or unresolved origin scope is fail-closed; assignment must never widen it to Tenant.
+        if (!"RESOLVED".equalsIgnoreCase(status)
+                || ("UNASSIGNED".equalsIgnoreCase(departmentId) && groupId == null)) {
+            task.setVisibilityPolicy("PRIVATE");
+        }
+    }
+
+    private <T> T firstNonNull(T value, T fallback) { return value == null ? fallback : value; }
 
     private boolean isUnclassifiedEvent(NormalizedEvent event) {
         if (event == null) {
@@ -265,11 +302,11 @@ public class TaskDecisionService {
         return new TaskContractResolution(resolvedSourceSystem, resolvedTaskType, new ArrayList<>(capabilities), reasons);
     }
 
-    private FlowRuleRoutingPlan resolveAndApplyFlowRulePlan(TaskRecord task) {
+    private FlowRuleRoutingPlan resolveAndApplyFlowRulePlan(TaskRecord task, Map<String,Object> matchAttributes) {
         if (flowRuleRoutingService == null || task == null) {
             return null;
         }
-        FlowRuleRoutingPlan plan = flowRuleRoutingService.resolve(task);
+        FlowRuleRoutingPlan plan = flowRuleRoutingService.resolve(task, matchAttributes);
         if (plan != null && plan.isMatched()) {
             flowRuleRoutingService.applyToTask(task, plan);
         }
@@ -283,11 +320,12 @@ public class TaskDecisionService {
         log.warn("task_flow_rule_gate_blocked taskId={} sourceSystem={} eventStage={} eventType={} requestedSkill={} matchedFlowId={} matchedRuleId={} routingPath={} reason={}",
                 task.getTaskId(), task.getSourceSystem(), task.getEventStage(), task.getEventType(), task.getRequestedSkill(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRoutingPath(), plan.getReason());
         task.setRoutingPolicy("FLOW_RULE");
-        task.setRoutingPath("FLOW_RULE_REQUIRED_BLOCKED");
+        task.setRoutingPath(plan.isAmbiguous() ? "FLOW_RULE_AMBIGUOUS" : "FLOW_RULE_NO_MATCH_TRIAGE");
         task.setRequestedSkill(firstNonBlank(task.getRequestedSkill(), firstOf(task.getRequiredCapabilities())));
         String reason = firstNonBlank(task.getLifecycleReason(), task.getCreatedReason(), "Task created");
-        String blocked = reason + " | NO_ACTIVE_FLOW_RULE: an ACTIVE Dispatch Flow Rule and at least one Flow-selected approved Agent are required before assignment. "
-                + "Capability is optional unless the matched Rule explicitly requires it.";
+        String blocked = plan.isAmbiguous()
+                ? reason + " | FLOW_RULE_SAME_PRIORITY_AMBIGUOUS: multiple deterministic Flow Rules matched at the same minimum priority; no executor may be selected until Flow configuration is repaired."
+                : reason + " | FLOW_RULE_NO_MATCH: no ACTIVE deterministic Flow Rule matched; semantic triage is required before Capability/Executor selection.";
         task.setLifecycleReason(blocked);
         task.setCreatedReason(blocked);
     }

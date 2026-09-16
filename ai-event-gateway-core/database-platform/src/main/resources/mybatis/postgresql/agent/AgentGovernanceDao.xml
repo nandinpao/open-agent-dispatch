@@ -25,6 +25,17 @@
         <result property="agentName" column="agent_name"/>
         <result property="agentType" column="agent_type"/>
         <result property="ownerTeam" column="owner_team"/>
+        <result property="ownerDepartmentId" column="owner_department_id"/>
+        <result property="ownerGroupId" column="owner_group_id"/>
+        <result property="businessOwnerUserId" column="business_owner_user_id"/>
+        <result property="technicalStewardUserId" column="technical_steward_user_id"/>
+        <result property="responsibilityRoleId" column="responsibility_role_id"/>
+        <result property="responsibilityBindingId" column="responsibility_binding_id"/>
+        <result property="ownershipReviewStatus" column="ownership_review_status"/>
+        <result property="ownershipReviewReason" column="ownership_review_reason"/>
+        <result property="nextOwnershipReviewAt" column="next_ownership_review_at"/>
+        <result property="serviceDomainId" column="service_domain_id"/>
+        <result property="trustZoneId" column="trust_zone_id"/>
         <result property="description" column="description"/>
         <result property="approvalStatus" column="approval_status"/>
         <result property="enabled" column="enabled"/>
@@ -143,13 +154,31 @@
     </select>
 
     <insert id="upsertProfile">
-        insert into agent_profiles (agent_id, tenant_id, agent_name, agent_type, owner_team, description, approval_status, enabled, risk_status, policy_version, created_at, updated_at)
-        values (#{profile.agentId}, #{profile.tenantId}, #{profile.agentName}, #{profile.agentType}, #{profile.ownerTeam}, #{profile.description}, #{profile.approvalStatus}, #{profile.enabled}, #{profile.riskStatus}, #{profile.policyVersion}, #{profile.createdAt}, #{profile.updatedAt})
+        insert into agent_profiles (
+            agent_id, tenant_id, agent_name, agent_type, owner_team, owner_department_id, owner_group_id,
+            business_owner_user_id, technical_steward_user_id, responsibility_role_id, responsibility_binding_id,
+            ownership_review_status, ownership_review_reason, next_ownership_review_at,
+            service_domain_id, trust_zone_id, description, approval_status, enabled, risk_status, policy_version, created_at, updated_at
+        )
+        values (
+            #{profile.agentId}, #{profile.tenantId}, #{profile.agentName}, #{profile.agentType}, #{profile.ownerTeam},
+            coalesce(#{profile.ownerDepartmentId}, 'UNASSIGNED'), #{profile.ownerGroupId},
+            #{profile.businessOwnerUserId}, #{profile.technicalStewardUserId}, #{profile.responsibilityRoleId}, #{profile.responsibilityBindingId},
+            coalesce(#{profile.ownershipReviewStatus}, 'REVIEW_REQUIRED'), #{profile.ownershipReviewReason}, #{profile.nextOwnershipReviewAt},
+            coalesce(#{profile.serviceDomainId}, 'UNASSIGNED'), coalesce(#{profile.trustZoneId}, 'DEFAULT'),
+            #{profile.description}, #{profile.approvalStatus}, #{profile.enabled}, #{profile.riskStatus}, #{profile.policyVersion}, #{profile.createdAt}, #{profile.updatedAt}
+        )
         on conflict (agent_id) do update set
             tenant_id = excluded.tenant_id,
             agent_name = excluded.agent_name,
             agent_type = excluded.agent_type,
             owner_team = excluded.owner_team,
+            owner_department_id = excluded.owner_department_id, owner_group_id = excluded.owner_group_id,
+            business_owner_user_id = excluded.business_owner_user_id, technical_steward_user_id = excluded.technical_steward_user_id,
+            responsibility_role_id = excluded.responsibility_role_id, responsibility_binding_id = excluded.responsibility_binding_id,
+            ownership_review_status = excluded.ownership_review_status, ownership_review_reason = excluded.ownership_review_reason,
+            next_ownership_review_at = excluded.next_ownership_review_at,
+            service_domain_id = excluded.service_domain_id, trust_zone_id = excluded.trust_zone_id,
             description = excluded.description,
             approval_status = excluded.approval_status,
             enabled = excluded.enabled,
@@ -157,6 +186,14 @@
             policy_version = excluded.policy_version,
             updated_at = excluded.updated_at
     </insert>
+    <update id="bumpProfilePolicyVersion">
+        update agent_profiles
+           set policy_version = policy_version + 1,
+               updated_at = #{updatedAt}
+         where agent_id = #{agentId}
+           and tenant_id = #{tenantId}
+           and policy_version = #{expectedPolicyVersion}
+    </update>
     <select id="findProfile" resultMap="AgentProfilePoMap">select * from agent_profiles where agent_id = #{agentId}</select>
     <select id="searchProfiles" resultMap="AgentProfilePoMap">
         select * from agent_profiles
@@ -219,7 +256,7 @@
         <where>
             <if test="agentId != null and agentId != ''">agent_id = #{agentId} or claimed_agent_id = #{agentId}</if>
         </where>
-        order by occurred_at desc nulls last limit #{limit}
+        order by occurred_at desc nulls last, created_at desc nulls last, security_event_id desc limit #{limit}
     </select>
 
     <insert id="upsertSecurityEnforcementPolicy">

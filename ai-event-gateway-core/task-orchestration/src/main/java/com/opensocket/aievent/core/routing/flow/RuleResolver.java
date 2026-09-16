@@ -31,7 +31,12 @@ public class RuleResolver {
     }
 
     public TaskRecord applyRuntimeRepair(TaskRecord task) {
-        if (task == null || isFlowRuleTask(task) || !properties.isFlowRuleRoutingEnabled() || flowRuleRoutingService == null) {
+        // A2A Governance is an upstream routing authority. Once it resolves a governed
+        // target Agent Pool, Dispatch must not run Source Flow repair again because that
+        // would either overwrite the A2A Policy Pool or fail the Child Task with
+        // NO_ACTIVE_FLOW_RULE even though its Pool is already authoritative.
+        if (task == null || isFlowRuleTask(task) || isGovernedPoolTask(task)
+                || !properties.isFlowRuleRoutingEnabled() || flowRuleRoutingService == null) {
             return task;
         }
         try {
@@ -63,6 +68,39 @@ public class RuleResolver {
         }
     }
 
+
+    /** C7 Draft simulation path. It may inspect the explicitly selected Draft Flow but never persists routing evidence. */
+    public SimulationRepairResult applySimulationRepair(TaskRecord task, java.util.Map<String,Object> matchAttributes) {
+        if (task == null || isFlowRuleTask(task) || isGovernedPoolTask(task)
+                || !properties.isFlowRuleRoutingEnabled() || flowRuleRoutingService == null) {
+            return new SimulationRepairResult(task, null);
+        }
+        try {
+            FlowRuleRoutingPlan plan = flowRuleRoutingService.resolveForSimulation(task, matchAttributes == null ? java.util.Map.of() : matchAttributes);
+            if (plan == null || !plan.isMatched()) {
+                return new SimulationRepairResult(task, null);
+            }
+            task.setMatchedFlowId(plan.getFlowId());
+            task.setMatchedRuleId(plan.getRuleId());
+            task.setRequestedSkill(plan.getRequestedSkill());
+            task.setEventStage(firstNonBlank(plan.getEventStage(), task.getEventStage(), "EXTERNAL"));
+            task.setTargetSystem(firstNonBlank(plan.getTargetSystem(), task.getTargetSystem()));
+            task.setHandoffMode(firstNonBlank(plan.getHandoffMode(), task.getHandoffMode(), "DIRECT_ASSIGN"));
+            task.setTargetPoolId(firstNonBlank(plan.getTargetPoolId(), task.getTargetPoolId()));
+            task.setAssignedPoolId(firstNonBlank(plan.getTargetPoolId(), task.getAssignedPoolId()));
+            task.setRoutingPath(firstNonBlank(plan.getRoutingPath(), "FLOW_RULE"));
+            task.setRoutingPolicy("FLOW_RULE");
+            task.setRequiredCapabilities(plan.getRequiredSkills());
+            return new SimulationRepairResult(task, plan.getFlowVersion());
+        } catch (Exception ex) {
+            log.warn("routing_flow_rule_simulation_repair_failed taskId={} reason={}: {}",
+                    task.getTaskId(), ex.getClass().getSimpleName(), ex.getMessage());
+            return new SimulationRepairResult(task, null);
+        }
+    }
+
+    public record SimulationRepairResult(TaskRecord task, String flowVersion) {}
+
     public boolean isFlowRuleTask(TaskRecord task) {
         if (!properties.isFlowRuleRoutingEnabled() || task == null || blank(task.getMatchedFlowId())) {
             return false;
@@ -82,6 +120,28 @@ public class RuleResolver {
                 || "SOURCE_FLOW_DEFAULT_POOL".equals(path)
                 || "SOURCE_FLOW_POOL".equals(path)
                 || "SOURCE_DEFAULT".equals(normalize(task.getMatchedRuleId()));
+    }
+
+
+    /**
+     * True when an upstream governance authority already resolved the candidate Pool.
+     *
+     * <p>The first canonical use is A2A Policy -> Agent Pool. This is intentionally
+     * stricter than merely checking targetPoolId: an arbitrary Task may not bypass
+     * Source Flow governance just because a caller supplied a Pool id.</p>
+     */
+    public boolean isGovernedPoolTask(TaskRecord task) {
+        if (task == null || blank(task.getTargetPoolId())) {
+            return false;
+        }
+        String path = normalize(task.getRoutingPath());
+        return "A2A_POLICY_TO_AGENT_POOL".equals(path)
+                && !blank(task.getA2aPolicyId());
+    }
+
+    /** Pool authority may come from Source Flow or another explicit governance authority. */
+    public boolean isAuthoritativePoolTask(TaskRecord task) {
+        return isSourceFlowPoolFirstTask(task) || isGovernedPoolTask(task);
     }
 
     public String decisionSuffix(TaskRecord task) {

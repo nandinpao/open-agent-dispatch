@@ -1,0 +1,12 @@
+package com.opensocket.aievent.core.iam.persistence.repository;
+import static com.opensocket.aievent.core.iam.persistence.repository.RowValues.*; import java.util.*;
+import com.opensocket.aievent.core.iam.organization.application.port.out.GroupMembershipRepository; import com.opensocket.aievent.core.iam.organization.domain.*; import com.opensocket.aievent.core.iam.security.contract.PrincipalRef; import com.opensocket.aievent.core.iam.persistence.dao.IamTenantOrganizationDao; import com.opensocket.aievent.core.iam.persistence.exception.IamOptimisticLockException; import com.opensocket.aievent.database.persistence.spi.DatabaseRepositoryAdapter;
+@DatabaseRepositoryAdapter public class MybatisGroupMembershipRepository implements GroupMembershipRepository {
+ private final IamTenantOrganizationDao dao; public MybatisGroupMembershipRepository(IamTenantOrganizationDao d){dao=d;}
+ public Optional<GroupMembership> findById(TenantId t,MembershipId id){return Optional.ofNullable(dao.findGroupMembership(t.value(),id.value())).map(this::domain);}
+ public List<GroupMembership> findActiveByUser(TenantId t,PrincipalRef u){return dao.findGroupMemberships(t.value(),u.principalId()).stream().map(this::domain).toList();}
+ public long countActiveByGroup(TenantId t,GroupId g){return dao.countActiveGroupMemberships(t.value(),g.value());}
+ public GroupMembership save(GroupMembership v,long expected){int n=expected==0?dao.insertGroupMembership(row(v)):dao.updateGroupMembership(row(v),expected);if(n!=1)throw new IamOptimisticLockException("GroupMembership",v.membershipId().value(),expected);return v;}
+ private GroupMembership domain(Map<String,Object>r){return new GroupMembership(new MembershipId(string(r,"membershipId")),new TenantId(string(r,"tenantId")),new PrincipalRef(PrincipalRef.PrincipalType.USER,string(r,"userId")),new GroupId(string(r,"groupId")),GroupMembershipRole.valueOf(string(r,"membershipRole")),instant(r,"effectiveAt"),Optional.ofNullable(instant(r,"expiresAt")),MembershipStatus.valueOf(string(r,"status")),longValue(r,"version"));}
+ private Map<String,Object> row(GroupMembership v){Map<String,Object>m=new HashMap<>();m.put("tenantId",v.tenantId().value());m.put("membershipId",v.membershipId().value());m.put("userId",v.userPrincipal().principalId());m.put("groupId",v.groupId().value());m.put("membershipRole",v.membershipRole().name());m.put("effectiveAt",v.effectiveAt());m.put("expiresAt",v.expiresAt().orElse(null));m.put("status",v.status().name());m.put("version",v.version());return m;}
+}

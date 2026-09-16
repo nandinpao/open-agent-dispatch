@@ -2,6 +2,7 @@ package com.opensocket.aievent.core.agent.governance;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
@@ -102,6 +103,16 @@ public class AgentGovernanceService {
         profile.setAgentName(firstNonBlank(request.getAgentName(), enrollment.getAgentName(), profile.getAgentName(), agentId));
         profile.setAgentType(firstNonBlank(request.getAgentType(), enrollment.getAgentType(), profile.getAgentType(), "UNKNOWN"));
         profile.setOwnerTeam(firstNonBlank(request.getOwnerTeam(), profile.getOwnerTeam()));
+        if (request.getOwnerDepartmentId() != null) profile.setOwnerDepartmentId(request.getOwnerDepartmentId());
+        if (request.getOwnerGroupId() != null) profile.setOwnerGroupId(request.getOwnerGroupId());
+        if (request.getBusinessOwnerUserId() != null) profile.setBusinessOwnerUserId(request.getBusinessOwnerUserId());
+        if (request.getTechnicalStewardUserId() != null) profile.setTechnicalStewardUserId(request.getTechnicalStewardUserId());
+        if (request.getResponsibilityRoleId() != null) profile.setResponsibilityRoleId(request.getResponsibilityRoleId());
+        if (request.getServiceDomainId() != null) profile.setServiceDomainId(request.getServiceDomainId());
+        validateApprovedOwnership(profile);
+        profile.setOwnershipReviewStatus("CURRENT");
+        profile.setOwnershipReviewReason("Enrollment approved with accountable ownership");
+        profile.setNextOwnershipReviewAt(now.plusDays(90));
         profile.setDescription(firstNonBlank(request.getDescription(), profile.getDescription()));
         profile.setApprovalStatus(AgentApprovalStatus.APPROVED);
         profile.setEnabled(true);
@@ -163,21 +174,55 @@ public class AgentGovernanceService {
     public AgentConnectionAuthorizationResult authorizeConnection(AgentConnectionAuthorizationRequest request) {
         AgentConnectionAuthorizationRequest body = request == null ? new AgentConnectionAuthorizationRequest() : request;
         String agentId = body.effectiveAgentId();
+        String connectionAttemptId = body.getMetadata() == null ? "" : safe(String.valueOf(body.getMetadata().getOrDefault("gatewayConnectionAttemptId", "")));
+        String startupRunId = metadataString(body, "startupRunId");
+        String gatewayCredentialMode = firstNonBlank(metadataString(body, "gatewayCredentialMode"), metadataString(body, "credentialMode"));
+        log.info("agent_runtime_authorization_journey stage=STARTED startupRunId={} connectionAttemptId={} agentId={} gatewayNodeId={} remoteAddress={} transport={} credentialPresent={} fingerprintPresent={} credentialMode={}",
+                safe(startupRunId), connectionAttemptId, safe(agentId), safe(body.getGatewayNodeId()), safe(body.getRemoteAddress()), safe(body.getTransport()),
+                !blank(body.getCredentialToken()) || !blank(body.getCredentialHash()), !blank(body.getPublicKeyFingerprint()), safe(gatewayCredentialMode));
         if (blank(agentId)) {
             AgentConnectionAuthorizationResult result = AgentConnectionAuthorizationResult.deny((String) null, AgentAuthorizationDenyReason.AGENT_ID_REQUIRED, "Agent id is required");
             saveDeniedSecurityEvent(body, result);
+            log.warn("agent_runtime_authorization_journey stage=DENIED connectionAttemptId={} agentId={} reason={}", connectionAttemptId, safe(agentId), result.getReason());
             return result;
         }
+
+        // Discovery-only is an explicit observation claim, not a credential authentication attempt.
+        // It must remain safe even when an APPROVED profile or stale credential exists for the same
+        // Agent ID from an earlier governed run. The Gateway may keep this runtime visible as pending
+        // governance, but Core never grants workload authority from a discovery-only connection.
+        if ("DISCOVERY_ONLY".equalsIgnoreCase(gatewayCredentialMode)) {
+            AgentConnectionAuthorizationResult result = AgentConnectionAuthorizationResult.deny(
+                    agentId,
+                    AgentAuthorizationDenyReason.AGENT_NOT_APPROVED,
+                    "Agent runtime is connected in discovery-only observation mode and is not workload-authorized"
+            );
+            saveSecurityEvent(body, result, AgentSecurityEventType.CONNECTION_OBSERVED);
+            log.info("agent_runtime_authorization_journey stage=PENDING_GOVERNANCE connectionAttemptId={} agentId={} reason={} credentialMode=DISCOVERY_ONLY",
+                    connectionAttemptId, safe(agentId), result.getReason());
+            return result;
+        }
+
         AgentProfile profile = repository.findProfile(agentId).orElse(null);
+        log.info("agent_runtime_authorization_journey stage=PROFILE_RESOLVED startupRunId={} connectionAttemptId={} agentId={} profileFound={} tenantId={} approvalStatus={} enabled={} riskStatus={}",
+                safe(startupRunId), connectionAttemptId, safe(agentId), profile != null,
+                profile == null ? "" : safe(profile.getTenantId()), profile == null ? "" : safe(String.valueOf(profile.getApprovalStatus())),
+                profile != null && profile.isEnabled(), profile == null ? "" : safe(String.valueOf(profile.getRiskStatus())));
         if (profile == null) {
-            ensureEnrollmentFromConnection(body, agentId);
-            AgentConnectionAuthorizationResult result = AgentConnectionAuthorizationResult.deny(agentId, AgentAuthorizationDenyReason.AGENT_NOT_APPROVED, "Agent is pending Core enrollment review");
+            // Discovery-first lifecycle: the transport runtime may observe this Agent before a
+            // Tenant is assigned. Do not create an enrollment with an invented/default Tenant here;
+            // Admin UI will convert the runtime observation into a tenant-scoped enrollment.
+            AgentConnectionAuthorizationResult result = AgentConnectionAuthorizationResult.deny(agentId, AgentAuthorizationDenyReason.AGENT_NOT_APPROVED, "Agent is connected for discovery and is pending Core enrollment review");
             saveDeniedSecurityEvent(body, result);
+            log.info("agent_runtime_authorization_journey stage=PENDING_GOVERNANCE connectionAttemptId={} agentId={} reason={}", connectionAttemptId, safe(agentId), result.getReason());
             return result;
         }
         AgentConnectionAuthorizationResult denial = governanceDenial(profile);
         if (denial != null) {
             saveDeniedSecurityEvent(body, denial);
+            log.warn("agent_runtime_authorization_journey stage=DENIED connectionAttemptId={} agentId={} reason={} approvalStatus={} enabled={} riskStatus={}",
+                    connectionAttemptId, safe(agentId), denial.getReason(),
+                    profile.getApprovalStatus(), profile.isEnabled(), profile.getRiskStatus());
             return denial;
         }
         OffsetDateTime now = now();
@@ -192,6 +237,8 @@ public class AgentGovernanceService {
         if (credential == null) {
             AgentConnectionAuthorizationResult result = AgentConnectionAuthorizationResult.deny(agentId, AgentAuthorizationDenyReason.CREDENTIAL_INVALID, "Agent credential is missing, invalid, expired, or revoked");
             saveDeniedSecurityEvent(body, result);
+            log.warn("agent_runtime_authorization_journey stage=CREDENTIAL_DENIED connectionAttemptId={} tenantId={} agentId={} reason={} credentialPresented={} fingerprintPresented={}",
+                    connectionAttemptId, safe(profile.getTenantId()), safe(agentId), result.getReason(), !blank(tokenHash), !blank(body.getPublicKeyFingerprint()));
             return result;
         }
         List<String> capabilities = repository.findEnabledCapabilities(agentId).stream()
@@ -210,41 +257,82 @@ public class AgentGovernanceService {
                 .filter(value -> !blank(value))
                 .distinct()
                 .toList();
-        AgentConnectionAuthorizationResult result = AgentConnectionAuthorizationResult.allow(profile, capabilities, allowedTaskTypes, allowedSystemCodes, credential.getCredentialVersion());
+        AgentConnectionAuthorizationResult result = AgentConnectionAuthorizationResult.allow(
+                profile, capabilities, allowedTaskTypes, allowedSystemCodes, credential, credential.getCredentialVersion());
+        result.setMachineAuthentication(new AgentMachineAuthenticationFactory().create(result, now.toInstant()));
         saveSecurityEvent(body, result, AgentSecurityEventType.CONNECTION_AUTHORIZED);
+        log.info("agent_runtime_authorization_journey stage=AUTHORIZED startupRunId={} connectionAttemptId={} tenantId={} agentId={} credentialVersion={} policyVersion={}",
+                safe(startupRunId), connectionAttemptId, safe(profile.getTenantId()), safe(agentId), credential.getCredentialVersion(), profile.getPolicyVersion());
         return result;
     }
 
 
     @Transactional
     public AgentProfile issueCredential(String agentId, AgentCredentialIssueCommand command) {
-        AgentProfile profile = requireProfile(agentId);
         AgentCredentialIssueCommand request = command == null ? new AgentCredentialIssueCommand() : command;
-        assertCredentialIssueAllowed(profile);
-        OffsetDateTime now = now();
-        String tokenHash = credentialHash(request.getCredentialToken(), request.getCredentialHash());
-        if (blank(tokenHash) && blank(request.getPublicKeyFingerprint())) {
-            throw new IllegalArgumentException("credentialToken, credentialHash, or publicKeyFingerprint is required to issue an agent credential");
-        }
-        if (request.isRevokeExisting()) {
-            repository.revokeCredentials(agentId, firstNonBlank(request.getReason(), "credential rotated by admin"), now);
-        }
-        profile.setPolicyVersion(profile.getPolicyVersion() + 1);
-        profile.setUpdatedAt(now);
-        AgentProfile saved = repository.saveProfile(profile);
+        String stage = "LOAD_PROFILE";
+        String tenantForLog = "";
+        String fingerprintForLog = "";
+        try {
+            log.info("agent_credential_issue_journey stage=STARTED agentId={} operatorId={} revokeExisting={} credentialType={} expiresAt={}",
+                    safe(agentId), safe(request.getOperatorId()), request.isRevokeExisting(),
+                    safe(String.valueOf(request.getCredentialType())), request.getCredentialExpiresAt());
+            AgentProfile profile = requireProfile(agentId);
+            tenantForLog = safe(profile.getTenantId());
 
-        saveCredential(agentId, request.getCredentialType(), tokenHash, request.getPublicKeyFingerprint(), Math.max(1, saved.getPolicyVersion()), request.getCredentialExpiresAt(), now);
+            stage = "VALIDATE_GOVERNANCE";
+            assertCredentialIssueAllowed(profile);
+            OffsetDateTime now = now();
 
-        appendAudit(
-                agentId,
-                null,
-                request.isRevokeExisting() ? "AGENT_CREDENTIAL_ROTATED" : "AGENT_CREDENTIAL_ISSUED",
-                saved.getApprovalStatus() == null ? null : saved.getApprovalStatus().name(),
-                saved.getApprovalStatus() == null ? null : saved.getApprovalStatus().name(),
-                firstNonBlank(request.getOperatorId(), "system"),
-                firstNonBlank(request.getReason(), "Credential material issued from Admin UI")
-        );
-        return enrichProfile(saved);
+            stage = "HASH_CREDENTIAL";
+            String tokenHash = credentialHash(request.getCredentialToken(), request.getCredentialHash());
+            fingerprintForLog = blank(tokenHash) ? safe(request.getPublicKeyFingerprint()) : tokenHash.substring(0, Math.min(12, tokenHash.length()));
+            if (blank(tokenHash) && blank(request.getPublicKeyFingerprint())) {
+                throw new IllegalArgumentException("credentialToken, credentialHash, or publicKeyFingerprint is required to issue an agent credential");
+            }
+
+            // Credential rotation is not an Agent ownership/profile mutation.  A full saveProfile()
+            // uses an UPSERT whose UPDATE list includes ownership/responsibility columns; PostgreSQL
+            // therefore fires the Phase 12.2 ownership and responsibility-sync triggers even when
+            // those values are unchanged.  That made a credential-only operation re-enter Human
+            // ownership/RBAC governance and caused AUTO_GOVERNED bootstrap failures.
+            //
+            // Advance only the policy revision under optimistic comparison.  V173 guarantees that
+            // the Agent Resource Access descriptors exist before security-epoch triggers execute.
+            stage = "BUMP_POLICY_VERSION";
+            log.info("agent_credential_issue_journey stage={} tenantId={} agentId={} oldPolicyVersion={} fingerprintPrefix={}",
+                    stage, tenantForLog, safe(agentId), profile.getPolicyVersion(), fingerprintForLog);
+            AgentProfile saved = repository.bumpPolicyVersion(
+                    agentId, profile.getTenantId(), profile.getPolicyVersion(), now);
+
+            stage = "REVOKE_EXISTING";
+            if (request.isRevokeExisting()) {
+                repository.revokeCredentials(agentId, firstNonBlank(request.getReason(), "credential rotated by admin"), now);
+            }
+
+            stage = "INSERT_CREDENTIAL";
+            saveCredential(agentId, request.getCredentialType(), tokenHash, request.getPublicKeyFingerprint(), Math.max(1, saved.getPolicyVersion()), request.getCredentialExpiresAt(), now);
+
+            stage = "APPEND_AUDIT";
+            appendAudit(
+                    agentId,
+                    null,
+                    request.isRevokeExisting() ? "AGENT_CREDENTIAL_ROTATED" : "AGENT_CREDENTIAL_ISSUED",
+                    saved.getApprovalStatus() == null ? null : saved.getApprovalStatus().name(),
+                    saved.getApprovalStatus() == null ? null : saved.getApprovalStatus().name(),
+                    firstNonBlank(request.getOperatorId(), "system"),
+                    firstNonBlank(request.getReason(), "Credential material issued from Admin UI")
+            );
+            log.info("agent_credential_issue_journey stage=COMPLETED tenantId={} agentId={} policyVersion={} fingerprintPrefix={} revokeExisting={}",
+                    tenantForLog, safe(agentId), saved.getPolicyVersion(), fingerprintForLog, request.isRevokeExisting());
+            return enrichProfile(saved);
+        } catch (RuntimeException ex) {
+            Throwable root = rootCause(ex);
+            log.error("agent_credential_issue_journey stage=FAILED failedStage={} tenantId={} agentId={} operatorId={} fingerprintPrefix={} exception={} message={} rootException={} rootMessage={} sqlState={}",
+                    stage, tenantForLog, safe(agentId), safe(request.getOperatorId()), fingerprintForLog,
+                    ex.getClass().getName(), safe(ex.getMessage()), root.getClass().getName(), safe(root.getMessage()), sqlState(ex), ex);
+            throw ex;
+        }
     }
 
     @Transactional
@@ -442,10 +530,23 @@ public class AgentGovernanceService {
         AgentProfileUpdateCommand request = command == null ? new AgentProfileUpdateCommand() : command;
         OffsetDateTime now = now();
         String oldStatus = profile.getApprovalStatus() == null ? null : profile.getApprovalStatus().name();
-        if (!blank(request.getTenantId())) profile.setTenantId(request.getTenantId());
+        if (!blank(request.getTenantId()) && !request.getTenantId().trim().equals(profile.getTenantId())) {
+            throw new IllegalArgumentException("Agent Tenant is immutable after enrollment; use the active Tenant and create a new Agent identity instead.");
+        }
         if (!blank(request.getAgentName())) profile.setAgentName(request.getAgentName());
         if (!blank(request.getAgentType())) profile.setAgentType(request.getAgentType());
         if (request.getOwnerTeam() != null) profile.setOwnerTeam(request.getOwnerTeam());
+        if (request.getOwnerDepartmentId() != null) profile.setOwnerDepartmentId(request.getOwnerDepartmentId());
+        if (request.getOwnerGroupId() != null) profile.setOwnerGroupId(request.getOwnerGroupId());
+        if (request.getBusinessOwnerUserId() != null) profile.setBusinessOwnerUserId(request.getBusinessOwnerUserId());
+        if (request.getTechnicalStewardUserId() != null) profile.setTechnicalStewardUserId(request.getTechnicalStewardUserId());
+        if (request.getResponsibilityRoleId() != null) profile.setResponsibilityRoleId(request.getResponsibilityRoleId());
+        if (request.getServiceDomainId() != null) profile.setServiceDomainId(request.getServiceDomainId());
+        if (request.getBusinessOwnerUserId() != null || request.getTechnicalStewardUserId() != null || request.getOwnerDepartmentId() != null || request.getOwnerGroupId() != null || request.getResponsibilityRoleId() != null) {
+            profile.setOwnershipReviewStatus("CURRENT");
+            profile.setOwnershipReviewReason("Ownership reviewed during profile update");
+            profile.setNextOwnershipReviewAt(now.plusDays(90));
+        }
         if (request.getDescription() != null) profile.setDescription(request.getDescription());
         AgentApprovalStatus targetApprovalStatus = request.getApprovalStatus() == null ? profile.getApprovalStatus() : request.getApprovalStatus();
         AgentRiskStatus targetRiskStatus = request.getRiskStatus() == null ? profile.getRiskStatus() : request.getRiskStatus();
@@ -573,7 +674,12 @@ public class AgentGovernanceService {
         if (blank(requestedAgentId)) {
             throw new IllegalArgumentException("agentId is required");
         }
-        AgentSecurityEvent latestFailure = repository.searchSecurityEvents(requestedAgentId, 200).stream()
+        List<AgentSecurityEvent> recentEvents = repository.searchSecurityEvents(requestedAgentId, 200);
+        AgentSecurityEvent latestAuthOutcome = recentEvents.stream()
+                .filter(this::isRuntimeAuthOutcomeEvent)
+                .findFirst()
+                .orElse(null);
+        AgentSecurityEvent latestFailure = recentEvents.stream()
                 .filter(this::isRuntimeAuthFailureEvent)
                 .findFirst()
                 .orElse(null);
@@ -585,6 +691,59 @@ public class AgentGovernanceService {
         metadata.put("sourceOfTruth", "CORE_AGENT_SECURITY_EVENTS");
         metadata.put("eventWindowLimit", 200);
         response.setMetadata(metadata);
+
+        if (latestAuthOutcome != null && latestAuthOutcome.getEventType() == AgentSecurityEventType.CONNECTION_OBSERVED) {
+            response.setHasFailure(false);
+            response.setSummary("The latest runtime connection is discovery-only and pending governance. No current credential failure is active for this observation.");
+            if (latestFailure != null) {
+                metadata.put("lastResolvedSecurityEventId", latestFailure.getSecurityEventId());
+                metadata.put("resolvedBySecurityEventId", latestAuthOutcome.getSecurityEventId());
+                metadata.put("resolvedAt", latestAuthOutcome.getOccurredAt());
+            }
+            metadata.put("latestAuthorizationSecurityEventId", latestAuthOutcome.getSecurityEventId());
+            metadata.put("latestAuthorizationOccurredAt", latestAuthOutcome.getOccurredAt());
+            metadata.put("latestRuntimeState", "PENDING_GOVERNANCE");
+            response.setTroubleshooting(List.of(
+                    AgentSetupTroubleshootingStep.info(
+                            "DISCOVERY_PENDING_GOVERNANCE",
+                            "Runtime observed",
+                            "The Agent is transport-connected in discovery-only mode. Core intentionally did not validate or grant a runtime credential.",
+                            "Review the Agent in Admin UI, assign accountable ownership, approve it, issue a per-Agent credential, and reconnect."
+                    )
+            ));
+            return response;
+        }
+
+        if (latestAuthOutcome != null && latestAuthOutcome.getEventType() == AgentSecurityEventType.CONNECTION_AUTHORIZED) {
+            response.setHasFailure(false);
+            if (latestFailure != null) {
+                response.setSummary("A previous runtime authorization failure was resolved by a later successful Core authorization.");
+                metadata.put("lastResolvedSecurityEventId", latestFailure.getSecurityEventId());
+                metadata.put("resolvedBySecurityEventId", latestAuthOutcome.getSecurityEventId());
+                metadata.put("resolvedAt", latestAuthOutcome.getOccurredAt());
+                response.setTroubleshooting(List.of(
+                        AgentSetupTroubleshootingStep.info(
+                                "AUTH_FAILURE_RESOLVED",
+                                "Runtime authorization healthy",
+                                "Core recorded a successful runtime authorization after the previous failure.",
+                                "No credential repair is required while the current runtime remains authorized."
+                        )
+                ));
+            } else {
+                response.setSummary("The latest runtime authorization succeeded. No current authorization failure is active for this Agent.");
+                response.setTroubleshooting(List.of(
+                        AgentSetupTroubleshootingStep.info(
+                                "CURRENT_AUTHORIZATION_HEALTHY",
+                                "Runtime authorization healthy",
+                                "The latest Core runtime authorization decision for this Agent is ALLOW.",
+                                "No action is required."
+                        )
+                ));
+            }
+            metadata.put("latestAuthorizationSecurityEventId", latestAuthOutcome.getSecurityEventId());
+            metadata.put("latestAuthorizationOccurredAt", latestAuthOutcome.getOccurredAt());
+            return response;
+        }
 
         if (latestFailure == null) {
             response.setHasFailure(false);
@@ -751,21 +910,6 @@ public class AgentGovernanceService {
         return existing;
     }
 
-    private void ensureEnrollmentFromConnection(AgentConnectionAuthorizationRequest request, String agentId) {
-        repository.findLatestEnrollmentByAgent(agentId).orElseGet(() -> {
-            AgentEnrollmentRequest enrollment = new AgentEnrollmentRequest();
-            enrollment.setClaimedAgentId(agentId);
-            enrollment.setTenantId(firstNonBlank(metadataString(request, "tenantId"), "default"));
-            enrollment.setAgentName(firstNonBlank(metadataString(request, "agentName"), agentId));
-            enrollment.setAgentType(firstNonBlank(metadataString(request, "agentType"), "UNKNOWN"));
-            enrollment.setSubmittedMetadata(request.getMetadata());
-            enrollment.setFingerprint(request.getFingerprint());
-            enrollment.setRemoteAddress(request.getRemoteAddress());
-            enrollment.setSubmittedAt(now());
-            return submitEnrollment(enrollment);
-        });
-    }
-
     private String safe(String value) {
         if (value == null) return "";
         String normalized = value.replace('\n', ' ').replace('\r', ' ').trim();
@@ -875,6 +1019,13 @@ public class AgentGovernanceService {
         };
     }
 
+    private boolean isRuntimeAuthOutcomeEvent(AgentSecurityEvent event) {
+        return event != null && event.getEventType() != null
+                && (event.getEventType() == AgentSecurityEventType.CONNECTION_OBSERVED
+                || event.getEventType() == AgentSecurityEventType.CONNECTION_AUTHORIZED
+                || isRuntimeAuthFailureEvent(event));
+    }
+
     private String authFailureSummary(String denyReason, AgentSecurityEvent event) {
         String reason = firstNonBlank(denyReason, "CONNECTION_DENIED");
         return switch (reason) {
@@ -923,12 +1074,13 @@ public class AgentGovernanceService {
         String normalizedReason = normalizeDenyReason(denyReason);
         List<AgentConnectionRepairAction> actions = new java.util.ArrayList<>();
         String repairEndpointBase = "/admin/agents/" + agentId + "/connection-repair-actions/";
-        if (!blank(latestFailure == null ? null : latestFailure.getSecurityEventId())) {
+        String latestSecurityEventId = latestFailure == null ? null : latestFailure.getSecurityEventId();
+        if (!blank(latestSecurityEventId)) {
             actions.add(AgentConnectionRepairAction.navigate(
                     "VIEW_SECURITY_EVENT",
                     "Open security event",
                     "Open the Core security event that recorded the latest denied runtime authorization.",
-                    "/security-events?agentId=" + agentId + "&eventId=" + latestFailure.getSecurityEventId()
+                    "/security-events?agentId=" + agentId + "&eventId=" + latestSecurityEventId
             ));
         }
 
@@ -1065,13 +1217,8 @@ public class AgentGovernanceService {
         List<AgentAuthorizationScope> scopes = requestedScopes == null ? List.of() : requestedScopes.stream()
                 .filter(Objects::nonNull)
                 .toList();
-        if (scopes.isEmpty()) {
-            AgentAuthorizationScope defaultScope = new AgentAuthorizationScope();
-            defaultScope.setTenantId(firstNonBlank(tenantId, "default"));
-            defaultScope.setSystemCode("*");
-            defaultScope.setTaskType("*");
-            scopes = List.of(defaultScope);
-        }
+        // No explicit Source System/task scope means no workload scope. Never silently expand an
+        // administrator's empty selection into */* authorization.
         return scopes.stream()
                 .peek(scope -> {
                     if (blank(scope.getScopeId())) scope.setScopeId("scope-" + UUID.randomUUID());
@@ -1162,6 +1309,26 @@ public class AgentGovernanceService {
         return repository.saveSecurityEvent(event);
     }
 
+
+    private Throwable rootCause(Throwable value) {
+        Throwable current = value;
+        while (current != null && current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current == null ? value : current;
+    }
+
+    private String sqlState(Throwable value) {
+        Throwable current = value;
+        while (current != null) {
+            if (current instanceof SQLException sqlException && !blank(sqlException.getSQLState())) {
+                return safe(sqlException.getSQLState());
+            }
+            current = current.getCause();
+        }
+        return "";
+    }
+
     private String credentialHash(String token, String providedHash) {
         if (!blank(providedHash)) return providedHash.trim();
         if (!blank(token)) return sha256(token.trim());
@@ -1190,6 +1357,19 @@ public class AgentGovernanceService {
         if (request == null || request.getMetadata() == null) return null;
         Object value = request.getMetadata().get(key);
         return value instanceof String text && !text.isBlank() ? text.trim() : null;
+    }
+
+    private void validateApprovedOwnership(AgentProfile profile) {
+        if (profile == null) throw new IllegalArgumentException("AGENT_PROFILE_REQUIRED");
+        if (blank(profile.getOwnerDepartmentId()) || "UNASSIGNED".equalsIgnoreCase(profile.getOwnerDepartmentId().trim())) {
+            throw new IllegalArgumentException("AGENT_OWNER_DEPARTMENT_REQUIRED: Approved and enabled Agents must have an owning Department.");
+        }
+        if (blank(profile.getBusinessOwnerUserId())) {
+            throw new IllegalArgumentException("AGENT_BUSINESS_OWNER_REQUIRED: Approved and enabled Agents must have an accountable Human business owner.");
+        }
+        if (blank(profile.getResponsibilityRoleId())) {
+            throw new IllegalArgumentException("AGENT_RESPONSIBILITY_REQUIRED: Approved and enabled Agents must hold an Agent-compatible Responsibility such as AGENT_RUNTIME.");
+        }
     }
 
     private String firstNonBlank(String... values) {

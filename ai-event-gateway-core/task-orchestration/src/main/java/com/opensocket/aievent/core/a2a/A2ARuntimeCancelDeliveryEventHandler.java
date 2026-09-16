@@ -1,0 +1,4 @@
+package com.opensocket.aievent.core.a2a;
+import com.opensocket.aievent.core.a2a.application.port.in.A2ACancellationRuntimeUseCase;
+import org.springframework.stereotype.Component; import com.opensocket.aievent.core.events.A2ARuntimeCancelDeliveryEvent; import com.opensocket.aievent.core.outbox.ModuleEventHandler;
+@Component public class A2ARuntimeCancelDeliveryEventHandler implements ModuleEventHandler<A2ARuntimeCancelDeliveryEvent> { private final A2ACancellationRuntimeUseCase service; public A2ARuntimeCancelDeliveryEventHandler(A2ACancellationRuntimeUseCase s){service=s;} public String eventType(){return A2ARuntimeCancelDeliveryEvent.TYPE;} public Class<A2ARuntimeCancelDeliveryEvent> payloadType(){return A2ARuntimeCancelDeliveryEvent.class;} public void handle(A2ARuntimeCancelDeliveryEvent e){service.recordDelivery(e);} }

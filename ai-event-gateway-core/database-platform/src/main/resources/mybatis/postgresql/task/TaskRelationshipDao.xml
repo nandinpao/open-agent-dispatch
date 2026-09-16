@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.task.dao.TaskRelationshipDao">
+  <resultMap id="Map" type="com.opensocket.aievent.database.persistence.task.po.TaskRelationshipPo">
+    <id property="relationshipId" column="relationship_id"/><result property="tenantId" column="tenant_id"/>
+    <result property="fromTaskId" column="from_task_id"/><result property="toTaskId" column="to_task_id"/>
+    <result property="relationshipType" column="relationship_type"/><result property="direction" column="direction"/>
+    <result property="reasonCode" column="reason_code"/><result property="description" column="description"/>
+    <result property="referenceVisibility" column="reference_visibility"/><result property="idempotencyKey" column="idempotency_key"/>
+    <result property="createdByType" column="created_by_type"/><result property="createdById" column="created_by_id"/>
+    <result property="createdAt" column="created_at"/><result property="version" column="version"/>
+  </resultMap>
+  <insert id="insert">
+    insert into task_relationships(
+      tenant_id,relationship_id,from_task_id,to_task_id,relationship_type,direction,reason_code,description,
+      reference_visibility,idempotency_key,created_by_type,created_by_id,created_at,version
+    ) values (
+      #{relationship.tenantId},#{relationship.relationshipId},#{relationship.fromTaskId},#{relationship.toTaskId},
+      #{relationship.relationshipType},#{relationship.direction},#{relationship.reasonCode},#{relationship.description},
+      #{relationship.referenceVisibility},#{relationship.idempotencyKey},#{relationship.createdByType},#{relationship.createdById},
+      coalesce(#{relationship.createdAt},now()),#{relationship.version}
+    )
+    on conflict (tenant_id,from_task_id,to_task_id,relationship_type) do nothing
+  </insert>
+  <select id="findById" resultMap="Map">select * from task_relationships where tenant_id=#{tenantId} and relationship_id=#{relationshipId}</select>
+  <select id="findByIdempotencyKey" resultMap="Map">select * from task_relationships where tenant_id=#{tenantId} and idempotency_key=#{idempotencyKey} limit 1</select>
+  <select id="findNatural" resultMap="Map">select * from task_relationships where tenant_id=#{tenantId} and from_task_id=#{fromTaskId} and to_task_id=#{toTaskId} and relationship_type=#{relationshipType} limit 1</select>
+  <select id="findOutbound" resultMap="Map">select * from task_relationships where tenant_id=#{tenantId} and from_task_id=#{taskId} order by created_at desc limit #{limit}</select>
+  <select id="findInbound" resultMap="Map">select * from task_relationships where tenant_id=#{tenantId} and to_task_id=#{taskId} order by created_at desc limit #{limit}</select>
+  <delete id="delete">delete from task_relationships where tenant_id=#{tenantId} and relationship_id=#{relationshipId}</delete>
+</mapper>

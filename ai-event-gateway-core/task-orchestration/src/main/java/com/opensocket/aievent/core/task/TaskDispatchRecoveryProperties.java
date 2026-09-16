@@ -14,8 +14,8 @@ public class TaskDispatchRecoveryProperties {
     private boolean enabled = true;
     private boolean scannerEnabled = true;
     private int maxBatchSize = 50;
-    /** 0 means unlimited; lifecycle timeout policies may still terminate the task. */
-    private int maxAttempts = 0;
+    /** Bounded task-level recovery. 0 remains an explicit opt-in for unlimited recovery. */
+    private int maxAttempts = 5;
     private Duration initialDelay = Duration.ofSeconds(30);
     private Duration maxDelay = Duration.ofMinutes(10);
     private Duration claimLease = Duration.ofSeconds(30);

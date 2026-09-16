@@ -10,6 +10,7 @@ public interface TaskExecutionAttemptDao {
     int upsert(@Param("attempt") TaskExecutionAttemptPo attempt);
     TaskExecutionAttemptPo findById(@Param("executionAttemptId") String executionAttemptId);
     TaskExecutionAttemptPo findCurrentByAssignmentId(@Param("assignmentId") String assignmentId);
+    TaskExecutionAttemptPo findLatestByAssignmentId(@Param("assignmentId") String assignmentId);
     List<TaskExecutionAttemptPo> findByTaskId(@Param("taskId") String taskId, @Param("limit") int limit);
     int countByTaskId(@Param("taskId") String taskId);
 }

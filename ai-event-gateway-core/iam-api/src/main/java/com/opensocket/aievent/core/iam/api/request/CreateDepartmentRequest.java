@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record CreateDepartmentRequest(String departmentId,@NotBlank String code,@NotBlank String name,String parentDepartmentId,String managerUserId,int displayOrder,@NotBlank String reason){}

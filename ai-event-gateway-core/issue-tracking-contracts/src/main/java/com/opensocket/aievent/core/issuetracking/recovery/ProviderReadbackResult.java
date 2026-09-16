@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.issuetracking.recovery;
+public record ProviderReadbackResult(ProviderReadbackStatus status,String externalIssueId,String externalIssueKey,String observedHash,String evidenceReference,String failureCode,String safeMessage){ public static ProviderReadbackResult unavailable(){return new ProviderReadbackResult(ProviderReadbackStatus.RETRYABLE_FAILURE,null,null,null,null,"RECOVERY_GATEWAY_UNAVAILABLE","Scoped provider recovery gateway is unavailable.");}}

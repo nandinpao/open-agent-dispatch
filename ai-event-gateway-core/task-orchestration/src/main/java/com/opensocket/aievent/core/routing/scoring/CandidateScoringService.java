@@ -10,11 +10,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.opensocket.aievent.core.agent.AgentSnapshot;
-import com.opensocket.aievent.core.agent.skill.AgentDispatchSkillEvaluationService;
-import com.opensocket.aievent.core.agent.skill.AgentSkillDefinition;
-import com.opensocket.aievent.core.agent.skill.AgentSkillEvaluationRequest;
-import com.opensocket.aievent.core.agent.skill.AgentSkillEvaluationResult;
-import com.opensocket.aievent.core.agent.skill.AgentSkillRegistryService;
 import com.opensocket.aievent.core.routing.AgentCandidateScore;
 import com.opensocket.aievent.core.routing.RoutingPolicy;
 import com.opensocket.aievent.core.routing.RoutingProperties;
@@ -22,40 +17,29 @@ import com.opensocket.aievent.core.routing.eligibility.RuntimeEligibilityEvaluat
 import com.opensocket.aievent.core.task.TaskRecord;
 
 /**
- * Candidate scoring boundary for current routing.
+ * Compatibility/fallback candidate scoring boundary.
  *
- * <p>Phase 3-8 moves the former RoutingDecisionService scoring formula here
- * without changing scoreBreakdown keys, final-score clamping, backend eligibility
- * blocking behavior, skill-aware scoring, or skill-version compatibility scoring.</p>
+ * <p>V38-7A1 removes this scorer from current Source Flow and governed-pool
+ * execution authority. Those paths use DispatchDecisionEngine and Core-approved
+ * Capability eligibility before scoring. Runtime-reported capability metadata may
+ * still appear here for compatibility diagnostics, but must never be interpreted
+ * as qualification authority for current product routing.</p>
  */
 public class CandidateScoringService {
     private final RoutingProperties properties;
     private final RuntimeEligibilityEvaluator runtimeEligibilityEvaluator;
-    private final AgentSkillRegistryService skillRegistryService;
-    private final AgentDispatchSkillEvaluationService dispatchSkillEvaluationService;
-
     public CandidateScoringService(RoutingProperties properties,
-                                   RuntimeEligibilityEvaluator runtimeEligibilityEvaluator,
-                                   AgentSkillRegistryService skillRegistryService,
-                                   AgentDispatchSkillEvaluationService dispatchSkillEvaluationService) {
+                                   RuntimeEligibilityEvaluator runtimeEligibilityEvaluator) {
         this.properties = properties;
         this.runtimeEligibilityEvaluator = runtimeEligibilityEvaluator;
-        this.skillRegistryService = skillRegistryService;
-        this.dispatchSkillEvaluationService = dispatchSkillEvaluationService;
     }
 
     public AgentCandidateScore score(TaskRecord task, AgentSnapshot agent, RoutingPolicy policy, boolean flowRuleTask) {
         BackendEligibilityScore backendEligibility = evaluateBackendEligibility(task, agent);
         List<String> requiredCapabilities = routingRequiredCapabilities(task, flowRuleTask);
-        List<String> effectiveCapabilitiesWork = effectiveCapabilities(agent);
-        if (backendEligibility.applied() && !backendEligibility.blockingFailure()) {
-            // Backend eligibility is the authority for Admin-managed Dispatch Flow coverage grants.
-            // If an Agent has the required Dispatch Flow coverage, the scope's capability bindings should
-            // be considered effective for scoring even when the legacy/runtime capability snapshot
-            // does not contain those business capabilities.
-            effectiveCapabilitiesWork = mergeDistinct(effectiveCapabilitiesWork, requiredCapabilities);
-        }
-        final List<String> effectiveCapabilities = effectiveCapabilitiesWork;
+        // Flow membership/coverage determines the candidate set only. It must never fabricate
+        // business Capability evidence for a candidate that does not actually expose it.
+        final List<String> effectiveCapabilities = effectiveCapabilities(agent);
         List<String> matched = requiredCapabilities.stream()
                 .filter(effectiveCapabilities::contains)
                 .toList();
@@ -75,8 +59,8 @@ public class CandidateScoringService {
         int policyBonus = policyBonus(policy, missing, siteScore);
         int penalty = runtimePenalty(agent);
 
-        SkillScore skill = evaluateSkillAware(task, agent, flowRuleTask);
-        SkillVersionScore skillVersion = evaluateSkillVersionCompatibility(task, agent);
+        SkillScore skill = SkillScore.retired();
+        SkillVersionScore skillVersion = SkillVersionScore.retired();
         int backendEligibilityScore = backendEligibility.score();
         int backendEligibilityPenalty = backendEligibility.penalty();
         int skillScore = skill.score();
@@ -171,7 +155,7 @@ public class CandidateScoringService {
     private int policyBonus(RoutingPolicy policy, List<String> missing, int siteScore) {
         boolean completeCapability = missing == null || missing.isEmpty();
         return switch (policy) {
-            case FLOW_RULE -> completeCapability ? 20 : 0;
+            case FLOW_RULE, GOVERNED_POOL -> completeCapability ? 20 : 0;
             case CAPABILITY_FIRST -> completeCapability ? 10 : 0;
             case LOCAL_FIRST -> siteScore > 0 ? 15 : 0;
             case LOAD_BALANCED -> 5;
@@ -179,122 +163,11 @@ public class CandidateScoringService {
         };
     }
 
-    private SkillScore evaluateSkillAware(TaskRecord task, AgentSnapshot agent, boolean flowRuleTask) {
-        if (!properties.isSkillAwareEnabled() || skillRegistryService == null) {
-            return SkillScore.notApplied();
-        }
-        AgentSkillEvaluationRequest request = skillRequestFor(task, flowRuleTask);
-        if (!requiresSkillEvaluation(request)) {
-            return SkillScore.notApplied();
-        }
-        if (dispatchSkillEvaluationService == null) {
-            return SkillScore.notApplied();
-        }
-        AgentSkillEvaluationResult result = dispatchSkillEvaluationService.evaluate(agent, request);
-        List<String> matched = result.getMatchedSkillCodes().stream().map(value -> "skill:" + value).toList();
-        List<String> missing = result.getMissingRequirements().stream().map(value -> "skill:" + value).toList();
-        if (result.isEligible()) {
-            int bonus = 20 + Math.min(10, result.getMatchedSkillCodes().size() * 5);
-            return new SkillScore(true, Math.min(30, bonus), 0, matched, List.of(),
-                    "eligible matched=" + result.getMatchedSkillCodes(), false);
-        }
-        int penalty = properties.isSkillAwareEnforced() ? 40 : 0;
-        return new SkillScore(true, 0, penalty, matched, missing,
-                "ineligible missing=" + result.getMissingRequirements(), properties.isSkillAwareEnforced());
-    }
-
-    private SkillVersionScore evaluateSkillVersionCompatibility(TaskRecord task, AgentSnapshot agent) {
-        if (!properties.isSkillVersionCompatibilityEnabled()) {
-            return SkillVersionScore.notApplied();
-        }
-        Map<String, Integer> required = requiredSkillVersions(task);
-        if (required.isEmpty()) {
-            return SkillVersionScore.notApplied();
-        }
-        Map<String, Integer> agentVersions = agentSkillVersions(agent);
-        List<String> matched = new ArrayList<>();
-        List<String> missing = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : required.entrySet()) {
-            int actual = agentVersions.getOrDefault(entry.getKey(), 0);
-            if (actual >= entry.getValue()) {
-                matched.add("skillVersion:" + entry.getKey() + ">=" + entry.getValue() + " actual=" + actual);
-            } else {
-                missing.add("skillVersion:" + entry.getKey() + ">=" + entry.getValue() + " actual=" + actual);
-            }
-        }
-        if (missing.isEmpty()) {
-            return new SkillVersionScore(true, Math.min(10, matched.size() * 5), 0, matched, List.of(),
-                    "compatible " + matched, false);
-        }
-        int penalty = properties.isSkillVersionEnforced() ? 40 : 0;
-        return new SkillVersionScore(true, 0, penalty, matched, missing,
-                "incompatible " + missing, properties.isSkillVersionEnforced());
-    }
-
-    private AgentSkillEvaluationRequest skillRequestFor(TaskRecord task, boolean flowRuleTask) {
-        List<String> requiredCapabilities = routingRequiredCapabilities(task, flowRuleTask);
-        AgentSkillEvaluationRequest request = new AgentSkillEvaluationRequest();
-        request.setRequiredCapabilities(requiredCapabilities);
-        request.setSiteCode(task.getSiteId());
-        KnownSkillMatch known = findKnownSkill(requiredCapabilities, task);
-        if (known != null) {
-            request.setDomain(known.domain());
-            request.setTaskType(known.taskType());
-            request.setProvider(known.provider());
-            request.setRequiredToolPolicy(known.toolPolicy());
-            request.setOperation(known.operation());
-        }
-        for (String required : requiredCapabilities) {
-            if (isOperation(required)) request.setOperation(required);
-            if (isToolPolicy(required)) request.setRequiredToolPolicy(required);
-            if (required.startsWith("DATA_CLASS:")) request.getDataClasses().add(required.substring("DATA_CLASS:".length()));
-            if (required.startsWith("DATA:")) request.getDataClasses().add(required.substring("DATA:".length()));
-            if (required.startsWith("PROVIDER:")) request.setProvider(required.substring("PROVIDER:".length()));
-            if (required.startsWith("DOMAIN:")) request.setDomain(required.substring("DOMAIN:".length()));
-        }
-        return request;
-    }
-
-    private KnownSkillMatch findKnownSkill(List<String> requiredCapabilities, TaskRecord task) {
-        if (skillRegistryService == null) return null;
-        List<AgentSkillDefinition> skills = skillRegistryService.search(null, true);
-        for (AgentSkillDefinition skill : skills) {
-            String skillCode = normalize(skill.getSkillCode());
-            if (requiredCapabilities.contains(skillCode) || intersectsNormalized(skill.getTaskTypes(), requiredCapabilities)) {
-                return new KnownSkillMatch(
-                        skill.getDomain(),
-                        firstOrDefault(intersection(skill.getTaskTypes(), requiredCapabilities), skillCode),
-                        firstOrDefault(intersection(skill.getProviders(), requiredCapabilities), first(skill.getProviders())),
-                        firstOrDefault(intersection(skill.getToolPolicies(), requiredCapabilities), first(skill.getToolPolicies())),
-                        firstOrDefault(intersection(skill.getOperations(), requiredCapabilities), null));
-            }
-        }
-        String taskTypeFromTask = taskTypeCode(task);
-        if (!blank(taskTypeFromTask)) {
-            String taskType = normalize(taskTypeFromTask);
-            for (AgentSkillDefinition skill : skills) {
-                if (containsNormalized(skill.getTaskTypes(), taskType)) {
-                    return new KnownSkillMatch(skill.getDomain(), taskType, first(skill.getProviders()), first(skill.getToolPolicies()), first(skill.getOperations()));
-                }
-            }
-        }
-        return null;
-    }
-
-    private boolean requiresSkillEvaluation(AgentSkillEvaluationRequest request) {
-        return request != null
-                && (!blank(request.getDomain())
-                || !blank(request.getTaskType())
-                || !blank(request.getProvider())
-                || !blank(request.getOperation())
-                || !blank(request.getRequiredToolPolicy())
-                || !request.getDataClasses().isEmpty());
-    }
-
+    /**
+     * Stage 7 retirement boundary: Skill-era routing no longer has scoring or eligibility authority.
+     * Historical scoreBreakdown keys remain stable, but are emitted as retired diagnostics only.
+     */
     private List<String> effectiveCapabilities(AgentSnapshot agent) {
-        if (dispatchSkillEvaluationService != null) {
-            return dispatchSkillEvaluationService.effectiveDispatchCapabilities(agent);
-        }
         LinkedHashSet<String> capabilities = new LinkedHashSet<>();
         if (agent.getCapabilities() != null) {
             agent.getCapabilities().stream().map(this::normalize).filter(value -> !blank(value)).forEach(capabilities::add);
@@ -308,7 +181,6 @@ public class CandidateScoringService {
             addCapabilityValues(capabilities, profile.get("domain"));
             addCapabilityValues(capabilities, profile.get("systems"));
             addCapabilityValues(capabilities, profile.get("system"));
-            addCapabilityValues(capabilities, profile.get("skills"));
             Object executorMode = profile.get("executorMode");
             if (executorMode != null && !executorMode.toString().isBlank()) {
                 capabilities.add(normalize(executorMode.toString()));
@@ -393,11 +265,8 @@ public class CandidateScoringService {
     }
 
     private List<String> routingRequiredCapabilities(TaskRecord task, boolean flowRuleTask) {
-        if (flowRuleTask) {
-            // Capability is Agent metadata only. Source Flow / Pool-first routing
-            // must not turn requestedSkill or required_capabilities_json into a blocking gate.
-            return List.of();
-        }
+        // V38: Flow selects the candidate Pool; Task requiredCapabilities always remains
+        // an eligibility/scoring requirement regardless of how the Task reached routing.
         return normalizedRequiredCapabilities(task).stream()
                 .filter(value -> !isSkillVersionHint(value))
                 .toList();
@@ -564,16 +433,15 @@ public class CandidateScoringService {
     }
 
     private record SkillScore(boolean applied, int score, int penalty, List<String> matchedDiagnostics, List<String> missingDiagnostics, String reason, boolean blockingFailure) {
-        static SkillScore notApplied() {
-            return new SkillScore(false, 0, 0, List.of(), List.of(), "skill-aware routing disabled or no known skill requirement", false);
+        static SkillScore retired() {
+            return new SkillScore(false, 0, 0, List.of(), List.of(), "RETIRED_STAGE7_CANONICAL_CAPABILITY_AUTHORITY", false);
         }
     }
 
     private record SkillVersionScore(boolean applied, int score, int penalty, List<String> matchedDiagnostics, List<String> missingDiagnostics, String reason, boolean blockingFailure) {
-        static SkillVersionScore notApplied() {
-            return new SkillVersionScore(false, 0, 0, List.of(), List.of(), "skill-version compatibility disabled or not requested", false);
+        static SkillVersionScore retired() {
+            return new SkillVersionScore(false, 0, 0, List.of(), List.of(), "RETIRED_STAGE7_CANONICAL_CAPABILITY_AUTHORITY", false);
         }
     }
 
-    private record KnownSkillMatch(String domain, String taskType, String provider, String toolPolicy, String operation) {}
 }

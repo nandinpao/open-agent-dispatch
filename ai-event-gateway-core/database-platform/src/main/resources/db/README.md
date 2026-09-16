@@ -22,3 +22,5 @@ Rules:
 3. Update `deploy/sql/postgresql/common/01_schema.sql` after migration changes.
 4. Do not place environment-specific seed or destructive SQL in this runtime folder.
 5. Environment-specific SQL belongs under `deploy/sql/postgresql/local`, `dev`, or `prod`.
+
+- V15/V16: Phase 0E Integration Connection, scoped Principal, Secret-reference Credential, Project Mapping and Permission Probe contracts.

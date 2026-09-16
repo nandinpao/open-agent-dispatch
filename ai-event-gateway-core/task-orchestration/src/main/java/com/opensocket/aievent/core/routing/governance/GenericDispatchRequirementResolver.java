@@ -12,16 +12,17 @@ import com.opensocket.aievent.core.dispatch.flow.FlowRuleRoutingPlan;
 import com.opensocket.aievent.core.task.TaskRecord;
 
 /**
- * Current direct-dispatch requirement resolver.
+ * Canonical Source Flow dispatch requirement resolver.
  *
- * The standard runtime contract is owned only by the matched Dispatch Flow:
- * Flow Rule -> Flow Agent Assignment -> optional required Capability.
- * No parallel governance repository, fallback pool, source policy, operation profile,
- * action grant, or source assignment is consulted here.
+ * <p>V38-7A1 establishes one authority chain: Source Flow selects an Agent Pool,
+ * Agent Pool membership defines the candidate boundary, Task requiredCapabilities
+ * are blocking eligibility requirements, and only Core-approved Agent Capability
+ * assignments satisfy those requirements. Runtime-reported capabilities are
+ * diagnostic observations and never grant qualification.</p>
  */
 @Service
 public class GenericDispatchRequirementResolver implements DispatchRequirementResolver {
-    private static final int RESOLVER_VERSION = 3;
+    private static final int RESOLVER_VERSION = 4;
 
     public GenericDispatchRequirementResolver() {
     }
@@ -34,23 +35,36 @@ public class GenericDispatchRequirementResolver implements DispatchRequirementRe
                     "FLOW_RULE_NOT_MATCHED", List.of());
         }
 
-        List<String> capabilities = explicitCapabilities(plan);
+        String targetPoolId = firstNonBlank(plan.getTargetPoolId(), plan.getDefaultPoolId(),
+                task.getTargetPoolId(), task.getAssignedPoolId());
+        if (targetPoolId == null || targetPoolId.isBlank()) {
+            return blocked(task, plan, RequirementResolutionMode.NONE,
+                    "SOURCE_FLOW_HAS_NO_TARGET_POOL", explicitCapabilities(plan, task));
+        }
+
+        List<String> capabilities = explicitCapabilities(plan, task);
         DispatchRequirementResolution resolution = base(task, plan,
                 capabilities.isEmpty() ? RequirementResolutionMode.NONE : RequirementResolutionMode.EXPLICIT_CAPABILITY);
         resolution.setRequiredOperations(List.of());
         resolution.setRequiredCapabilities(capabilities);
         resolution.setOutcome(RequirementDecisionStatus.RESOLVED);
         resolution.setReasonCode(capabilities.isEmpty()
-                ? "STANDARD_FLOW_DIRECT_NO_CAPABILITY_REQUIREMENT_RESOLVED"
-                : "STANDARD_FLOW_DIRECT_CAPABILITY_REQUIREMENT_RESOLVED");
+                ? "SOURCE_FLOW_POOL_NO_CAPABILITY_REQUIREMENT_RESOLVED"
+                : "SOURCE_FLOW_POOL_CAPABILITY_REQUIREMENT_RESOLVED");
         Map<String, Object> details = new LinkedHashMap<>();
-        details.put("dispatchAuthority", "DISPATCH_FLOW_DIRECT");
-        details.put("candidateAuthority", "FLOW_AGENT_ASSIGNMENT");
+        details.put("dispatchAuthority", "DISPATCH_DECISION_ENGINE");
+        details.put("candidateAuthority", "AGENT_POOL_MEMBERSHIP");
+        details.put("targetPoolId", targetPoolId);
+        details.put("targetPoolCode", plan.getTargetPoolCode());
+        details.put("selectionStrategy", firstNonBlank(plan.getSelectionStrategy(), "LOWEST_LOAD"));
+        details.put("capabilityAuthority", "CORE_APPROVED_AGENT_CAPABILITY");
+        details.put("runtimeReportedCapabilitiesAuthority", false);
         details.put("parallelDispatchModelsRemoved", true);
         details.put("requiredCapabilityCount", capabilities.size());
+        details.put("routingSequence", "FLOW_POOL->REQUIRED_CAPABILITY->RUNTIME_ELIGIBILITY->ROUTING_SCORE");
         resolution.setDetails(details);
-        resolution.setRoutingStrategy(parseEnum(
-                GenericRoutingStrategy.class, plan.getRoutingStrategy(), GenericRoutingStrategy.WEIGHTED_SCORE));
+        resolution.setCandidatePoolMode(CandidatePoolMode.SOURCE_SYSTEM_POOL);
+        resolution.setRoutingStrategy(routingStrategy(plan));
         resolution.validate();
         return resolution;
     }
@@ -66,6 +80,14 @@ public class GenericDispatchRequirementResolver implements DispatchRequirementRe
         resolution.setReasonCode(reasonCode);
         resolution.setRequiredOperations(List.of());
         resolution.setRequiredCapabilities(capabilities);
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("dispatchAuthority", "DISPATCH_DECISION_ENGINE");
+        details.put("candidateAuthority", "AGENT_POOL_MEMBERSHIP");
+        details.put("targetPoolId", plan == null ? null : firstNonBlank(plan.getTargetPoolId(), plan.getDefaultPoolId(),
+                task == null ? null : task.getTargetPoolId(), task == null ? null : task.getAssignedPoolId()));
+        details.put("capabilityAuthority", "CORE_APPROVED_AGENT_CAPABILITY");
+        details.put("runtimeReportedCapabilitiesAuthority", false);
+        resolution.setDetails(details);
         resolution.validate();
         return resolution;
     }
@@ -82,16 +104,32 @@ public class GenericDispatchRequirementResolver implements DispatchRequirementRe
         resolution.setSourceSystem(normalizedSource(task));
         resolution.setResolutionMode(mode);
         resolution.setSideEffectLevel(SideEffectLevel.NONE);
-        resolution.setCandidatePoolMode(CandidatePoolMode.EXPLICIT_FLOW_AGENTS);
+        resolution.setCandidatePoolMode(CandidatePoolMode.SOURCE_SYSTEM_POOL);
         resolution.setExplicitActionAuthorizationRequired(false);
         resolution.setResolverVersion(RESOLVER_VERSION);
         return resolution;
     }
 
-    private static List<String> explicitCapabilities(FlowRuleRoutingPlan plan) {
+    private static GenericRoutingStrategy routingStrategy(FlowRuleRoutingPlan plan) {
+        String selection = normalize(plan == null ? null : plan.getSelectionStrategy());
+        if ("MANUAL_ONLY".equals(selection)) return GenericRoutingStrategy.MANUAL_REVIEW;
+        if ("LOWEST_LOAD".equals(selection)) return GenericRoutingStrategy.LOWEST_LOAD;
+        if ("WEIGHTED_SCORE".equals(selection)) return GenericRoutingStrategy.WEIGHTED_SCORE;
+        return parseEnum(GenericRoutingStrategy.class, plan == null ? null : plan.getRoutingStrategy(),
+                GenericRoutingStrategy.WEIGHTED_SCORE);
+    }
+
+    private static List<String> explicitCapabilities(FlowRuleRoutingPlan plan, TaskRecord task) {
         LinkedHashSet<String> values = new LinkedHashSet<>();
         if (plan != null && plan.getRequiredSkills() != null) {
             plan.getRequiredSkills().stream().map(GenericDispatchRequirementResolver::normalize)
+                    .filter(value -> value != null && !value.isBlank()).forEach(values::add);
+        }
+        // Draft simulation and retry tasks already carry Flow-resolved capability
+        // evidence on the Task. Preserve it when an ACTIVE-only persisted lookup
+        // is intentionally unavailable.
+        if (task != null && task.getRequiredCapabilities() != null) {
+            task.getRequiredCapabilities().stream().map(GenericDispatchRequirementResolver::normalize)
                     .filter(value -> value != null && !value.isBlank()).forEach(values::add);
         }
         return values.stream().toList();

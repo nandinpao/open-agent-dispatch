@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.response;import java.util.Set;public record TenantChoiceResponse(String tenantId,String tenantCode,String tenantName,String membershipStatus,Set<String> roleSummary){public TenantChoiceResponse{roleSummary=roleSummary==null?Set.of():Set.copyOf(roleSummary);}}

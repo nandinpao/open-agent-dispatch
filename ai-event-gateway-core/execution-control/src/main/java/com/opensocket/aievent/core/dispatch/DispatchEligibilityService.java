@@ -11,10 +11,13 @@ import com.opensocket.aievent.core.task.TaskRecord;
 /**
  * Structural and runtime eligibility gate before DispatchRequest creation.
  *
- * <p>Stage 7 decommissions all Assignment Profile, Service Scope, Task Scope,
- * and alternate lookup gates from the dispatch runtime. The authoritative
- * Flow/Rule/Agent/Capability decision has already been persisted on the
- * Assignment before this service is invoked.</p>
+ * <p>Dispatch candidate selection does not consult historical Assignment Profile, Service Scope,
+ * Task Scope, or alternate lookup gates. The authoritative Flow/Rule/Agent/Capability decision
+ * has already been persisted on the Assignment before this service is invoked.</p>
+ *
+ * <p>Agent Dispatch Access is a separate post-assignment Resource Access ceiling: it controls
+ * whether the assigned Agent principal may read/execute the Task. It must never be used to
+ * choose candidates or override the persisted assignment.</p>
  */
 @Service
 public class DispatchEligibilityService {
@@ -68,7 +71,7 @@ public class DispatchEligibilityService {
             }
         }
         return new EligibilityResult(true,
-                "Assignment is structurally eligible; authority=FLOW_RULE_AGENT_CAPABILITY_RUNTIME; legacyEligibility=DECOMMISSIONED");
+                "Assignment is structurally eligible; authority=FLOW_RULE_AGENT_CAPABILITY_RUNTIME; candidateDispatchAccessGate=DECOMMISSIONED; executionAuthorization=RESOURCE_ACCESS_DISPATCH_ACCESS");
     }
 
     private boolean isBlank(String value) {

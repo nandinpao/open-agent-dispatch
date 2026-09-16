@@ -9,7 +9,7 @@ import java.time.OffsetDateTime;
 @Setter
 @NoArgsConstructor
 public class RoutingDecisionPo {
-    private String decisionId; private String taskId; private String incidentId; private String routingPolicy; private String status; private String selectedAgentId;
+    private String decisionId; private String taskId; private String tenantId; private String incidentId; private String routingPolicy; private String status; private String selectedAgentId;
     private String selectedGatewayNodeId; private String selectedAgentSessionId; private String selectedSiteId; private int selectedScore; private String decisionReason;
     private String userFacingErrorJson; private String candidatesJson; private OffsetDateTime createdAt;
 }

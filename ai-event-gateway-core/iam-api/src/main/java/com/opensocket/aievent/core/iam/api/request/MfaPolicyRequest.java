@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;public record MfaPolicyRequest(boolean requiredForAdministrators,boolean allowRecoveryCodes,boolean allowTotp){}

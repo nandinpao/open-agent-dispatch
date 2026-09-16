@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.integration.identity;
+public interface IntegrationPermissionProbeGateway { PermissionProbeObservation probe(IntegrationConnection connection,IntegrationPrincipal principal,IntegrationCredentialMetadata credential,IntegrationProjectMapping mapping); }

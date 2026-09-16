@@ -4,6 +4,9 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.opensocket.aievent.core.task.domain.TaskStateTransitionCommand;
+import com.opensocket.aievent.core.resourceaccess.contract.TaskScopeQueryPlan;
+
 public interface TaskRepository {
     TaskRecord save(TaskRecord task);
     /**
@@ -14,9 +17,83 @@ public interface TaskRepository {
         return save(task);
     }
     Optional<TaskRecord> findById(String taskId);
+    default Optional<TaskRecord> findByTenantAndId(String tenantId, String taskId) {
+        if (tenantId == null || tenantId.isBlank()) return Optional.empty();
+        return findById(taskId).filter(task -> tenantId.equals(task.getTenantId()));
+    }
+    default List<TaskRecord> findByRootTaskId(String tenantId, String rootTaskId, int limit) {
+        return List.of();
+    }
+    default List<TaskRecord> findByParentTaskId(String tenantId, String parentTaskId, int limit) {
+        return List.of();
+    }
+    /** Optimistic ownership mutation owned by Task Domain. */
+    default Optional<TaskRecord> transferOwnership(String tenantId, String taskId, long expectedVersion,
+            String ownerDepartmentId, String ownerGroupId, String actorId, String reason,
+            String correlationId, OffsetDateTime changedAt) {
+        Optional<TaskRecord> current = findByTenantAndId(tenantId, taskId);
+        if (current.isEmpty() || current.get().getVersion() != expectedVersion) return Optional.empty();
+        TaskRecord task = current.get();
+        task.setOwnerDepartmentId(ownerDepartmentId);
+        task.setOwnerGroupId(ownerGroupId);
+        task.setLifecycleReason(reason);
+        task.setCorrelationId(correlationId);
+        task.setUpdatedAt(changedAt);
+        task.setVersion(expectedVersion + 1);
+        return Optional.of(save(task));
+    }
+    default Optional<TaskRecord> transitionGovernanceState(TaskStateTransitionCommand command) {
+        if (command == null) return Optional.empty();
+        Optional<TaskRecord> current = findByTenantAndId(command.tenantId(), command.taskId());
+        if (current.isEmpty() || current.get().getVersion() != command.expectedVersion()) return Optional.empty();
+        TaskRecord task = current.get();
+        if (!TaskLifecycleTransitionGuard.canTransition(task.getStatus(), command.newStatus())) return Optional.empty();
+        task.setStatus(command.newStatus());
+        task.setLifecycleReason(command.reason());
+        task.setCorrelationId(command.correlationId());
+        task.setUpdatedAt(command.transitionAt());
+        task.setVersion(task.getVersion() + 1);
+        return Optional.of(save(task));
+    }
     Optional<TaskRecord> findOpenByIncidentAndType(String incidentId, TaskType taskType);
+    default Optional<TaskRecord> findOpenByTenantAndIncidentAndType(String tenantId, String incidentId, TaskType taskType) {
+        return findOpenByIncidentAndType(incidentId, taskType)
+                .filter(task -> tenantId != null && tenantId.equals(task.getTenantId()));
+    }
     List<TaskRecord> findByIncidentId(String incidentId, int limit);
+    default List<TaskRecord> findByTenantAndIncidentId(String tenantId, String incidentId, int limit) {
+        return findByIncidentId(incidentId, limit).stream()
+                .filter(task -> tenantId != null && tenantId.equals(task.getTenantId())).toList();
+    }
     List<TaskRecord> search(TaskQuery query);
+    /** Scope-aware query path. Database implementations must apply the plan before pagination. */
+    default List<TaskRecord> searchAuthorized(TaskQuery query, TaskScopeQueryPlan plan) {
+        if (plan == null || plan.denyAll()) return List.of();
+        boolean tenantWide = plan.strategy()
+                == com.opensocket.aievent.core.resourceaccess.contract.TaskScopeQueryStrategy.TENANT;
+        return search(query).stream()
+                .filter(task -> tenantWide
+                        || plan.explicitTaskIds().contains(task.getTaskId())
+                        || plan.exactDepartmentIds().contains(task.getOwnerDepartmentId())
+                        || plan.exactDepartmentIds().contains(task.getRequesterDepartmentId())
+                        || plan.exactDepartmentIds().contains(task.getExecutorDepartmentId())
+                        || plan.groupIds().contains(task.getOwnerGroupId())
+                        || plan.groupIds().contains(task.getRequesterGroupId())
+                        || plan.groupIds().contains(task.getExecutorGroupId()))
+                .filter(task -> !plan.excludedTaskIds().contains(task.getTaskId()))
+                .filter(task -> !plan.deniedDepartmentIds().contains(task.getOwnerDepartmentId())
+                        && !plan.deniedDepartmentIds().contains(task.getRequesterDepartmentId())
+                        && !plan.deniedDepartmentIds().contains(task.getExecutorDepartmentId()))
+                .filter(task -> !plan.deniedGroupIds().contains(task.getOwnerGroupId())
+                        && !plan.deniedGroupIds().contains(task.getRequesterGroupId())
+                        && !plan.deniedGroupIds().contains(task.getExecutorGroupId()))
+                .limit(query == null ? 100 : query.getLimit()).toList();
+    }
+    /** Phase 6C-2 independent Target read path. Database implementations must filter before pagination. */
+    default List<TaskRecord> searchAuthorizedTarget(TaskQuery query, TaskScopeQueryPlan plan) {
+        return searchAuthorized(query, plan);
+    }
+
     default List<TaskRecord> findOpenUpdatedBefore(OffsetDateTime cutoff, int limit) {
         return List.of();
     }

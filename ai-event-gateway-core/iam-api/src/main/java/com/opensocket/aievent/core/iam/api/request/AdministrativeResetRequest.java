@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record AdministrativeResetRequest(@NotBlank @Size(max=500)String reason){}

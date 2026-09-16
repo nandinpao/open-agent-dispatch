@@ -1,0 +1,38 @@
+package com.opensocket.aievent.core.resourceaccess.contract;
+
+/** Stable Resource Access catalog identifiers. New values require catalog and migration review. */
+public enum ResourceType {
+    TASK,
+    TASK_CHAIN,
+    A2A_REQUEST,
+    A2A_APPROVAL,
+    TASK_CONTEXT_SNAPSHOT,
+    TASK_RESULT,
+    TASK_ATTACHMENT,
+    AGENT,
+    AGENT_POOL,
+    SOURCE_SYSTEM,
+    EVENT,
+    INCIDENT,
+    DISPATCH_FLOW,
+    A2A_POLICY,
+    AGENT_SERVICE_SCOPE,
+    AGENT_CREDENTIAL_METADATA,
+    ISSUE_CONNECTION,
+    ISSUE_PRINCIPAL,
+    ISSUE_CREDENTIAL_METADATA,
+    ISSUE_PROJECT_MAPPING,
+    TASK_ISSUE_LINK,
+    ISSUE_CONTEXT_SNAPSHOT,
+    ISSUE_ATTACHMENT,
+    ISSUE_CONFLICT,
+    ISSUE_DEAD_LETTER,
+    ISSUE_TOPOLOGY,
+    TENANT,
+    DEPARTMENT,
+    GROUP,
+    USER,
+    ROLE,
+    SERVICE_ACCOUNT,
+    ACCESS_TOKEN_METADATA
+}

@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.api.response;
+import com.opensocket.aievent.core.iam.rbac.domain.entrypoint.LegacyAuthorityMapping;import java.time.*;
+public record LegacyAuthorityMappingResponse(String mappingId,String legacyAuthorityType,String legacyAuthorityCode,String targetPermissionCode,String ownerModule,String status,LocalDate migrationDeadline,String notes,Instant updatedAt,long version){public static LegacyAuthorityMappingResponse from(LegacyAuthorityMapping v){return new LegacyAuthorityMappingResponse(v.mappingId(),v.legacyAuthorityType(),v.legacyAuthorityCode(),v.targetPermissionCode().orElse(null),v.ownerModule(),v.status(),v.migrationDeadline().orElse(null),v.notes(),v.updatedAt(),v.version());}}

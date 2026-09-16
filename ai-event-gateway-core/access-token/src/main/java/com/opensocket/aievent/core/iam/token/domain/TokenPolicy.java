@@ -1,0 +1,8 @@
+package com.opensocket.aievent.core.iam.token.domain;
+import java.time.Duration;
+public record TokenPolicy(Duration personalDefaultTtl,Duration personalMaxTtl,Duration serviceDefaultTtl,Duration serviceMaxTtl,int maxActivePersonalTokens,int maxActiveServiceTokens,boolean requireServiceAccountCidr){
+ public TokenPolicy{if(personalDefaultTtl==null||personalMaxTtl==null||serviceDefaultTtl==null||serviceMaxTtl==null)throw new IllegalArgumentException("TTL is required");if(personalDefaultTtl.isNegative()||personalDefaultTtl.isZero()||personalDefaultTtl.compareTo(personalMaxTtl)>0)throw new IllegalArgumentException("invalid PAT TTL");if(serviceDefaultTtl.isNegative()||serviceDefaultTtl.isZero()||serviceDefaultTtl.compareTo(serviceMaxTtl)>0)throw new IllegalArgumentException("invalid service token TTL");if(maxActivePersonalTokens<1||maxActiveServiceTokens<1)throw new IllegalArgumentException("active limits must be positive");}
+ public static TokenPolicy secureDefault(){return new TokenPolicy(Duration.ofDays(30),Duration.ofDays(90),Duration.ofDays(30),Duration.ofDays(90),10,2,true);}
+ public Duration defaultFor(AccessTokenType type){return switch(type){case SERVICE_ACCOUNT_TOKEN->serviceDefaultTtl;case PASSWORD_RESET_TOKEN->Duration.ofHours(1);case INVITATION_TOKEN,EMAIL_VERIFICATION_TOKEN->Duration.ofHours(24);default->personalDefaultTtl;};}
+ public Duration maximumFor(AccessTokenType type){return switch(type){case SERVICE_ACCOUNT_TOKEN->serviceMaxTtl;case PASSWORD_RESET_TOKEN->Duration.ofHours(24);case INVITATION_TOKEN,EMAIL_VERIFICATION_TOKEN->Duration.ofDays(7);default->personalMaxTtl;};}
+}

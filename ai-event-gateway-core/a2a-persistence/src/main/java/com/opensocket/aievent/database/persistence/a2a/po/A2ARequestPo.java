@@ -1,0 +1,60 @@
+package com.opensocket.aievent.database.persistence.a2a.po;
+
+import java.time.OffsetDateTime;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter @Setter @NoArgsConstructor
+public class A2ARequestPo {
+    private String tenantId;
+    private String requestId;
+    private String rootTaskId;
+    private String sourceTaskId;
+    private String requestingTaskId;
+    private String requestingAgentId;
+    private String requesterType;
+    private String sourceDepartmentId;
+    private String sourceGroupId;
+    private String sourceDomainId;
+    private String targetDepartmentId;
+    private String targetGroupId;
+    private String targetDomainId;
+    private String requestedTaskType;
+    private String requestedServiceCode;
+    private String requestedCapabilityCodesJson;
+    private String targetAgentPoolId;
+    private String policyId;
+    private long policyVersion;
+    private String policySnapshotJson;
+    private String policySnapshotHash;
+    private String approvalStatus;
+    private int approvalCount;
+    private int requiredApprovalCount;
+    private String approvalActorIdsJson;
+    private String requestStatus;
+    private String operationalStage;
+    private String blockerCode;
+    private String blockerReason;
+    private String reason;
+    private String inputPayloadRef;
+    private String sensitivityLevel;
+    private int hopCount;
+    private String idempotencyKey;
+    private String correlationId;
+    private String childTaskId;
+    private String requestedByType;
+    private String requestedById;
+    private String originPrincipalType;
+    private String originPrincipalId;
+    private String delegatingPrincipalType;
+    private String delegatingPrincipalId;
+    private String executingPrincipalType;
+    private String executingPrincipalId;
+    private int delegationDepth;
+    private String rejectionReasonCode;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+    private OffsetDateTime expiresAt;
+    private long version;
+}

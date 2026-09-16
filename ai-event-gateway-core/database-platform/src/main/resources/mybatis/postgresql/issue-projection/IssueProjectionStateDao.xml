@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.issueprojection.dao.IssueProjectionStateDao">
+  <resultMap id="StateMap" type="com.opensocket.aievent.database.persistence.issueprojection.po.IssueProjectionStatePo">
+    <id property="projectionId" column="projection_id"/>
+    <result property="tenantId" column="tenant_id"/>
+    <result property="projectionAggregateKey" column="projection_aggregate_key"/>
+    <result property="projectionPurpose" column="projection_purpose"/>
+    <result property="sourceEventId" column="source_event_id"/>
+    <result property="sourceEventType" column="source_event_type"/>
+    <result property="sourceAggregateType" column="source_aggregate_type"/>
+    <result property="sourceAggregateId" column="source_aggregate_id"/>
+    <result property="taskId" column="task_id"/>
+    <result property="a2aRequestId" column="a2a_request_id"/>
+    <result property="handoffSnapshotId" column="handoff_snapshot_id"/>
+    <result property="taskIssueLinkId" column="task_issue_link_id"/>
+    <result property="connectionId" column="connection_id"/>
+    <result property="projectMappingId" column="project_mapping_id"/>
+    <result property="projectMappingVersion" column="project_mapping_version"/>
+    <result property="projectMappingSchemaHash" column="project_mapping_schema_hash"/>
+    <result property="canonicalDocumentSchemaVersion" column="canonical_document_schema_version"/>
+    <result property="canonicalDocumentHash" column="canonical_document_hash"/>
+    <result property="desiredState" column="desired_state"/>
+    <result property="observedState" column="observed_state"/>
+    <result property="lifecycleStatus" column="lifecycle_state"/>
+    <result property="failureClassification" column="failure_classification"/>
+    <result property="recoveryStrategy" column="recovery_strategy"/>
+    <result property="conflictPolicy" column="conflict_policy"/>
+    <result property="desiredPayloadHash" column="desired_payload_hash"/>
+    <result property="observedPayloadHash" column="observed_payload_hash"/>
+    <result property="lastAppliedDomainEventId" column="last_applied_domain_event_id"/>
+    <result property="operationSequence" column="operation_sequence"/>
+    <result property="projectionVersion" column="projection_version"/>
+    <result property="supersededBy" column="superseded_by"/>
+    <result property="retryCount" column="retry_count"/>
+    <result property="maxAttempts" column="max_attempts"/>
+    <result property="nextRetryAt" column="next_retry_at"/>
+    <result property="lastErrorCode" column="last_error_code"/>
+    <result property="lastErrorMessage" column="last_error_message"/>
+    <result property="version" column="version"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+    <result property="completedAt" column="completed_at"/>
+    <result property="correlationId" column="correlation_id"/>
+  </resultMap>
+
+  <insert id="insertState">
+    insert into issue_projection_states(
+      tenant_id,projection_id,projection_aggregate_key,projection_purpose,
+      source_event_id,source_event_type,source_aggregate_type,source_aggregate_id,
+      task_id,a2a_request_id,handoff_snapshot_id,task_issue_link_id,connection_id,
+      project_mapping_id,project_mapping_version,project_mapping_schema_hash,
+      canonical_document_schema_version,canonical_document_hash,
+      desired_state,observed_state,lifecycle_state,failure_classification,recovery_strategy,
+      conflict_policy,desired_payload_hash,observed_payload_hash,last_applied_domain_event_id,
+      operation_sequence,projection_version,superseded_by,retry_count,max_attempts,next_retry_at,
+      last_error_code,last_error_message,version,created_at,updated_at,completed_at,correlation_id)
+    values(
+      #{value.tenantId},#{value.projectionId},#{value.projectionAggregateKey},#{value.projectionPurpose},
+      #{value.sourceEventId},#{value.sourceEventType},#{value.sourceAggregateType},#{value.sourceAggregateId},
+      #{value.taskId},#{value.a2aRequestId},#{value.handoffSnapshotId},#{value.taskIssueLinkId},#{value.connectionId},
+      #{value.projectMappingId},#{value.projectMappingVersion},#{value.projectMappingSchemaHash},
+      #{value.canonicalDocumentSchemaVersion},#{value.canonicalDocumentHash},
+      #{value.desiredState},#{value.observedState},#{value.lifecycleStatus},#{value.failureClassification},#{value.recoveryStrategy},
+      #{value.conflictPolicy},#{value.desiredPayloadHash},#{value.observedPayloadHash},#{value.lastAppliedDomainEventId},
+      #{value.operationSequence},#{value.projectionVersion},#{value.supersededBy},#{value.retryCount},#{value.maxAttempts},#{value.nextRetryAt},
+      #{value.lastErrorCode},#{value.lastErrorMessage},#{value.version},#{value.createdAt},#{value.updatedAt},#{value.completedAt},#{value.correlationId})
+  </insert>
+
+  <update id="updateStateCas">
+    update issue_projection_states set
+      task_issue_link_id=#{value.taskIssueLinkId},connection_id=#{value.connectionId},
+      project_mapping_id=#{value.projectMappingId},project_mapping_version=#{value.projectMappingVersion},
+      project_mapping_schema_hash=#{value.projectMappingSchemaHash},
+      canonical_document_schema_version=#{value.canonicalDocumentSchemaVersion},
+      canonical_document_hash=#{value.canonicalDocumentHash},desired_state=#{value.desiredState},
+      observed_state=#{value.observedState},lifecycle_state=#{value.lifecycleStatus},
+      failure_classification=#{value.failureClassification},recovery_strategy=#{value.recoveryStrategy},
+      conflict_policy=#{value.conflictPolicy},desired_payload_hash=#{value.desiredPayloadHash},
+      observed_payload_hash=#{value.observedPayloadHash},last_applied_domain_event_id=#{value.lastAppliedDomainEventId},
+      operation_sequence=#{value.operationSequence},projection_version=#{value.projectionVersion},
+      superseded_by=#{value.supersededBy},retry_count=#{value.retryCount},max_attempts=#{value.maxAttempts},
+      next_retry_at=#{value.nextRetryAt},last_error_code=#{value.lastErrorCode},last_error_message=#{value.lastErrorMessage},
+      version=#{value.version},updated_at=#{value.updatedAt},completed_at=#{value.completedAt}
+    where tenant_id=#{value.tenantId} and projection_id=#{value.projectionId} and version=#{expectedVersion}
+  </update>
+
+  <select id="find" resultMap="StateMap">select * from issue_projection_states where tenant_id=#{tenantId} and projection_id=#{projectionId}</select>
+  <select id="findByAggregateKey" resultMap="StateMap">select * from issue_projection_states where tenant_id=#{tenantId} and projection_aggregate_key=#{aggregateKey} and lifecycle_state not in ('SUPERSEDED','DISABLED') order by projection_version desc limit 1</select>
+  <select id="findBySourceEvent" resultMap="StateMap">select * from issue_projection_states where tenant_id=#{tenantId} and source_event_id=#{sourceEventId}</select>
+  <select id="findByTaskIssueLink" resultMap="StateMap">select * from issue_projection_states where tenant_id=#{tenantId} and task_issue_link_id=#{taskIssueLinkId} order by updated_at desc limit 1</select>
+  <select id="findLatestByTask" resultMap="StateMap">select * from issue_projection_states where tenant_id=#{tenantId} and task_id=#{taskId} and lifecycle_state&lt;&gt;'SUPERSEDED' order by updated_at desc limit 1</select>
+  <select id="list" resultMap="StateMap">select * from issue_projection_states where tenant_id=#{tenantId}<if test="state != null and state != ''"> and lifecycle_state=#{state}</if> order by updated_at desc limit #{limit}</select>
+  <select id="listDue" resultMap="StateMap">select * from issue_projection_states where lifecycle_state='FAILED' and recovery_strategy='RETRY' and next_retry_at is not null and next_retry_at&lt;=#{now} order by next_retry_at limit #{limit}</select>
+
+  <insert id="insertEventReceipt">
+    insert into issue_projection_event_receipts(tenant_id,domain_event_id,projection_id,operation_sequence,payload_hash,applied_at)
+    values(#{tenantId},#{domainEventId},#{projectionId},#{operationSequence},#{payloadHash},#{appliedAt})
+    on conflict(tenant_id,domain_event_id) do nothing
+  </insert>
+
+  <resultMap id="CaseMap" type="com.opensocket.aievent.database.persistence.issueprojection.po.IssueProjectionReconciliationCasePo">
+    <id property="caseId" column="case_id"/><result property="tenantId" column="tenant_id"/><result property="projectionId" column="projection_id"/><result property="reasonCode" column="reason_code"/><result property="evidenceReference" column="evidence_reference"/><result property="status" column="status"/><result property="nextAttemptAt" column="next_attempt_at"/><result property="attemptCount" column="attempt_count"/><result property="lastError" column="last_error"/><result property="resolvedBy" column="resolved_by"/><result property="resolutionReason" column="resolution_reason"/><result property="createdAt" column="created_at"/><result property="updatedAt" column="updated_at"/><result property="resolvedAt" column="resolved_at"/><result property="correlationId" column="correlation_id"/>
+  </resultMap>
+  <insert id="insertCase">insert into issue_projection_reconciliation_cases(tenant_id,case_id,projection_id,reason_code,evidence_reference,status,next_attempt_at,attempt_count,last_error,resolved_by,resolution_reason,created_at,updated_at,resolved_at,correlation_id) values(#{value.tenantId},#{value.caseId},#{value.projectionId},#{value.reasonCode},#{value.evidenceReference},#{value.status},#{value.nextAttemptAt},#{value.attemptCount},#{value.lastError},#{value.resolvedBy},#{value.resolutionReason},#{value.createdAt},#{value.updatedAt},#{value.resolvedAt},#{value.correlationId})</insert>
+  <update id="updateCase">update issue_projection_reconciliation_cases set status=#{value.status},next_attempt_at=#{value.nextAttemptAt},attempt_count=#{value.attemptCount},last_error=#{value.lastError},resolved_by=#{value.resolvedBy},resolution_reason=#{value.resolutionReason},updated_at=#{value.updatedAt},resolved_at=#{value.resolvedAt} where tenant_id=#{value.tenantId} and case_id=#{value.caseId}</update>
+  <select id="findCase" resultMap="CaseMap">select * from issue_projection_reconciliation_cases where tenant_id=#{tenantId} and case_id=#{caseId}</select>
+  <select id="findOpenCaseByProjection" resultMap="CaseMap">select * from issue_projection_reconciliation_cases where tenant_id=#{tenantId} and projection_id=#{projectionId} and status in ('OPEN','RETRY_SCHEDULED','WAIT_HUMAN') order by created_at desc limit 1</select>
+  <select id="listCases" resultMap="CaseMap">select * from issue_projection_reconciliation_cases where tenant_id=#{tenantId}<if test="status != null and status != ''"> and status=#{status}</if> order by created_at desc limit #{limit}</select>
+</mapper>

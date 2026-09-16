@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record SessionPolicyRequest(@Min(1) int idleTimeoutMinutes,@Min(2) int absoluteTimeoutMinutes,@Min(1) @Max(100) int maxConcurrentSessions,boolean revokeOnPasswordChange,boolean revokeOnMfaReset,@Min(1) int reauthenticationMinutes){}

@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>control-plane-parent</artifactId>
-        <version>1.0.0-p25.7.4-p5-callback-transition-governance-fix</version>
+        <version>0.8.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -15,6 +15,11 @@
     <description>Unified SharedUtility database platform owning MyBatis DAO/PO/XML, Flyway migrations, type handlers, and database health.</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>issue-tracking-contracts</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>

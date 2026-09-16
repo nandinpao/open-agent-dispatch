@@ -1,5 +1,6 @@
 package com.opensocket.aievent.core.api;
 
+import com.opensocket.aievent.core.api.security.ServerActorAuthority;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -39,9 +40,11 @@ public class AgentRemediationWorkflowLeaseRecoveryController {
     @PostMapping("/recover-stale")
     public AgentRemediationWorkflowStaleLeaseRecoveryService.StaleLeaseRecoveryRun recoverStaleWorkflowExecutionLeases(
             @RequestParam(defaultValue = "100") int limit,
-            @RequestParam(defaultValue = "admin-ui") String operatorId,
+            @RequestParam(required = false) String operatorId,
             @RequestParam(defaultValue = "Manual P11 stale workflow execution lease recovery.") String reason) {
-        return recoveryService.recoverExpiredLeases(limit, operatorId, reason);
+        String actorId = ServerActorAuthority.requireActorId();
+        ServerActorAuthority.rejectSpoofedActor(operatorId, actorId);
+        return recoveryService.recoverExpiredLeases(limit, actorId, reason);
     }
 
     public record StaleLeaseQueueResponse(

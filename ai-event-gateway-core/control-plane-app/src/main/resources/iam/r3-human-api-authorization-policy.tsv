@@ -1,0 +1,1031 @@
+method	route	permission	scopeType	scopeVariable	resourceType	resourceVariable	highRisk	legacyRoles	internalRoles
+DELETE	/admin/agent-skills/{skillCode}	admin.agent.skill.registry.delete.skill	TENANT		AGENT_SKILL_REGISTRY	skillCode	true		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+DELETE	/admin/dispatch-flows/agent-pools/{poolId}	admin.dispatch.flow.retire.agent.pool	TENANT		DISPATCH_FLOW	poolId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+DELETE	/admin/dispatch-flows/{flowId}	admin.dispatch.flow.retire	TENANT		DISPATCH_FLOW	flowId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+DELETE	/admin/source-systems/{sourceSystemId}	admin.source.system.retire	TENANT		SOURCE_SYSTEM	sourceSystemId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+DELETE	/admin/source-systems/{sourceSystemId}/registrations/{registrationId}	admin.source.system.update	TENANT		SOURCE_SYSTEM	sourceSystemId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+DELETE	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/aliases/{aliasCode}	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG	aliasCode	true		
+DELETE	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/entries/{permissionCode}	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG	permissionCode	true		
+DELETE	/api/admin/access/tenants/{tenantId}/department-memberships/{membershipId}	identity.membership.manage	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	true		
+DELETE	/api/admin/access/tenants/{tenantId}/federation/users/{userId}/links/{credentialLinkId}	security.policy.manage	TENANT		AUTHENTICATION_FEDERATION	credentialLinkId	true		
+DELETE	/api/admin/access/tenants/{tenantId}/group-memberships/{membershipId}	identity.membership.manage	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	true		
+DELETE	/api/tasks/{taskId}/relationships/{relationshipId}	api.task.domain.remove.relationship	TENANT		TASK_DOMAIN	taskId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/conformance/profiles	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/conformance/profiles/{profileId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/interfaces/{interfaceId}/conformance	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/interfaces/{interfaceId}/conformance/runs	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/interfaces/{interfaceId}/contract	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/interfaces/{interfaceId}/credential-bindings	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/interfaces/{interfaceId}/version-policy	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/outbound-policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/outbound-policies/{policyId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/trust-assurance/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/trust-assurance/policies/{policyId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/version-policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/version-policies/{policyId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/{peerId}/error-mappings	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/{peerId}/error-mappings/explain	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/{peerId}/error-mappings/{overrideId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/{peerId}/interfaces	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/{peerId}/processing-attestations	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/{peerId}/trust-assurance	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-peers/{peerId}/trust-evidence	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-remote-executions/{executionId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-remote-executions/{executionId}/journal	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/a2a-remote-executions/{executionId}/tracking	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-enrollments	admin.agent.governance.search.enrollments	TENANT		AGENT_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-governance/metadata	admin.agent.governance.metadata	TENANT		AGENT_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-governance/table-diagnostics	admin.agent.governance.table.diagnostics	TENANT		AGENT_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-pool-policies/capabilities	admin.agent.assignment.pool.capability.policies	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-security-enforcement-policies	admin.agent.governance.search.agent.security.enforcement.policies	TENANT		AGENT_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-security-enforcement-policies/default	admin.agent.governance.get.default.security.enforcement.policy	TENANT		AGENT_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-security-events	admin.agent.governance.search.security.events	TENANT		AGENT_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills	admin.agent.skill.registry.search.skills	TENANT		AGENT_SKILL_REGISTRY		false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/drift	admin.agent.skill.registry.detect.fleet.skill.drift	TENANT		AGENT_SKILL_REGISTRY		false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/metadata	admin.agent.skill.registry.metadata	TENANT		AGENT_SKILL_REGISTRY		false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/{skillCode}	admin.agent.skill.registry.get.skill	TENANT		AGENT_SKILL_REGISTRY	skillCode	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/{skillCode}/approval-policy	admin.agent.skill.registry.get.skill.approval.policy	TENANT		AGENT_SKILL_REGISTRY	skillCode	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/{skillCode}/audit	admin.agent.skill.registry.list.skill.audit	TENANT		AGENT_SKILL_REGISTRY	skillCode	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/{skillCode}/dependency-graph	admin.agent.skill.registry.get.skill.dependency.graph	TENANT		AGENT_SKILL_REGISTRY	skillCode	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/{skillCode}/deprecation-plan	admin.agent.skill.registry.get.skill.deprecation.plan	TENANT		AGENT_SKILL_REGISTRY	skillCode	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/{skillCode}/versions	admin.agent.skill.registry.list.skill.versions	TENANT		AGENT_SKILL_REGISTRY	skillCode	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/{skillCode}/versions/{version}/diff	admin.agent.skill.registry.diff.skill.version	TENANT		AGENT_SKILL_REGISTRY	version	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agent-skills/{skillCode}/versions/{version}/impact	admin.agent.skill.registry.analyze.skill.version.impact	TENANT		AGENT_SKILL_REGISTRY	version	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents	admin.agent.governance.search.agents	TENANT		AGENT_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}	admin.agent.governance.get.agent	TENANT		AGENT_GOVERNANCE	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/capabilities	admin.agent.assignment.agent.capabilities	TENANT		AGENT_ASSIGNMENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/connection-repair-actions	admin.agent.governance.connection.repair.actions	TENANT		AGENT_GOVERNANCE	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/dispatch-eligibility	admin.dispatch.eligibility.agent.dispatch.eligibility	TENANT		DISPATCH_ELIGIBILITY	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/latest-auth-failure	admin.agent.governance.latest.auth.failure	TENANT		AGENT_GOVERNANCE	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/operational-view	admin.agent.setup.get.operational.view	TENANT		AGENT_SETUP	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/remediation/proposal	admin.agent.remediation.preview.agent.remediation	TENANT		AGENT_REMEDIATION	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/remediation/workflows	admin.agent.remediation.list.agent.remediation.workflows	TENANT		AGENT_REMEDIATION	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/remediation/workflows/{workflowId}	admin.agent.remediation.get.agent.remediation.workflow	TENANT		AGENT_REMEDIATION	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/runtime-bindings	admin.agent.assignment.runtime.bindings	TENANT		AGENT_ASSIGNMENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/runtime-features/observations	admin.agent.assignment.runtime.feature.observations	TENANT		AGENT_ASSIGNMENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/runtime-features/trust	admin.agent.assignment.runtime.feature.trusts	TENANT		AGENT_ASSIGNMENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/security/enforcement-policy	admin.agent.governance.get.agent.security.enforcement.policy	TENANT		AGENT_GOVERNANCE	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/setup-readiness	admin.agent.setup.get.setup.readiness	TENANT		AGENT_SETUP	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/skills/approved	admin.agent.skill.registry.get.approved.skills	TENANT		AGENT_SKILL_REGISTRY	agentId	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/agents/{agentId}/skills/drift	admin.agent.skill.registry.detect.agent.skill.drift	TENANT		AGENT_SKILL_REGISTRY	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/business-events	admin.business.event.list	TENANT		BUSINESS_EVENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/business-events/{eventId}	admin.business.event.detail	TENANT		EVENT	eventId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/business-events/{eventId}/payload	admin.business.event.payload.read	TENANT		EVENT	eventId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/callbacks/inbox/recent	admin.core.admin.task.facade.recent.callback.inbox	TENANT		CORE_ADMIN_TASK_FACADE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capabilities	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capability-definitions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capability-definitions/requirements/by-service-code/{serviceCode}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capability-definitions/{capabilityCode}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capability-provider-registry/bindings	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capability-provider-registry/bindings/{bindingId}/trust-events	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capability-provider-registry/providers	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capability-provider-registry/providers/{providerId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/capability-provider-registry/providers/{providerId}/managed-agent-link	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/case-convergence/aggregation-definitions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/case-convergence/aggregation-definitions/{aggregationId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	aggregationId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/case-convergence/aggregation/decisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/case-convergence/cases	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/case-convergence/cases/{caseId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	caseId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/case-convergence/cases/{caseId}/artifacts	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	caseId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/case-convergence/cases/{caseId}/events	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	caseId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/case-convergence/cases/{caseId}/issue-projections	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	caseId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/delegation-governance/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/delegation-governance/policies/{policyId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/delegation-governance/policies/{policyId}/audit-events	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/delegation-governance/policies/{policyId}/versions	admin.agent.assignment.capabilities	TENANT	READ	false	false	true	false	Phase3 WHO MAY append-only policy version evidence
+GET	/admin/dispatch-attempt-history	admin.core.admin.task.facade.recent.dispatch.attempt.history	TENANT		CORE_ADMIN_TASK_FACADE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-contract/source-systems	admin.agent.assignment.source.systems.from.contracts	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-contracts/source-systems	admin.dispatch.contract.source.systems	TENANT		DISPATCH_CONTRACT		false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows	admin.dispatch.flow.list	TENANT		DISPATCH_FLOW		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/agent-options	admin.dispatch.flow.agent.options	TENANT		DISPATCH_FLOW		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/agent-pools	admin.dispatch.flow.agent.pools	TENANT		DISPATCH_FLOW		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/agent-pools/{poolId}	admin.dispatch.flow.agent.pool.detail	TENANT		DISPATCH_FLOW	poolId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/by-agent/{agentId}	admin.dispatch.flow.by.agent	TENANT		DISPATCH_FLOW	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}	admin.dispatch.flow.detail	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/agents	admin.dispatch.flow.agents	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/capability-migration	admin.dispatch.flow.readiness	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/capability-migration/compatibility-bridge	admin.dispatch.flow.readiness	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/capability-migration/evaluations	admin.dispatch.flow.readiness	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/capability-migration/legacy-equivalence	admin.dispatch.flow.readiness	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/capability-migration/legacy-equivalence/readiness	admin.dispatch.flow.readiness	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/capability-migration/readiness	admin.dispatch.flow.readiness	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/readiness	admin.dispatch.flow.readiness	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/rule-conflicts	admin.dispatch.flow.rules	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/rules	admin.dispatch.flow.rules	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/skills	admin.dispatch.flow.skills	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-flows/{flowId}/trace	admin.dispatch.flow.trace	TENANT		DISPATCH_FLOW	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-governance/cutover/policies	admin.dispatch.cutover.policies	TENANT		DISPATCH_CUTOVER		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+GET	/admin/dispatch-governance/cutover/readiness/{flowId}	admin.dispatch.cutover.readiness	TENANT		DISPATCH_CUTOVER	flowId	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+GET	/admin/dispatch-policies	admin.agent.assignment.dispatch.policies	TENANT		AGENT_ASSIGNMENT		false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-policies/{policyCode}	admin.agent.assignment.dispatch.policy	TENANT		AGENT_ASSIGNMENT	policyCode	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-requests	admin.core.admin.task.facade.recent.dispatch.requests	TENANT		CORE_ADMIN_TASK_FACADE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-requests/{dispatchRequestId}	admin.core.admin.task.facade.get.dispatch.request	TENANT		CORE_ADMIN_TASK_FACADE	dispatchRequestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-requests/{dispatchRequestId}/callback-inbox	admin.core.admin.task.facade.dispatch.request.callback.inbox	TENANT		CORE_ADMIN_TASK_FACADE	dispatchRequestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-requests/{dispatchRequestId}/callback-inbox/summary	admin.core.admin.task.facade.dispatch.request.callback.inbox.summary	TENANT		CORE_ADMIN_TASK_FACADE	dispatchRequestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/dispatch-requests/{dispatchRequestId}/ledger	admin.core.admin.task.facade.get.dispatch.request.ledger	TENANT		CORE_ADMIN_TASK_FACADE	dispatchRequestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/enforce/artifact-retention	admin.enforce.operations.artifact.retention	TENANT		ENFORCE_OPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/enforce/legacy-final-report	admin.enforce.operations.legacy.final.report	TENANT		ENFORCE_OPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/enforce/observability	admin.enforce.operations.observability	TENANT		ENFORCE_OPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/enforce/routing-audit	admin.enforce.operations.routing.audit	TENANT		ENFORCE_OPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-adapters	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-adapters/resolutions/evidence	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-adapters/{adapterId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	adapterId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-adapters/{adapterId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	adapterId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-plans	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-plans/decisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-plans/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-plans/policies/{policyId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-plans/proposals	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-plans/requests	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-plans/{planId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-plans/{planId}/revisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-safety/intents/recent	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/execution-safety/plans/{planId}/trace	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/fast-path-runtime/certifications	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/fast-path-runtime/decisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/fast-path-runtime/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/fast-path-runtime/policies/{policyId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/fast-path-runtime/shadow-comparisons	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/candidates	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/outcomes	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/patterns	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/patterns/{patternId}/drift	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	patternId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/patterns/{patternId}/quality	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	patternId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/patterns/{patternId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	patternId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/policies/{policyId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-fast-path/promotion-decisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-governance/fast-path/candidates	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-governance/fast-path/certifications	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-governance/fast-path/runtime-hints	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-governance/policies	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/learning-governance/recommendations	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/observability/archive-segments	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/observability/decision-trace	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/observability/economics/completeness	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/observability/economics/ledger	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/observability/economics/summary	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/observability/execution-memory	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/observability/retention-policy	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-admission/decisions/{decisionId}/evaluations	plan.admission.read	TENANT		PLAN_ADMISSION	decisionId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-admission/plans/{planId}/decisions	plan.admission.read	TENANT		PLAN_ADMISSION	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-admission/plans/{planId}/envelopes	plan.admission.read	TENANT		PLAN_ADMISSION	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-admission/policies	plan.admission.read	TENANT		PLAN_ADMISSION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-executions/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-executions/policies/{policyId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-executions/runs	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-executions/runs/{runId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	runId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-executions/runs/{runId}/artifacts	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	runId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-executions/runs/{runId}/attempts	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	runId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-executions/runs/{runId}/events	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	runId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/plan-executions/runs/{runId}/steps	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	runId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/production-foundation/summary	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/provider-routing/decisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/provider-routing/eligibility-observations	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/provider-routing/profiles	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/provider-routing/profiles/{profileId}	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	profileId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/provider-routing/profiles/{profileId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	profileId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/quality/agents/{agentId}/daily	admin.agent.assignment.agent.quality.daily	TENANT		AGENT_ASSIGNMENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/quality/agents/{agentId}/windows	admin.agent.assignment.agent.quality.windows	TENANT		AGENT_ASSIGNMENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/quality/runtime/{runtimeId}/daily	admin.agent.assignment.runtime.quality.daily	TENANT		AGENT_ASSIGNMENT	runtimeId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/quality/supply-profiles	admin.agent.assignment.supply.profile.quality.snapshots	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/recommendations/advisory	admin.agent.assignment.advisory.recommendations	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/recovery/approval-requests	admin.core.recovery.governance.approval.requests	TENANT		CORE_RECOVERY_GOVERNANCE		false	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+GET	/admin/recovery/approval-requests/{approvalId}	admin.core.recovery.governance.approval.request	TENANT		CORE_RECOVERY_GOVERNANCE	approvalId	false	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+GET	/admin/recovery/metrics	admin.core.recovery.metrics.metrics	TENANT		CORE_RECOVERY_METRICS		false	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+GET	/admin/recovery/runbook	admin.core.recovery.governance.runbook	TENANT		CORE_RECOVERY_GOVERNANCE		false	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+GET	/admin/remediation/workflow-leases/recovered	admin.agent.remediation.workflow.lease.recovery.list.recovered.workflow.execution.leases	TENANT		AGENT_REMEDIATION_WORKFLOW_LEASE_RECOVERY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/remediation/workflow-leases/stale	admin.agent.remediation.workflow.lease.recovery.list.stale.workflow.execution.leases	TENANT		AGENT_REMEDIATION_WORKFLOW_LEASE_RECOVERY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/routing-authority/flows/migration-state	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/routing-authority/plans/{planId}/trace	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/runtime-acceptance/evidence	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/runtime-acceptance/summary	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/runtime-features	admin.agent.assignment.runtime.features	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/runtime-resources	admin.agent.assignment.runtime.resources	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/runtime-resources/{runtimeId}	admin.agent.assignment.runtime.resource	TENANT		AGENT_ASSIGNMENT	runtimeId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/runtime-step-authority/decisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/runtime-step-authority/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/runtime-step-authority/policies/{policyId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/selection-strategies/advanced/contracts	admin.agent.assignment.advanced.selection.strategy.contracts	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/semantic-triage/adaptive-routing/decisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/semantic-triage/adaptive-routing/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/semantic-triage/decisions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/semantic-triage/policies	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/semantic-triage/policies/{policyId}/versions	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/semantic-triage/proposals	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/semantic-triage/requests	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/source-systems	admin.source.system.list	TENANT		SOURCE_SYSTEM		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/source-systems/{sourceSystemId}	admin.source.system.detail	TENANT		SOURCE_SYSTEM	sourceSystemId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/source-systems/{sourceSystemId}/registrations	admin.source.system.detail	TENANT		SOURCE_SYSTEM	sourceSystemId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/supply-profiles/{profileCode}/quality-snapshot	admin.agent.assignment.supply.profile.quality.snapshot	TENANT		AGENT_ASSIGNMENT	profileCode	false	SUPPORT	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/a2a-classification/contract	admin.task.classification.a2a.classification.flow.contract	TENANT		TASK_CLASSIFICATION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/failure-queue	admin.core.admin.task.facade.task.failure.queue	TENANT		CORE_ADMIN_TASK_FACADE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/finalization-recovery	task.read	TENANT		TASK		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/callback-inbox	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/callback-inbox/summary	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/case-timeline	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/dispatch-attempt-history	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/dispatch-evidence	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/dispatch-ledger	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/dispatch-requests	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/dispatch-requirements	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/eligible-agents	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/eligible-agents-v2	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/execution-journey	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/finalization-authority	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/flow-match-authority	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/issue-dedup	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/operations-view	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/routing-decisions	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/runtime-verification	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/runtime-view	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/timeline	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tenants/{tenantId}/agent-governance/summary	admin.core.dashboard.agent.governance.summary	TENANT		CORE_DASHBOARD		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tenants/{tenantId}/agents/runtime-view	admin.core.dashboard.agent.runtime.view	TENANT		CORE_DASHBOARD		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tenants/{tenantId}/dashboard/snapshot	admin.core.dashboard.snapshot	TENANT		CORE_DASHBOARD		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tenants/{tenantId}/security-events	admin.core.dashboard.security.events	TENANT		CORE_DASHBOARD		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tenants/{tenantId}/tasks/runtime-view	admin.core.dashboard.tasks.runtime.view	TENANT		CORE_DASHBOARD		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-cancellations/{cancellationId}	api.a2.agovernance.cancellation	TENANT		A2_AGOVERNANCE	cancellationId	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-cancellations/{cancellationId}/evidence	api.a2.agovernance.cancellation.evidence	TENANT		A2_AGOVERNANCE	cancellationId	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-cancellations/{cancellationId}/reliability	api.a2.agovernance.cancellation.reliability	TENANT		A2_AGOVERNANCE	cancellationId	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-cutover	api.a2.acutover.current	TENANT		A2_ACUTOVER		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-operations	api.a2.aoperations.search	TENANT		A2_AOPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-operations/capability-delegations	api.a2.aoperations.search	TENANT		A2_AOPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-operations/capability-delegations/{delegationId}	api.a2.aoperations.detail	TENANT		A2_AOPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-operations/{requestId}	api.a2.aoperations.detail	TENANT		A2_AOPERATIONS	requestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-policies	api.a2.agovernance.policies	TENANT		A2_AGOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-policies/{policyId}	api.a2.agovernance.policy	TENANT		A2_AGOVERNANCE	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-reconciliation	api.a2.aunified.reconciliation.search	TENANT		A2_AUNIFIED_RECONCILIATION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-reconciliation-cases	api.a2.agovernance.reconciliation.cases	TENANT		A2_AGOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-reconciliation/{caseId}	api.a2.aunified.reconciliation.detail	TENANT		A2_AUNIFIED_RECONCILIATION	caseId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-requests/{requestId}	api.a2.agovernance.get	TENANT		A2_AGOVERNANCE	requestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-requests/{requestId}/state-history	api.a2.agovernance.state.history	TENANT		A2_AGOVERNANCE	requestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/a2a-result-quarantine	api.a2.agovernance.result.quarantine	TENANT		A2_AGOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/adapter-actions	api.adapter.action.recent	TENANT		ADAPTER_ACTION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/adapter-actions/executor-audit	api.adapter.action.executor.audit	TENANT		ADAPTER_ACTION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/adapter-actions/incident/{incidentId}	api.adapter.action.by.incident	TENANT		ADAPTER_ACTION	incidentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/adapter-actions/metadata	api.adapter.action.metadata	TENANT		ADAPTER_ACTION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/adapter-actions/status/{status}	api.adapter.action.by.status	TENANT		ADAPTER_ACTION	status	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/adapter-actions/task/{taskId}	api.adapter.action.by.task	TENANT		ADAPTER_ACTION	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/adapter-actions/{actionId}	api.adapter.action.get	TENANT		ADAPTER_ACTION	actionId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/adapter-actions/{actionId}/audit	api.adapter.action.audit.by.action	TENANT		ADAPTER_ACTION	actionId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/access/platform/permission-catalog/active	permission.catalog.read	INSTANCE		IAM_PERMISSION_CATALOG		false		
+GET	/api/admin/access/platform/permission-catalog/publications	permission.catalog.read	INSTANCE		IAM_PERMISSION_CATALOG		false		
+GET	/api/admin/access/platform/permission-catalog/revisions	permission.catalog.read	INSTANCE		IAM_PERMISSION_CATALOG		false		
+GET	/api/admin/access/platform/permission-catalog/revisions/{revisionId}	permission.catalog.read	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
+GET	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/aliases	permission.catalog.read	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
+GET	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/diff	permission.catalog.read	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
+GET	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/entries	permission.catalog.read	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
+GET	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/validation	permission.catalog.read	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
+GET	/api/admin/access/platform/permission-readiness/bypasses	permission.entry_point.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/coverage-evidence	permission.coverage.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/domain-readiness	permission.domain_readiness.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/entry-points	permission.entry_point.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/legacy-mappings	permission.entry_point.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/manifests	permission.manifest.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/manifests/{manifestId}	permission.manifest.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	manifestId	false		
+GET	/api/admin/access/platform/permission-readiness/manifests/{manifestId}/drift	permission.coverage.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	manifestId	false		
+GET	/api/admin/access/platform/permission-readiness/manifests/{manifestId}/entries	permission.manifest.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	manifestId	false		
+GET	/api/admin/access/platform/permission-readiness/mismatch-cases	permission.mismatch.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/phase6-eligibility	permission.phase6_eligibility.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/runtime-certification	permission.runtime_evidence.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/shadow/observations	permission.shadow.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/shadow/pipeline	permission.pipeline.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/shadow/retention-runs	permission.storage.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/shadow/storage	permission.storage.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/shadow/summary	permission.shadow.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permission-readiness/summary	permission.entry_point.read	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+GET	/api/admin/access/platform/permissions	identity.platform_role.read	INSTANCE		IAM_PLATFORM_ROLE		false		
+GET	/api/admin/access/platform/rbac-approvals	identity.role_approval.read	INSTANCE		IAM_PLATFORM_ROLE		false		
+GET	/api/admin/access/platform/rbac-approvals/{approvalId}	identity.role_approval.read	INSTANCE		IAM_PLATFORM_ROLE	approvalId	false		
+GET	/api/admin/access/platform/role-bindings	identity.role_binding.read	INSTANCE		IAM_PLATFORM_ROLE		false		
+GET	/api/admin/access/platform/roles	identity.platform_role.read	INSTANCE		IAM_PLATFORM_ROLE		false		
+GET	/api/admin/access/platform/roles/{roleId}/permissions	identity.platform_role.read	INSTANCE		IAM_PLATFORM_ROLE	roleId	false		
+GET	/api/admin/access/security/policies	security.policy.read	TENANT		IAM_SECURITY_POLICY		false		
+GET	/api/admin/access/security/service-accounts	security.token.read	TENANT		IAM_TOKEN		false		
+GET	/api/admin/access/security/service-accounts/{id}/credentials	security.token.read	TENANT		IAM_TOKEN	id	false		
+GET	/api/admin/access/security/tokens	security.token.read	TENANT		IAM_TOKEN		false		
+GET	/api/admin/access/tenants	instance.tenant.read	INSTANCE		UNIFIED_ACCESS_MANAGEMENT		false		
+GET	/api/admin/access/tenants/{tenantId}	instance.tenant.read	INSTANCE		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/access-assignments	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/access-lifecycle-summary	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/access-review-candidates	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/audit	audit.identity.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/audit-feed	audit.identity.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/available-users	identity.tenant_membership.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/credential-governance-catalog	security.token.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/departments	identity.department.read	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/departments/{departmentId}	identity.department.read	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/departments/{departmentId}/eligible-managers	identity.department.read	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	departmentId	false		
+GET	/api/admin/access/tenants/{tenantId}/departments/{departmentId}/members	identity.department.read	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	departmentId	false		
+GET	/api/admin/access/tenants/{tenantId}/departments/{departmentId}/retirement-preview	identity.department.manage	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/federation/policy	security.policy.read	TENANT		AUTHENTICATION_FEDERATION	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/federation/providers	security.policy.read	TENANT		AUTHENTICATION_FEDERATION	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/federation/users/{userId}/links	security.policy.read	TENANT		AUTHENTICATION_FEDERATION	userId	false		
+GET	/api/admin/access/tenants/{tenantId}/groups	identity.group.read	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/groups/{groupId}	identity.group.read	GROUP	groupId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/groups/{groupId}/members	identity.group.read	GROUP	groupId	UNIFIED_ACCESS_MANAGEMENT	groupId	false		
+GET	/api/admin/access/tenants/{tenantId}/groups/{groupId}/retirement-preview	identity.group.manage	GROUP	groupId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/members	identity.tenant_membership.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/permissions	identity.tenant_role.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/rbac-approvals	identity.role_approval.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/rbac-approvals/{approvalId}	identity.role_approval.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/responsibility-templates	identity.tenant_role.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/role-bindings	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/role-bindings/{bindingId}/revocation-preview	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/roles	identity.tenant_role.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/roles/{roleId}/permissions	identity.tenant_role.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/roles/{roleId}/ui-access-preview	identity.tenant_role.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/security-policy-revisions	security.policy.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/security-summary	audit.identity.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/sessions	security.session.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/users	identity.user.read	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/tenants/{tenantId}/users/{userId}	identity.user.read	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	userId	false		
+GET	/api/admin/access/tenants/{tenantId}/users/{userId}/effective-access	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+GET	/api/admin/access/tenants/{tenantId}/users/{userId}/invitation	identity.user.read	TENANT		IAM_USER_INVITATION	userId	false		
+GET	/api/admin/access/tenants/{tenantId}/users/{userId}/memberships	identity.tenant_membership.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+GET	/api/admin/access/tenants/{tenantId}/users/{userId}/overview	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+GET	/api/admin/access/tenants/{tenantId}/users/{userId}/ui-access	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+GET	/api/admin/access/tenants/{tenantId}/workspace-summary	identity.tenant_membership.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+GET	/api/admin/access/users	identity.platform_user.read	INSTANCE		UNIFIED_ACCESS_MANAGEMENT		false		
+GET	/api/admin/access/users/{userId}	identity.platform_user.read	INSTANCE		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+GET	/api/admin/access/users/{userId}/tenant-memberships	identity.platform_user.read	INSTANCE		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+GET	/api/admin/analytics/dimensions/{dimensionType}/{dimensionId}/history	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS	dimensionId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/organization	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/overview-view	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/performance/status	resource.governance.read	TENANT		ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/projection/status	resource.governance.read	TENANT		ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/scope-profile	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/security/by-department	resource.governance.read	TENANT		ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/security/summary	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/by-agent	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/by-credential	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/by-department	resource.governance.read	TENANT		ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/by-failure-domain	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/by-group	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/by-origin	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/by-source-system	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/recent	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/summary	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/admin/analytics/workloads/trend	resource.governance.read	TENANT	@CONTROLLER	ENTERPRISE_ANALYTICS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/agent/tasks/{taskId}/context	api.handoff.context.agent.context	TENANT		HANDOFF_CONTEXT	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/agents	api.agent.search	TENANT		AGENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/agents/available	api.agent.available	TENANT		AGENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/agents/metadata	api.agent.metadata	TENANT		AGENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/agents/{agentId}/runtime/capabilities	api.agent.runtime.capability.items	TENANT		AGENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/agents/{agentId}/runtime/capability-profile	api.agent.runtime.capability.profile	TENANT		AGENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/agents/{agentId}/runtime/descriptor	api.agent.runtime.descriptor	TENANT		AGENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/agents/{agentId}/runtime/load	api.agent.runtime.load	TENANT		AGENT	agentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/assignments	api.assignment.recent	TENANT		ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/assignments/task/{taskId}	api.assignment.by.task	TENANT		ASSIGNMENT	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/assignments/{assignmentId}	api.assignment.get	TENANT		ASSIGNMENT	assignmentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/core/status	api.core.status.status	TENANT		CORE_STATUS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/dispatch-requests	api.dispatch.request.recent	TENANT		DISPATCH_REQUEST		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/dispatch-requests/history/recent	api.dispatch.request.recent.history	TENANT		DISPATCH_REQUEST		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/dispatch-requests/metadata	api.dispatch.request.metadata	TENANT		DISPATCH_REQUEST		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/dispatch-requests/status/{status}	api.dispatch.request.by.status	TENANT		DISPATCH_REQUEST	status	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/dispatch-requests/task/{taskId}	api.dispatch.request.by.task	TENANT		DISPATCH_REQUEST	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/dispatch-requests/task/{taskId}/history	api.dispatch.request.history.by.task	TENANT		DISPATCH_REQUEST	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/dispatch-requests/{dispatchRequestId}	api.dispatch.request.get	TENANT		DISPATCH_REQUEST	dispatchRequestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/gateway-nodes	api.gateway.node.gateway.nodes	TENANT		GATEWAY_NODE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/gateway-nodes/metadata	api.gateway.node.metadata	TENANT		GATEWAY_NODE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/gateway-nodes/{gatewayNodeId}	api.gateway.node.gateway.node	TENANT		GATEWAY_NODE	gatewayNodeId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/gateway-nodes/{gatewayNodeId}/agents	api.gateway.node.gateway.agents	TENANT		GATEWAY_NODE	gatewayNodeId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/governance/audit-evidence	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/governance/permission-points	api.governance.contract.permissions	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/governance/reason-codes	api.governance.contract.reasons	TENANT		GOVERNANCE_CONTRACT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/handoff-context/policies	api.handoff.context.policies	TENANT		HANDOFF_CONTEXT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/handoff-context/policies/{policyId}	api.handoff.context.policy	TENANT		HANDOFF_CONTEXT	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/handoff-contexts/{snapshotId}	api.handoff.context.snapshot	TENANT		HANDOFF_CONTEXT	snapshotId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/handoff-contexts/{snapshotId}/release-evidence	api.handoff.context.release.evidence	TENANT		HANDOFF_CONTEXT	snapshotId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/incidents	api.incident.incidents	TENANT		INCIDENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/incidents/{incidentId}	api.incident.incident	TENANT		INCIDENT	incidentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/incidents/{incidentId}/occurrence-summary	api.incident.occurrence.summary	TENANT		INCIDENT	incidentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/authorization-failures	api.integration.identity.authorization.failures	TENANT		INTEGRATION_IDENTITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/connections	api.integration.identity.connections	TENANT		INTEGRATION_IDENTITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/connections/{connectionId}	api.integration.identity.connection	TENANT		INTEGRATION_IDENTITY	connectionId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/connections/{connectionId}/principals	api.integration.identity.principals	TENANT		INTEGRATION_IDENTITY	connectionId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/credentials/{credentialId}	api.integration.identity.credential	TENANT		INTEGRATION_IDENTITY	credentialId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/credentials/{credentialId}/blast-radius	api.integration.identity.blast.radius	TENANT		INTEGRATION_IDENTITY	credentialId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/external-change-governance/candidates	api.external.change.governance.candidates	TENANT		EXTERNAL_CHANGE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/external-change-governance/candidates/{candidateId}/events	api.external.change.governance.candidate.events	TENANT		EXTERNAL_CHANGE_GOVERNANCE	candidateId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/external-change-governance/comment-sync	api.external.change.governance.comment.sync	TENANT		EXTERNAL_CHANGE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/external-change-governance/policies	api.external.change.governance.policies	TENANT		EXTERNAL_CHANGE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/external-change-governance/relation-sync	api.external.change.governance.relation.sync	TENANT		EXTERNAL_CHANGE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/external-conflicts	api.provider.webhook.operations.conflicts	TENANT		PROVIDER_WEBHOOK_OPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/external-conflicts/{conflictId}/events	api.provider.webhook.operations.conflict.events	TENANT		PROVIDER_WEBHOOK_OPERATIONS	conflictId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/external-observations	api.provider.webhook.operations.observations	TENANT		PROVIDER_WEBHOOK_OPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/metadata-snapshots/{snapshotId}	api.integration.identity.metadata.snapshot	TENANT		INTEGRATION_IDENTITY	snapshotId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/permission-changes	api.integration.identity.permission.changes	TENANT		INTEGRATION_IDENTITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/phase3-release-readiness	api.phase3.release.readiness.readiness	TENANT		PHASE3_RELEASE_READINESS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/principal-scopes	api.integration.identity.principal.scopes	TENANT		INTEGRATION_IDENTITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/principals/{principalId}	api.integration.identity.principal	TENANT		INTEGRATION_IDENTITY	principalId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/principals/{principalId}/credentials	api.integration.identity.credentials	TENANT		INTEGRATION_IDENTITY	principalId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/principals/{principalId}/scope	api.integration.identity.principal.scope	TENANT		INTEGRATION_IDENTITY	principalId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/project-mappings	api.integration.identity.project.mappings	TENANT		INTEGRATION_IDENTITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/project-mappings/{mappingId}	api.integration.identity.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/project-mappings/{mappingId}/diff	api.integration.identity.diff.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/project-mappings/{mappingId}/metadata-snapshots	api.integration.identity.metadata.snapshots	TENANT		INTEGRATION_IDENTITY	mappingId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/project-mappings/{mappingId}/versions	api.integration.identity.mapping.versions	TENANT		INTEGRATION_IDENTITY	mappingId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-outbox	api.projection.outbox.reliability.list	TENANT		PROJECTION_OUTBOX_RELIABILITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-outbox/{outboxId}/attempts	api.projection.outbox.reliability.attempts	TENANT		PROJECTION_OUTBOX_RELIABILITY	outboxId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-outbox/{outboxId}/readbacks	api.projection.outbox.reliability.readbacks	TENANT		PROJECTION_OUTBOX_RELIABILITY	outboxId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-recovery/cases	api.projection.recovery.governance.cases	TENANT		PROJECTION_RECOVERY_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-recovery/cases/{caseId}/events	api.projection.recovery.governance.case.events	TENANT		PROJECTION_RECOVERY_GOVERNANCE	caseId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-recovery/lanes	api.projection.recovery.governance.lanes	TENANT		PROJECTION_RECOVERY_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-recovery/lanes/{laneId}/events	api.projection.recovery.governance.lane.events	TENANT		PROJECTION_RECOVERY_GOVERNANCE	laneId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-recovery/lanes/{laneId}/work	api.projection.recovery.governance.work	TENANT		PROJECTION_RECOVERY_GOVERNANCE	laneId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-recovery/provider-health	api.projection.recovery.governance.health	TENANT		PROJECTION_RECOVERY_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/projection-recovery/reconciliation-runs	api.projection.recovery.governance.runs	TENANT		PROJECTION_RECOVERY_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/provider-webhooks/inbox	api.provider.webhook.operations.inbox	TENANT		PROVIDER_WEBHOOK_OPERATIONS		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/provider-webhooks/inbox/{inboxId}/evidence	api.provider.webhook.operations.evidence	TENANT		PROVIDER_WEBHOOK_OPERATIONS	inboxId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/relay-governance/canonical-relations	api.relay.governance.relations	TENANT		RELAY_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/relay-governance/compensations	api.relay.governance.compensations	TENANT		RELAY_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/relay-governance/compensations/{compensationId}/events	api.relay.governance.compensation.events	TENANT		RELAY_GOVERNANCE	compensationId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/relay-governance/topologies	api.relay.governance.topologies	TENANT		RELAY_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/relay-governance/topologies/{topologyId}	api.relay.governance.topology	TENANT		RELAY_GOVERNANCE	topologyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/relay-governance/topologies/{topologyId}/edges	api.relay.governance.topology.edges	TENANT		RELAY_GOVERNANCE	topologyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/relay-governance/topologies/{topologyId}/events	api.relay.governance.topology.events	TENANT		RELAY_GOVERNANCE	topologyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/security-overrides	api.integration.identity.security.overrides	TENANT		INTEGRATION_IDENTITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/sync/conflicts	api.issue.projection.conflicts	TENANT		ISSUE_PROJECTION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/sync/dead-letters	api.issue.projection.dead.letters	TENANT		ISSUE_PROJECTION		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/sync/inbox	api.issue.projection.inbox	TENANT		ISSUE_PROJECTION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/sync/outbox/{outboxId}/attempts	api.issue.projection.attempts	TENANT		ISSUE_PROJECTION	outboxId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/webhook-endpoints	api.integration.identity.webhook.endpoints	TENANT		INTEGRATION_IDENTITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/webhook-endpoints/{endpointId}	api.integration.identity.webhook.endpoint	TENANT		INTEGRATION_IDENTITY	endpointId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issue-projections	api.issue.projection.state.list	TENANT		ISSUE_PROJECTION_STATE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issue-projections/reconciliation-cases	api.issue.projection.state.cases	TENANT		ISSUE_PROJECTION_STATE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issue-projections/{projectionId}	api.issue.projection.state.get	TENANT		ISSUE_PROJECTION_STATE	projectionId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issue-relays	api.issue.relay.relays	TENANT		ISSUE_RELAY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issue-relays/{relayId}	api.issue.relay.relay	TENANT		ISSUE_RELAY	relayId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issue-relays/{relayId}/attempts	api.issue.relay.attempts	TENANT		ISSUE_RELAY	relayId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issues	integration.issue.link.read	TENANT		TASK_ISSUE_LINK		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issues/{linkId}	integration.issue.link.read	TENANT		TASK_ISSUE_LINK	linkId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issues/{linkId}/attachments	integration.issue.link.read	TENANT		TASK_ISSUE_LINK	linkId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/issues/{linkId}/attachments/{attachmentId}	integration.issue.attachment.read	TENANT		ISSUE_ATTACHMENT	attachmentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/legacy/a2a/policies	api.a2.agovernance.policies	TENANT		A2_AGOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/legacy/a2a/policies/{policyId}	api.a2.agovernance.policy	TENANT		A2_AGOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/legacy/a2a/requests/{requestId}	api.a2.agovernance.get	TENANT		A2_AGOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/legacy/a2a/requests/{requestId}/state-history	api.a2.agovernance.state.history	TENANT		A2_AGOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/legacy/a2a/tasks/{taskId}/requests	api.a2.agovernance.history	TENANT		A2_AGOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/ops/summary	api.operational.summary.summary	TENANT		OPERATIONAL_SUMMARY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/plans	permission.enforcement_cutover.read	INSTANCE		ENFORCEMENT_ACTIVATION		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/plans/{planId}	permission.enforcement_cutover.read	INSTANCE		ENFORCEMENT_ACTIVATION	planId	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/runtime	permission.enforcement_cutover.read	INSTANCE		ENFORCEMENT_ACTIVATION		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/runtime/cluster	permission.enforcement_cutover.read	INSTANCE		ENFORCEMENT_ACTIVATION		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/wave0	permission.enforcement_wave0.read	INSTANCE		WAVE0_READ_PILOT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/wave0/observations	permission.enforcement_wave0.read	INSTANCE		WAVE0_READ_PILOT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/wave0/read/admin-summary	permission.enforcement_wave0.read	INSTANCE		WAVE0_READ_PILOT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/wave0/read/permission-catalog	permission.enforcement_wave0.read	INSTANCE		WAVE0_READ_PILOT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/wave0/read/readiness-evidence/{type}/{evidenceId}	permission.enforcement_wave0.read	INSTANCE		WAVE0_READ_PILOT	evidenceId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/wave0/read/runtime-status	permission.enforcement_wave0.read	INSTANCE		WAVE0_READ_PILOT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/enforcement-activation/wave0/task-read-certifications	permission.enforcement_wave0.read	INSTANCE		TASK_READ_CERTIFICATION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/clearances/{clearanceId}	resource.clearance.read	TENANT		RESOURCE_SCOPE_ADMINISTRATION	clearanceId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/denies/{denyId}	resource.deny.read	TENANT		RESOURCE_SCOPE_ADMINISTRATION	denyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/governance/denies	resource.deny.read	TENANT		RESOURCE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/governance/grants	resource.scope.read	TENANT		RESOURCE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/governance/orphans	resource.orphan.read	TENANT		RESOURCE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/governance/resources/{resourceType}/{resourceId}	resource.governance.read	TENANT		RESOURCE_GOVERNANCE	resourceId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/governance/reviews	resource.review.read	TENANT		RESOURCE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/governance/reviews/{campaignId}/items	resource.review.read	TENANT		RESOURCE_GOVERNANCE	campaignId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/governance/summary	resource.governance.read	TENANT		RESOURCE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/grants/{grantId}	resource.scope.read	TENANT		RESOURCE_SCOPE_ADMINISTRATION	grantId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/runtime/cache/metrics	resource.cache.metrics.read	TENANT		RESOURCE_RUNTIME_SCALE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/runtime/late-results	resource.runtime.quarantine.read	TENANT		RESOURCE_RUNTIME_SCALE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/runtime/scope-cutovers/current	resource.scope.cutover.read	TENANT		RESOURCE_RUNTIME_SCALE		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/resource-access/visibility-policies/{policyId}	resource.visibility.read	TENANT		RESOURCE_SCOPE_ADMINISTRATION	policyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/routing-decisions	api.routing.decision.recent	TENANT		ROUTING_DECISION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/routing-decisions/task/{taskId}	api.routing.decision.by.task	TENANT		ROUTING_DECISION	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/routing-decisions/{decisionId}	api.routing.decision.get	TENANT		ROUTING_DECISION	decisionId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/security/incidents	resource.governance.read	TENANT		SECURITY_INCIDENT_CASE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/security/incidents/{caseId}	resource.governance.read	TENANT		SECURITY_INCIDENT_CASE	caseId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/task-issues/{linkId}/relationships	api.issue.projection.relationships	TENANT		ISSUE_PROJECTION	linkId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks	api.task.search	TENANT		TASK		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/incident/{incidentId}	api.task.by.incident	TENANT		TASK	incidentId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/lineage/agents/{agentId}	api.task.domain.chain	TENANT		TASK		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/lineage/correlation/{correlationId}	api.task.domain.chain	TENANT		TASK		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/lineage/search	api.task.domain.chain	TENANT		TASK		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/metadata	api.task.metadata	TENANT		TASK		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}	api.task.get	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/a2a-history	api.a2.agovernance.history	TENANT		A2_AGOVERNANCE	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/a2a-result-reliability	api.a2.aresult.reliability.reliability	TENANT		A2_ARESULT_RELIABILITY	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/chain	api.task.domain.chain	TENANT		TASK_DOMAIN	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/context-access-audit	api.handoff.context.access.events	TENANT		HANDOFF_CONTEXT	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/handoff-context/readiness	api.handoff.context.readiness	TENANT		HANDOFF_CONTEXT	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/handoff-contexts	api.handoff.context.snapshots	TENANT		HANDOFF_CONTEXT	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/issues	api.issue.projection.issues	TENANT		ISSUE_PROJECTION	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/lineage	api.task.domain.chain	TENANT		TASK_DOMAIN	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/participants	api.task.domain.participants	TENANT		TASK_DOMAIN	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/relationships	api.task.domain.relationships	TENANT		TASK_DOMAIN	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/tasks/{taskId}/state-history	api.task.domain.state.history	TENANT		TASK_DOMAIN	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/ui/access-requests/{requestId}	api.ui.access.request.read	TENANT		UI_ACCESS_REQUEST	requestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/ui/access-requests/{requestId}/review	resource.scope.approve	TENANT		UI_ACCESS_REQUEST	requestId	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/conformance/profiles/{profileId}/activate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/interfaces/{interfaceId}/approve	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/interfaces/{interfaceId}/conformance/run	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/interfaces/{interfaceId}/credential-bindings/{bindingId}/activate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/interfaces/{interfaceId}/credential-bindings/{bindingId}/retire	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/interfaces/{interfaceId}/credential-bindings/{bindingId}/validate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/interfaces/{interfaceId}/operational-state	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/outbound-policies/{policyId}/activate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/outbound-policies/{policyId}/retire	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/trust-assurance/policies/{policyId}/activate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/version-policies/{policyId}/activate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/activate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/error-mappings/{overrideId}/activate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/error-mappings/{overrideId}/retire	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/processing-attestations	admin.a2.apeer.registry.record.processing.attestation	TENANT		A2_APEER_REGISTRY	peerId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/processing-attestations/{attestationId}/revoke	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/processing-attestations/{attestationId}/verify	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/refresh-agent-card	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/trust-evidence	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-peers/{peerId}/trust-evidence/{evidenceId}/revoke	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/a2a-remote-executions/{executionId}/cancel	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-enrollments	admin.agent.governance.create.enrollment	TENANT		AGENT_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-enrollments/{enrollmentId}/approve	admin.agent.governance.approve.enrollment	TENANT		AGENT_GOVERNANCE	enrollmentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-enrollments/{enrollmentId}/reject	admin.agent.governance.reject.enrollment	TENANT		AGENT_GOVERNANCE	enrollmentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/drift/policy-evaluate	admin.agent.skill.registry.evaluate.skill.drift.policy	TENANT		AGENT_SKILL_REGISTRY		false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/drift/remediation-proposals	admin.agent.skill.registry.propose.fleet.skill.remediation	TENANT		AGENT_SKILL_REGISTRY		false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/{skillCode}/deprecation-plan/analyze	admin.agent.skill.registry.analyze.skill.deprecation.migration.plan	TENANT		AGENT_SKILL_REGISTRY	skillCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/{skillCode}/versions/draft	admin.agent.skill.registry.create.skill.draft	TENANT		AGENT_SKILL_REGISTRY	skillCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/{skillCode}/versions/{version}/approve	admin.agent.skill.registry.approve.skill.version	TENANT		AGENT_SKILL_REGISTRY	version	true		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/{skillCode}/versions/{version}/publish	admin.agent.skill.registry.publish.skill.version	TENANT		AGENT_SKILL_REGISTRY	version	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/{skillCode}/versions/{version}/reject	admin.agent.skill.registry.reject.skill.version	TENANT		AGENT_SKILL_REGISTRY	version	true		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/{skillCode}/versions/{version}/rollback	admin.agent.skill.registry.rollback.skill.version	TENANT		AGENT_SKILL_REGISTRY	version	true		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agent-skills/{skillCode}/versions/{version}/submit	admin.agent.skill.registry.submit.skill.version	TENANT		AGENT_SKILL_REGISTRY	version	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/runtime-disconnect/reconcile	admin.agent.governance.reconcile.blocked.agent.runtimes	TENANT		AGENT_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/setup	admin.agent.setup.setup.agent	TENANT		AGENT_SETUP		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/approve	admin.agent.governance.approve.agent	TENANT		AGENT_GOVERNANCE	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/capabilities	admin.agent.assignment.request.agent.capability	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/capabilities/{assignmentId}/approve	admin.agent.assignment.approve.agent.capability	TENANT		AGENT_ASSIGNMENT	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/capabilities/{assignmentId}/remove	admin.agent.assignment.remove.agent.capability	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/capabilities/{assignmentId}/resume	admin.agent.assignment.resume.agent.capability	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/capabilities/{assignmentId}/revoke	admin.agent.assignment.revoke.agent.capability	TENANT		AGENT_ASSIGNMENT	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/capabilities/{assignmentId}/suspend	admin.agent.assignment.suspend.agent.capability	TENANT		AGENT_ASSIGNMENT	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/connection-repair-actions/{actionCode}	admin.agent.governance.execute.connection.repair.action	TENANT		AGENT_GOVERNANCE	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/credentials/issue	admin.agent.governance.issue.credential	TENANT		AGENT_GOVERNANCE	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/disable	admin.agent.governance.disable.agent	TENANT		AGENT_GOVERNANCE	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/disconnect	admin.agent.governance.disconnect.agent.runtime	TENANT		AGENT_GOVERNANCE	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/disconnect-all	admin.agent.governance.disconnect.all.agent.runtime.sessions	TENANT		AGENT_GOVERNANCE	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/enable	admin.agent.governance.enable.agent	TENANT		AGENT_GOVERNANCE	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/remediation/proposal	admin.agent.remediation.create.agent.remediation.proposal	TENANT		AGENT_REMEDIATION	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/remediation/workflows	admin.agent.remediation.create.agent.remediation.workflow	TENANT		AGENT_REMEDIATION	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/remediation/workflows/{workflowId}/approve	admin.agent.remediation.approve.agent.remediation.workflow	TENANT		AGENT_REMEDIATION	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/remediation/workflows/{workflowId}/cancel	admin.agent.remediation.cancel.agent.remediation.workflow	TENANT		AGENT_REMEDIATION	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/remediation/workflows/{workflowId}/execute	admin.agent.remediation.execute.agent.remediation.workflow	TENANT		AGENT_REMEDIATION	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/remediation/workflows/{workflowId}/reject	admin.agent.remediation.reject.agent.remediation.workflow	TENANT		AGENT_REMEDIATION	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/revoke	admin.agent.governance.revoke.agent	TENANT		AGENT_GOVERNANCE	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/runtime-bindings	admin.agent.assignment.create.runtime.binding	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/runtime-bindings/{bindingId}/{targetStatus}	admin.agent.assignment.transition.runtime.binding	TENANT		AGENT_ASSIGNMENT	bindingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/runtime-features/trust	admin.agent.assignment.observe.runtime.feature	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/runtime-features/trust/{trustId}/resume	admin.agent.assignment.resume.runtime.feature.trust	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/runtime-features/trust/{trustId}/revoke	admin.agent.assignment.revoke.runtime.feature.trust	TENANT		AGENT_ASSIGNMENT	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/runtime-features/trust/{trustId}/suspend	admin.agent.assignment.suspend.runtime.feature.trust	TENANT		AGENT_ASSIGNMENT	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/runtime-features/trust/{trustId}/trust	admin.agent.assignment.trust.runtime.feature	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/runtime-features/trust/{trustId}/verify	admin.agent.assignment.verify.runtime.feature	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/security/duplicate-runtime/enforce	admin.agent.governance.enforce.duplicate.runtime.security	TENANT		AGENT_GOVERNANCE	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/security/duplicate-runtime/resolve	admin.agent.governance.resolve.duplicate.runtime.security	TENANT		AGENT_GOVERNANCE	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/skills/evaluate	admin.agent.skill.registry.evaluate.agent.skill	TENANT		AGENT_SKILL_REGISTRY	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/skills/remediation-proposal	admin.agent.skill.registry.propose.agent.skill.remediation	TENANT		AGENT_SKILL_REGISTRY	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/skills/sync-approved-capabilities	admin.agent.skill.registry.sync.approved.skills.and.capabilities	TENANT		AGENT_SKILL_REGISTRY	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/agents/{agentId}/suspend	admin.agent.governance.suspend.agent	TENANT		AGENT_GOVERNANCE	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/case-convergence/aggregation/prepare-preview	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/case-convergence/cases	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/case-convergence/cases/{caseId}/issue-projections	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/case-convergence/cases/{caseId}/review	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/delegation-governance/evaluate-preview	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contract/bootstrap	admin.agent.assignment.bootstrap.dispatch.contract	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contract/chain-inspection	admin.agent.assignment.inspect.dispatch.contract.chain	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contract/readiness	admin.agent.assignment.dispatch.contract.readiness	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contracts/bootstrap	admin.dispatch.contract.bootstrap	TENANT		DISPATCH_CONTRACT		false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contracts/inspect	admin.dispatch.contract.inspect	TENANT		DISPATCH_CONTRACT		false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contracts/readiness	admin.dispatch.contract.readiness	TENANT		DISPATCH_CONTRACT		false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contracts/resolve	admin.agent.skill.registry.resolve.dispatch.contract	TENANT		AGENT_SKILL_REGISTRY		true		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contracts/test-task	admin.dispatch.contract.create.test.task	TENANT		DISPATCH_CONTRACT		false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-contracts/trace	admin.dispatch.contract.trace	TENANT		DISPATCH_CONTRACT		false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows	admin.dispatch.flow.create	TENANT		DISPATCH_FLOW		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/agent-pools	admin.dispatch.flow.create.agent.pool	TENANT		DISPATCH_FLOW		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/dry-run	admin.dispatch.flow.dry.run	TENANT		DISPATCH_FLOW		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/agents	admin.dispatch.flow.upsert.agent	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/agents/preview	admin.dispatch.flow.preview.agent.assignment	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/capability-migration/compatibility-bridge/refresh	admin.dispatch.flow.update	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/capability-migration/evaluations	admin.dispatch.flow.update	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/capability-migration/legacy-equivalence/backfill	admin.dispatch.flow.update	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/capability-migration/legacy-equivalence/evaluate	admin.dispatch.flow.update	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/dry-run	admin.dispatch.flow.dry.run.flow	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/rules	admin.dispatch.flow.upsert.rule	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/rules/preview	admin.dispatch.flow.preview.rule	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/skills	admin.dispatch.flow.upsert.skill	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/test-a2a	admin.dispatch.flow.test.a2a	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/test-chain	admin.dispatch.flow.test.chain	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/test-event	admin.dispatch.flow.create.real.test.event	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/test-external	admin.dispatch.flow.test.external	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-flows/{flowId}/test-result	admin.dispatch.flow.test.result	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-governance/cutover/policies/{policyId}/rollback	admin.dispatch.cutover.rollback	TENANT		DISPATCH_CUTOVER	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+POST	/admin/dispatch-policies/{policyCode}/quality-rules	admin.agent.assignment.upsert.dispatch.policy.quality.rule	TENANT		AGENT_ASSIGNMENT	policyCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-policies/{policyCode}/required-capabilities	admin.agent.assignment.upsert.dispatch.policy.required.capability	TENANT		AGENT_ASSIGNMENT	policyCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-policies/{policyCode}/required-runtime-features	admin.agent.assignment.upsert.dispatch.policy.required.runtime.feature	TENANT		AGENT_ASSIGNMENT	policyCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-policies/{policyCode}/scopes	admin.agent.assignment.upsert.dispatch.policy.scope	TENANT		AGENT_ASSIGNMENT	policyCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-policies/{policyCode}/scoring-rules	admin.agent.assignment.upsert.dispatch.policy.scoring.rule	TENANT		AGENT_ASSIGNMENT	policyCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-requests/{dispatchRequestId}/cancel	admin.core.admin.task.facade.cancel.dispatch.request	TENANT		CORE_ADMIN_TASK_FACADE	dispatchRequestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch-requests/{dispatchRequestId}/retry	admin.core.admin.task.facade.retry.dispatch.request	TENANT		CORE_ADMIN_TASK_FACADE	dispatchRequestId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/dispatch/simulate	admin.dispatch.simulation.simulate	TENANT		DISPATCH_SIMULATION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/enforce/incidents	admin.enforce.operations.create.incident	TENANT		ENFORCE_OPERATIONS		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/execution-adapters/resolve-preview	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/execution-plans/requests/{requestId}/proposals	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	requestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/execution-plans/resolve-preview	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/execution-plans/{planId}/amendments	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	planId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/execution-safety/intents/handoff-next	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/execution-safety/plans/{planId}/prepare	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/fast-path-runtime/patterns/{patternId}/certifications	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	patternId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/fast-path-runtime/shadow-comparisons	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-fast-path/candidates/{candidateId}/promote-shadow	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-fast-path/fast-path/resolve-preview	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-fast-path/outcomes/from-case/{caseId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-fast-path/patterns/{patternId}/drift/evaluate	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	patternId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-fast-path/patterns/{patternId}/quality/refresh	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	patternId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-fast-path/patterns/{patternId}/transition	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	patternId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-governance/fast-path/candidates	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-governance/fast-path/candidates/{candidateId}/certify	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-governance/fast-path/candidates/{candidateId}/replay	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-governance/fast-path/candidates/{candidateId}/shadow	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-governance/fast-path/runtime-hints/resolve	api.governance.contract.evidence	TENANT		GOVERNANCE_CONTRACT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-governance/recommendations/from-memory	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/learning-governance/recommendations/{recommendationId}/review	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	recommendationId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/observability/archive-segments	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/observability/archive-segments/{segmentId}/verify	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	segmentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/observability/economics/ledger	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/observability/execution-memory/refresh	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-admission/envelopes/{envelopeId}/revoke	plan.admission.manage	TENANT		PLAN_ADMISSION	envelopeId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-admission/plans/{planId}/admit	plan.admission.manage	TENANT		PLAN_ADMISSION	planId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-executions/runs	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-executions/runs/{runId}/cancel	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	runId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-executions/runs/{runId}/steps/{stepId}/authority	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	runId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-executions/runs/{runId}/steps/{stepId}/automate-authority	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	runId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-executions/runs/{runId}/steps/{stepId}/complete	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	runId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-executions/runs/{runId}/steps/{stepId}/retry	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	runId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-executions/runs/{runId}/steps/{stepId}/submit	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	runId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/plan-executions/sweep-timeouts	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/production-foundation/candidates	admin.agent.assignment.upsert.capability	TENANT		GOVERNANCE_CONTRACT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/production-foundation/candidates/{candidateId}/activate	admin.agent.assignment.upsert.capability	TENANT		GOVERNANCE_CONTRACT	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/production-foundation/candidates/{candidateId}/certify	admin.agent.assignment.upsert.capability	TENANT		GOVERNANCE_CONTRACT	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/production-foundation/candidates/{candidateId}/revoke	admin.agent.assignment.upsert.capability	TENANT		GOVERNANCE_CONTRACT	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/production-foundation/cutover-runs	admin.agent.assignment.upsert.capability	TENANT		GOVERNANCE_CONTRACT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/provider-routing/eligibility-observations	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/provider-routing/evaluate-preview	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/quality/agents/{agentId}/windows	admin.agent.assignment.upsert.agent.quality.window	TENANT		AGENT_ASSIGNMENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/recommendations/advisory/generate	admin.agent.assignment.generate.advisory.recommendations	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/recommendations/advisory/{recommendationId}/accept	admin.agent.assignment.accept.advisory.recommendation	TENANT		AGENT_ASSIGNMENT	recommendationId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/recommendations/advisory/{recommendationId}/reject	admin.agent.assignment.reject.advisory.recommendation	TENANT		AGENT_ASSIGNMENT	recommendationId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/recovery/actions/agents/{agentId}/clear-runtime-backoff	admin.core.recovery.governance.clear.runtime.backoff	TENANT		CORE_RECOVERY_GOVERNANCE	agentId	false	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+POST	/admin/recovery/actions/dispatch-requests/{dispatchRequestId}/dead-letter	admin.core.recovery.governance.move.dispatch.to.dead.letter	TENANT		CORE_RECOVERY_GOVERNANCE	dispatchRequestId	true	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+POST	/admin/recovery/actions/dispatch-requests/{dispatchRequestId}/restore-dead-letter	admin.core.recovery.governance.restore.dispatch.from.dead.letter	TENANT		CORE_RECOVERY_GOVERNANCE	dispatchRequestId	true	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+POST	/admin/recovery/actions/tasks/{taskId}/dead-letter	admin.core.recovery.governance.move.task.latest.dispatch.to.dead.letter	TENANT		CORE_RECOVERY_GOVERNANCE	taskId	true	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+POST	/admin/recovery/actions/tasks/{taskId}/recover-now	admin.core.recovery.governance.trigger.task.recovery.now	TENANT		CORE_RECOVERY_GOVERNANCE	taskId	false	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+POST	/admin/recovery/actions/tasks/{taskId}/restore-dead-letter	admin.core.recovery.governance.restore.task.latest.dead.letter	TENANT		CORE_RECOVERY_GOVERNANCE	taskId	true	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+POST	/admin/recovery/approval-requests/{approvalId}/approve	admin.core.recovery.governance.approve.recovery.request	TENANT		CORE_RECOVERY_GOVERNANCE	approvalId	true	ADMIN,RECOVERY_APPROVER	RECOVERY_APPROVER
+POST	/admin/recovery/approval-requests/{approvalId}/cancel	admin.core.recovery.governance.cancel.recovery.request	TENANT		CORE_RECOVERY_GOVERNANCE	approvalId	true	OPERATOR,ADMIN,RECOVERY_OPERATOR,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+POST	/admin/recovery/approval-requests/{approvalId}/reject	admin.core.recovery.governance.reject.recovery.request	TENANT		CORE_RECOVERY_GOVERNANCE	approvalId	true	ADMIN,RECOVERY_APPROVER	RECOVERY_APPROVER
+POST	/admin/remediation/workflow-leases/recover-stale	admin.agent.remediation.workflow.lease.recovery.recover.stale.workflow.execution.leases	TENANT		AGENT_REMEDIATION_WORKFLOW_LEASE_RECOVERY		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/routing-authority/plans/{planId}/rebinding-admission	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/routing-authority/plans/{planId}/shadow-evaluate	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	planId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/runtime-acceptance/digest-keys	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/runtime-acceptance/evidence	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/runtime-acceptance/payloads/{payloadHandle}/disposition	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	payloadHandle	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/runtime-acceptance/runs	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/semantic-triage/adaptive-routing/tasks/{taskId}/evaluate	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/semantic-triage/requests/{requestId}/proposals	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	requestId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/semantic-triage/resolve-preview	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/source-systems	admin.source.system.create	TENANT		SOURCE_SYSTEM		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/source-systems/{sourceSystemId}/registrations	admin.source.system.update	TENANT		SOURCE_SYSTEM	sourceSystemId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/cancel	admin.core.admin.task.facade.cancel.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/commands	admin.core.admin.task.facade.run.task.remediation.command	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/dead-letter	admin.core.admin.task.facade.dead.letter.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/escalate	admin.core.admin.task.facade.escalate.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/finalization-authority/retry	admin.core.admin.task.facade.run.task.remediation.command	TENANT		TASK	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/manual-retry	admin.core.admin.task.facade.manual.retry.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/reassign	admin.core.admin.task.facade.reassign.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/retry	admin.core.admin.task.facade.retry.task.latest.dispatch	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/timeout	admin.core.admin.task.facade.timeout.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-cancellations/{cancellationId}/reconcile	api.a2.agovernance.reconcile.cancellation	TENANT		A2_AGOVERNANCE	cancellationId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-cutover/advance	api.a2.acutover.advance	TENANT		A2_ACUTOVER		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-reconciliation-cases/{caseId}/resolve	api.a2.agovernance.resolve.reconciliation.case	TENANT		A2_AGOVERNANCE	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-reconciliation/{caseId}/execute	api.a2.aunified.reconciliation.execute.repair	TENANT		A2_AUNIFIED_RECONCILIATION	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-reconciliation/{caseId}/outcome	api.a2.aunified.reconciliation.record.outcome	TENANT		A2_AUNIFIED_RECONCILIATION	caseId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-requests/{requestId}/approve	api.a2.agovernance.approve	TENANT		A2_AGOVERNANCE	requestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-requests/{requestId}/cancel	api.a2.agovernance.cancel	TENANT		A2_AGOVERNANCE	requestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-requests/{requestId}/reject	api.a2.agovernance.reject	TENANT		A2_AGOVERNANCE	requestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-result-quarantine/{quarantineId}/resolve	api.a2.agovernance.resolve.result.quarantine	TENANT		A2_AGOVERNANCE	quarantineId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/a2a-results/{resultId}/reconcile	api.a2.aresult.reliability.reconcile	TENANT		A2_ARESULT_RELIABILITY	resultId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/execute-pending	api.adapter.action.execute.pending	TENANT		ADAPTER_ACTION		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/recover-expired-leases	api.adapter.action.recover.expired.leases	TENANT		ADAPTER_ACTION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/{actionId}/cancel	api.adapter.action.cancel	TENANT		ADAPTER_ACTION	actionId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/{actionId}/complete	api.adapter.action.complete	TENANT		ADAPTER_ACTION	actionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/{actionId}/execute	api.adapter.action.execute	TENANT		ADAPTER_ACTION	actionId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/{actionId}/execute-retry	api.adapter.action.execute.retry	TENANT		ADAPTER_ACTION	actionId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/{actionId}/fail	api.adapter.action.fail	TENANT		ADAPTER_ACTION	actionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/{actionId}/retry	api.adapter.action.retry	TENANT		ADAPTER_ACTION	actionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/admin/access/platform/permission-catalog/revisions	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG		false		
+POST	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/aliases	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
+POST	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/entries	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
+POST	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/publish	permission.catalog.publish	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
+POST	/api/admin/access/platform/permission-readiness/bypasses	permission.bypass.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+POST	/api/admin/access/platform/permission-readiness/bypasses/{bypassId}/revoke	permission.bypass.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	bypassId	true		
+POST	/api/admin/access/platform/permission-readiness/domain-readiness/evaluate	permission.domain_readiness.evaluate	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+POST	/api/admin/access/platform/permission-readiness/manifests	permission.manifest.register	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+POST	/api/admin/access/platform/permission-readiness/mismatch-cases	permission.mismatch.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+POST	/api/admin/access/platform/permission-readiness/mismatch-cases/{caseId}/regressions	permission.mismatch.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	caseId	false		
+POST	/api/admin/access/platform/permission-readiness/mismatch-cases/{caseId}/waivers	permission.mismatch.waive	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	caseId	false		
+POST	/api/admin/access/platform/permission-readiness/phase6-eligibility/evaluate	permission.phase6_eligibility.evaluate	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+POST	/api/admin/access/platform/permission-readiness/runtime-certification	permission.runtime_evidence.generate	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+POST	/api/admin/access/platform/permission-readiness/shadow/pipeline/process	permission.pipeline.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+POST	/api/admin/access/platform/permission-readiness/shadow/storage/retention	permission.storage.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY		false		
+POST	/api/admin/access/platform/rbac-approvals/{approvalId}/approve	identity.role_approval.approve	INSTANCE		IAM_PLATFORM_ROLE	approvalId	true		
+POST	/api/admin/access/platform/rbac-approvals/{approvalId}/reject	identity.role_approval.approve	INSTANCE		IAM_PLATFORM_ROLE	approvalId	true		
+POST	/api/admin/access/platform/role-bindings	identity.role_binding.manage	INSTANCE		IAM_PLATFORM_ROLE		false		
+POST	/api/admin/access/platform/role-bindings/approval-requests	identity.role_approval.request	INSTANCE		IAM_PLATFORM_ROLE		false		
+POST	/api/admin/access/platform/role-bindings/hardening-preview	identity.role_binding.read	INSTANCE		IAM_PLATFORM_ROLE		false		
+POST	/api/admin/access/platform/role-bindings/{bindingId}/revoke	identity.role_binding.manage	INSTANCE		IAM_PLATFORM_ROLE	bindingId	true		
+POST	/api/admin/access/platform/roles	identity.platform_role.manage	INSTANCE		IAM_PLATFORM_ROLE		false		
+POST	/api/admin/access/platform/roles/{roleId}/permissions/approval-requests	identity.role_approval.request	INSTANCE		IAM_PLATFORM_ROLE	roleId	false		
+POST	/api/admin/access/platform/roles/{roleId}/permissions/hardening-preview	identity.platform_role.read	INSTANCE		IAM_PLATFORM_ROLE	roleId	false		
+POST	/api/admin/access/platform/roles/{roleId}/status	identity.platform_role.manage	INSTANCE		IAM_PLATFORM_ROLE	roleId	false		
+POST	/api/admin/access/security/policies/{policyKind}/restore/{revisionId}	security.policy.manage	TENANT		IAM_SECURITY_POLICY	revisionId	true		
+POST	/api/admin/access/security/service-accounts	security.token.manage	TENANT		IAM_TOKEN		false		
+POST	/api/admin/access/security/service-accounts/{id}/credentials	security.token.manage	TENANT		IAM_TOKEN	id	false		
+POST	/api/admin/access/security/service-accounts/{id}/credentials/{credentialId}/revoke	security.token.manage	TENANT		IAM_TOKEN	credentialId	true		
+POST	/api/admin/access/security/service-accounts/{id}/credentials/{credentialId}/rotate	security.token.manage	TENANT		IAM_TOKEN	credentialId	false		
+POST	/api/admin/access/security/service-accounts/{id}/machine-boundary	security.token.manage	TENANT		IAM_TOKEN	id	false		
+POST	/api/admin/access/security/service-accounts/{id}/tokens	security.token.manage	TENANT		IAM_TOKEN	id	false		
+POST	/api/admin/access/security/tokens/personal	security.token.manage	TENANT		IAM_TOKEN		false		
+POST	/api/admin/access/security/tokens/{id}/revoke	security.token.manage	TENANT		IAM_TOKEN	id	true		
+POST	/api/admin/access/security/tokens/{id}/rotate	security.token.manage	TENANT		IAM_TOKEN	id	false		
+POST	/api/admin/access/tenants	instance.tenant.manage	INSTANCE		UNIFIED_ACCESS_MANAGEMENT		false		
+POST	/api/admin/access/tenants/{tenantId}/departments	identity.department.manage	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/departments/{departmentId}/members	identity.membership.manage	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	departmentId	false		
+POST	/api/admin/access/tenants/{tenantId}/departments/{departmentId}/move	identity.department.manage	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/departments/{departmentId}/status	identity.department.manage	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/federation/providers	security.policy.manage	TENANT		AUTHENTICATION_FEDERATION	tenantId	true		
+POST	/api/admin/access/tenants/{tenantId}/federation/providers/{providerId}/status/{status}	security.policy.manage	TENANT		AUTHENTICATION_FEDERATION	providerId	true		
+POST	/api/admin/access/tenants/{tenantId}/federation/users/{userId}/links	security.policy.manage	TENANT		AUTHENTICATION_FEDERATION	userId	true		
+POST	/api/admin/access/tenants/{tenantId}/groups	identity.group.manage	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/groups/{groupId}/members	identity.membership.manage	GROUP	groupId	UNIFIED_ACCESS_MANAGEMENT	groupId	false		
+POST	/api/admin/access/tenants/{tenantId}/groups/{groupId}/status	identity.group.manage	GROUP	groupId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/members	identity.tenant_membership.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/memberships	identity.tenant_membership.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/memberships/{membershipId}/status	identity.tenant_membership.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/people/bulk-actions	identity.user.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/rbac-approvals/{approvalId}/approve	identity.role_approval.approve	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	true		
+POST	/api/admin/access/tenants/{tenantId}/rbac-approvals/{approvalId}/reject	identity.role_approval.approve	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	true		
+POST	/api/admin/access/tenants/{tenantId}/role-bindings	identity.role_binding.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/role-bindings/approval-requests	identity.role_approval.request	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/role-bindings/hardening-preview	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/role-bindings/preview	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/role-bindings/{bindingId}/revoke	identity.role_binding.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	true		
+POST	/api/admin/access/tenants/{tenantId}/roles	identity.tenant_role.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/roles/{roleId}/permissions/approval-requests	identity.role_approval.request	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/roles/{roleId}/permissions/hardening-preview	identity.role_binding.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/roles/{roleId}/status	identity.tenant_role.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/roles/{roleId}/ui-access-preview	identity.tenant_role.read	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/sessions/{sessionId}/revoke	security.session.revoke	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	true		
+POST	/api/admin/access/tenants/{tenantId}/status/{status}	instance.tenant.manage	INSTANCE		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/user-onboarding	identity.user.create	TENANT		IAM_USER_LIFECYCLE	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/users	identity.user.create	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/department-memberships	identity.membership.manage	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	userId	false		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/group-memberships	identity.membership.manage	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	userId	false		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/invitation/resend	identity.user.update	TENANT		IAM_USER_INVITATION	userId	false		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/invitation/revoke	identity.user.update	TENANT		IAM_USER_INVITATION	userId	true		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/machine-ownership/transfer	identity.user.update	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/reset-mfa	security.mfa.reset	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	true		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/reset-password	identity.user.update	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	true		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/revoke-sessions	security.session.revoke	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	true		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/setup-credential	identity.user.update	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	true		
+POST	/api/admin/access/tenants/{tenantId}/users/{userId}/temporary-password	identity.user.update	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+POST	/api/admin/access/users	identity.platform_user.create	INSTANCE		UNIFIED_ACCESS_MANAGEMENT		false		
+POST	/api/admin/access/users/{userId}/require-password-change	identity.platform_user.security	INSTANCE		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+POST	/api/admin/access/users/{userId}/revoke-all-sessions	identity.platform_user.security	INSTANCE		UNIFIED_ACCESS_MANAGEMENT	userId	true		
+POST	/api/admin/access/users/{userId}/status	identity.platform_user.update	INSTANCE		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+POST	/api/agent/tasks/{taskId}/classification-result	api.task.classification.agent.classification.result	TENANT		TASK_CLASSIFICATION	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/agents/register	api.agent.register	TENANT		AGENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/agents/{agentId}/heartbeat	api.agent.heartbeat	TENANT		AGENT	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/assignments/recovery/scan	api.assignment.scan.delayed.dispatch.recovery	TENANT		ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/assignments/task/{taskId}/decide	api.assignment.decide	TENANT		ASSIGNMENT	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/dispatch-requests/execute-approved	api.dispatch.request.execute.approved	TENANT		DISPATCH_REQUEST		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/dispatch-requests/{dispatchRequestId}/approve	api.dispatch.request.approve	TENANT		DISPATCH_REQUEST	dispatchRequestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/dispatch-requests/{dispatchRequestId}/cancel	api.dispatch.request.cancel	TENANT		DISPATCH_REQUEST	dispatchRequestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/dispatch-requests/{dispatchRequestId}/dead-letter	api.dispatch.request.dead.letter	TENANT		DISPATCH_REQUEST	dispatchRequestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/dispatch-requests/{dispatchRequestId}/execute	api.dispatch.request.execute	TENANT		DISPATCH_REQUEST	dispatchRequestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/dispatch-requests/{dispatchRequestId}/reject	api.dispatch.request.reject	TENANT		DISPATCH_REQUEST	dispatchRequestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/dispatch-requests/{dispatchRequestId}/retry	api.dispatch.request.retry	TENANT		DISPATCH_REQUEST	dispatchRequestId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/handoff-contexts/{snapshotId}/approve	api.handoff.context.approve	TENANT		HANDOFF_CONTEXT	snapshotId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/handoff-contexts/{snapshotId}/reject	api.handoff.context.reject	TENANT		HANDOFF_CONTEXT	snapshotId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/handoff-contexts/{snapshotId}/retry-release	api.handoff.context.retry.release	TENANT		HANDOFF_CONTEXT	snapshotId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/handoff-contexts/{snapshotId}/supersede	api.handoff.context.supersede	TENANT		HANDOFF_CONTEXT	snapshotId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/incidents/lifecycle/auto-resolve	api.incident.auto.resolve	TENANT		INCIDENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/incidents/{incidentId}/reopen	api.incident.reopen	TENANT		INCIDENT	incidentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/incidents/{incidentId}/resolve	api.incident.resolve	TENANT		INCIDENT	incidentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/incidents/{incidentId}/suppress	api.incident.suppress	TENANT		INCIDENT	incidentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-change-governance/candidates/{candidateId}/approve	api.external.change.governance.approve	TENANT		EXTERNAL_CHANGE_GOVERNANCE	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-change-governance/candidates/{candidateId}/execute	api.external.change.governance.execute	TENANT		EXTERNAL_CHANGE_GOVERNANCE	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-change-governance/candidates/{candidateId}/reject	api.external.change.governance.reject	TENANT		EXTERNAL_CHANGE_GOVERNANCE	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-change-governance/candidates/{candidateId}/review	api.external.change.governance.review	TENANT		EXTERNAL_CHANGE_GOVERNANCE	candidateId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-change-governance/comment-sync/project	api.external.change.governance.project.comment	TENANT		EXTERNAL_CHANGE_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-change-governance/policies/{policyId}/activate	api.external.change.governance.activate	TENANT		EXTERNAL_CHANGE_GOVERNANCE	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-change-governance/policies/{policyId}/disable	api.external.change.governance.disable	TENANT		EXTERNAL_CHANGE_GOVERNANCE	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-change-governance/relation-sync/project	api.external.change.governance.project.relation	TENANT		EXTERNAL_CHANGE_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/external-conflicts/{conflictId}/resolve	api.provider.webhook.operations.resolve	TENANT		PROVIDER_WEBHOOK_OPERATIONS	conflictId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/connections/{connectionId}/metadata-discovery	api.integration.identity.metadata.probe	TENANT		INTEGRATION_IDENTITY	connectionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/issue-relay/readiness	api.integration.identity.relay.readiness	TENANT		INTEGRATION_IDENTITY		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/principals/{principalId}/credentials/{credentialId}	api.integration.identity.credential	TENANT		INTEGRATION_IDENTITY	credentialId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/principals/{principalId}/redmine-api-key	api.integration.identity.credential	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/principals/{principalId}/permission-probe	api.integration.identity.probe.principal	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/principals/{principalId}/revoke	api.integration.identity.revoke	TENANT		INTEGRATION_IDENTITY	principalId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/principals/{principalId}/rotate-credential	api.integration.identity.rotate	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/principals/{principalId}/rotations/{rotationEventId}/complete	api.integration.identity.complete.rotation	TENANT		INTEGRATION_IDENTITY	rotationEventId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/source-systems/{sourceSystemId}/issue-tracking/activate	api.integration.identity.publish.mapping	TENANT		INTEGRATION_IDENTITY	sourceSystemId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/resolve	api.integration.identity.resolve	TENANT		INTEGRATION_IDENTITY		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/{mappingId}/deprecate	api.integration.identity.deprecate.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/{mappingId}/fork	api.integration.identity.fork.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/{mappingId}/metadata-probe	api.integration.identity.metadata.probe	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/{mappingId}/permission-probe	api.integration.identity.probe.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/{mappingId}/preview	api.integration.identity.preview.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/{mappingId}/publish	api.integration.identity.publish.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/{mappingId}/rollback	api.integration.identity.rollback.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/{mappingId}/validate	api.integration.identity.validate.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-outbox/{outboxId}/replay	api.projection.outbox.reliability.replay	TENANT		PROJECTION_OUTBOX_RELIABILITY	outboxId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-recovery/cases/{caseId}/repair	api.projection.recovery.governance.repair	TENANT		PROJECTION_RECOVERY_GOVERNANCE	caseId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-recovery/lanes/{laneId}/generations	api.projection.recovery.governance.next.generation	TENANT		PROJECTION_RECOVERY_GOVERNANCE	laneId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-recovery/reconciliation-runs	api.projection.recovery.governance.request.run	TENANT		PROJECTION_RECOVERY_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-recovery/reconciliation-runs/{runId}/complete	api.projection.recovery.governance.complete.run	TENANT		PROJECTION_RECOVERY_GOVERNANCE	runId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-recovery/reconciliation-runs/{runId}/drifts	api.projection.recovery.governance.record.drift	TENANT		PROJECTION_RECOVERY_GOVERNANCE	runId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-recovery/work	api.projection.recovery.governance.enqueue	TENANT		PROJECTION_RECOVERY_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-recovery/work/recover-expired-claims	api.projection.recovery.governance.recover.expired.claims	TENANT		PROJECTION_RECOVERY_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/projection-recovery/work/{workId}/recover	api.projection.recovery.governance.recover	TENANT		PROJECTION_RECOVERY_GOVERNANCE	workId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/provider-webhooks/inbox/{inboxId}/replay	api.provider.webhook.operations.replay	TENANT		PROVIDER_WEBHOOK_OPERATIONS	inboxId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/relay-governance/canonical-relations	api.relay.governance.create.relation	TENANT		RELAY_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/relay-governance/compensations/{compensationId}/execute	api.relay.governance.execute.compensation	TENANT		RELAY_GOVERNANCE	compensationId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/relay-governance/edges/{edgeId}/execute	api.relay.governance.execute	TENANT		RELAY_GOVERNANCE	edgeId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/relay-governance/edges/{edgeId}/retry	api.relay.governance.retry	TENANT		RELAY_GOVERNANCE	edgeId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/relay-governance/topologies	api.relay.governance.create.topology	TENANT		RELAY_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/relay-governance/topologies/{topologyId}/compensations	api.relay.governance.request.compensation	TENANT		RELAY_GOVERNANCE	topologyId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/security-overrides/{overrideId}	api.integration.identity.grant.override	TENANT		INTEGRATION_IDENTITY	overrideId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/security-overrides/{overrideId}/revoke	api.integration.identity.revoke.override	TENANT		INTEGRATION_IDENTITY	overrideId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/sync/conflicts/{conflictId}/resolve	api.issue.projection.resolve	TENANT		ISSUE_PROJECTION	conflictId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/sync/dead-letters/{deadLetterId}/retry	api.issue.projection.retry	TENANT		ISSUE_PROJECTION	deadLetterId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/webhooks/{connectionId}/{providerType}	api.issue.projection.legacy.webhook.disabled	TENANT		ISSUE_PROJECTION	providerType	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/issue-projections/intent-preview	api.issue.projection.state.preview	TENANT		ISSUE_PROJECTION_STATE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/issue-projections/intents	api.issue.projection.state.request.intent	TENANT		ISSUE_PROJECTION_STATE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/issue-projections/reconciliation-cases/{caseId}/resolve	api.issue.projection.state.resolve	TENANT		ISSUE_PROJECTION_STATE	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/issue-projections/{projectionId}/materialize	api.issue.projection.state.materialize	TENANT		ISSUE_PROJECTION_STATE	projectionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/issue-projections/{projectionId}/retry	api.issue.projection.state.retry	TENANT		ISSUE_PROJECTION_STATE	projectionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/issue-projections/{projectionId}/supersede	api.issue.projection.state.supersede	TENANT		ISSUE_PROJECTION_STATE	projectionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/issue-projections/{projectionId}/suspend	api.issue.projection.state.suspend	TENANT		ISSUE_PROJECTION_STATE	projectionId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/issues/{linkId}/attachments/{attachmentId}/download	integration.issue.attachment.download	TENANT		ISSUE_ATTACHMENT	attachmentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/plans	permission.enforcement_cutover.plan	INSTANCE		ENFORCEMENT_ACTIVATION		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/plans/{planId}/approve	permission.enforcement_cutover.approve	INSTANCE		ENFORCEMENT_ACTIVATION	planId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/plans/{planId}/evidence	permission.enforcement_cutover.plan	INSTANCE		ENFORCEMENT_ACTIVATION	planId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/plans/{planId}/publish	permission.enforcement_cutover.publish	INSTANCE		ENFORCEMENT_ACTIVATION	planId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/plans/{planId}/reject	permission.enforcement_cutover.approve	INSTANCE		ENFORCEMENT_ACTIVATION	planId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/plans/{planId}/submit	permission.enforcement_cutover.review	INSTANCE		ENFORCEMENT_ACTIVATION	planId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/wave0/entry-points/{entryPoint}/evaluate	api.wave0.read.pilot.evaluate	INSTANCE		WAVE0_READ_PILOT	entryPoint	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/wave0/entry-points/{entryPoint}/pause	api.wave0.read.pilot.pause	INSTANCE		WAVE0_READ_PILOT	entryPoint	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/wave0/entry-points/{entryPoint}/resume	api.wave0.read.pilot.resume	INSTANCE		WAVE0_READ_PILOT	entryPoint	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/enforcement-activation/wave0/task-read-certifications	permission.enforcement_wave0.operate	INSTANCE		TASK_READ_CERTIFICATION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/artifacts/attachments/{resourceType}/{resourceId}/download-grants	api.attachment.artifact.grant	TENANT		ATTACHMENT_ARTIFACT	resourceId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/artifacts/exports/authorize	api.resource.export.authorize	TENANT		RESOURCE_EXPORT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/artifacts/exports/{authorizationId}/commit	api.resource.export.commit	TENANT		RESOURCE_EXPORT	authorizationId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/clearances	resource.clearance.manage	TENANT		RESOURCE_SCOPE_ADMINISTRATION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/clearances/{clearanceId}/approve	resource.clearance.approve	TENANT		RESOURCE_SCOPE_ADMINISTRATION	clearanceId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/clearances/{clearanceId}/revoke	resource.clearance.manage	TENANT		RESOURCE_SCOPE_ADMINISTRATION	clearanceId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/clearances/{clearanceId}/submit	resource.clearance.manage	TENANT		RESOURCE_SCOPE_ADMINISTRATION	clearanceId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/decisions/evaluate	resource.decision.evaluate	TENANT		RESOURCE_DECISION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/decisions/explain	resource.decision.explain	TENANT		RESOURCE_DECISION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/decisions/simulate	resource.decision.simulate	TENANT		RESOURCE_DECISION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/denies	resource.deny.create	TENANT		RESOURCE_SCOPE_ADMINISTRATION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/denies/{denyId}/approve	resource.deny.approve	TENANT		RESOURCE_SCOPE_ADMINISTRATION	denyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/denies/{denyId}/revoke	resource.deny.revoke	TENANT		RESOURCE_SCOPE_ADMINISTRATION	denyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/denies/{denyId}/submit	resource.deny.create	TENANT		RESOURCE_SCOPE_ADMINISTRATION	denyId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/governance/orphans/{repairId}/assign-owner	resource.orphan.repair	TENANT		RESOURCE_GOVERNANCE	repairId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/governance/orphans/{repairId}/preview	resource.orphan.read	TENANT		RESOURCE_GOVERNANCE	repairId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/governance/reviews	resource.review.manage	TENANT		RESOURCE_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/governance/reviews/{campaignId}/activate	resource.review.manage	TENANT		RESOURCE_GOVERNANCE	campaignId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/governance/reviews/{campaignId}/cancel	resource.review.manage	TENANT		RESOURCE_GOVERNANCE	campaignId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/governance/reviews/{campaignId}/complete	resource.review.manage	TENANT		RESOURCE_GOVERNANCE	campaignId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/governance/reviews/{campaignId}/items/{itemId}/decision	resource.review.manage	TENANT		RESOURCE_GOVERNANCE	itemId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/grants	resource.scope.grant	TENANT		RESOURCE_SCOPE_ADMINISTRATION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/grants/{grantId}/approve	resource.scope.approve	TENANT		RESOURCE_SCOPE_ADMINISTRATION	grantId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/grants/{grantId}/revoke	resource.scope.revoke	TENANT		RESOURCE_SCOPE_ADMINISTRATION	grantId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/grants/{grantId}/submit	resource.scope.grant	TENANT		RESOURCE_SCOPE_ADMINISTRATION	grantId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/grants/{grantId}/suspend	resource.scope.suspend	TENANT		RESOURCE_SCOPE_ADMINISTRATION	grantId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/resources/{resourceType}/{resourceId}/security-state	resource.security-state.manage	TENANT		RESOURCE_SCOPE_ADMINISTRATION	resourceId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/runtime/late-results/{quarantineId}/resolve	resource.runtime.quarantine.manage	TENANT		RESOURCE_RUNTIME_SCALE	quarantineId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/runtime/scope-cutovers/prepare	resource.scope.cutover.manage	TENANT		RESOURCE_RUNTIME_SCALE		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/runtime/scope-cutovers/{cutoverId}/activate	resource.scope.cutover.manage	TENANT		RESOURCE_RUNTIME_SCALE	cutoverId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/visibility-policies	resource.visibility.manage	TENANT		RESOURCE_SCOPE_ADMINISTRATION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/visibility-policies/{policyId}/activate	resource.visibility.manage	TENANT		RESOURCE_SCOPE_ADMINISTRATION	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/resource-access/visibility-policies/{policyId}/retire	resource.visibility.manage	TENANT		RESOURCE_SCOPE_ADMINISTRATION	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/security/incidents	resource.security-state.manage	TENANT		SECURITY_INCIDENT_CASE		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/security/incidents/{caseId}/controls	resource.security-state.manage	TENANT		SECURITY_INCIDENT_CASE	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/security/incidents/{caseId}/controls/{controlId}/release	resource.security-state.manage	TENANT		SECURITY_INCIDENT_CASE	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/security/incidents/{caseId}/resolve	resource.security-state.manage	TENANT		SECURITY_INCIDENT_CASE	caseId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/task-issues/{linkId}/relationships	api.issue.projection.relationship	TENANT		ISSUE_PROJECTION	linkId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/lifecycle/process-timeouts	api.task.process.timeouts	TENANT		TASK		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/a2a-requests	api.a2.agovernance.request	TENANT		A2_AGOVERNANCE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/cancel	api.task.cancel	TENANT		TASK	taskId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/handoff-context	api.handoff.context.create	TENANT		HANDOFF_CONTEXT	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/handoff-context/preview	api.handoff.context.preview	TENANT		HANDOFF_CONTEXT	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/participants	api.task.domain.add.participant	TENANT		TASK_DOMAIN	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/reassign	api.task.reassign	TENANT		TASK	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/relationships	api.task.domain.add.relationships	TENANT		TASK_DOMAIN	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/result-context	api.handoff.context.result	TENANT		HANDOFF_CONTEXT	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/timeout	api.task.timeout	TENANT		TASK	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/tasks/{taskId}/transitions	api.task.domain.transition	TENANT		TASK_DOMAIN	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/ui/access-requests	api.ui.access.request.submit	TENANT		UI_ACCESS_REQUEST		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/ui/access-requests/{requestId}/approve	resource.scope.approve	TENANT		UI_ACCESS_REQUEST	requestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/ui/access-requests/{requestId}/reject	resource.scope.approve	TENANT		UI_ACCESS_REQUEST	requestId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/ui/capabilities:batch	api.ui.capability.generic	TENANT		UI_CAPABILITY		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/ui/list-capabilities:batch	api.ui.capability.list.rows	TENANT		UI_CAPABILITY		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/conformance/profiles/{profileId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/interfaces/{interfaceId}/contract	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/interfaces/{interfaceId}/credential-bindings/{bindingId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/outbound-policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/provider-links/{providerId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/trust-assurance/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/version-policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/{peerId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/a2a-peers/{peerId}/error-mappings/{overrideId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agent-pool-policies/capabilities/{targetPoolId}	admin.agent.assignment.upsert.pool.capability.policy	TENANT		AGENT_ASSIGNMENT	targetPoolId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agent-security-enforcement-policies/default	admin.agent.governance.update.default.security.enforcement.policy	TENANT		AGENT_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agent-skills/{skillCode}	admin.agent.skill.registry.upsert.skill	TENANT		AGENT_SKILL_REGISTRY	skillCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agent-skills/{skillCode}/approval-policy	admin.agent.skill.registry.update.skill.approval.policy	TENANT		AGENT_SKILL_REGISTRY	skillCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agent-skills/{skillCode}/dependencies	admin.agent.skill.registry.replace.skill.dependencies	TENANT		AGENT_SKILL_REGISTRY	skillCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agent-skills/{skillCode}/deprecation-plan	admin.agent.skill.registry.update.skill.deprecation.plan	TENANT		AGENT_SKILL_REGISTRY	skillCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agents/{agentId}	admin.agent.governance.update.agent	TENANT		AGENT_GOVERNANCE	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agents/{agentId}/runtime-bindings/{bindingId}	admin.agent.assignment.upsert.runtime.binding	TENANT		AGENT_ASSIGNMENT	bindingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agents/{agentId}/security/enforcement-policy	admin.agent.governance.update.agent.security.enforcement.policy	TENANT		AGENT_GOVERNANCE	agentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/agents/{agentId}/skills/approved	admin.agent.skill.registry.replace.approved.skills	TENANT		AGENT_SKILL_REGISTRY	agentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/capabilities/{capabilityCode}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	capabilityCode	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/capability-definitions/{capabilityCode}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/capability-provider-registry/bindings/{bindingId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/capability-provider-registry/providers/{providerId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/capability-provider-registry/providers/{providerId}/managed-agent-link	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/case-convergence/aggregation-definitions/{aggregationId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	aggregationId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/delegation-governance/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/dispatch-flows/agent-pools/{poolId}	admin.dispatch.flow.update.agent.pool	TENANT		DISPATCH_FLOW	poolId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/dispatch-flows/{flowId}	admin.dispatch.flow.update	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/dispatch-flows/{flowId}/capability-migration/state	admin.dispatch.flow.update	TENANT		DISPATCH_FLOW	flowId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/dispatch-governance/cutover/policies/{policyId}	admin.dispatch.cutover.save	TENANT		DISPATCH_CUTOVER	policyId	true	ADMIN,RECOVERY_ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN,RECOVERY_APPROVER
+PUT	/admin/dispatch-policies/{policyCode}	admin.agent.assignment.upsert.dispatch.policy	TENANT		AGENT_ASSIGNMENT	policyCode	false		OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/execution-adapters/{adapterId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	adapterId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/execution-plans/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/execution-safety/flows/{flowId}/authority	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/fast-path-runtime/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/learning-fast-path/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/learning-governance/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/observability/retention-policy	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/plan-admission/policies/{policyId}	plan.admission.manage	TENANT		PLAN_ADMISSION	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/plan-executions/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/production-foundation/flows/{flowId}/authority	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	flowId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/provider-routing/profiles/{profileId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	profileId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/routing-authority/flows/{flowId}/migration-state	admin.agent.assignment.capabilities	TENANT		AGENT_ASSIGNMENT	flowId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/runtime-features/{featureCode}	admin.agent.assignment.upsert.runtime.feature	TENANT		AGENT_ASSIGNMENT	featureCode	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/runtime-resources/{runtimeId}	admin.agent.assignment.upsert.runtime.resource	TENANT		AGENT_ASSIGNMENT	runtimeId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/runtime-step-authority/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/semantic-triage/adaptive-routing/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/semantic-triage/policies/{policyId}	admin.agent.assignment.upsert.capability	TENANT		AGENT_ASSIGNMENT	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/source-systems/{sourceSystemId}	admin.source.system.update	TENANT		SOURCE_SYSTEM	sourceSystemId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/admin/source-systems/{sourceSystemId}/registrations/{registrationId}	admin.source.system.update	TENANT		SOURCE_SYSTEM	sourceSystemId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/a2a-policies/{policyId}	api.a2.agovernance.upsert.policy	TENANT		A2_AGOVERNANCE	policyId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/aliases/{aliasCode}	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG	aliasCode	false		
+PUT	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/entries/{permissionCode}	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG	permissionCode	false		
+PUT	/api/admin/access/platform/permission-readiness/entry-points/{entryPointId}	permission.entry_point.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	entryPointId	false		
+PUT	/api/admin/access/platform/permission-readiness/legacy-mappings/{mappingId}	permission.legacy_mapping.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	mappingId	false		
+PUT	/api/admin/access/platform/permission-readiness/mismatch-cases/{caseId}	permission.mismatch.manage	INSTANCE		IAM_ENTRY_POINT_AUTHORITY	caseId	false		
+PUT	/api/admin/access/platform/roles/{roleId}	identity.platform_role.manage	INSTANCE		IAM_PLATFORM_ROLE	roleId	false		
+PUT	/api/admin/access/platform/roles/{roleId}/permissions	identity.role_permission.manage	INSTANCE		IAM_PLATFORM_ROLE	roleId	false		
+PUT	/api/admin/access/security/policies/mfa	api.iam.security.policy.mfa	TENANT		IAM_SECURITY_POLICY		false		
+PUT	/api/admin/access/security/policies/password	api.iam.security.policy.password	TENANT		IAM_SECURITY_POLICY		false		
+PUT	/api/admin/access/security/policies/session	api.iam.security.policy.session	TENANT		IAM_SECURITY_POLICY		false		
+PUT	/api/admin/access/security/policies/token	security.policy.manage	TENANT		IAM_SECURITY_POLICY		false		
+PUT	/api/admin/access/tenants/{tenantId}/department-memberships/{membershipId}	identity.membership.manage	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+PUT	/api/admin/access/tenants/{tenantId}/departments/{departmentId}	identity.department.manage	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+PUT	/api/admin/access/tenants/{tenantId}/departments/{departmentId}/official-manager	identity.department.manage	DEPARTMENT	departmentId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+PUT	/api/admin/access/tenants/{tenantId}/federation/policy	security.policy.manage	TENANT		AUTHENTICATION_FEDERATION	tenantId	true		
+PUT	/api/admin/access/tenants/{tenantId}/federation/providers/{providerId}	security.policy.manage	TENANT		AUTHENTICATION_FEDERATION	providerId	true		
+PUT	/api/admin/access/tenants/{tenantId}/group-memberships/{membershipId}	identity.membership.manage	TENANT	@CONTROLLER	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+PUT	/api/admin/access/tenants/{tenantId}/groups/{groupId}	identity.group.manage	GROUP	groupId	UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+PUT	/api/admin/access/tenants/{tenantId}/memberships/{membershipId}	identity.tenant_membership.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+PUT	/api/admin/access/tenants/{tenantId}/roles/{roleId}	identity.tenant_role.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+PUT	/api/admin/access/tenants/{tenantId}/roles/{roleId}/permissions	identity.role_permission.manage	TENANT		UNIFIED_ACCESS_MANAGEMENT	tenantId	false		
+PUT	/api/admin/access/tenants/{tenantId}/users/{userId}	identity.user.update	TENANT		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+PUT	/api/admin/access/users/{userId}	identity.platform_user.update	INSTANCE		UNIFIED_ACCESS_MANAGEMENT	userId	false		
+PUT	/api/handoff-context/policies/{policyId}	api.handoff.context.policy	TENANT		HANDOFF_CONTEXT	policyId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/integrations/connections/{connectionId}	api.integration.identity.connection	TENANT		INTEGRATION_IDENTITY	connectionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/integrations/connections/{connectionId}/principals/{principalId}	api.integration.identity.principal	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/integrations/external-change-governance/policies/{policyId}	api.external.change.governance.save.policy	TENANT		EXTERNAL_CHANGE_GOVERNANCE	policyId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/integrations/principals/{principalId}/scope	api.integration.identity.principal.scope	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/integrations/project-mappings/{mappingId}	api.integration.identity.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/integrations/webhook-endpoints/{endpointId}	api.integration.identity.webhook.endpoint	TENANT		INTEGRATION_IDENTITY	endpointId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+PUT	/api/platform/enforcement-activation/plans/{planId}/routes	permission.enforcement_cutover.plan	INSTANCE		ENFORCEMENT_ACTIVATION	planId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN

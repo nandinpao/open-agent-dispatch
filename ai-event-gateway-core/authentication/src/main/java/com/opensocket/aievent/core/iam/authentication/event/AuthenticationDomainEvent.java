@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.event;import java.time.Instant;import java.util.Map;public interface AuthenticationDomainEvent{String eventId();String eventType();String subjectType();String subjectId();String tenantId();String actorId();String correlationId();String reasonCode();Map<String,String> metadata();Instant occurredAt();}

@@ -13,8 +13,8 @@ import com.opensocket.aievent.core.action.AdapterAction;
 import com.opensocket.aievent.core.action.AdapterActionType;
 import com.opensocket.aievent.core.action.AdapterType;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
-import com.opensocket.aievent.core.action.executor.AdapterExecutionOutcome;
 import com.opensocket.aievent.core.action.executor.AdapterExecutionResult;
+import com.opensocket.aievent.core.action.executor.issue.scoped.ScopedIssueExecutionService;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
@@ -136,23 +136,47 @@ class IssueVendorExecutorContractTest {
     }
 
     @Test
-    void issueExecutorShouldClassifyAuthFailureAsPermanentAndRateLimitAsRetryable() throws Exception {
+    void redmineExecutorShouldClassifyAuthFailureAsPermanentAndRateLimitAsRetryable() throws Exception {
         try (RecordingIssueServer authServer = new RecordingIssueServer(401, "unauthorized")) {
-            AdapterExecutionResult authFailure = issueExecutor(redmineProperties(authServer.baseUrl()))
-                    .execute(action(Map.of("vendor", "REDMINE", "issueTitle", "auth failure")));
+            RedmineIssueVendorExecutor executor = new RedmineIssueVendorExecutor(
+                    redmine(authServer.baseUrl()), "redmine-test", mapper, Duration.ofSeconds(3));
+            IssueExecutorResponse authFailure = executor.execute(
+                    request(AdapterActionType.ISSUE_CREATE, Map.of("issueTitle", "auth failure")));
 
-            assertThat(authFailure.getOutcome()).isEqualTo(AdapterExecutionOutcome.PERMANENT_FAILURE);
+            assertThat(authFailure.isSuccess()).isFalse();
             assertThat(authFailure.isRetryable()).isFalse();
             assertThat(authFailure.getError()).contains("401");
         }
 
         try (RecordingIssueServer rateLimitServer = new RecordingIssueServer(429, "rate limited")) {
-            AdapterExecutionResult rateLimit = issueExecutor(redmineProperties(rateLimitServer.baseUrl()))
-                    .execute(action(Map.of("vendor", "REDMINE", "issueTitle", "rate limit")));
+            RedmineIssueVendorExecutor executor = new RedmineIssueVendorExecutor(
+                    redmine(rateLimitServer.baseUrl()), "redmine-test", mapper, Duration.ofSeconds(3));
+            IssueExecutorResponse rateLimit = executor.execute(
+                    request(AdapterActionType.ISSUE_CREATE, Map.of("issueTitle", "rate limit")));
 
-            assertThat(rateLimit.getOutcome()).isEqualTo(AdapterExecutionOutcome.RETRYABLE_FAILURE);
+            assertThat(rateLimit.isSuccess()).isFalse();
             assertThat(rateLimit.isRetryable()).isTrue();
             assertThat(rateLimit.getError()).contains("429");
+        }
+    }
+
+    @Test
+    void canonicalConnectorUnavailableMustNeverFallbackToLegacyScopedOrFixedCredentialExecutor() throws Exception {
+        try (RecordingIssueServer server = new RecordingIssueServer(201, "{\"issue\":{\"id\":702}}")) {
+            AdapterActionExecutionProperties properties = new AdapterActionExecutionProperties();
+            properties.getIssue().setDefaultVendor("REDMINE");
+            properties.getIssue().setConnectorRuntimeEnabled(true);
+            properties.getIssue().setConnectorRuntimeRequired(true);
+            IssueTrackingAdapterActionExecutor executor = issueExecutor(properties);
+
+            AdapterExecutionResult result = executor.execute(action(Map.of(
+                    "tenantId", "tenant-a",
+                    "vendor", "REDMINE",
+                    "issueTitle", "must remain canonical")));
+
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getError()).contains("Redmine Connector Runtime is unavailable");
+            assertThat(server.requests()).isEmpty();
         }
     }
 
@@ -188,14 +212,13 @@ class IssueVendorExecutorContractTest {
         return new IssueTrackingAdapterActionExecutor(properties, new IssueVendorResolver(properties), mapper);
     }
 
-    private AdapterActionExecutionProperties redmineProperties(String baseUrl) {
-        AdapterActionExecutionProperties properties = new AdapterActionExecutionProperties();
-        properties.getIssue().setDefaultVendor("REDMINE");
-        properties.getIssue().getRedmine().setEnabled(true);
-        properties.getIssue().getRedmine().setBaseUrl(baseUrl);
-        properties.getIssue().getRedmine().setApiKey("redmine-token");
-        properties.getIssue().getRedmine().setProjectId("MES-OPS");
-        return properties;
+    private ScopedIssueExecutionService scopedFailure(String error) {
+        return new ScopedIssueExecutionService(null, null, mapper) {
+            @Override
+            public AdapterExecutionResult execute(AdapterAction action, IssueVendor vendor) {
+                return AdapterExecutionResult.permanentFailure("scoped-issue-executor", error);
+            }
+        };
     }
 
     private AdapterActionExecutionProperties.Redmine redmine(String baseUrl) {

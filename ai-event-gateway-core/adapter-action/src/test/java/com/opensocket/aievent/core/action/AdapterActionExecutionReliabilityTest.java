@@ -138,6 +138,48 @@ class AdapterActionExecutionReliabilityTest {
     }
 
     @Test
+    void uncertainCreateShouldRequireReconciliationAndAllowConfirmApplied() {
+        InMemoryAdapterActionRepository repository = new InMemoryAdapterActionRepository();
+        AdapterAction action = pendingAction("act-uncertain-applied");
+        action.setStatus(AdapterActionStatus.FAILED);
+        action.setLastError("ISSUE_PROVIDER_OUTCOME_UNCERTAIN: response lost");
+        action.setFailedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        repository.save(action);
+
+        AdapterActionExecutionService service = service(repository, executionProperties());
+        assertThatThrownBy(() -> service.retry(action.getActionId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("RECONCILIATION_REQUIRED");
+
+        AdapterAction reconciled = service.reconcileUncertainIssueOutcome(
+                action.getActionId(), "CONFIRMED_APPLIED", "Issue exists in Redmine", "123", "https://redmine/issues/123", "New", "manual-readback");
+
+        assertThat(reconciled.getStatus()).isEqualTo(AdapterActionStatus.COMPLETED);
+        assertThat(reconciled.getLastError()).isNull();
+        assertThat(reconciled.getPayload()).containsEntry("providerReconciliationDecision", "CONFIRMED_APPLIED");
+        assertThat(reconciled.getPayload()).containsEntry("linkedIssueId", "123");
+    }
+
+    @Test
+    void uncertainCreateConfirmedNotAppliedShouldReturnToPendingWithoutResettingAttempts() {
+        InMemoryAdapterActionRepository repository = new InMemoryAdapterActionRepository();
+        AdapterAction action = pendingAction("act-uncertain-not-applied");
+        action.setStatus(AdapterActionStatus.FAILED);
+        action.setAttemptCount(2);
+        action.setLastError("ISSUE_PROVIDER_OUTCOME_UNCERTAIN: response lost");
+        action.setFailedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        repository.save(action);
+
+        AdapterAction reconciled = service(repository, executionProperties()).reconcileUncertainIssueOutcome(
+                action.getActionId(), "CONFIRMED_NOT_APPLIED", "Provider audit confirms no write", null, null, null, null);
+
+        assertThat(reconciled.getStatus()).isEqualTo(AdapterActionStatus.PENDING);
+        assertThat(reconciled.getAttemptCount()).isEqualTo(2);
+        assertThat(reconciled.getLastError()).isNull();
+        assertThat(reconciled.getPayload()).containsEntry("providerReconciliationDecision", "CONFIRMED_NOT_APPLIED");
+    }
+
+    @Test
     void circuitBreakerShouldProtectExecutorAfterRepeatedRetryableFailures() {
         InMemoryAdapterActionRepository repository = new InMemoryAdapterActionRepository();
         AdapterAction first = pendingAction("act-circuit-1");

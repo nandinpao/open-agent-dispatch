@@ -1,0 +1,3 @@
+package com.opensocket.aievent.database.persistence.a2a.dao;
+import java.util.List; import org.apache.ibatis.annotations.Mapper; import org.apache.ibatis.annotations.Param; import com.opensocket.aievent.database.persistence.a2a.po.A2AReconciliationEvidencePo;
+@Mapper public interface A2AReconciliationEvidenceDao {int append(@Param("value")A2AReconciliationEvidencePo value);A2AReconciliationEvidencePo findByEvent(@Param("tenantId")String tenantId,@Param("eventKey")String eventKey);List<A2AReconciliationEvidencePo> findByCase(@Param("tenantId")String tenantId,@Param("caseId")String caseId,@Param("limit")int limit);}

@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.rbac.domain.shadow;
+import java.time.Instant;import java.util.Optional;
+public record ShadowMismatchCase(String caseId,String sourceTenantId,String comparisonId,String domainCode,Optional<String> entryPointId,String permissionCode,String category,String severity,String status,String ownerId,Instant slaDueAt,String title,Optional<String> resolution,Instant firstSeenAt,Instant lastSeenAt,long occurrenceCount,Instant createdAt,String createdBy,Instant updatedAt,String updatedBy,long version,boolean activeWaiver,long regressionPassed,long regressionFailed){}

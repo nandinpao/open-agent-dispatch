@@ -1,0 +1,8 @@
+package com.opensocket.aievent.core.issuetracking.change;
+import java.util.Objects;
+import com.opensocket.aievent.core.issuetracking.identity.ProviderExecutionAuthorizationRef;
+public record ProviderActionCommand(String tenantId,String candidateId,ProviderActionCandidateType candidateType,String requestedCommandJson,long expectedCandidateVersion,String idempotencyKey,String actorId,String reason,String reauthenticationEvidence,String correlationId,ProviderExecutionAuthorizationRef executionAuthorization) {
+ public ProviderActionCommand(String tenantId,String candidateId,ProviderActionCandidateType candidateType,String requestedCommandJson,long expectedCandidateVersion,String idempotencyKey,String actorId,String reason,String reauthenticationEvidence,String correlationId){this(tenantId,candidateId,candidateType,requestedCommandJson,expectedCandidateVersion,idempotencyKey,actorId,reason,reauthenticationEvidence,correlationId,null);}
+ public ProviderActionCommand { tenantId=req(tenantId,"tenantId");candidateId=req(candidateId,"candidateId");candidateType=Objects.requireNonNull(candidateType,"candidateType is required");requestedCommandJson=req(requestedCommandJson,"requestedCommandJson");if(expectedCandidateVersion<1)throw new IllegalArgumentException("expectedCandidateVersion must be positive");idempotencyKey=req(idempotencyKey,"idempotencyKey");actorId=req(actorId,"actorId");reason=req(reason,"reason");reauthenticationEvidence=norm(reauthenticationEvidence);correlationId=norm(correlationId); }
+ private static String req(String v,String n){Objects.requireNonNull(v,n+" is required");String x=v.trim();if(x.isEmpty())throw new IllegalArgumentException(n+" is required");return x;} private static String norm(String v){return v==null?"":v.trim();}
+}

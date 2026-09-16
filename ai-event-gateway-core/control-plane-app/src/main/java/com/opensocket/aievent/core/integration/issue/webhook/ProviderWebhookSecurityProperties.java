@@ -1,0 +1,6 @@
+package com.opensocket.aievent.core.integration.issue.webhook;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+@ConfigurationProperties(prefix="integration-sync.webhook-security") public class ProviderWebhookSecurityProperties {
+ private boolean enabled=true; private int defaultMaxBodyBytes=1048576; private int defaultRateLimitPerMinute=120; private long clockSkewSeconds=30; private long nonceCleanupIntervalMs=60000; private int nonceCleanupBatchSize=5000;
+ public boolean isEnabled(){return enabled;} public void setEnabled(boolean v){enabled=v;} public int getDefaultMaxBodyBytes(){return defaultMaxBodyBytes;} public void setDefaultMaxBodyBytes(int v){defaultMaxBodyBytes=v;} public int getDefaultRateLimitPerMinute(){return defaultRateLimitPerMinute;} public void setDefaultRateLimitPerMinute(int v){defaultRateLimitPerMinute=v;} public long getClockSkewSeconds(){return clockSkewSeconds;} public void setClockSkewSeconds(long v){clockSkewSeconds=v;} public long getNonceCleanupIntervalMs(){return nonceCleanupIntervalMs;} public void setNonceCleanupIntervalMs(long v){nonceCleanupIntervalMs=v;} public int getNonceCleanupBatchSize(){return nonceCleanupBatchSize;} public void setNonceCleanupBatchSize(int v){nonceCleanupBatchSize=v;}
+}

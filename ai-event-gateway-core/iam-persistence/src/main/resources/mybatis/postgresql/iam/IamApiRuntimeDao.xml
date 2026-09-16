@@ -1,0 +1,1098 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.core.iam.persistence.dao.IamApiRuntimeDao">
+  <insert id="insertInstanceIdempotency">
+    insert into iam_api_instance_idempotency_records(scope_id,actor_id,operation,idempotency_key,request_hash,status,created_at,expires_at)
+    values(#{row.scopeId},#{row.actorId},#{row.operation},#{row.key},#{row.requestHash},'IN_PROGRESS',#{row.createdAt},#{row.expiresAt})
+    on conflict do nothing
+  </insert>
+  <select id="lockInstanceIdempotency" resultType="map">
+    select scope_id as "scopeId",actor_id as "actorId",operation,idempotency_key as "key",request_hash as "requestHash",status,
+      response_http_status as "httpStatus",response_content_type as "contentType",response_body as "responseBody",created_at as "createdAt",completed_at as "completedAt",expires_at as "expiresAt"
+    from iam_api_instance_idempotency_records
+    where scope_id=#{scopeId} and actor_id=#{actorId} and operation=#{operation} and idempotency_key=#{key}
+    for update
+  </select>
+  <update id="completeInstanceIdempotency">
+    update iam_api_instance_idempotency_records set status='COMPLETED',response_http_status=#{row.httpStatus},response_content_type=#{row.contentType},
+      response_body=#{row.responseBody},completed_at=#{row.completedAt}
+    where scope_id=#{row.scopeId} and actor_id=#{row.actorId} and operation=#{row.operation} and idempotency_key=#{row.key} and status='IN_PROGRESS'
+  </update>
+
+  <insert id="insertTenantIdempotency">
+    insert into iam_api_tenant_idempotency_records(tenant_id,actor_id,operation,idempotency_key,request_hash,status,created_at,expires_at)
+    values(#{row.tenantId},#{row.actorId},#{row.operation},#{row.key},#{row.requestHash},'IN_PROGRESS',#{row.createdAt},#{row.expiresAt})
+    on conflict do nothing
+  </insert>
+  <select id="lockTenantIdempotency" resultType="map">
+    select tenant_id as "tenantId",actor_id as "actorId",operation,idempotency_key as "key",request_hash as "requestHash",status,
+      response_http_status as "httpStatus",response_content_type as "contentType",response_body as "responseBody",created_at as "createdAt",completed_at as "completedAt",expires_at as "expiresAt"
+    from iam_api_tenant_idempotency_records
+    where tenant_id=#{tenantId} and actor_id=#{actorId} and operation=#{operation} and idempotency_key=#{key}
+    for update
+  </select>
+  <update id="completeTenantIdempotency">
+    update iam_api_tenant_idempotency_records set status='COMPLETED',response_http_status=#{row.httpStatus},response_content_type=#{row.contentType},
+      response_body=#{row.responseBody},completed_at=#{row.completedAt}
+    where tenant_id=#{row.tenantId} and actor_id=#{row.actorId} and operation=#{row.operation} and idempotency_key=#{row.key} and status='IN_PROGRESS'
+  </update>
+
+  <insert id="insertLoginChallenge">
+    insert into auth_login_challenges(challenge_id,challenge_hash,subject_type,subject_id,requested_tenant_id,authenticated_at,expires_at,status,correlation_id,ip_address,user_agent,version)
+    values(#{row.challengeId},#{row.challengeHash},#{row.subjectType},#{row.subjectId},#{row.requestedTenantId},#{row.authenticatedAt},#{row.expiresAt},'ACTIVE',#{row.correlationId},#{row.ipAddress},#{row.userAgent},1)
+  </insert>
+  <select id="findLoginChallenge" resultType="map">
+    select subject_type as "subjectType",subject_id as "subjectId",requested_tenant_id as "requestedTenantId",authenticated_at as "authenticatedAt",version
+    from auth_login_challenges
+    where challenge_id=#{challengeId}
+      and challenge_hash=#{challengeHash}
+      and status='ACTIVE'
+      and expires_at&gt;#{at}
+  </select>
+  <select id="consumeLoginChallenge" resultType="map">
+    select subject_type as "subjectType",subject_id as "subjectId",requested_tenant_id as "requestedTenantId",authenticated_at as "authenticatedAt",version
+    from phase1a7_consume_login_challenge(#{challengeId},#{challengeHash},#{consumedAt})
+  </select>
+
+  <select id="listTenants" resultType="map">
+    select tenant_id as "tenantId",tenant_code as "tenantCode",display_name as "tenantName",coalesce(legal_name,'') as "legalName",status,
+      default_timezone as "timezone",default_locale as "locale",data_region as "dataRegion",created_at as "createdAt",updated_at as "updatedAt",version
+    from tenants
+    where (#{text} is null or #{text}='' or lower(tenant_id) like concat('%',lower(#{text}),'%') or lower(display_name) like concat('%',lower(#{text}),'%'))
+      and (#{status} is null or #{status}='' or status=#{status})
+    order by tenant_id offset #{offset} limit #{limit}
+  </select>
+  <select id="listRootTenantChoices" resultType="map">
+    select tenant_id as "tenantId",tenant_code as "tenantCode",display_name as "tenantName",status as "membershipStatus"
+    from tenants
+    where status&lt;&gt;'DELETED'
+    order by display_name,tenant_id
+  </select>
+  <select id="tenantWorkspaceSummary" resultType="map">
+    select #{tenantId}::varchar as "tenantId",
+      (select count(*) from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+        where m.tenant_id=#{tenantId} and m.status='ACTIVE' and (m.expires_at is null or m.expires_at&gt;now()) and u.status='ACTIVE') as "activePeople",
+      (select count(distinct b.principal_id)
+         from rbac_principal_role_bindings b
+         join rbac_roles r on r.role_id=b.role_id
+         join org_tenant_memberships m on m.tenant_id=b.tenant_id and m.user_id=b.principal_id
+         join iam_users u on u.user_id=b.principal_id
+        where b.tenant_id=#{tenantId} and b.principal_type='USER' and b.status='ACTIVE'
+          and b.effective_at&lt;=now() and (b.expires_at is null or b.expires_at&gt;now())
+          and r.role_code='TENANT_ADMIN' and r.status='ACTIVE'
+          and m.status='ACTIVE' and (m.expires_at is null or m.expires_at&gt;now()) and u.status='ACTIVE') as "tenantAdministratorCount",
+      (select count(*) from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+        where m.tenant_id=#{tenantId} and m.status&lt;&gt;'REMOVED' and u.status in ('INVITED','PENDING','PENDING_ACTIVATION')) as "pendingInvitations",
+      (select count(*) from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+        where m.tenant_id=#{tenantId} and m.status&lt;&gt;'REMOVED'
+          and u.status in ('PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED','MFA_ENROLLMENT_REQUIRED')
+          and not exists (select 1 from iam_identity_credential_links l join iam_authentication_providers p on p.tenant_id=l.provider_tenant_id and p.provider_id=l.provider_id
+            where l.provider_tenant_id=#{tenantId} and l.subject_id=u.user_id and l.status='ACTIVE' and p.status='ACTIVE' and p.provider_type='OIDC')) as "signInSetupRequiredCount",
+      (select count(distinct m.user_id) from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+        where m.tenant_id=#{tenantId} and m.status='ACTIVE' and (m.expires_at is null or m.expires_at&gt;now()) and u.status='ACTIVE'
+          and exists(select 1 from auth_mfa_methods x where x.subject_type='HUMAN_USER' and x.subject_id=m.user_id and x.status='ACTIVE')) as "mfaEnrolledPeople",
+      (select count(*) from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+        where m.tenant_id=#{tenantId} and m.status&lt;&gt;'REMOVED' and (m.status='SUSPENDED' or u.status='SUSPENDED')) as "suspendedPeople",
+      (select count(distinct m.user_id) from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+        where m.tenant_id=#{tenantId} and m.status='ACTIVE' and (m.expires_at is null or m.expires_at&gt;now()) and u.status&lt;&gt;'DELETED'
+          and not exists (select 1 from org_department_memberships dm join departments d on d.department_id=dm.department_id and d.tenant_id=m.tenant_id
+            where dm.tenant_id=m.tenant_id and dm.user_id=m.user_id and dm.status='ACTIVE'
+              and dm.effective_at&lt;=now() and (dm.expires_at is null or dm.expires_at&gt;now()) and d.status='ACTIVE')) as "peopleWithoutDepartment",
+      (select count(*) from departments d where d.tenant_id=#{tenantId} and d.status='ACTIVE') as "departmentCount",
+      (select count(*) from departments d where d.tenant_id=#{tenantId} and d.status='ACTIVE' and d.manager_user_id is null) as "departmentsWithoutManager",
+      (select count(*) from organization_groups g where g.tenant_id=#{tenantId} and g.status='ACTIVE') as "groupCount",
+      (select count(*) from rbac_roles r where (r.tenant_id=#{tenantId} or r.tenant_id is null) and r.status='ACTIVE') as "activeRoleCount",
+      (select count(*) from rbac_principal_role_bindings b where b.tenant_id=#{tenantId} and b.status='ACTIVE'
+        and b.effective_at&lt;=now() and (b.expires_at is null or b.expires_at&gt;now())) as "activeBindingCount",
+      (select count(*) from rbac_principal_role_bindings b where b.tenant_id=#{tenantId} and b.status='ACTIVE'
+        and b.expires_at&gt;now() and b.expires_at&lt;=now()+interval '30 days') as "expiringBindingCount"
+  </select>
+  <select id="listPlatformUsers" resultType="map">
+    select u.user_id as "userId",u.username,u.email,u.display_name as "displayName",u.status,
+      u.creation_mode as "creationMode",u.created_at as "createdAt",u.updated_at as "updatedAt",u.version
+    from iam_users u
+    where (#{afterUserId} is null or #{afterUserId}='' or u.user_id&gt;#{afterUserId})
+      and (#{text} is null or #{text}='' or lower(u.username) like concat('%',lower(#{text}),'%')
+        or lower(u.display_name) like concat('%',lower(#{text}),'%')
+        or lower(coalesce(u.email,'')) like concat('%',lower(#{text}),'%'))
+      and (#{status} is null or #{status}='' or u.status=#{status})
+      and (#{signInState} is null or #{signInState}='' or (case
+        when u.status='LOCKED' or (sec.locked_until is not null and sec.locked_until&gt;now()) then 'LOCKED'
+        when u.status='SUSPENDED' then 'SUSPENDED'
+        when u.status in('DISABLED','DELETED') then 'DISABLED'
+        when u.status in('ACTIVE','PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED','MFA_ENROLLMENT_REQUIRED') and federated.provider_type is not null then 'SSO_MANAGED'
+        when cred.subject_id is null or u.status in('PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED') then 'SETUP_REQUIRED'
+        when u.status='MFA_ENROLLMENT_REQUIRED' or coalesce(mfa.status,'')='PENDING' then 'MFA_REQUIRED'
+        when u.status='ACTIVE' and cred.subject_id is not null and not cred.must_change then 'READY'
+        else 'SETUP_REQUIRED' end)=#{signInState})
+      and (#{tenantId} is null or #{tenantId}='' or exists (
+        select 1 from org_tenant_memberships m
+        where m.user_id=u.user_id and m.tenant_id=#{tenantId} and m.status&lt;&gt;'REMOVED'
+      ))
+    order by u.user_id limit #{limit}
+  </select>
+  <select id="findPlatformUser" resultType="map">
+    select u.user_id as "userId",u.username,u.email,u.display_name as "displayName",u.status,
+      u.creation_mode as "creationMode",u.created_at as "createdAt",u.updated_at as "updatedAt",u.version
+    from iam_users u where u.user_id=#{userId}
+  </select>
+  <select id="listPlatformMemberships" resultType="map">
+    select user_id as "userId",tenant_id as "tenantId",tenant_code as "tenantCode",tenant_name as "tenantName",
+      membership_status as "membershipStatus",tenant_status as "tenantStatus",expires_at as "expiresAt",
+      default_tenant as "defaultTenant",membership_source as "membershipSource",
+      membership_version as "membershipVersion",updated_at as "updatedAt"
+    from iam_user_tenant_directory
+    where user_id=#{userId} and (#{afterTenantId} is null or #{afterTenantId}='' or tenant_id&gt;#{afterTenantId})
+    order by tenant_id limit #{limit}
+  </select>
+  <select id="listUsers" resultType="map">
+    select distinct u.user_id as "userId",u.username,u.email,u.display_name as "displayName",u.status,u.creation_mode as "creationMode",u.created_at as "createdAt",u.updated_at as "updatedAt",u.version,
+      case when federated.provider_type is not null and cred.subject_id is not null then concat('LOCAL+',federated.provider_type)
+           when federated.provider_type is not null then federated.provider_type else 'LOCAL' end as "authenticationMethod",
+      case
+        when u.status='LOCKED' or (sec.locked_until is not null and sec.locked_until&gt;now()) then 'LOCKED'
+        when u.status='SUSPENDED' then 'SUSPENDED'
+        when u.status in('DISABLED','DELETED') then 'DISABLED'
+        when u.status in('ACTIVE','PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED','MFA_ENROLLMENT_REQUIRED') and federated.provider_type is not null then 'SSO_MANAGED'
+        when cred.subject_id is null or u.status in('PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED') then 'SETUP_REQUIRED'
+        when u.status='MFA_ENROLLMENT_REQUIRED' or coalesce(mfa.status,'')='PENDING' then 'MFA_REQUIRED'
+        when u.status='ACTIVE' and cred.subject_id is not null and not cred.must_change then 'READY'
+        else 'SETUP_REQUIRED'
+      end as "signInState",
+      case when cred.subject_id is null then 'NOT_CONFIGURED' when cred.must_change then 'CHANGE_REQUIRED' else 'CONFIGURED' end as "passwordState",
+      case when mfa.method_id is null then 'NOT_ENROLLED' when mfa.status='ACTIVE' then 'ACTIVE' else 'PENDING' end as "mfaState",
+      coalesce(case when delivery.expires_at&lt;=now() and delivery.delivery_status in('ISSUED','QUEUED','DELIVERED') then 'EXPIRED' else delivery.delivery_status end,'NOT_ISSUED') as "deliveryStatus",
+      case
+        when not exists (
+          select 1 from rbac_principal_role_bindings access_b
+          join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+          where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+            and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+              or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+              or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+        ) then 'NO_RESPONSIBILITY'
+        when not exists (
+          select 1 from rbac_principal_role_bindings access_b
+          join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+          join rbac_role_permissions access_rp on access_rp.role_id=access_r.role_id and access_rp.tenant_id is not distinct from access_r.tenant_id
+          where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+            and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+              or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+              or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+        ) then 'NO_EFFECTIVE_PERMISSION'
+        else 'READY'
+      end as "accessReadiness",
+      coalesce((
+        select string_agg(distinct access_r.role_code, ', ' order by access_r.role_code)
+        from rbac_principal_role_bindings access_b
+        join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+        where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+          and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+            or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+            or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+      ),'') as "responsibilitySummary"
+    from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+    left join auth_password_credentials cred on cred.subject_type='HUMAN_USER' and cred.subject_id=u.user_id
+    left join auth_subject_security_states sec on sec.subject_type='HUMAN_USER' and sec.subject_id=u.user_id
+    left join lateral (select method_id,status from auth_mfa_methods x where x.subject_type='HUMAN_USER' and x.subject_id=u.user_id and x.status in('ACTIVE','PENDING') order by case when x.status='ACTIVE' then 0 else 1 end,x.enrolled_at desc limit 1) mfa on true
+    left join lateral (select l.provider_type from iam_identity_credential_links l join iam_authentication_providers p on p.tenant_id=l.provider_tenant_id and p.provider_id=l.provider_id where l.provider_tenant_id=#{tenantId} and l.subject_id=u.user_id and l.status='ACTIVE' and p.status='ACTIVE' and p.provider_type='OIDC' order by p.provider_code limit 1) federated on true
+    left join lateral (select delivery_status,expires_at from iam_identity_activation_deliveries x where x.tenant_id=#{tenantId} and x.user_id=u.user_id order by x.issued_at desc limit 1) delivery on true
+    where m.tenant_id=#{tenantId} and m.status&lt;&gt;'REMOVED'
+      and (#{membershipStatus} is null or #{membershipStatus}='' or m.status=#{membershipStatus})
+      and (#{afterUserId} is null or #{afterUserId}='' or u.user_id&gt;#{afterUserId})
+      and (#{text} is null or #{text}='' or lower(u.username) like concat('%',lower(#{text}),'%') or lower(u.display_name) like concat('%',lower(#{text}),'%') or lower(coalesce(u.email,'')) like concat('%',lower(#{text}),'%'))
+      and (#{status} is null or #{status}='' or u.status=#{status})
+      and (#{signInState} is null or #{signInState}='' or (case
+        when u.status='LOCKED' or (sec.locked_until is not null and sec.locked_until&gt;now()) then 'LOCKED'
+        when u.status='SUSPENDED' then 'SUSPENDED'
+        when u.status in('DISABLED','DELETED') then 'DISABLED'
+        when u.status in('ACTIVE','PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED','MFA_ENROLLMENT_REQUIRED') and federated.provider_type is not null then 'SSO_MANAGED'
+        when cred.subject_id is null or u.status in('PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED') then 'SETUP_REQUIRED'
+        when u.status='MFA_ENROLLMENT_REQUIRED' or coalesce(mfa.status,'')='PENDING' then 'MFA_REQUIRED'
+        when u.status='ACTIVE' and cred.subject_id is not null and not cred.must_change then 'READY'
+        else 'SETUP_REQUIRED' end)=#{signInState})
+      and (#{roleId} is null or #{roleId}='' or exists (
+        select 1 from rbac_principal_role_bindings b
+        where b.tenant_id=#{tenantId} and b.principal_type='USER' and b.principal_id=u.user_id
+          and b.role_id=#{roleId} and b.status='ACTIVE'
+          and b.effective_at&lt;=now() and (b.expires_at is null or b.expires_at&gt;now())
+      ))
+      and (#{departmentId} is null or #{departmentId}=''
+        or (#{departmentId}='__UNASSIGNED__' and not exists (
+          select 1 from org_department_memberships primary_dm
+          where primary_dm.tenant_id=#{tenantId} and primary_dm.user_id=u.user_id and primary_dm.is_primary
+            and primary_dm.status='ACTIVE' and primary_dm.effective_at&lt;=now()
+            and (primary_dm.expires_at is null or primary_dm.expires_at&gt;now())
+        ))
+        or (#{departmentId}&lt;&gt;'__UNASSIGNED__' and exists (
+          select 1 from org_department_memberships dm
+          where dm.tenant_id=#{tenantId} and dm.user_id=u.user_id and dm.department_id=#{departmentId}
+            and dm.status='ACTIVE' and dm.effective_at&lt;=now() and (dm.expires_at is null or dm.expires_at&gt;now())
+        ))
+      )
+      and (#{groupId} is null or #{groupId}='' or exists (
+        select 1 from org_group_memberships gm
+        where gm.tenant_id=#{tenantId} and gm.user_id=u.user_id and gm.group_id=#{groupId}
+          and gm.status='ACTIVE' and gm.effective_at&lt;=now() and (gm.expires_at is null or gm.expires_at&gt;now())
+      ))
+    order by u.user_id limit #{limit}
+  </select>
+  <select id="listUsersWithin" resultType="map">
+    select distinct u.user_id as "userId",u.username,u.email,u.display_name as "displayName",u.status,u.creation_mode as "creationMode",u.created_at as "createdAt",u.updated_at as "updatedAt",u.version,
+      case when federated.provider_type is not null and cred.subject_id is not null then concat('LOCAL+',federated.provider_type)
+           when federated.provider_type is not null then federated.provider_type else 'LOCAL' end as "authenticationMethod",
+      case
+        when u.status='LOCKED' or (sec.locked_until is not null and sec.locked_until&gt;now()) then 'LOCKED'
+        when u.status='SUSPENDED' then 'SUSPENDED'
+        when u.status in('DISABLED','DELETED') then 'DISABLED'
+        when u.status in('ACTIVE','PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED','MFA_ENROLLMENT_REQUIRED') and federated.provider_type is not null then 'SSO_MANAGED'
+        when cred.subject_id is null or u.status in('PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED') then 'SETUP_REQUIRED'
+        when u.status='MFA_ENROLLMENT_REQUIRED' or coalesce(mfa.status,'')='PENDING' then 'MFA_REQUIRED'
+        when u.status='ACTIVE' and cred.subject_id is not null and not cred.must_change then 'READY'
+        else 'SETUP_REQUIRED'
+      end as "signInState",
+      case when cred.subject_id is null then 'NOT_CONFIGURED' when cred.must_change then 'CHANGE_REQUIRED' else 'CONFIGURED' end as "passwordState",
+      case when mfa.method_id is null then 'NOT_ENROLLED' when mfa.status='ACTIVE' then 'ACTIVE' else 'PENDING' end as "mfaState",
+      coalesce(case when delivery.expires_at&lt;=now() and delivery.delivery_status in('ISSUED','QUEUED','DELIVERED') then 'EXPIRED' else delivery.delivery_status end,'NOT_ISSUED') as "deliveryStatus",
+      case
+        when not exists (
+          select 1 from rbac_principal_role_bindings access_b
+          join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+          where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+            and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+              or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+              or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+        ) then 'NO_RESPONSIBILITY'
+        when not exists (
+          select 1 from rbac_principal_role_bindings access_b
+          join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+          join rbac_role_permissions access_rp on access_rp.role_id=access_r.role_id and access_rp.tenant_id is not distinct from access_r.tenant_id
+          where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+            and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+              or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+              or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+        ) then 'NO_EFFECTIVE_PERMISSION'
+        else 'READY'
+      end as "accessReadiness",
+      coalesce((
+        select string_agg(distinct access_r.role_code, ', ' order by access_r.role_code)
+        from rbac_principal_role_bindings access_b
+        join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+        where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+          and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+            or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+            or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+      ),'') as "responsibilitySummary"
+    from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+    left join auth_password_credentials cred on cred.subject_type='HUMAN_USER' and cred.subject_id=u.user_id
+    left join auth_subject_security_states sec on sec.subject_type='HUMAN_USER' and sec.subject_id=u.user_id
+    left join lateral (select method_id,status from auth_mfa_methods x where x.subject_type='HUMAN_USER' and x.subject_id=u.user_id and x.status in('ACTIVE','PENDING') order by case when x.status='ACTIVE' then 0 else 1 end,x.enrolled_at desc limit 1) mfa on true
+    left join lateral (select l.provider_type from iam_identity_credential_links l join iam_authentication_providers p on p.tenant_id=l.provider_tenant_id and p.provider_id=l.provider_id where l.provider_tenant_id=#{tenantId} and l.subject_id=u.user_id and l.status='ACTIVE' and p.status='ACTIVE' and p.provider_type='OIDC' order by p.provider_code limit 1) federated on true
+    left join lateral (select delivery_status,expires_at from iam_identity_activation_deliveries x where x.tenant_id=#{tenantId} and x.user_id=u.user_id order by x.issued_at desc limit 1) delivery on true
+    where m.tenant_id=#{tenantId} and m.status&lt;&gt;'REMOVED'
+      and (
+        <choose>
+          <when test="departmentIds != null and departmentIds.size() > 0 and groupIds != null and groupIds.size() > 0">
+            exists (
+              select 1 from org_department_memberships visible_dm
+              where visible_dm.tenant_id=#{tenantId} and visible_dm.user_id=u.user_id
+                and visible_dm.department_id in
+                <foreach collection="departmentIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+                and visible_dm.status='ACTIVE' and visible_dm.effective_at&lt;=now()
+                and (visible_dm.expires_at is null or visible_dm.expires_at&gt;now())
+            )
+            or exists (
+              select 1 from org_group_memberships visible_gm
+              where visible_gm.tenant_id=#{tenantId} and visible_gm.user_id=u.user_id
+                and visible_gm.group_id in
+                <foreach collection="groupIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+                and visible_gm.status='ACTIVE' and visible_gm.effective_at&lt;=now()
+                and (visible_gm.expires_at is null or visible_gm.expires_at&gt;now())
+            )
+          </when>
+          <when test="departmentIds != null and departmentIds.size() > 0">
+            exists (
+              select 1 from org_department_memberships visible_dm
+              where visible_dm.tenant_id=#{tenantId} and visible_dm.user_id=u.user_id
+                and visible_dm.department_id in
+                <foreach collection="departmentIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+                and visible_dm.status='ACTIVE' and visible_dm.effective_at&lt;=now()
+                and (visible_dm.expires_at is null or visible_dm.expires_at&gt;now())
+            )
+          </when>
+          <when test="groupIds != null and groupIds.size() > 0">
+            exists (
+              select 1 from org_group_memberships visible_gm
+              where visible_gm.tenant_id=#{tenantId} and visible_gm.user_id=u.user_id
+                and visible_gm.group_id in
+                <foreach collection="groupIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+                and visible_gm.status='ACTIVE' and visible_gm.effective_at&lt;=now()
+                and (visible_gm.expires_at is null or visible_gm.expires_at&gt;now())
+            )
+          </when>
+          <otherwise>false</otherwise>
+        </choose>
+      )
+      and (#{membershipStatus} is null or #{membershipStatus}='' or m.status=#{membershipStatus})
+      and (#{afterUserId} is null or #{afterUserId}='' or u.user_id&gt;#{afterUserId})
+      and (#{text} is null or #{text}='' or lower(u.username) like concat('%',lower(#{text}),'%') or lower(u.display_name) like concat('%',lower(#{text}),'%') or lower(coalesce(u.email,'')) like concat('%',lower(#{text}),'%'))
+      and (#{status} is null or #{status}='' or u.status=#{status})
+      and (#{roleId} is null or #{roleId}='' or exists (
+        select 1 from rbac_principal_role_bindings b
+        where b.tenant_id=#{tenantId} and b.principal_type='USER' and b.principal_id=u.user_id
+          and b.role_id=#{roleId} and b.status='ACTIVE'
+          and b.effective_at&lt;=now() and (b.expires_at is null or b.expires_at&gt;now())
+      ))
+      and (#{departmentId} is null or #{departmentId}=''
+        or (#{departmentId}='__UNASSIGNED__' and not exists (
+          select 1 from org_department_memberships primary_dm
+          where primary_dm.tenant_id=#{tenantId} and primary_dm.user_id=u.user_id and primary_dm.is_primary
+            and primary_dm.status='ACTIVE' and primary_dm.effective_at&lt;=now()
+            and (primary_dm.expires_at is null or primary_dm.expires_at&gt;now())
+        ))
+        or (#{departmentId}&lt;&gt;'__UNASSIGNED__' and exists (
+          select 1 from org_department_memberships dm
+          where dm.tenant_id=#{tenantId} and dm.user_id=u.user_id and dm.department_id=#{departmentId}
+            and dm.status='ACTIVE' and dm.effective_at&lt;=now() and (dm.expires_at is null or dm.expires_at&gt;now())
+        ))
+      )
+      and (#{groupId} is null or #{groupId}='' or exists (
+        select 1 from org_group_memberships gm
+        where gm.tenant_id=#{tenantId} and gm.user_id=u.user_id and gm.group_id=#{groupId}
+          and gm.status='ACTIVE' and gm.effective_at&lt;=now() and (gm.expires_at is null or gm.expires_at&gt;now())
+      ))
+    order by u.user_id limit #{limit}
+  </select>
+  <select id="listAvailableUsers" resultType="map">
+    select u.user_id as "userId",u.username,u.email,u.display_name as "displayName",u.status,
+      u.creation_mode as "creationMode",u.created_at as "createdAt",u.updated_at as "updatedAt",u.version
+    from iam_users u
+    where u.status in ('ACTIVE','PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED','MFA_ENROLLMENT_REQUIRED')
+      and not exists (
+        select 1 from org_tenant_memberships m
+        where m.tenant_id=#{tenantId} and m.user_id=u.user_id and m.status&lt;&gt;'REMOVED'
+      )
+      and (#{afterUserId} is null or #{afterUserId}='' or u.user_id&gt;#{afterUserId})
+      and (#{text} is null or #{text}='' or lower(u.username) like concat('%',lower(#{text}),'%')
+        or lower(u.display_name) like concat('%',lower(#{text}),'%')
+        or lower(coalesce(u.email,'')) like concat('%',lower(#{text}),'%'))
+    order by u.user_id limit #{limit}
+  </select>
+  <select id="findTenantUser" resultType="map">
+    select u.user_id as "userId",u.username,u.email,u.display_name as "displayName",u.status,u.creation_mode as "creationMode",u.created_at as "createdAt",u.updated_at as "updatedAt",u.version,
+      case
+        when not exists (
+          select 1 from rbac_principal_role_bindings access_b
+          join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+          where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+            and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+              or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+              or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+        ) then 'NO_RESPONSIBILITY'
+        when not exists (
+          select 1 from rbac_principal_role_bindings access_b
+          join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+          join rbac_role_permissions access_rp on access_rp.role_id=access_r.role_id and access_rp.tenant_id is not distinct from access_r.tenant_id
+          where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+            and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+              or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+              or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+        ) then 'NO_EFFECTIVE_PERMISSION'
+        else 'READY'
+      end as "accessReadiness",
+      coalesce((
+        select string_agg(distinct access_r.role_code, ', ' order by access_r.role_code)
+        from rbac_principal_role_bindings access_b
+        join rbac_roles access_r on access_r.role_id=access_b.role_id and (access_r.tenant_id=#{tenantId} or access_r.tenant_id is null) and access_r.status='ACTIVE'
+        where access_b.tenant_id=#{tenantId} and access_b.status='ACTIVE' and access_b.effective_at&lt;=now() and (access_b.expires_at is null or access_b.expires_at&gt;now())
+          and ((access_b.principal_type='USER' and access_b.principal_id=u.user_id)
+            or (access_b.principal_type='DEPARTMENT' and exists (select 1 from org_department_memberships adm where adm.tenant_id=#{tenantId} and adm.user_id=u.user_id and adm.department_id=access_b.principal_id and adm.status='ACTIVE' and adm.effective_at&lt;=now() and (adm.expires_at is null or adm.expires_at&gt;now())))
+            or (access_b.principal_type='GROUP' and exists (select 1 from org_group_memberships agm where agm.tenant_id=#{tenantId} and agm.user_id=u.user_id and agm.group_id=access_b.principal_id and agm.status='ACTIVE' and agm.effective_at&lt;=now() and (agm.expires_at is null or agm.expires_at&gt;now()))))
+      ),'') as "responsibilitySummary"
+    from org_tenant_memberships m join iam_users u on u.user_id=m.user_id
+    where m.tenant_id=#{tenantId} and m.user_id=#{userId} and m.status&lt;&gt;'REMOVED' and (m.expires_at is null or m.expires_at&gt;now())
+  </select>
+  <select id="findActiveUserOrganizationScopes" resultType="map">
+    select 'DEPARTMENT' as "scopeType",department_id as "scopeId"
+    from org_department_memberships
+    where tenant_id=#{tenantId} and user_id=#{userId} and status='ACTIVE'
+      and effective_at&lt;=now() and (expires_at is null or expires_at&gt;now())
+    union all
+    select 'GROUP' as "scopeType",group_id as "scopeId"
+    from org_group_memberships
+    where tenant_id=#{tenantId} and user_id=#{userId} and status='ACTIVE'
+      and effective_at&lt;=now() and (expires_at is null or expires_at&gt;now())
+  </select>
+    <select id="findMachineOwnershipImpact" resultType="map">
+    select coalesce(service_account_count,0) as "serviceAccountCount",
+           coalesce(agent_business_owner_count,0) as "agentBusinessOwnerCount",
+           coalesce(agent_technical_steward_count,0) as "agentTechnicalStewardCount",
+           coalesce(ownership_review_required_count,0) as "ownershipReviewRequiredCount"
+      from iam_user_machine_ownership_impact
+     where tenant_id=#{tenantId} and user_id=#{userId}
+  </select>
+    <select id="transferMachineOwnership" resultType="map">
+      select transfer_id as "transferId",service_accounts_updated as "serviceAccountsUpdated",
+             agent_business_owners_updated as "agentBusinessOwnersUpdated",agent_stewards_updated as "agentTechnicalStewardsUpdated",
+             transferred_at as "transferredAt"
+        from phase12_2_transfer_machine_ownership(#{tenantId},#{fromUserId},#{toUserId},#{actorId},#{reason})
+    </select>
+<insert id="insertActivationDelivery">
+    insert into iam_identity_activation_deliveries(tenant_id,delivery_id,user_id,token_id,purpose,delivery_method,delivery_status,recipient_reference,issued_at,expires_at,failure_code,correlation_id,created_by,version)
+    values(#{row.tenantId},#{row.deliveryId},#{row.userId},#{row.tokenId},#{row.purpose},#{row.deliveryMethod},#{row.deliveryStatus},#{row.recipientReference},#{row.issuedAt},#{row.expiresAt},#{row.failureCode},#{row.correlationId},#{row.createdBy},1)
+  </insert>
+  <update id="updateActivationDelivery">
+    update iam_identity_activation_deliveries
+       set delivery_status=#{row.deliveryStatus},delivered_at=#{row.deliveredAt},failed_at=#{row.failedAt},failure_code=#{row.failureCode},version=version+1
+     where tenant_id=#{row.tenantId} and delivery_id=#{row.deliveryId}
+  </update>
+  <select id="findLatestActivationDelivery" resultType="map">
+    select delivery_id as "deliveryId",delivery_method as "deliveryMethod",delivery_status as "deliveryStatus",recipient_reference as "deliveryReference",
+           issued_at as "deliveryIssuedAt",delivered_at as "deliveredAt",failed_at as "failedAt",expires_at as "deliveryExpiresAt",failure_code as "deliveryFailureCode"
+      from iam_identity_activation_deliveries
+     where tenant_id=#{tenantId} and user_id=#{userId}
+     order by issued_at desc limit 1
+  </select>
+  <select id="findUserAuthenticationReadiness" resultType="map">
+    select u.user_id as "userId",u.status as "accountStatus",coalesce(federated.provider_type,'') as "federatedProviderType",
+      case when c.subject_id is null then 'NOT_CONFIGURED' when c.must_change then 'CHANGE_REQUIRED' else 'CONFIGURED' end as "passwordState",
+      c.changed_at as "passwordChangedAt",c.expires_at as "passwordExpiresAt",
+      case when m.method_id is null then 'NOT_ENROLLED' when m.status='ACTIVE' then 'ACTIVE' else 'PENDING' end as "mfaState",
+      coalesce(m.method_type,'') as "mfaType",m.verified_at as "mfaVerifiedAt",
+      (select count(*) from auth_recovery_codes rc where rc.subject_type='HUMAN_USER' and rc.subject_id=u.user_id and rc.used_at is null) as "recoveryCodesRemaining",
+      ss.last_success_at as "lastSuccessfulLogin",coalesce(ss.failed_login_count,0) as "failedLoginCount",ss.locked_until as "lockedUntil",
+      (select count(*) from auth_tenant_sessions s where s.tenant_id=#{tenantId} and s.subject_type='HUMAN_USER' and s.subject_id=u.user_id and s.status='ACTIVE' and s.idle_expires_at&gt;now() and s.absolute_expires_at&gt;now()) as "activeSessionCount",
+      coalesce((select case when t.status='ACTIVE' and t.expires_at&gt;now() then t.token_type when t.status='CONSUMED' then 'COMPLETED' when t.expires_at&lt;=now() then 'EXPIRED' else t.status end
+        from token_access_tokens t where t.tenant_id=#{tenantId} and t.principal_type='USER' and t.principal_id=u.user_id and t.token_type in('INVITATION_TOKEN','PASSWORD_RESET_TOKEN')
+        order by t.issued_at desc limit 1),'NOT_ISSUED') as "setupState",
+      (select t.expires_at from token_access_tokens t where t.tenant_id=#{tenantId} and t.principal_type='USER' and t.principal_id=u.user_id and t.token_type in('INVITATION_TOKEN','PASSWORD_RESET_TOKEN') order by t.issued_at desc limit 1) as "setupExpiresAt",
+      coalesce(d.delivery_method,'NOT_ISSUED') as "deliveryMethod",coalesce(case when d.expires_at&lt;=now() and d.delivery_status in('ISSUED','QUEUED','DELIVERED') then 'EXPIRED' else d.delivery_status end,'NOT_ISSUED') as "deliveryStatus",
+      coalesce(d.recipient_reference,'') as "deliveryReference",coalesce(d.failure_code,'') as "deliveryFailureCode"
+    from iam_users u
+    join org_tenant_memberships tm on tm.tenant_id=#{tenantId} and tm.user_id=u.user_id and tm.status&lt;&gt;'REMOVED'
+    left join auth_password_credentials c on c.subject_type='HUMAN_USER' and c.subject_id=u.user_id
+    left join lateral (select method_id,method_type,status,verified_at from auth_mfa_methods x where x.subject_type='HUMAN_USER' and x.subject_id=u.user_id and x.status in('ACTIVE','PENDING') order by case when x.status='ACTIVE' then 0 else 1 end,x.enrolled_at desc limit 1) m on true
+    left join auth_subject_security_states ss on ss.subject_type='HUMAN_USER' and ss.subject_id=u.user_id
+    left join lateral (select l.provider_type from iam_identity_credential_links l join iam_authentication_providers p on p.tenant_id=l.provider_tenant_id and p.provider_id=l.provider_id where l.provider_tenant_id=#{tenantId} and l.subject_id=u.user_id and l.status='ACTIVE' and p.status='ACTIVE' and p.provider_type='OIDC' order by p.provider_code limit 1) federated on true
+    left join lateral (select delivery_method,delivery_status,recipient_reference,failure_code,expires_at from iam_identity_activation_deliveries x
+      where x.tenant_id=#{tenantId} and x.user_id=u.user_id order by x.issued_at desc limit 1) d on true
+    where u.user_id=#{userId}
+  </select>
+  <select id="listDepartments" resultType="map">
+    select tenant_id as "tenantId",department_id as "departmentId",department_code as code,department_name as name,parent_department_id as "parentDepartmentId",manager_user_id as "managerUserId",status,display_order as "displayOrder",created_at as "createdAt",updated_at as "updatedAt",version
+    from departments where tenant_id=#{tenantId}
+      and (#{text} is null or #{text}='' or lower(department_code) like concat('%',lower(#{text}),'%') or lower(department_name) like concat('%',lower(#{text}),'%'))
+      and (((#{status} is null or #{status}='') and status&lt;&gt;'DELETED') or status=#{status})
+    order by display_order,department_id offset #{offset} limit #{limit}
+  </select>
+  <select id="listDepartmentsWithin" resultType="map">
+    select tenant_id as "tenantId",department_id as "departmentId",department_code as code,department_name as name,parent_department_id as "parentDepartmentId",manager_user_id as "managerUserId",status,display_order as "displayOrder",created_at as "createdAt",updated_at as "updatedAt",version
+    from departments
+    where tenant_id=#{tenantId}
+      and department_id in
+      <foreach collection="departmentIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+      and (#{text} is null or #{text}='' or lower(department_code) like concat('%',lower(#{text}),'%') or lower(department_name) like concat('%',lower(#{text}),'%'))
+      and (((#{status} is null or #{status}='') and status&lt;&gt;'DELETED') or status=#{status})
+    order by display_order,department_id offset #{offset} limit #{limit}
+  </select>
+  <select id="listDepartmentIdsWithinSubtrees" resultType="string">
+    select distinct c.descendant_department_id
+    from org_department_closure c
+    join departments d on d.tenant_id=c.tenant_id and d.department_id=c.descendant_department_id
+    where c.tenant_id=#{tenantId}
+      and c.ancestor_department_id in
+      <foreach collection="rootDepartmentIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+      and d.status='ACTIVE'
+    order by c.descendant_department_id
+  </select>
+  <select id="listGroups" resultType="map">
+    select tenant_id as "tenantId",group_id as "groupId",group_code as code,group_name as name,group_type as type,parent_group_id as "parentGroupId",owner_department_id as "ownerDepartmentId",status,description,created_at as "createdAt",updated_at as "updatedAt",version
+    from organization_groups where tenant_id=#{tenantId}
+      and (#{text} is null or #{text}='' or lower(group_code) like concat('%',lower(#{text}),'%') or lower(group_name) like concat('%',lower(#{text}),'%'))
+      and (#{type} is null or #{type}='' or group_type=#{type})
+      and (((#{status} is null or #{status}='') and status&lt;&gt;'DELETED') or status=#{status})
+    order by group_id offset #{offset} limit #{limit}
+  </select>
+  <select id="listGroupsWithin" resultType="map">
+    select tenant_id as "tenantId",group_id as "groupId",group_code as code,group_name as name,group_type as type,parent_group_id as "parentGroupId",owner_department_id as "ownerDepartmentId",status,description,created_at as "createdAt",updated_at as "updatedAt",version
+    from organization_groups
+    where tenant_id=#{tenantId}
+      and group_id in
+      <foreach collection="groupIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+      and (#{text} is null or #{text}='' or lower(group_code) like concat('%',lower(#{text}),'%') or lower(group_name) like concat('%',lower(#{text}),'%'))
+      and (#{type} is null or #{type}='' or group_type=#{type})
+      and (((#{status} is null or #{status}='') and status&lt;&gt;'DELETED') or status=#{status})
+    order by group_id offset #{offset} limit #{limit}
+  </select>
+  <select id="departmentRetirementPreview" resultType="map">
+    select d.tenant_id as "tenantId",'DEPARTMENT' as "organizationType",d.department_id as "organizationId",
+      d.department_name as "organizationName",
+      (select count(*) from org_department_memberships m where m.tenant_id=d.tenant_id and m.department_id=d.department_id and m.status='ACTIVE' and m.effective_at&lt;=now() and (m.expires_at is null or m.expires_at&gt;now())) as "peopleCount",
+      (select count(*) from org_department_memberships m where m.tenant_id=d.tenant_id and m.department_id=d.department_id and m.status='ACTIVE' and m.is_primary and m.effective_at&lt;=now() and (m.expires_at is null or m.expires_at&gt;now())) as "primaryPeopleCount",
+      (select count(*) from departments c where c.tenant_id=d.tenant_id and c.parent_department_id=d.department_id and c.status&lt;&gt;'DELETED') as "childCount",
+      (select count(*) from organization_groups g where g.tenant_id=d.tenant_id and g.owner_department_id=d.department_id and g.status&lt;&gt;'DELETED') as "ownedGroupCount",
+      (select count(*) from rbac_principal_role_bindings b where b.tenant_id=d.tenant_id and b.status='ACTIVE' and ((b.principal_type='DEPARTMENT' and b.principal_id=d.department_id) or (b.scope_type in('DEPARTMENT','DEPARTMENT_SUBTREE') and b.scope_id=d.department_id))) as "activeRoleBindingCount",
+      (select count(*) from source_systems x where x.tenant_id=d.tenant_id and x.owner_department_id=d.department_id and x.status&lt;&gt;'RETIRED') as "sourceSystemCount",
+      (select count(*) from dispatch_flows x where x.tenant_id=d.tenant_id and x.owner_department_id=d.department_id and x.status&lt;&gt;'RETIRED') as "dispatchFlowCount",
+      (select count(*) from agent_pools x where x.tenant_id=d.tenant_id and x.owner_department_id=d.department_id and x.status&lt;&gt;'RETIRED') as "agentPoolCount",
+      (select count(*) from a2a_policies x where x.tenant_id=d.tenant_id and x.enabled=true and (x.source_department_id=d.department_id or x.target_department_id=d.department_id)) as "a2aPolicyCount"
+    from departments d where d.tenant_id=#{tenantId} and d.department_id=#{departmentId}
+  </select>
+
+  <select id="groupRetirementPreview" resultType="map">
+    select g.tenant_id as "tenantId",'GROUP' as "organizationType",g.group_id as "organizationId",
+      g.group_name as "organizationName",
+      (select count(*) from org_group_memberships m where m.tenant_id=g.tenant_id and m.group_id=g.group_id and m.status='ACTIVE' and m.effective_at&lt;=now() and (m.expires_at is null or m.expires_at&gt;now())) as "peopleCount",
+      0::bigint as "primaryPeopleCount",
+      (select count(*) from organization_groups c where c.tenant_id=g.tenant_id and c.parent_group_id=g.group_id and c.status&lt;&gt;'DELETED') as "childCount",
+      0::bigint as "ownedGroupCount",
+      (select count(*) from rbac_principal_role_bindings b where b.tenant_id=g.tenant_id and b.status='ACTIVE' and ((b.principal_type='GROUP' and b.principal_id=g.group_id) or (b.scope_type='GROUP' and b.scope_id=g.group_id))) as "activeRoleBindingCount",
+      (select count(*) from source_systems x where x.tenant_id=g.tenant_id and x.owner_group_id=g.group_id and x.status&lt;&gt;'RETIRED') as "sourceSystemCount",
+      (select count(*) from dispatch_flows x where x.tenant_id=g.tenant_id and x.owner_group_id=g.group_id and x.status&lt;&gt;'RETIRED') as "dispatchFlowCount",
+      (select count(*) from agent_pools x where x.tenant_id=g.tenant_id and x.owner_group_id=g.group_id and x.status&lt;&gt;'RETIRED') as "agentPoolCount",
+      (select count(*) from a2a_policies x where x.tenant_id=g.tenant_id and x.enabled=true and (x.source_group_id=g.group_id or x.target_group_id=g.group_id)) as "a2aPolicyCount"
+    from organization_groups g where g.tenant_id=#{tenantId} and g.group_id=#{groupId}
+  </select>
+
+  <select id="listMemberships" resultType="map">
+    select membership_id as "membershipId",'TENANT' as "membershipType",tenant_id as "tenantId",user_id as "userId",tenant_id as "resourceId",membership_source as role,status,default_tenant as "primary",joined_at as "effectiveAt",expires_at as "expiresAt",version,employee_id as "employeeId"
+    from org_tenant_memberships where tenant_id=#{tenantId} and user_id=#{userId} and (#{afterMembershipId} is null or #{afterMembershipId}='' or membership_id&gt;#{afterMembershipId})
+    union all
+    select membership_id,'DEPARTMENT',tenant_id,user_id,department_id,membership_type,status,is_primary,effective_at,expires_at,version,null::varchar as "employeeId"
+    from org_department_memberships where tenant_id=#{tenantId} and user_id=#{userId} and (#{afterMembershipId} is null or #{afterMembershipId}='' or membership_id&gt;#{afterMembershipId})
+    union all
+    select membership_id,'GROUP',tenant_id,user_id,group_id,membership_role,status,false,effective_at,expires_at,version,null::varchar as "employeeId"
+    from org_group_memberships where tenant_id=#{tenantId} and user_id=#{userId} and (#{afterMembershipId} is null or #{afterMembershipId}='' or membership_id&gt;#{afterMembershipId})
+    order by "membershipId" limit #{limit}
+  </select>
+
+  <select id="findMembership" resultType="map">
+    select membership_id as "membershipId",'TENANT' as "membershipType",tenant_id as "tenantId",user_id as "userId",
+      tenant_id as "resourceId",membership_source as role,status,default_tenant as "primary",joined_at as "effectiveAt",
+      expires_at as "expiresAt",version,employee_id as "employeeId"
+    from org_tenant_memberships where tenant_id=#{tenantId} and membership_id=#{membershipId}
+    union all
+    select membership_id,'DEPARTMENT',tenant_id,user_id,department_id,membership_type,status,is_primary,effective_at,expires_at,version,null::varchar
+    from org_department_memberships where tenant_id=#{tenantId} and membership_id=#{membershipId}
+    union all
+    select membership_id,'GROUP',tenant_id,user_id,group_id,membership_role,status,false,effective_at,expires_at,version,null::varchar
+    from org_group_memberships where tenant_id=#{tenantId} and membership_id=#{membershipId}
+    limit 1
+  </select>
+
+  <select id="listTenantMemberships" resultType="map">
+    select membership_id as "membershipId",'TENANT' as "membershipType",tenant_id as "tenantId",user_id as "userId",
+      tenant_id as "resourceId",membership_source as role,status,default_tenant as "primary",joined_at as "effectiveAt",
+      expires_at as "expiresAt",version,employee_id as "employeeId"
+    from org_tenant_memberships
+    where tenant_id=#{tenantId}
+      and (#{afterMembershipId} is null or #{afterMembershipId}='' or membership_id&gt;#{afterMembershipId})
+    order by membership_id limit #{limit}
+  </select>
+  <select id="listDepartmentMembers" resultType="map">
+    select m.membership_id as "membershipId",'DEPARTMENT' as "membershipType",m.tenant_id as "tenantId",m.user_id as "userId",
+      m.department_id as "resourceId",m.membership_type as role,m.status,m.is_primary as "primary",m.effective_at as "effectiveAt",
+      m.expires_at as "expiresAt",m.version,null::varchar as "employeeId"
+    from org_department_memberships m
+    join org_tenant_memberships tm on tm.tenant_id=m.tenant_id and tm.user_id=m.user_id and tm.status&lt;&gt;'REMOVED'
+    where m.tenant_id=#{tenantId} and m.department_id=#{departmentId}
+      and m.status&lt;&gt;'REMOVED'
+      and (#{afterMembershipId} is null or #{afterMembershipId}='' or m.membership_id&gt;#{afterMembershipId})
+    order by m.membership_id limit #{limit}
+  </select>
+  <select id="listGroupMembers" resultType="map">
+    select m.membership_id as "membershipId",'GROUP' as "membershipType",m.tenant_id as "tenantId",m.user_id as "userId",
+      m.group_id as "resourceId",m.membership_role as role,m.status,false as "primary",m.effective_at as "effectiveAt",
+      m.expires_at as "expiresAt",m.version,null::varchar as "employeeId"
+    from org_group_memberships m
+    join org_tenant_memberships tm on tm.tenant_id=m.tenant_id and tm.user_id=m.user_id and tm.status&lt;&gt;'REMOVED'
+    where m.tenant_id=#{tenantId} and m.group_id=#{groupId}
+      and m.status&lt;&gt;'REMOVED'
+      and (#{afterMembershipId} is null or #{afterMembershipId}='' or m.membership_id&gt;#{afterMembershipId})
+    order by m.membership_id limit #{limit}
+  </select>
+  <select id="listEligibleDepartmentManagers" resultType="map">
+    select distinct u.user_id as "userId",u.username,u.email,u.display_name as "displayName",u.status,
+      u.creation_mode as "creationMode",u.created_at as "createdAt",u.updated_at as "updatedAt",u.version
+    from org_department_memberships m
+    join iam_users u on u.user_id=m.user_id
+    join org_tenant_memberships tm on tm.tenant_id=m.tenant_id and tm.user_id=m.user_id
+    where m.tenant_id=#{tenantId} and m.department_id=#{departmentId}
+      and m.status='ACTIVE' and (m.expires_at is null or m.expires_at&gt;now())
+      and tm.status='ACTIVE' and (tm.expires_at is null or tm.expires_at&gt;now())
+      and u.status='ACTIVE'
+      and (#{afterUserId} is null or #{afterUserId}='' or u.user_id&gt;#{afterUserId})
+      and (#{text} is null or #{text}='' or lower(u.username) like concat('%',lower(#{text}),'%')
+        or lower(u.display_name) like concat('%',lower(#{text}),'%')
+        or lower(coalesce(u.email,'')) like concat('%',lower(#{text}),'%'))
+    order by u.user_id limit #{limit}
+  </select>
+  <select id="listRoles" resultType="map">
+    select role_id as "roleId",coalesce(tenant_id,'') as "tenantId",role_code as "roleCode",role_name as "roleName",description,role_type as "roleType",status,system_managed as "systemManaged",created_at as "createdAt",updated_at as "updatedAt",version
+    from rbac_roles where (tenant_id=#{tenantId} or tenant_id is null)
+      and (#{text} is null or #{text}='' or lower(role_code) like concat('%',lower(#{text}),'%') or lower(role_name) like concat('%',lower(#{text}),'%'))
+      and (#{type} is null or #{type}='' or role_type=#{type}) and (((#{status} is null or #{status}='') and status&lt;&gt;'DELETED') or status=#{status})
+    order by role_code offset #{offset} limit #{limit}
+  </select>
+  <select id="listResponsibilityTemplates" resultType="map">
+    select r.role_id as "roleId",coalesce(r.tenant_id,'') as "tenantId",r.role_code as "roleCode",r.role_name as "roleName",r.description,
+      r.role_type as "roleType",r.status,r.system_managed as "systemManaged",r.risk_level as "riskLevel",r.review_required as "reviewRequired",
+      r.next_review_at as "nextReviewAt",r.version,
+      (select count(*) from rbac_role_permissions rp where rp.role_id=r.role_id and rp.tenant_id is not distinct from r.tenant_id) as "permissionCount",
+      (select count(*) from rbac_principal_role_bindings b where b.tenant_id=#{tenantId} and b.role_id=r.role_id) as "assignmentCount",
+      (select count(*) from rbac_principal_role_bindings b where b.tenant_id=#{tenantId} and b.role_id=r.role_id and b.status='ACTIVE'
+        and b.effective_at&lt;=now() and (b.expires_at is null or b.expires_at&gt;now())) as "activeAssignmentCount",
+      (select count(*) from rbac_principal_role_bindings b where b.tenant_id=#{tenantId} and b.role_id=r.role_id and b.status='ACTIVE'
+        and b.expires_at&gt;now() and b.expires_at&lt;=now()+interval '30 days') as "expiringAssignmentCount",
+      coalesce((select string_agg(common_scope.scope,chr(31) order by common_scope.scope)
+        from (
+          select scopes.scope
+          from rbac_role_permissions rp join permission_definitions pd on pd.permission_code=rp.permission_point
+          cross join lateral unnest(pd.allowed_scope_types) scopes(scope)
+          where rp.role_id=r.role_id and rp.tenant_id is not distinct from r.tenant_id and pd.active=true
+          group by scopes.scope
+          having count(distinct rp.permission_point)=(
+            select count(distinct required.permission_point) from rbac_role_permissions required
+            where required.role_id=r.role_id and required.tenant_id is not distinct from r.tenant_id)
+        ) common_scope),'') as "allowedScopesCsv",
+      coalesce((select string_agg(rp.permission_point,chr(31) order by rp.permission_point)
+        from rbac_role_permissions rp where rp.role_id=r.role_id and rp.tenant_id is not distinct from r.tenant_id),'') as "capabilitiesCsv",
+      array_to_string(r.allowed_principal_types,chr(31)) as "allowedPrincipalsCsv"
+    from rbac_roles r where (r.tenant_id=#{tenantId} or r.tenant_id is null)
+      and (#{text} is null or #{text}='' or lower(r.role_code) like concat('%',lower(#{text}),'%') or lower(r.role_name) like concat('%',lower(#{text}),'%') or lower(r.description) like concat('%',lower(#{text}),'%'))
+      and (((#{status} is null or #{status}='') and r.status&lt;&gt;'DELETED') or r.status=#{status})
+      and (#{riskLevel} is null or #{riskLevel}='' or r.risk_level=#{riskLevel})
+      and (#{scopeType} is null or #{scopeType}='' or (
+        exists (select 1 from rbac_role_permissions rp where rp.role_id=r.role_id and rp.tenant_id is not distinct from r.tenant_id)
+        and not exists (
+          select 1 from rbac_role_permissions rp
+          left join permission_definitions pd on pd.permission_code=rp.permission_point and pd.active=true
+          where rp.role_id=r.role_id and rp.tenant_id is not distinct from r.tenant_id
+            and (pd.permission_code is null or not(#{scopeType}=any(pd.allowed_scope_types)))
+        )
+      ))
+    order by case r.risk_level when 'CRITICAL' then 1 when 'HIGH' then 2 when 'MEDIUM' then 3 else 4 end,r.role_name,r.role_id
+    offset #{offset} limit #{limit}
+  </select>
+  <select id="listAccessAssignments" resultType="map">
+    select b.binding_id as "bindingId",b.principal_type as "principalType",b.principal_id as "principalId",
+      case b.principal_type when 'USER' then coalesce(u.display_name,u.username,b.principal_id) when 'DEPARTMENT' then coalesce(pd.department_name,b.principal_id) when 'GROUP' then coalesce(g.group_name,b.principal_id) when 'SERVICE_ACCOUNT' then coalesce(sa.account_name,b.principal_id) else b.principal_id end as "principalName",
+      r.role_id as "roleId",r.role_code as "roleCode",r.role_name as "roleName",r.risk_level as "riskLevel",
+      b.scope_type as "scopeType",b.scope_id as "scopeId",
+      case b.scope_type when 'TENANT' then coalesce(t.display_name,b.scope_id) when 'DEPARTMENT' then coalesce(d.department_name,b.scope_id) when 'DEPARTMENT_SUBTREE' then concat(coalesce(d.department_name,b.scope_id),' and child Departments') when 'GROUP' then coalesce(sg.group_name,b.scope_id) else b.scope_id end as "scopeName",
+      b.effective_at as "effectiveAt",b.expires_at as "expiresAt",b.status,b.review_required as "reviewRequired",coalesce(b.next_review_at,r.next_review_at) as "nextReviewAt",b.version,
+      case when b.status&lt;&gt;'ACTIVE' then b.status when b.effective_at&gt;now() then 'SCHEDULED' when b.expires_at is not null and b.expires_at&lt;=now() then 'EXPIRED' when b.expires_at is not null and b.expires_at&lt;=now()+interval '30 days' then 'EXPIRING' else 'ACTIVE' end as "lifecycleStatus"
+    from rbac_principal_role_bindings b join rbac_roles r on r.role_id=b.role_id
+      left join iam_users u on b.principal_type='USER' and u.user_id=b.principal_id
+      left join departments pd on b.principal_type='DEPARTMENT' and pd.tenant_id=b.tenant_id and pd.department_id=b.principal_id
+      left join organization_groups g on b.principal_type='GROUP' and g.tenant_id=b.tenant_id and g.group_id=b.principal_id
+      left join token_service_accounts sa on b.principal_type='SERVICE_ACCOUNT' and sa.tenant_id=b.tenant_id and sa.service_account_id=b.principal_id
+      left join tenants t on b.scope_type='TENANT' and t.tenant_id=b.scope_id
+      left join departments d on b.scope_type in('DEPARTMENT','DEPARTMENT_SUBTREE') and d.tenant_id=b.tenant_id and d.department_id=b.scope_id
+      left join organization_groups sg on b.scope_type='GROUP' and sg.tenant_id=b.tenant_id and sg.group_id=b.scope_id
+    where b.tenant_id=#{tenantId}
+      and (#{status} is null or #{status}='' or b.status=#{status})
+      and (#{principalType} is null or #{principalType}='' or b.principal_type=#{principalType})
+      and (#{scopeType} is null or #{scopeType}='' or b.scope_type=#{scopeType})
+      and (#{text} is null or #{text}='' or lower(b.binding_id) like concat('%',lower(#{text}),'%') or lower(coalesce(r.role_name,'')) like concat('%',lower(#{text}),'%') or lower(coalesce(r.role_code,'')) like concat('%',lower(#{text}),'%') or lower(coalesce(u.display_name,u.username,pd.department_name,g.group_name,sa.account_name,b.principal_id)) like concat('%',lower(#{text}),'%') or lower(coalesce(t.display_name,d.department_name,sg.group_name,b.scope_id)) like concat('%',lower(#{text}),'%'))
+      and (#{lifecycle} is null or #{lifecycle}='' or (case when b.status&lt;&gt;'ACTIVE' then b.status when b.effective_at&gt;now() then 'SCHEDULED' when b.expires_at is not null and b.expires_at&lt;=now() then 'EXPIRED' when b.expires_at is not null and b.expires_at&lt;=now()+interval '30 days' then 'EXPIRING' else 'ACTIVE' end)=#{lifecycle})
+      and (#{afterBindingId} is null or #{afterBindingId}='' or b.binding_id&gt;#{afterBindingId})
+    order by b.binding_id limit #{limit}
+  </select>
+  <select id="accessLifecycleSummary" resultType="map">
+    select #{tenantId} as "tenantId",
+      count(*) filter(where b.status='ACTIVE' and b.effective_at&lt;=now() and (b.expires_at is null or b.expires_at&gt;now()+interval '30 days')) as "activeAssignments",
+      count(*) filter(where b.status='ACTIVE' and b.expires_at&gt;now() and b.expires_at&lt;=now()+interval '30 days') as "expiringAssignments",
+      count(*) filter(where b.status='ACTIVE' and b.expires_at is not null and b.expires_at&lt;=now()) as "expiredAssignments",
+      count(*) filter(where b.status='ACTIVE' and b.effective_at&gt;now()) as "scheduledAssignments",
+      (select count(*) from rbac_critical_change_approvals a where a.tenant_id=#{tenantId} and a.status='PENDING' and a.expires_at&gt;now()) as "pendingApprovals",
+      count(*) filter(where b.status='ACTIVE' and r.risk_level='CRITICAL' and b.effective_at&lt;=now() and (b.expires_at is null or b.expires_at&gt;now())) as "criticalAssignments",
+      (select count(*) from rbac_access_review_candidates c where c.tenant_id=#{tenantId} and c.next_review_at&lt;=now()) as "reviewDueAssignments",
+      count(*) filter(where r.role_id is null or r.status&lt;&gt;'ACTIVE' or (b.principal_type='USER' and not exists(select 1 from iam_users u where u.user_id=b.principal_id and u.status='ACTIVE')) or (b.principal_type='DEPARTMENT' and not exists(select 1 from departments d where d.tenant_id=b.tenant_id and d.department_id=b.principal_id and d.status='ACTIVE')) or (b.principal_type='GROUP' and not exists(select 1 from organization_groups g where g.tenant_id=b.tenant_id and g.group_id=b.principal_id and g.status='ACTIVE'))) as "orphanAssignments"
+    from rbac_principal_role_bindings b left join rbac_roles r on r.role_id=b.role_id where b.tenant_id=#{tenantId}
+  </select>
+  <select id="listAccessReviewCandidates" resultType="map">
+    select c.binding_id as "bindingId",c.principal_type as "principalType",c.principal_id as "principalId",
+      case c.principal_type when 'USER' then coalesce(u.display_name,u.username,c.principal_id) when 'DEPARTMENT' then coalesce(pd.department_name,c.principal_id) when 'GROUP' then coalesce(g.group_name,c.principal_id) else c.principal_id end as "principalName",
+      c.role_id as "roleId",c.role_code as "roleCode",c.role_name as "roleName",c.risk_level as "riskLevel",c.scope_type as "scopeType",c.scope_id as "scopeId",
+      case c.scope_type when 'TENANT' then coalesce(t.display_name,c.scope_id) when 'DEPARTMENT' then coalesce(d.department_name,c.scope_id) when 'DEPARTMENT_SUBTREE' then concat(coalesce(d.department_name,c.scope_id),' and child Departments') when 'GROUP' then coalesce(sg.group_name,c.scope_id) else c.scope_id end as "scopeName",
+      c.effective_at as "effectiveAt",c.expires_at as "expiresAt",c.next_review_at as "nextReviewAt",c.last_reviewed_at as "lastReviewedAt",c.review_reason as "reviewReason",b.version
+    from rbac_access_review_candidates c join rbac_principal_role_bindings b on b.binding_id=c.binding_id
+      left join iam_users u on c.principal_type='USER' and u.user_id=c.principal_id
+      left join departments pd on c.principal_type='DEPARTMENT' and pd.tenant_id=c.tenant_id and pd.department_id=c.principal_id
+      left join organization_groups g on c.principal_type='GROUP' and g.tenant_id=c.tenant_id and g.group_id=c.principal_id
+      left join tenants t on c.scope_type='TENANT' and t.tenant_id=c.scope_id
+      left join departments d on c.scope_type in('DEPARTMENT','DEPARTMENT_SUBTREE') and d.tenant_id=c.tenant_id and d.department_id=c.scope_id
+      left join organization_groups sg on c.scope_type='GROUP' and sg.tenant_id=c.tenant_id and sg.group_id=c.scope_id
+    where c.tenant_id=#{tenantId} and (#{reason} is null or #{reason}='' or c.review_reason=#{reason}) and (#{riskLevel} is null or #{riskLevel}='' or c.risk_level=#{riskLevel}) and (#{afterBindingId} is null or #{afterBindingId}='' or c.binding_id&gt;#{afterBindingId})
+    order by c.binding_id limit #{limit}
+  </select>
+  <select id="securityWorkspaceSummary" resultType="map">
+    select #{tenantId} as "tenantId",
+      (select count(*) from auth_tenant_sessions s where s.tenant_id=#{tenantId} and s.status='ACTIVE' and s.idle_expires_at&gt;now() and s.absolute_expires_at&gt;now()) as "activeSessions",
+      (select count(*) from auth_tenant_sessions s where s.tenant_id=#{tenantId} and s.status='ACTIVE' and s.idle_expires_at&gt;now() and s.absolute_expires_at&gt;now() and least(s.idle_expires_at,s.absolute_expires_at)&lt;=now()+interval '24 hours') as "sessionsExpiringSoon",
+      (select count(*) from token_service_accounts a where a.tenant_id=#{tenantId} and a.status='ACTIVE') as "activeServiceAccounts",
+      (select count(*) from token_service_accounts a where a.tenant_id=#{tenantId} and a.status='ACTIVE' and a.next_review_at&lt;=now()+interval '30 days') as "serviceAccountsReviewDue",
+      ((select count(*) from token_access_tokens t where t.tenant_id=#{tenantId} and t.status='ACTIVE' and t.expires_at&gt;now()) + (select count(*) from token_service_account_credentials c where c.tenant_id=#{tenantId} and c.status in('ACTIVE','ROTATING') and c.expires_at&gt;now() and (c.rotation_grace_expires_at is null or c.rotation_grace_expires_at&gt;now()))) as "activeTokens",
+      ((select count(*) from token_access_tokens t where t.tenant_id=#{tenantId} and t.status='ACTIVE' and t.expires_at&gt;now() and t.expires_at&lt;=now()+interval '30 days') + (select count(*) from token_service_account_credentials c where c.tenant_id=#{tenantId} and c.status in('ACTIVE','ROTATING') and c.expires_at&gt;now() and c.expires_at&lt;=now()+interval '30 days')) as "tokensExpiringSoon",
+      ((select count(*) from token_access_tokens t where t.tenant_id=#{tenantId} and t.status='ACTIVE' and t.expires_at&gt;now() and ((t.last_used_at is null and t.issued_at&lt;now()-interval '30 days') or t.last_used_at&lt;now()-interval '90 days')) + (select count(*) from token_service_account_credentials c where c.tenant_id=#{tenantId} and c.status in('ACTIVE','ROTATING') and c.expires_at&gt;now() and ((c.last_used_at is null and c.issued_at&lt;now()-interval '30 days') or c.last_used_at&lt;now()-interval '90 days'))) as "dormantTokens",
+      (select count(*) from rbac_decision_audits d where d.tenant_id=#{tenantId} and d.decision='DENY' and d.decided_at&gt;=now()-interval '24 hours') as "deniedDecisions24h",
+      (select count(*) from module_outbox_events e where e.created_at&gt;=now()-interval '24 hours' and e.payload_json-&gt;&gt;'tenantId'=#{tenantId}) as "administrativeChanges24h"
+  </select>
+  <select id="listCredentialApiProducts" resultType="map">
+    select product_code as "productCode",display_name as "displayName",description,
+      array_to_string(allowed_audiences,chr(31)) as "audiencesCsv",array_to_string(api_prefixes,chr(31)) as "apiPrefixesCsv"
+    from iam_credential_api_products where status='ACTIVE' order by display_name,product_code
+  </select>
+  <select id="listCredentialAudiences" resultType="map">
+    select audience_code as "audienceCode",display_name as "displayName",description
+    from iam_credential_audiences where status='ACTIVE' order by display_name,audience_code
+  </select>
+  <select id="listCredentialMachineScopes" resultType="map">
+    select scope_code as "scopeCode",display_name as "displayName",description
+    from iam_machine_scope_catalog where status='ACTIVE' order by display_order,display_name,scope_code
+  </select>
+  <select id="listCredentialSourceSystems" resultType="map">
+    select source_system_id as "sourceSystemId",display_name as "displayName",coalesce(description,'') as description,status
+    from source_systems where tenant_id=#{tenantId} and status='ACTIVE' order by display_name,source_system_id
+  </select>
+  <select id="listHumanReadableAudit" resultType="map">
+    select q.* from (
+      select d.decision_id as "eventId",'AUTHORIZATION' as category,d.permission_point as action,
+        concat(coalesce(u.display_name,u.username,d.principal_id),' was ',case when d.decision='ALLOW' then 'allowed to ' else 'denied ' end,d.permission_point,case when coalesce(d.resource_type,'')='' then '' else concat(' on ',d.resource_type,' ',coalesce(d.resource_id,'')) end,'.') as summary,
+        d.principal_id as "actorId",coalesce(u.display_name,u.username,d.principal_id) as "actorName",coalesce(d.resource_type,'') as "targetType",coalesce(d.resource_id,'') as "targetId",coalesce(d.resource_id,'') as "targetName",case when d.decision='ALLOW' then 'SUCCESS' else 'DENIED' end as outcome,d.reason_code as reason,coalesce(d.correlation_id,'') as "correlationId",d.decided_at as "occurredAt",
+        concat('Decision ',d.decision_id,' · Policy ',d.policy_version,' · Tenant epoch ',d.tenant_security_epoch) as "technicalEvidence"
+      from rbac_decision_audits d left join iam_users u on u.user_id=d.principal_id where d.tenant_id=#{tenantId}
+      union all
+      select e.event_id as "eventId",'ADMINISTRATION' as category,e.event_type as action,
+        concat(coalesce(u.display_name,u.username,e.payload_json-&gt;&gt;'actorId','System'),' completed ',replace(initcap(lower(e.event_type)),'_',' '),' for ',e.aggregate_type,' ',e.aggregate_id,'.') as summary,
+        coalesce(e.payload_json-&gt;&gt;'actorId','SYSTEM') as "actorId",coalesce(u.display_name,u.username,e.payload_json-&gt;&gt;'actorId','System') as "actorName",e.aggregate_type as "targetType",e.aggregate_id as "targetId",e.aggregate_id as "targetName",case when e.status in ('PUBLISHED','COMPLETED','SENT','PROCESSED') then 'SUCCESS' when e.status in ('FAILED','DEAD') then 'FAILED' else e.status end as outcome,coalesce(e.payload_json-&gt;&gt;'auditReason','') as reason,coalesce(e.payload_json-&gt;&gt;'correlationId','') as "correlationId",e.created_at as "occurredAt",
+        concat('Outbox ',e.outbox_id,' · Event ',e.event_id,' · Attempts ',e.attempt_count) as "technicalEvidence"
+      from module_outbox_events e left join iam_users u on u.user_id=e.payload_json-&gt;&gt;'actorId' where e.payload_json-&gt;&gt;'tenantId'=#{tenantId}
+    ) q
+    where (#{category} is null or #{category}='' or q.category=#{category}) and (#{outcome} is null or #{outcome}='' or q.outcome=#{outcome})
+      and (#{afterEventId} is null or #{afterEventId}='' or q."eventId"&gt;#{afterEventId})
+    order by q."eventId" limit #{limit}
+  </select>
+  <select id="listSecurityPolicyRevisions" resultType="map">
+    select revision_id as "revisionId",tenant_id as "tenantId",policy_kind as "policyKind",policy_version as "policyVersion",policy_json::text as "policyJson",actor_id as "actorId",audit_reason as "auditReason",correlation_id as "correlationId",created_at as "createdAt"
+    from iam_security_policy_revisions where tenant_id=#{tenantId} and (#{policyKind} is null or #{policyKind}='' or upper(policy_kind)=upper(#{policyKind})) and (#{afterRevisionId} is null or #{afterRevisionId}='' or revision_id&gt;#{afterRevisionId}) order by revision_id limit #{limit}
+  </select>
+  <select id="findSecurityPolicyRevision" resultType="map">
+    select revision_id as "revisionId",tenant_id as "tenantId",policy_kind as "policyKind",policy_version as "policyVersion",policy_json::text as "policyJson",actor_id as "actorId",audit_reason as "auditReason",correlation_id as "correlationId",created_at as "createdAt"
+    from iam_security_policy_revisions where tenant_id=#{tenantId} and revision_id=#{revisionId}
+  </select>
+  <insert id="insertSecurityPolicyRevision">
+    insert into iam_security_policy_revisions(revision_id,tenant_id,policy_kind,policy_version,policy_json,actor_id,audit_reason,correlation_id,created_at)
+    values(#{row.revisionId},#{row.tenantId},#{row.policyKind},#{row.policyVersion},cast(#{row.policyJson} as jsonb),#{row.actorId},#{row.auditReason},#{row.correlationId},#{row.createdAt})
+  </insert>
+  <select id="listPlatformRoles" resultType="map">
+    select role_id as "roleId",'' as "tenantId",role_code as "roleCode",role_name as "roleName",description,role_type as "roleType",status,system_managed as "systemManaged",created_at as "createdAt",updated_at as "updatedAt",version
+    from rbac_roles where tenant_id is null and role_type in ('SYSTEM_ROLE','CUSTOM_PLATFORM_ROLE')
+      and (#{text} is null or #{text}='' or lower(role_code) like concat('%',lower(#{text}),'%') or lower(role_name) like concat('%',lower(#{text}),'%'))
+      and (#{type} is null or #{type}='' or role_type=#{type}) and (((#{status} is null or #{status}='') and status&lt;&gt;'DELETED') or status=#{status})
+    order by role_code offset #{offset} limit #{limit}
+  </select>
+  <select id="listPermissions" resultType="map">
+    select permission_code as "permissionCode",permission_code as "displayName",description,array_to_string(allowed_scope_types,chr(31)) as "allowedScopesCsv",system_managed as "systemManaged"
+    from permission_definitions where active=true and lifecycle in ('ACTIVE','DEPRECATED')
+      and (#{text} is null or #{text}='' or lower(permission_code) like concat('%',lower(#{text}),'%') or lower(description) like concat('%',lower(#{text}),'%'))
+      and (#{scopeType} is null or #{scopeType}='' or #{scopeType}=any(allowed_scope_types))
+    order by permission_code offset #{offset} limit #{limit}
+  </select>
+  <select id="listRolePermissions" resultType="map">
+    select p.permission_code as "permissionCode",p.permission_code as "displayName",p.description,
+      array_to_string(p.allowed_scope_types,chr(31)) as "allowedScopesCsv",p.system_managed as "systemManaged"
+    from rbac_role_permissions rp join permission_definitions p on p.permission_code=rp.permission_point
+    where rp.role_id=#{roleId} and rp.tenant_id is not distinct from #{tenantId}
+      and p.active=true and p.lifecycle in ('ACTIVE','DEPRECATED')
+    order by p.permission_code
+  </select>
+  <select id="listRoleBindings" resultType="map">
+    select binding_id as "bindingId",principal_type as "principalType",principal_id as "principalId",role_id as "roleId",scope_type as "scopeType",scope_id as "scopeId",effective_at as "effectiveAt",expires_at as "expiresAt",status,version
+    from rbac_principal_role_bindings where ((#{tenantId} is null and tenant_id is null) or tenant_id=#{tenantId})
+      and (#{roleId} is null or #{roleId}='' or role_id=#{roleId})
+      and (#{principalId} is null or #{principalId}='' or principal_id=#{principalId})
+      and (#{afterBindingId} is null or #{afterBindingId}='' or binding_id&gt;#{afterBindingId})
+    order by binding_id limit #{limit}
+  </select>
+  <select id="listSessions" resultType="map">
+    select session_id as "sessionId",subject_type as "subjectType",subject_id as "subjectId",tenant_id as "tenantId",array_to_string(authentication_methods,chr(31)) as "methodsCsv",created_at as "createdAt",last_seen_at as "lastSeenAt",idle_expires_at as "idleExpiresAt",absolute_expires_at as "absoluteExpiresAt",ip_address as "ipAddress",user_agent as "userAgent",status,version
+    from auth_tenant_sessions where tenant_id=#{tenantId} and (#{subjectId} is null or #{subjectId}='' or subject_id=#{subjectId})
+      and (#{afterSessionId} is null or #{afterSessionId}='' or session_id&gt;#{afterSessionId})
+    order by session_id limit #{limit}
+  </select>
+  <select id="listServiceAccounts" resultType="map">
+    select sa.tenant_id as "tenantId",sa.service_account_id as "serviceAccountId",sa.account_name as name,sa.description,sa.owner_user_id as "ownerUserId",sa.owner_department_id as "ownerDepartmentId",sa.responsibility_binding_id as "responsibilityBindingId",coalesce(rb.role_id,'') as "responsibilityRoleId",array_to_string(sa.permission_scopes,chr(31)) as "permissionsCsv",array_to_string(sa.allowed_audiences,chr(31)) as "audiencesCsv",array_to_string(sa.allowed_api_prefixes,chr(31)) as "apiPrefixesCsv",array_to_string(sa.allowed_cidrs,chr(31)) as "cidrsCsv",array_to_string(sa.machine_scopes,chr(31)) as "machineScopesCsv",array_to_string(sa.allowed_source_systems,chr(31)) as "sourceSystemsCsv",sa.token_max_ttl_seconds as "tokenMaxTtlSeconds",sa.max_active_tokens as "maxActiveTokens",sa.credential_max_ttl_seconds as "credentialMaxTtlSeconds",sa.max_active_credentials as "maxActiveCredentials",sa.rate_limit_per_minute as "rateLimitPerMinute",sa.next_review_at as "nextReviewAt",sa.risk_level as "riskLevel",sa.status,sa.version
+    from token_service_accounts sa
+    left join rbac_principal_role_bindings rb on rb.tenant_id=sa.tenant_id and rb.binding_id=sa.responsibility_binding_id and rb.principal_type='SERVICE_ACCOUNT' and rb.principal_id=sa.service_account_id and rb.status='ACTIVE'
+    where sa.tenant_id=#{tenantId} and (#{status} is null or #{status}='' or sa.status=#{status}) and (#{afterId} is null or #{afterId}='' or sa.service_account_id&gt;#{afterId})
+    order by sa.service_account_id limit #{limit}
+  </select>
+  <select id="listServiceAccountCredentials" resultType="map">
+    select tenant_id as "tenantId",credential_id as "credentialId",service_account_id as "serviceAccountId",credential_type as "credentialType",credential_name as name,client_id as "clientId",last4,status,issued_at as "issuedAt",expires_at as "expiresAt",last_used_at as "lastUsedAt",rotation_grace_expires_at as "rotationGraceExpiresAt",use_count as "useCount",version
+    from token_service_account_credentials where tenant_id=#{tenantId} and service_account_id=#{serviceAccountId} and (#{status} is null or #{status}='' or status=#{status}) and (#{afterId} is null or #{afterId}='' or credential_id&gt;#{afterId})
+    order by credential_id limit #{limit}
+  </select>
+  <select id="listTokens" resultType="map">
+    select token_id as "tokenId",token_type as "tokenType",principal_type as "principalType",principal_id as "principalId",token_name as name,token_prefix as prefix,last4,status,issued_at as "issuedAt",expires_at as "expiresAt",last_used_at as "lastUsedAt",version
+    from token_access_tokens where tenant_id=#{tenantId} and (#{principalId} is null or #{principalId}='' or principal_id=#{principalId}) and (#{status} is null or #{status}='' or status=#{status}) and (#{afterId} is null or #{afterId}='' or token_id&gt;#{afterId})
+    order by token_id limit #{limit}
+  </select>
+  <select id="listIdentityAudit" resultType="map">
+    select decision_id as "eventId",'AUTHORIZATION_DECISION' as "eventType",principal_type as "actorType",principal_id as "actorId",coalesce(resource_type,'') as "targetType",coalesce(resource_id,'') as "targetId",coalesce(tenant_id,'') as "tenantId",permission_point as permission,decision_id as "decisionId",coalesce(correlation_id,'') as "correlationId",reason_code as reason,decided_at as "occurredAt"
+    from rbac_decision_audits where tenant_id=#{tenantId}
+      and (#{eventType} is null or #{eventType}='' or #{eventType}='AUTHORIZATION_DECISION')
+      and (#{actorId} is null or #{actorId}='' or principal_id=#{actorId}) and (#{targetId} is null or #{targetId}='' or resource_id=#{targetId})
+      and (#{afterEventId} is null or #{afterEventId}='' or decision_id&gt;#{afterEventId})
+    order by decision_id limit #{limit}
+  </select>
+
+  <select id="resolveOneTimeTokenTenant" resultType="map">
+    select tenant_id as "tenantId",expires_at as "expiresAt",status from iam_one_time_token_directory
+    where token_prefix=#{tokenPrefix} and token_type=#{tokenType}
+  </select>
+  <select id="findUserByNormalizedUsername" resultType="map">
+    select user_id as "userId",username,status,version from iam_users where normalized_username=#{normalizedUsername}
+  </select>
+  <select id="findCredentialLink" resultType="map">
+    select credential_link_id as "credentialLinkId",provider_type as "providerType",provider_subject as "providerSubject",
+           coalesce(provider_external_id,'') as "providerExternalId",subject_type as "subjectType",subject_id as "subjectId",
+           canonical_username as "canonicalUsername",status,replacement_required as "replacementRequired",version
+      from iam_identity_credential_links
+     where provider_type=#{providerType} and normalized_provider_subject=#{normalizedProviderSubject}
+  </select>
+  <select id="findCredentialLinkBySubject" resultType="map">
+    select credential_link_id as "credentialLinkId",provider_type as "providerType",provider_subject as "providerSubject",
+           coalesce(provider_external_id,'') as "providerExternalId",subject_type as "subjectType",subject_id as "subjectId",
+           canonical_username as "canonicalUsername",status,replacement_required as "replacementRequired",version
+      from iam_identity_credential_links
+     where provider_type=#{providerType} and subject_id=#{subjectId}
+     order by updated_at desc,credential_link_id limit 1
+  </select>
+  <update id="touchCredentialLink">
+    update iam_identity_credential_links
+       set last_authenticated_at=#{authenticatedAt},updated_at=#{authenticatedAt},updated_by=#{updatedBy},version=version+1
+     where credential_link_id=#{credentialLinkId} and status='ACTIVE' and version=#{expectedVersion}
+  </update>
+  <update id="replaceCredentialLink">
+    update iam_identity_credential_links
+       set status='REPLACED',replacement_required=false,replaced_at=#{replacedAt},updated_at=#{replacedAt},updated_by=#{updatedBy},version=version+1
+     where credential_link_id=#{credentialLinkId} and status='ACTIVE' and version=#{expectedVersion}
+  </update>
+  <select id="findPasswordPolicy" resultType="map">
+    select tenant_id as "tenantId",minimum_length as "minimumLength",maximum_length as "maximumLength",require_uppercase as "requireUppercase",require_lowercase as "requireLowercase",require_number as "requireNumber",require_symbol as "requireSymbol",password_history_count as "historyCount",maximum_age_seconds as "maximumAgeSeconds",minimum_age_seconds as "minimumAgeSeconds",failed_attempt_threshold as "failedAttemptThreshold",lockout_duration_seconds as "lockoutSeconds",breached_password_mode as "breachedMode",version from auth_tenant_password_policies where tenant_id=#{tenantId}
+  </select>
+  <update id="updatePasswordPolicy">update auth_tenant_password_policies set minimum_length=#{row.minimumLength},maximum_length=#{row.maximumLength},require_uppercase=#{row.requireUppercase},require_lowercase=#{row.requireLowercase},require_number=#{row.requireNumber},require_symbol=#{row.requireSymbol},password_history_count=#{row.historyCount},failed_attempt_threshold=#{row.failedAttemptThreshold},lockout_duration_seconds=#{row.lockoutSeconds},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=#{row.version} where tenant_id=#{row.tenantId} and version=#{expectedVersion}</update>
+  <select id="findMfaPolicy" resultType="map">select tenant_id as "tenantId",required_for_administrators as "requiredForAdministrators",allow_recovery_codes as "allowRecoveryCodes",allow_totp as "allowTotp",version from auth_tenant_mfa_policies where tenant_id=#{tenantId}</select>
+  <update id="updateMfaPolicy">update auth_tenant_mfa_policies set required_for_administrators=#{row.requiredForAdministrators},allow_recovery_codes=#{row.allowRecoveryCodes},allow_totp=#{row.allowTotp},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=#{row.version} where tenant_id=#{row.tenantId} and version=#{expectedVersion}</update>
+  <select id="findSessionPolicy" resultType="map">select tenant_id as "tenantId",idle_timeout_seconds as "idleTimeoutSeconds",absolute_timeout_seconds as "absoluteTimeoutSeconds",max_concurrent_sessions as "maxConcurrentSessions",revoke_on_password_change as "revokeOnPasswordChange",revoke_on_mfa_reset as "revokeOnMfaReset",reauthentication_window_seconds as "reauthenticationSeconds",version from auth_tenant_session_policies where tenant_id=#{tenantId}</select>
+  <update id="updateSessionPolicy">update auth_tenant_session_policies set idle_timeout_seconds=#{row.idleTimeoutSeconds},absolute_timeout_seconds=#{row.absoluteTimeoutSeconds},max_concurrent_sessions=#{row.maxConcurrentSessions},revoke_on_password_change=#{row.revokeOnPasswordChange},revoke_on_mfa_reset=#{row.revokeOnMfaReset},reauthentication_window_seconds=#{row.reauthenticationSeconds},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=#{row.version} where tenant_id=#{row.tenantId} and version=#{expectedVersion}</update>
+  <select id="findTokenPolicy" resultType="map">select tenant_id as "tenantId",personal_max_ttl_seconds as "personalMaxTtlSeconds",service_max_ttl_seconds as "serviceMaxTtlSeconds",max_active_service_tokens as "maxActiveTokens",require_service_cidr as "requireServiceCidr",version from token_tenant_policies where tenant_id=#{tenantId}</select>
+  <update id="updateTokenPolicy">update token_tenant_policies set personal_max_ttl_seconds=#{row.personalMaxTtlSeconds},service_max_ttl_seconds=#{row.serviceMaxTtlSeconds},max_active_service_tokens=#{row.maxActiveTokens},require_service_cidr=#{row.requireServiceCidr},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=#{row.version} where tenant_id=#{row.tenantId} and version=#{expectedVersion}</update>
+  <select id="activeTenantChoices" resultType="map">
+    select tenant_id as "tenantId",tenant_code as "tenantCode",tenant_name as "tenantName",
+           membership_status as "membershipStatus",default_tenant as "defaultTenant",updated_at as "updatedAt"
+    from iam_user_tenant_directory
+    where user_id=#{userId} and membership_status='ACTIVE' and tenant_status='ACTIVE' and (expires_at is null or expires_at&gt;now())
+    order by default_tenant desc,updated_at asc,tenant_id asc
+  </select>
+
+  <select id="activeTenantAuthorityRoleCodes" resultType="string">
+    select distinct r.role_code
+      from rbac_principal_role_bindings b
+      join rbac_roles r on r.role_id=b.role_id
+     where b.tenant_id=#{tenantId}
+       and b.scope_type='TENANT' and b.scope_id=#{tenantId}
+       and b.status='ACTIVE'
+       and b.effective_at&lt;=#{at} and (b.expires_at is null or b.expires_at&gt;#{at})
+       and (
+         (b.principal_type='USER' and b.principal_id=#{userId})
+         or
+         (b.principal_type='GROUP' and exists (
+           select 1 from org_group_memberships gm
+            where gm.tenant_id=#{tenantId} and gm.user_id=#{userId} and gm.group_id=b.principal_id
+              and gm.status='ACTIVE' and gm.effective_at&lt;=#{at}
+              and (gm.expires_at is null or gm.expires_at&gt;#{at})
+         ))
+       )
+     order by r.role_code
+  </select>
+
+
+  <select id="findUiIdentity" resultType="map">
+    select user_id as "userId",username,display_name as "displayName",status
+    from iam_users where user_id=#{userId}
+  </select>
+
+  <select id="acquireRootInstallationLock" resultType="int">
+    select 1 from (select pg_advisory_xact_lock(hashtextextended('opendispatch-root-installation',0))) locked
+  </select>
+
+  <select id="activeInstancePermissionCodes" resultType="string">
+    select permission_code
+      from permission_definitions
+     where active=true
+       and lifecycle in ('ACTIVE','DEPRECATED')
+       and 'INSTANCE'=any(allowed_scope_types)
+     order by permission_code
+  </select>
+
+  <update id="updateRootInstallationIdentity">
+    update iam_root_identities
+       set bootstrap_origin='INSTALLATION_SECRET',
+           bootstrap_created_at=#{row.occurredAt},
+           updated_by=#{row.actorId}
+     where root_identity_id='root'
+  </update>
+
+  <update id="updateRootInstallationState">
+    update auth_root_bootstrap_state
+       set bootstrap_source='INSTALLATION_SECRET',
+           installation_completed_at=#{row.occurredAt},
+           installation_credential_version=#{row.credentialVersion},
+           installation_correlation_id=#{row.correlationId},
+           version=version+1
+     where singleton_id='ROOT'
+  </update>
+
+  <insert id="insertRootInstallationEvent">
+    insert into auth_root_installation_events(
+      event_id,event_type,root_identity_id,bootstrap_source,credential_version,
+      correlation_id,details,occurred_at)
+    values(#{row.eventId}::uuid,#{row.eventType},'root','INSTALLATION_SECRET',
+      #{row.credentialVersion},#{row.correlationId},cast(#{row.detailsJson} as jsonb),#{row.occurredAt})
+  </insert>
+
+  <insert id="insertRootInstallationSecretIgnored">
+    insert into auth_root_installation_events(
+      event_id,event_type,root_identity_id,bootstrap_source,credential_version,
+      correlation_id,details,occurred_at)
+    select #{row.eventId}::uuid,'ROOT_INSTALLATION_SECRET_IGNORED','root','INSTALLATION_SECRET',
+           c.version,#{row.correlationId},'{"reason":"ROOT_ALREADY_EXISTS"}'::jsonb,#{row.occurredAt}
+      from auth_password_credentials c
+     where c.subject_type='INSTANCE_ROOT' and c.subject_id='root'
+       and not exists (
+         select 1 from auth_root_installation_events
+          where event_type='ROOT_INSTALLATION_SECRET_IGNORED'
+       )
+  </insert>
+
+  <update id="updateInitialRootPasswordState">
+    update auth_root_bootstrap_state
+       set initial_password_changed_at=coalesce(initial_password_changed_at,#{row.occurredAt}),
+           bootstrap_secret_consumed_at=coalesce(bootstrap_secret_consumed_at,#{row.occurredAt}),
+           version=version+1
+     where singleton_id='ROOT'
+  </update>
+
+  <update id="updateRootLastLogin">
+    update iam_root_identities
+       set last_login_at=#{row.occurredAt}, updated_by='root'
+     where root_identity_id='root'
+  </update>
+
+  <!-- P2.4 Enterprise Authentication Federation -->
+  <select id="listAuthenticationProviders" resultType="map">
+    select tenant_id as "tenantId",provider_id as "providerId",provider_code as "providerCode",provider_type as "providerType",display_name as "displayName",status,
+           issuer_uri as "issuerUri",client_id as "clientId",client_secret_ref as "clientSecretRef",array_to_string(scopes,chr(31)) as "scopesCsv",
+           subject_claim as "subjectClaim",username_claim as "usernameClaim",email_claim as "emailClaim",display_name_claim as "displayNameClaim",amr_claim as "amrClaim",acr_claim as "acrClaim",
+           upstream_mfa_mode as "upstreamMfaMode",array_to_string(trusted_amr_values,chr(31)) as "trustedAmrValuesCsv",array_to_string(trusted_acr_values,chr(31)) as "trustedAcrValuesCsv",
+           link_mode as "linkMode",jit_mode as "jitMode",authorization_enabled as "authorizationEnabled",version
+      from iam_authentication_providers where tenant_id=#{tenantId} order by provider_code,provider_id
+  </select>
+  <select id="findAuthenticationProvider" resultType="map">
+    select tenant_id as "tenantId",provider_id as "providerId",provider_code as "providerCode",provider_type as "providerType",display_name as "displayName",status,
+           issuer_uri as "issuerUri",client_id as "clientId",client_secret_ref as "clientSecretRef",array_to_string(scopes,chr(31)) as "scopesCsv",
+           subject_claim as "subjectClaim",username_claim as "usernameClaim",email_claim as "emailClaim",display_name_claim as "displayNameClaim",amr_claim as "amrClaim",acr_claim as "acrClaim",
+           upstream_mfa_mode as "upstreamMfaMode",array_to_string(trusted_amr_values,chr(31)) as "trustedAmrValuesCsv",array_to_string(trusted_acr_values,chr(31)) as "trustedAcrValuesCsv",
+           link_mode as "linkMode",jit_mode as "jitMode",authorization_enabled as "authorizationEnabled",version
+      from iam_authentication_providers where tenant_id=#{tenantId} and provider_id=#{providerId}
+  </select>
+  <insert id="insertAuthenticationProvider">
+    insert into iam_authentication_providers(tenant_id,provider_id,provider_code,provider_type,display_name,status,issuer_uri,client_id,client_secret_ref,scopes,subject_claim,username_claim,email_claim,display_name_claim,amr_claim,acr_claim,upstream_mfa_mode,trusted_amr_values,trusted_acr_values,link_mode,jit_mode,authorization_enabled,created_at,updated_at,updated_by,version)
+    values(#{row.tenantId},#{row.providerId},#{row.providerCode},#{row.providerType},#{row.displayName},'ACTIVE',#{row.issuerUri},#{row.clientId},#{row.clientSecretRef},string_to_array(#{row.scopesCsv},chr(31)),#{row.subjectClaim},#{row.usernameClaim},#{row.emailClaim},#{row.displayNameClaim},#{row.amrClaim},#{row.acrClaim},#{row.upstreamMfaMode},string_to_array(#{row.trustedAmrValuesCsv},chr(31)),string_to_array(#{row.trustedAcrValuesCsv},chr(31)),#{row.linkMode},#{row.jitMode},#{row.authorizationEnabled},#{row.updatedAt},#{row.updatedAt},#{row.updatedBy},1)
+  </insert>
+  <update id="updateAuthenticationProvider">
+    update iam_authentication_providers set provider_code=#{row.providerCode},provider_type=#{row.providerType},display_name=#{row.displayName},issuer_uri=#{row.issuerUri},client_id=#{row.clientId},client_secret_ref=#{row.clientSecretRef},scopes=string_to_array(#{row.scopesCsv},chr(31)),subject_claim=#{row.subjectClaim},username_claim=#{row.usernameClaim},email_claim=#{row.emailClaim},display_name_claim=#{row.displayNameClaim},amr_claim=#{row.amrClaim},acr_claim=#{row.acrClaim},upstream_mfa_mode=#{row.upstreamMfaMode},trusted_amr_values=string_to_array(#{row.trustedAmrValuesCsv},chr(31)),trusted_acr_values=string_to_array(#{row.trustedAcrValuesCsv},chr(31)),link_mode=#{row.linkMode},jit_mode=#{row.jitMode},authorization_enabled=#{row.authorizationEnabled},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=version+1
+     where tenant_id=#{row.tenantId} and provider_id=#{row.providerId} and version=#{expectedVersion}
+  </update>
+  <update id="changeAuthenticationProviderStatus">
+    update iam_authentication_providers set status=#{status},updated_at=#{updatedAt},updated_by=#{updatedBy},version=version+1
+     where tenant_id=#{tenantId} and provider_id=#{providerId} and version=#{expectedVersion}
+  </update>
+  <select id="findFederationPolicy" resultType="map">
+    select tenant_id as "tenantId",local_login_enabled as "localLoginEnabled",oidc_login_enabled as "oidcLoginEnabled",saml_login_enabled as "samlLoginEnabled",provider_discovery_enabled as "providerDiscoveryEnabled",coalesce(default_provider_id,'') as "defaultProviderId",version
+      from iam_authentication_federation_policies where tenant_id=#{tenantId}
+  </select>
+  <update id="updateFederationPolicy">
+    update iam_authentication_federation_policies set local_login_enabled=#{row.localLoginEnabled},oidc_login_enabled=#{row.oidcLoginEnabled},saml_login_enabled=#{row.samlLoginEnabled},provider_discovery_enabled=#{row.providerDiscoveryEnabled},default_provider_id=nullif(#{row.defaultProviderId},''),updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=version+1
+     where tenant_id=#{row.tenantId} and version=#{expectedVersion}
+  </update>
+  <select id="listUserExternalIdentityLinks" resultType="map">
+    select l.credential_link_id as "credentialLinkId",l.provider_tenant_id as "tenantId",l.provider_id as "providerId",p.provider_code as "providerCode",l.provider_type as "providerType",coalesce(l.issuer_uri,'') as "issuerUri",l.provider_subject as "externalSubject",coalesce(l.upstream_username,'') as "upstreamUsername",coalesce(l.upstream_email,'') as "upstreamEmail",l.upstream_email_verified as "upstreamEmailVerified",l.subject_id as "userId",l.canonical_username as "canonicalUsername",l.status,l.last_authenticated_at as "lastAuthenticatedAt",l.version
+      from iam_identity_credential_links l join iam_authentication_providers p on p.tenant_id=l.provider_tenant_id and p.provider_id=l.provider_id
+     where l.provider_tenant_id=#{tenantId} and l.subject_id=#{userId} and l.provider_type in('OIDC','SAML') order by p.provider_code,l.credential_link_id
+  </select>
+  <select id="findExternalCredentialLink" resultType="map">
+    select l.credential_link_id as "credentialLinkId",l.provider_tenant_id as "tenantId",l.provider_id as "providerId",p.provider_code as "providerCode",l.provider_type as "providerType",coalesce(l.issuer_uri,'') as "issuerUri",l.provider_subject as "externalSubject",coalesce(l.upstream_username,'') as "upstreamUsername",coalesce(l.upstream_email,'') as "upstreamEmail",l.upstream_email_verified as "upstreamEmailVerified",l.subject_id as "userId",l.canonical_username as "canonicalUsername",l.status,l.last_authenticated_at as "lastAuthenticatedAt",l.version
+      from iam_identity_credential_links l join iam_authentication_providers p on p.tenant_id=l.provider_tenant_id and p.provider_id=l.provider_id
+     where l.provider_tenant_id=#{tenantId} and l.provider_id=#{providerId} and l.normalized_provider_subject=#{providerSubject} and l.status='ACTIVE'
+  </select>
+  <select id="findExternalCredentialLinkById" resultType="map">
+    select l.credential_link_id as "credentialLinkId",l.provider_tenant_id as "tenantId",l.provider_id as "providerId",p.provider_code as "providerCode",l.provider_type as "providerType",coalesce(l.issuer_uri,'') as "issuerUri",l.provider_subject as "externalSubject",coalesce(l.upstream_username,'') as "upstreamUsername",coalesce(l.upstream_email,'') as "upstreamEmail",l.upstream_email_verified as "upstreamEmailVerified",l.subject_id as "userId",l.canonical_username as "canonicalUsername",l.status,l.last_authenticated_at as "lastAuthenticatedAt",l.version
+      from iam_identity_credential_links l join iam_authentication_providers p on p.tenant_id=l.provider_tenant_id and p.provider_id=l.provider_id
+     where l.provider_tenant_id=#{tenantId} and l.credential_link_id=#{credentialLinkId}
+  </select>
+  <select id="findExternalCredentialLinkByUserProvider" resultType="map">
+    select l.credential_link_id as "credentialLinkId",l.provider_tenant_id as "tenantId",l.provider_id as "providerId",p.provider_code as "providerCode",l.provider_type as "providerType",coalesce(l.issuer_uri,'') as "issuerUri",l.provider_subject as "externalSubject",coalesce(l.upstream_username,'') as "upstreamUsername",coalesce(l.upstream_email,'') as "upstreamEmail",l.upstream_email_verified as "upstreamEmailVerified",l.subject_id as "userId",l.canonical_username as "canonicalUsername",l.status,l.last_authenticated_at as "lastAuthenticatedAt",l.version
+      from iam_identity_credential_links l join iam_authentication_providers p on p.tenant_id=l.provider_tenant_id and p.provider_id=l.provider_id
+     where l.provider_tenant_id=#{tenantId} and l.provider_id=#{providerId} and l.subject_id=#{userId} and l.status='ACTIVE'
+  </select>
+  <select id="resolveFederationTenant" resultType="map">
+    select tenant_id as "tenantId",tenant_code as "tenantCode",tenant_name as "tenantName" from tenants
+     where status='ACTIVE' and (tenant_id=#{tenant} or lower(tenant_code)=lower(#{tenant}))
+     order by case when tenant_id=#{tenant} then 0 else 1 end limit 1
+  </select>
+  <select id="findTenantUserByNormalizedEmail" resultType="map">
+    select u.user_id as "userId",u.username,u.status,u.version
+      from iam_users u join org_tenant_memberships m on m.user_id=u.user_id and m.tenant_id=#{tenantId}
+     where u.normalized_email=#{normalizedEmail}
+       and u.status in('ACTIVE','PENDING_ACTIVATION','PASSWORD_RESET_REQUIRED','MFA_ENROLLMENT_REQUIRED')
+       and m.status='ACTIVE' and m.effective_at&lt;=now() and (m.expires_at is null or m.expires_at&gt;now())
+  </select>
+  <select id="countActiveFederatedTenantMembership" resultType="int">
+    select count(*)
+      from org_tenant_memberships m join tenants t on t.tenant_id=m.tenant_id
+     where m.tenant_id=#{tenantId} and m.user_id=#{userId} and m.status='ACTIVE' and t.status='ACTIVE'
+       and m.effective_at&lt;=#{at} and (m.expires_at is null or m.expires_at&gt;#{at})
+  </select>
+  <insert id="insertExternalCredentialLink">
+    insert into iam_identity_credential_links(credential_link_id,provider_type,provider_subject,provider_external_id,normalized_provider_subject,subject_type,subject_id,canonical_username,status,replacement_required,source_reference,last_authenticated_at,created_at,updated_at,updated_by,version,provider_id,provider_tenant_id,issuer_uri,upstream_username,upstream_email,upstream_email_verified)
+    values(#{row.credentialLinkId},#{row.providerType},#{row.externalSubject},#{row.providerId},#{row.externalSubject},'HUMAN_USER',#{row.userId},#{row.canonicalUsername},'ACTIVE',false,#{row.sourceReference},#{row.lastAuthenticatedAt},#{row.createdAt},#{row.createdAt},#{row.updatedBy},1,#{row.providerId},#{row.tenantId},#{row.issuerUri},nullif(#{row.upstreamUsername},''),nullif(#{row.upstreamEmail},''),#{row.upstreamEmailVerified})
+  </insert>
+  <update id="disableExternalCredentialLink">
+    update iam_identity_credential_links set status='DISABLED',updated_at=#{disabledAt},updated_by=#{updatedBy},version=version+1
+     where provider_tenant_id=#{tenantId} and credential_link_id=#{credentialLinkId} and status='ACTIVE' and version=#{expectedVersion}
+  </update>
+  <update id="updateExternalCredentialLinkAuthentication">
+    update iam_identity_credential_links set last_authenticated_at=#{authenticatedAt},upstream_username=nullif(#{upstreamUsername},''),upstream_email=nullif(#{upstreamEmail},''),upstream_email_verified=#{upstreamEmailVerified},updated_at=#{authenticatedAt},updated_by=#{updatedBy},version=version+1
+     where provider_tenant_id=#{tenantId} and credential_link_id=#{credentialLinkId} and status='ACTIVE' and version=#{expectedVersion}
+  </update>
+  <insert id="insertOidcLoginAttempt">
+    insert into iam_oidc_login_attempts(tenant_id,attempt_id,provider_id,state_hash,nonce_hash,redirect_path,status,issued_at,expires_at,correlation_id,version)
+    values(#{row.tenantId},#{row.attemptId},#{row.providerId},#{row.stateHash},#{row.nonceHash},#{row.redirectPath},'PENDING',#{row.issuedAt},#{row.expiresAt},#{row.correlationId},1)
+  </insert>
+  <select id="findOidcLoginAttemptByStateHash" resultType="map">
+    select a.tenant_id as "tenantId",a.attempt_id as "attemptId",a.provider_id as "providerId",a.state_hash as "stateHash",a.nonce_hash as "nonceHash",a.redirect_path as "redirectPath",a.status,a.issued_at as "issuedAt",a.expires_at as "expiresAt",a.version,
+           p.provider_code as "providerCode",p.provider_type as "providerType",p.display_name as "displayName",p.status as "providerStatus",p.issuer_uri as "issuerUri",p.client_id as "clientId",p.client_secret_ref as "clientSecretRef",array_to_string(p.scopes,chr(31)) as "scopesCsv",p.subject_claim as "subjectClaim",p.username_claim as "usernameClaim",p.email_claim as "emailClaim",p.display_name_claim as "displayNameClaim",p.amr_claim as "amrClaim",p.acr_claim as "acrClaim",p.upstream_mfa_mode as "upstreamMfaMode",array_to_string(p.trusted_amr_values,chr(31)) as "trustedAmrValuesCsv",array_to_string(p.trusted_acr_values,chr(31)) as "trustedAcrValuesCsv",p.link_mode as "linkMode",p.jit_mode as "jitMode",p.authorization_enabled as "authorizationEnabled",p.version as "providerVersion"
+      from iam_oidc_login_attempts a join iam_authentication_providers p on p.tenant_id=a.tenant_id and p.provider_id=a.provider_id where a.state_hash=#{stateHash}
+  </select>
+  <update id="consumeOidcLoginAttempt">
+    update iam_oidc_login_attempts set status='CONSUMED',consumed_at=#{consumedAt},version=version+1 where tenant_id=#{tenantId} and attempt_id=#{attemptId} and status='PENDING' and expires_at&gt;#{consumedAt} and version=#{expectedVersion}
+  </update>
+  <update id="failOidcLoginAttempt">
+    update iam_oidc_login_attempts set status='FAILED',consumed_at=#{failedAt},failure_code=#{failureCode},version=version+1 where tenant_id=#{tenantId} and attempt_id=#{attemptId} and status='PENDING' and version=#{expectedVersion}
+  </update>
+
+</mapper>

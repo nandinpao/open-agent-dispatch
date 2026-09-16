@@ -10,7 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import com.opensocket.aievent.core.event.EventSeverity;
+
 import com.opensocket.aievent.core.event.NormalizedEvent;
 
 @Component

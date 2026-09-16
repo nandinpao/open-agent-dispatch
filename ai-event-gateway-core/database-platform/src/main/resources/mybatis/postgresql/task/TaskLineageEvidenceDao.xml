@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.task.dao.TaskLineageEvidenceDao">
+  <resultMap id="Row" type="com.opensocket.aievent.database.persistence.task.po.TaskLineageEvidencePo">
+    <id property="evidenceId" column="evidence_id"/><result property="tenantId" column="tenant_id"/><result property="rootTaskId" column="root_task_id"/>
+    <result property="taskId" column="task_id"/><result property="parentTaskId" column="parent_task_id"/><result property="eventType" column="event_type"/>
+    <result property="originPrincipalType" column="origin_principal_type"/><result property="originPrincipalId" column="origin_principal_id"/>
+    <result property="actorPrincipalType" column="actor_principal_type"/><result property="actorPrincipalId" column="actor_principal_id"/>
+    <result property="executorAgentId" column="executor_agent_id"/><result property="assignmentId" column="assignment_id"/>
+    <result property="departmentId" column="department_id"/><result property="groupId" column="group_id"/><result property="credentialId" column="credential_id"/>
+    <result property="oauthClientId" column="oauth_client_id"/><result property="sourceSystem" column="source_system"/><result property="correlationId" column="correlation_id"/>
+    <result property="traceId" column="trace_id"/><result property="failureDomain" column="failure_domain"/><result property="failureCode" column="failure_code"/>
+    <result property="reason" column="reason"/><result property="occurredAt" column="occurred_at"/>
+  </resultMap>
+  <sql id="Columns">tenant_id,evidence_id,root_task_id,task_id,parent_task_id,event_type,origin_principal_type,origin_principal_id,actor_principal_type,actor_principal_id,executor_agent_id,assignment_id,department_id,group_id,credential_id,oauth_client_id,source_system,correlation_id,trace_id,failure_domain,failure_code,reason,occurred_at</sql>
+  <insert id="insert">insert into task_lineage_evidence(<include refid="Columns"/>) values(
+    #{evidence.tenantId},#{evidence.evidenceId},#{evidence.rootTaskId},#{evidence.taskId},#{evidence.parentTaskId},#{evidence.eventType},
+    #{evidence.originPrincipalType},#{evidence.originPrincipalId},#{evidence.actorPrincipalType},#{evidence.actorPrincipalId},#{evidence.executorAgentId},#{evidence.assignmentId},
+    #{evidence.departmentId},#{evidence.groupId},#{evidence.credentialId},#{evidence.oauthClientId},#{evidence.sourceSystem},#{evidence.correlationId},#{evidence.traceId},
+    #{evidence.failureDomain},#{evidence.failureCode},#{evidence.reason},#{evidence.occurredAt}) on conflict(tenant_id,evidence_id) do nothing</insert>
+  <select id="findByTask" resultMap="Row">select <include refid="Columns"/> from task_lineage_evidence where tenant_id=#{tenantId} and task_id=#{taskId} order by occurred_at,evidence_id limit #{limit}</select>
+  <select id="findByRootTask" resultMap="Row">select <include refid="Columns"/> from task_lineage_evidence where tenant_id=#{tenantId} and root_task_id=#{rootTaskId} order by occurred_at,evidence_id limit #{limit}</select>
+  <select id="findByAgent" resultMap="Row">select <include refid="Columns"/> from task_lineage_evidence where tenant_id=#{tenantId} and executor_agent_id=#{agentId} order by occurred_at desc,evidence_id desc limit #{limit}</select>
+  <select id="findByCorrelation" resultMap="Row">select <include refid="Columns"/> from task_lineage_evidence where tenant_id=#{tenantId} and correlation_id=#{correlationId} order by occurred_at desc,evidence_id desc limit #{limit}</select>
+  <select id="search" resultMap="Row">
+    select <include refid="Columns"/> from task_lineage_evidence
+    where tenant_id=#{query.tenantId}
+    <if test="query.rootTaskId != null and query.rootTaskId != ''">and root_task_id=#{query.rootTaskId}</if>
+    <if test="query.taskId != null and query.taskId != ''">and task_id=#{query.taskId}</if>
+    <if test="query.agentId != null and query.agentId != ''">and executor_agent_id=#{query.agentId}</if>
+    <if test="query.correlationId != null and query.correlationId != ''">and correlation_id=#{query.correlationId}</if>
+    <if test="query.principalType != null and query.principalType != ''">and (origin_principal_type=#{query.principalType} or actor_principal_type=#{query.principalType})</if>
+    <if test="query.principalId != null and query.principalId != ''">and (origin_principal_id=#{query.principalId} or actor_principal_id=#{query.principalId})</if>
+    <if test="query.credentialId != null and query.credentialId != ''">and credential_id=#{query.credentialId}</if>
+    <if test="query.departmentId != null and query.departmentId != ''">and department_id=#{query.departmentId}</if>
+    <if test="query.groupId != null and query.groupId != ''">and group_id=#{query.groupId}</if>
+    <if test="query.failureDomain != null">and failure_domain=#{query.failureDomain}</if>
+    order by occurred_at desc,evidence_id desc limit #{query.limit}
+  </select>
+</mapper>

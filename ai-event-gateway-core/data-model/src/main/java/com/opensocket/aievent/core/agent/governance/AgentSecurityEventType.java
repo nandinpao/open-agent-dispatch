@@ -1,6 +1,7 @@
 package com.opensocket.aievent.core.agent.governance;
 
 public enum AgentSecurityEventType {
+    CONNECTION_OBSERVED,
     CONNECTION_AUTHORIZED,
     CONNECTION_DENIED,
     INVALID_CREDENTIAL,

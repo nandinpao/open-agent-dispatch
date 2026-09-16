@@ -93,8 +93,13 @@ class ExecutionControlFailureRequeueTest {
         DispatchExecutionResult result = executionService.execute(initial.dispatchRequestId());
 
         assertThat(result.isExecuted()).isFalse();
-        assertThat(dispatchRepository.findById(initial.dispatchRequestId()).orElseThrow().getStatus())
-                .isEqualTo(DispatchRequestStatus.FAILED);
+        DispatchRequest failedDispatch = dispatchRepository.findById(initial.dispatchRequestId()).orElseThrow();
+        assertThat(failedDispatch.getStatus()).isEqualTo(DispatchRequestStatus.FAILED);
+        assertThat(failedDispatch.getOutboxStatus()).isEqualTo(DispatchOutboxStatus.ABANDONED);
+        assertThat(failedDispatch.getRecoveryClassification()).isEqualTo(DispatchRecoveryClassification.REASSIGN_REQUIRED);
+        assertThat(failedDispatch.getClaimedBy()).isNull();
+        assertThat(failedDispatch.getClaimToken()).isNull();
+        assertThat(failedDispatch.getClaimUntil()).isNull();
         assertThat(assignmentRepository.findById(initial.assignmentId()).orElseThrow().getStatus())
                 .isEqualTo(AssignmentStatus.CANCELLED);
 

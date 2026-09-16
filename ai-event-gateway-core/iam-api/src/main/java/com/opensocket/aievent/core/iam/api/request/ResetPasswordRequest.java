@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record ResetPasswordRequest(@NotBlank @Size(max=1000) String token,@NotBlank @Size(min=14,max=256) String newPassword){}

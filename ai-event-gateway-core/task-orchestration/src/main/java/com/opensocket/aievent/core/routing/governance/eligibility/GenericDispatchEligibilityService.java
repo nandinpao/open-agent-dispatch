@@ -21,9 +21,10 @@ import com.opensocket.aievent.core.task.TaskRecord;
 /**
  * Current direct-dispatch Agent eligibility evaluator.
  *
- * The standard path is intentionally small: required Capability only when the
- * Flow Rule asks for it, Agent profile/credential approval, runtime readiness,
- * and capacity. It never loads parallel dispatch governance records.
+ * The standard path is intentionally small: Task requiredCapabilities is a canonical
+ * eligibility gate inside the Flow-selected candidate set, followed by Agent
+ * profile/credential approval, runtime readiness, and capacity. It never loads
+ * a parallel Pool capability policy or other dispatch governance records.
  */
 @Service
 public class GenericDispatchEligibilityService {
@@ -122,7 +123,7 @@ public class GenericDispatchEligibilityService {
         comparison.setDifferenceType(difference(context.isLegacyEligible(), eligible, requirementBlocked, evaluatorFailed));
         comparison.setBlockingReasonCodes(blockers);
         comparison.setChecks(checks);
-        comparison.setEvaluatorVersion(12);
+        comparison.setEvaluatorVersion(13);
         comparison.setCreatedAt(context.getEvaluatedAt());
         comparison.setCreatedBy(ACTOR);
         comparison.validate();

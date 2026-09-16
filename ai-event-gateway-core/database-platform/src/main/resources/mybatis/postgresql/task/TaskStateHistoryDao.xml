@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.task.dao.TaskStateHistoryDao">
+  <resultMap id="Map" type="com.opensocket.aievent.database.persistence.task.po.TaskStateHistoryPo">
+    <id property="historyId" column="history_id"/><result property="tenantId" column="tenant_id"/><result property="taskId" column="task_id"/>
+    <result property="fromStatus" column="from_status"/><result property="toStatus" column="to_status"/>
+    <result property="reasonCode" column="reason_code"/><result property="reason" column="reason"/>
+    <result property="actorType" column="actor_type"/><result property="actorId" column="actor_id"/>
+    <result property="correlationId" column="correlation_id"/><result property="transitionAt" column="transition_at"/>
+    <result property="taskVersion" column="task_version"/><result property="idempotencyKey" column="idempotency_key"/>
+  </resultMap>
+  <insert id="insert">
+    insert into task_state_history(tenant_id,history_id,task_id,from_status,to_status,reason_code,reason,actor_type,actor_id,correlation_id,transition_at,task_version,idempotency_key)
+    values(#{entry.tenantId},#{entry.historyId},#{entry.taskId},#{entry.fromStatus},#{entry.toStatus},#{entry.reasonCode},#{entry.reason},#{entry.actorType},#{entry.actorId},#{entry.correlationId},coalesce(#{entry.transitionAt},now()),#{entry.taskVersion},#{entry.idempotencyKey})
+    on conflict do nothing
+  </insert>
+  <select id="findByTask" resultMap="Map">select * from task_state_history where tenant_id=#{tenantId} and task_id=#{taskId} order by transition_at desc limit #{limit}</select>
+  <select id="findByIdempotencyKey" resultMap="Map">select * from task_state_history where tenant_id=#{tenantId} and idempotency_key=#{idempotencyKey} limit 1</select>
+</mapper>

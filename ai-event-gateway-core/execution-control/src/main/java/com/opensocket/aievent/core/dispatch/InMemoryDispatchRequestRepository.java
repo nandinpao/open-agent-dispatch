@@ -105,10 +105,50 @@ public class InMemoryDispatchRequestRepository implements DispatchRequestReposit
     }
 
     @Override
+    public synchronized PersistenceWriteResult markClaimDispatching(String dispatchRequestId, ClaimOwnership ownership, OffsetDateTime heartbeatAt) {
+        DispatchRequest request = requests.get(dispatchRequestId);
+        if (request == null) return PersistenceWriteResult.notFound(dispatchRequestId);
+        if (!ownership.equals(claims.get(dispatchRequestId))) return PersistenceWriteResult.ownershipLost(dispatchRequestId);
+        request.setOutboxStatus(DispatchOutboxStatus.DISPATCHING);
+        request.setClaimHeartbeatAt(heartbeatAt);
+        request.setUpdatedAt(heartbeatAt);
+        request.setRowVersion(request.getRowVersion() + 1);
+        return PersistenceWriteResult.applied(dispatchRequestId, 1);
+    }
+
+    @Override
+    public synchronized PersistenceWriteResult heartbeatClaim(String dispatchRequestId, ClaimOwnership ownership,
+            OffsetDateTime heartbeatAt, OffsetDateTime extendedUntil) {
+        DispatchRequest request = requests.get(dispatchRequestId);
+        if (request == null) return PersistenceWriteResult.notFound(dispatchRequestId);
+        if (!ownership.equals(claims.get(dispatchRequestId))) return PersistenceWriteResult.ownershipLost(dispatchRequestId);
+        claims.remove(dispatchRequestId);
+        request.setClaimHeartbeatAt(heartbeatAt);
+        request.setClaimUntil(extendedUntil);
+        claims.put(dispatchRequestId, new ClaimOwnership(ownership.workerId(), extendedUntil));
+        request.setRowVersion(request.getRowVersion() + 1);
+        return PersistenceWriteResult.applied(dispatchRequestId, 1);
+    }
+
+    @Override
+    public List<DispatchRequest> findRecoveryCandidates(OffsetDateTime now, int limit) {
+        return requests.values().stream()
+                .filter(request -> ((request.getOutboxStatus() == DispatchOutboxStatus.CLAIMED
+                        || request.getOutboxStatus() == DispatchOutboxStatus.DISPATCHING)
+                        && request.getClaimUntil() != null && !request.getClaimUntil().isAfter(now))
+                        || request.getRecoveryClassification() == DispatchRecoveryClassification.ACK_PERSISTENCE_UNCERTAIN)
+                .sorted(Comparator.comparing(DispatchRequest::getUpdatedAt, Comparator.nullsFirst(Comparator.naturalOrder())))
+                .limit(cap(limit)).toList();
+    }
+
+    @Override
     public synchronized PersistenceWriteResult transitionStatus(DispatchStatusTransition transition) {
-        DispatchRequest request = transition == null ? null : requests.get(transition.getDispatchRequestId());
+        if (transition == null) {
+            return PersistenceWriteResult.notFound(null);
+        }
+        DispatchRequest request = requests.get(transition.getDispatchRequestId());
         if (request == null) {
-            return PersistenceWriteResult.notFound(transition == null ? null : transition.getDispatchRequestId());
+            return PersistenceWriteResult.notFound(transition.getDispatchRequestId());
         }
         if (transition.getAllowedCurrentStatuses().isEmpty()
                 || !transition.getAllowedCurrentStatuses().contains(request.getStatus())) {
@@ -133,6 +173,16 @@ public class InMemoryDispatchRequestRepository implements DispatchRequestReposit
         request.setRetryWaitingAt(transition.getRetryWaitingAt());
         request.setNextRetryAt(transition.getNextRetryAt());
         request.setUpdatedAt(transition.getUpdatedAt());
+        if (transition.getOutboxStatus() != null) request.setOutboxStatus(transition.getOutboxStatus());
+        if (transition.getAckEvidenceId() != null) request.setAckEvidenceId(transition.getAckEvidenceId());
+        if (transition.getAckedAt() != null) request.setAckedAt(transition.getAckedAt());
+        if (transition.getRecoveryClassification() != null) request.setRecoveryClassification(transition.getRecoveryClassification());
+        if (transition.getUncertainSince() != null) request.setUncertainSince(transition.getUncertainSince());
+        if (transition.getLastReconciledAt() != null) request.setLastReconciledAt(transition.getLastReconciledAt());
+        if (transition.getReconciliationCountIncrement() != null) {
+            request.setReconciliationCount(request.getReconciliationCount() + transition.getReconciliationCountIncrement());
+        }
+        request.setRowVersion(request.getRowVersion() + 1);
         if (transition.isClearClaim()) {
             clearClaim(request);
         }
@@ -156,6 +206,10 @@ public class InMemoryDispatchRequestRepository implements DispatchRequestReposit
 
     private void claim(DispatchRequest request, ClaimRequest claimRequest) {
         request.setStatus(DispatchRequestStatus.DISPATCHING);
+        request.setOutboxStatus(DispatchOutboxStatus.CLAIMED);
+        request.setClaimToken(java.util.UUID.randomUUID().toString());
+        request.setClaimHeartbeatAt(claimRequest.now());
+        request.setRowVersion(request.getRowVersion() + 1);
         request.setClaimedBy(claimRequest.workerId());
         request.setClaimStartedAt(claimRequest.now());
         request.setClaimUntil(claimRequest.claimUntil());
@@ -207,6 +261,8 @@ public class InMemoryDispatchRequestRepository implements DispatchRequestReposit
         request.setClaimedBy(null);
         request.setClaimStartedAt(null);
         request.setClaimUntil(null);
+        request.setClaimToken(null);
+        request.setClaimHeartbeatAt(null);
     }
 
     private boolean isOpen(DispatchRequestStatus status) {

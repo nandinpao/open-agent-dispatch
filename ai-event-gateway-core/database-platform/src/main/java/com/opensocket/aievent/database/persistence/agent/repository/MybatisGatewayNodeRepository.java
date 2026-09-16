@@ -8,9 +8,9 @@ import com.opensocket.aievent.database.persistence.spi.DatabaseRepositoryAdapter
 import com.opensocket.aievent.core.gateway.GatewayNode;
 import com.opensocket.aievent.core.gateway.GatewayNodeQuery;
 import com.opensocket.aievent.core.gateway.GatewayNodeRepository;
-import com.opensocket.aievent.core.gateway.GatewayNodeStatus;
+
 import com.opensocket.aievent.database.persistence.agent.dao.GatewayNodeDao;
-import com.opensocket.aievent.database.persistence.agent.po.GatewayNodePo;
+
 import com.opensocket.aievent.database.persistence.agent.converter.GatewayNodePersistenceConverter;
 
 

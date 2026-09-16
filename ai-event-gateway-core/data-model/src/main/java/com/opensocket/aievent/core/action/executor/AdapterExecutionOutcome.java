@@ -5,5 +5,6 @@ public enum AdapterExecutionOutcome {
     RETRYABLE_FAILURE,
     PERMANENT_FAILURE,
     EXECUTOR_UNAVAILABLE,
-    TIMEOUT
+    TIMEOUT,
+    OUTCOME_UNCERTAIN
 }

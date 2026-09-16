@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.api.response;
+import com.opensocket.aievent.core.iam.rbac.domain.entrypoint.EntryPointBurnDownSummary;import java.util.Map;
+public record EntryPointBurnDownSummaryResponse(long total,Map<String,Long> byState,long unknownPermissions,long missingMappings,long missingResolvers,long overdue,long activeBypasses,long expiredBypasses,long cutoverBlockers){public static EntryPointBurnDownSummaryResponse from(EntryPointBurnDownSummary v){return new EntryPointBurnDownSummaryResponse(v.total(),v.byState(),v.unknownPermissions(),v.missingMappings(),v.missingResolvers(),v.overdue(),v.activeBypasses(),v.expiredBypasses(),v.cutoverBlockers());}}

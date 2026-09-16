@@ -1,0 +1,4 @@
+source_file,imported_type,reason,removal_phase
+control-plane-app/src/main/java/com/opensocket/aievent/core/timeline/DispatchTimelineService.java,com.opensocket.aievent.core.assignment.TaskDispatchAttemptRepository,Timeline query composes dispatch attempt history during P1 transition,P2-timeline-query-port
+control-plane-app/src/main/java/com/opensocket/aievent/core/timeline/DispatchTimelineService.java,com.opensocket.aievent.core.executionattempt.TaskExecutionAttemptRepository,Timeline query composes execution attempt history during P1 transition,P2-timeline-query-port
+execution-control/src/main/java/com/opensocket/aievent/core/callback/TaskCallbackService.java,com.opensocket.aievent.core.assignment.TaskAssignmentRepository,Callback fencing still reads assignment repository until task query port is extracted,P2-callback-query-port

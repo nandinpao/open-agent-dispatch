@@ -15,6 +15,7 @@ import com.opensocket.aievent.core.event.EventIntakeRequest;
 import com.opensocket.aievent.core.event.NormalizedEvent;
 import com.opensocket.aievent.core.incident.Incident;
 import com.opensocket.aievent.core.incident.IncidentStatus;
+import com.opensocket.aievent.core.intake.IntakeAuthorityView;
 import com.opensocket.aievent.core.task.TaskDecisionResult;
 import com.opensocket.aievent.core.task.TaskOrchestrationFacade;
 import com.opensocket.aievent.core.observability.CoreMetricsService;
@@ -92,6 +93,14 @@ public class DecisionEngine {
         OffsetDateTime decidedAt = OffsetDateTime.now(ZoneOffset.UTC);
         EventDecisionRecord record = new EventDecisionRecord();
         record.setEventId(event.eventId());
+        record.setTenantId(event.tenantId());
+        record.setSourceSystem(event.sourceSystem());
+        record.setEventType(event.eventType());
+        record.setEventStage(event.eventStage());
+        record.setCorrelationId(event.correlationId());
+        record.setNormalizedMessage(event.normalizedMessage());
+        record.setPayload(event.attributes());
+        record.setOccurredAt(event.occurredAt());
         record.setFingerprint(fingerprint);
         record.setIncidentId(incident.getIncidentId());
         record.setDecisionType(decisionType);
@@ -145,7 +154,8 @@ public class DecisionEngine {
                 event.parentTaskId(),
                 primaryStatus(taskDecision),
                 primaryReasonCode(taskDecision),
-                nextAction(taskDecision)
+                nextAction(taskDecision),
+                IntakeAuthorityView.notEvaluated()
         );
         if (metrics != null) {
             metrics.recordIntake(event, dedup, incident, decisionType, taskDecision, Duration.ofNanos(System.nanoTime() - startedAt));

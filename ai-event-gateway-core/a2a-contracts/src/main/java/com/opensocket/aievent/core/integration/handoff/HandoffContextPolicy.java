@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.integration.handoff;
+import java.time.OffsetDateTime; import java.util.List; import java.util.Map;
+public record HandoffContextPolicy(String tenantId,String policyId,String policyName,HandoffContextPolicyType policyType,HandoffContextRequirement contextRequirement,HandoffFieldShareDecision defaultFieldDecision,HandoffContextPolicyType attachmentPolicy,HandoffApprovalMode approvalMode,List<String> allowedFieldPaths,List<String> allowedCommentTypes,Map<String,String> maskingRules,ResultSharingPolicyType resultSharingPolicy,boolean enabled,long version,OffsetDateTime createdAt,OffsetDateTime updatedAt) {}

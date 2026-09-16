@@ -10,6 +10,7 @@ public record FlowResolution(
         TaskRecord task,
         RoutingPolicy policy,
         boolean flowRuleTask,
-        boolean sourceFlowPoolFirstTask
+        boolean sourceFlowPoolFirstTask,
+        String flowVersion
 ) {
 }

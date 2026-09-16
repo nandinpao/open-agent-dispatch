@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.api.response;
+import com.opensocket.aievent.core.iam.rbac.domain.entrypoint.EntryPointBypass;import java.time.*;
+public record EntryPointBypassResponse(String bypassId,String entryPointId,String ownerId,String reason,String replacement,Instant expiresAt,String status,Instant createdAt,String createdBy,Instant revokedAt,String revokedBy,String revokeReason,long version){public static EntryPointBypassResponse from(EntryPointBypass v){return new EntryPointBypassResponse(v.bypassId(),v.entryPointId(),v.ownerId(),v.reason(),v.replacement(),v.expiresAt(),v.status(),v.createdAt(),v.createdBy(),v.revokedAt().orElse(null),v.revokedBy().orElse(null),v.revokeReason().orElse(null),v.version());}}

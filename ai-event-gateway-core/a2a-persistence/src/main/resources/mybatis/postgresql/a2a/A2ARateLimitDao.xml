@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.database.persistence.a2a.dao.A2ARateLimitDao">
+ <insert id="increment">insert into a2a_rate_limit_windows(tenant_id,policy_id,window_started_at,request_count,updated_at) values(#{tenantId},#{policyId},#{windowStartedAt},1,now()) on conflict(tenant_id,policy_id,window_started_at) do update set request_count=a2a_rate_limit_windows.request_count+1,updated_at=now()</insert>
+ <select id="count" resultType="java.lang.Integer">select request_count from a2a_rate_limit_windows where tenant_id=#{tenantId} and policy_id=#{policyId} and window_started_at=#{windowStartedAt}</select>
+</mapper>

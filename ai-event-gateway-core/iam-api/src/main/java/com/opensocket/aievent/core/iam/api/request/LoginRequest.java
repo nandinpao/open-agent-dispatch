@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record LoginRequest(@NotBlank @Size(max=200) String username,@NotBlank @Size(max=1024) String password,@Size(max=128) String requestedTenantId){}

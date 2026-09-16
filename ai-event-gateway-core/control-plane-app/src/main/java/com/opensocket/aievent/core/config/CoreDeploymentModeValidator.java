@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
 import com.opensocket.aievent.core.dispatch.DispatchProperties;
 import com.opensocket.aievent.core.integration.IntegrationEventProperties;
+import com.opensocket.aievent.core.iam.runtime.config.EventIntakeSecurityProperties;
 import com.opensocket.aievent.core.security.CoreInternalSecurityProperties;
 import com.opensocket.aievent.core.security.CoreInternalSecurityRole;
 
@@ -38,6 +39,7 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
     private final CoreDeploymentProperties deployment;
     private final AdapterActionExecutionProperties adapterExecutor;
     private final IntegrationEventProperties integrationEvents;
+    private final EventIntakeSecurityProperties eventIntakeSecurity;
     private final CoreInternalSecurityProperties internalSecurity;
     private final DispatchProperties dispatchProperties;
     private final RecoveryGovernanceProperties recoveryGovernance;
@@ -46,6 +48,7 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
     public CoreDeploymentModeValidator(CoreDeploymentProperties deployment,
                                        AdapterActionExecutionProperties adapterExecutor,
                                        IntegrationEventProperties integrationEvents,
+                                       EventIntakeSecurityProperties eventIntakeSecurity,
                                        CoreInternalSecurityProperties internalSecurity,
                                        DispatchProperties dispatchProperties,
                                        RecoveryGovernanceProperties recoveryGovernance,
@@ -53,6 +56,7 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
         this.deployment = deployment;
         this.adapterExecutor = adapterExecutor;
         this.integrationEvents = integrationEvents;
+        this.eventIntakeSecurity = eventIntakeSecurity == null ? new EventIntakeSecurityProperties() : eventIntakeSecurity;
         this.internalSecurity = internalSecurity;
         this.dispatchProperties = dispatchProperties == null ? new DispatchProperties() : dispatchProperties;
         this.recoveryGovernance = recoveryGovernance == null ? new RecoveryGovernanceProperties() : recoveryGovernance;
@@ -75,6 +79,7 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
             validateProductionAdapterExecutorBoundary();
             validateProductionIssueExecutorReadiness();
             validateProductionPersistentStores();
+            validateProductionEventIntakeSecurity();
             validateProductionInternalSecurity();
             validateProductionDispatchClientBoundary();
             validateProductionRecoveryGovernance();
@@ -111,18 +116,13 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
 
     private void validateProductionIssueExecutorReadiness() {
         AdapterActionExecutionProperties.Issue issue = adapterExecutor.getIssue();
-        String defaultVendor = issue.getDefaultVendor();
-        if (containsVendor(defaultVendor, "JIRA")) {
+        if (!issue.isConnectorRuntimeEnabled()) {
             throw new IllegalStateException(
-                    "Production profile cannot use ISSUE_EXECUTOR_DEFAULT_VENDOR=JIRA until a real Jira executor profile is configured");
+                    "Production profile requires the canonical Issue Connector Runtime.");
         }
-        boolean redmineRequired = containsVendor(defaultVendor, "REDMINE");
-        boolean gitlabRequired = containsVendor(defaultVendor, "GITLAB");
-        if (redmineRequired || issue.getRedmine().isEnabled()) {
-            validateProductionRedmineExecutor(redmineRequired);
-        }
-        if (gitlabRequired || issue.getGitlab().isEnabled()) {
-            validateProductionGitlabExecutor(gitlabRequired);
+        if (!issue.isConnectorRuntimeRequired()) {
+            throw new IllegalStateException(
+                    "Production profile must require canonical Issue Connector Runtime execution.");
         }
         if (adapterExecutor.getExecutionTimeout() == null
                 || adapterExecutor.getExecutionTimeout().isZero()
@@ -130,60 +130,6 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
             throw new IllegalStateException(
                     "Production profile requires adapter-executor.execution-timeout to be positive");
         }
-    }
-
-    private void validateProductionRedmineExecutor(boolean requiredByDefaultVendor) {
-        AdapterActionExecutionProperties.Redmine redmine = adapterExecutor.getIssue().getRedmine();
-        if (!redmine.isEnabled()) {
-            if (requiredByDefaultVendor) {
-                throw new IllegalStateException(
-                        "Production profile requires REDMINE_EXECUTOR_ENABLED=true when ISSUE_EXECUTOR_DEFAULT_VENDOR=REDMINE");
-            }
-            return;
-        }
-        if (isUnsafeProductionEndpoint(redmine.getBaseUrl())) {
-            throw new IllegalStateException(
-                    "Production profile requires REDMINE_EXECUTOR_BASE_URL to be an explicit non-local production endpoint");
-        }
-        if (isUnsafeProductionToken(redmine.getApiKey())) {
-            throw new IllegalStateException(
-                    "Production profile requires REDMINE_EXECUTOR_API_KEY to be non-empty and non-placeholder");
-        }
-        if (isBlankOrPlaceholder(redmine.getProjectId())) {
-            throw new IllegalStateException(
-                    "Production profile requires REDMINE_EXECUTOR_PROJECT_ID to be non-empty and non-placeholder");
-        }
-    }
-
-    private void validateProductionGitlabExecutor(boolean requiredByDefaultVendor) {
-        AdapterActionExecutionProperties.Gitlab gitlab = adapterExecutor.getIssue().getGitlab();
-        if (!gitlab.isEnabled()) {
-            if (requiredByDefaultVendor) {
-                throw new IllegalStateException(
-                        "Production profile requires GITLAB_EXECUTOR_ENABLED=true when ISSUE_EXECUTOR_DEFAULT_VENDOR=GITLAB");
-            }
-            return;
-        }
-        if (isUnsafeProductionEndpoint(gitlab.getBaseUrl())) {
-            throw new IllegalStateException(
-                    "Production profile requires GITLAB_EXECUTOR_BASE_URL to be an explicit non-local production endpoint");
-        }
-        if (isUnsafeProductionToken(gitlab.getPrivateToken())) {
-            throw new IllegalStateException(
-                    "Production profile requires GITLAB_EXECUTOR_PRIVATE_TOKEN to be non-empty and non-placeholder");
-        }
-        if (isBlankOrPlaceholder(gitlab.getProjectId())) {
-            throw new IllegalStateException(
-                    "Production profile requires GITLAB_EXECUTOR_PROJECT_ID to be non-empty and non-placeholder");
-        }
-        if (gitlab.getProjectId().contains("%2F") || gitlab.getProjectId().contains("%2f")) {
-            throw new IllegalStateException(
-                    "Production profile requires GITLAB_EXECUTOR_PROJECT_ID to be a numeric id or raw path like group/project; do not pre-encode '/' as %2F");
-        }
-    }
-
-    private boolean containsVendor(String value, String vendor) {
-        return value != null && vendor != null && value.toUpperCase().contains(vendor.toUpperCase());
     }
 
     private void validateProductionPersistentStores() {
@@ -204,6 +150,31 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
     }
 
 
+
+    private void validateProductionEventIntakeSecurity() {
+        eventIntakeSecurity.validate();
+        if (!eventIntakeSecurity.jwtRequired()) {
+            throw new IllegalStateException(
+                    "Production profile requires aeg.iam.event-intake.mode=JWT_REQUIRED");
+        }
+        if (!eventIntakeSecurity.isAuditEnabled()) {
+            throw new IllegalStateException(
+                    "Production profile requires aeg.iam.event-intake.audit-enabled=true");
+        }
+
+        String eventIntakeToken = internalSecurity.getEventIntakeToken();
+        if (!eventIntakeToken.isBlank()) {
+            if (eventIntakeToken.equals(internalSecurity.getOperatorToken())) {
+                throw new IllegalStateException(
+                        "Production Event Intake compatibility token must not equal the Operator token");
+            }
+            String clusterToken = environment.getProperty("CLUSTER_INTERNAL_TOKEN", "");
+            if (!clusterToken.isBlank() && eventIntakeToken.equals(clusterToken.trim())) {
+                throw new IllegalStateException(
+                        "Production Event Intake compatibility token must not equal CLUSTER_INTERNAL_TOKEN");
+            }
+        }
+    }
 
     private void validateProductionInternalSecurity() {
         if (!internalSecurity.isEnabled()) {
@@ -227,6 +198,11 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
                     "Production profile requires core.security.internal.allow-legacy-token-header=false");
         }
         for (CoreInternalSecurityRole role : CoreInternalSecurityRole.values()) {
+            // JWT_REQUIRED is the authoritative production Event Intake path. A legacy Event Intake
+            // internal token is optional and, when configured, is checked for isolation above.
+            if (role == CoreInternalSecurityRole.EVENT_INGESTION && eventIntakeSecurity.jwtRequired()) {
+                continue;
+            }
             String token = internalSecurity.tokenFor(role);
             if (isUnsafeProductionToken(token)) {
                 throw new IllegalStateException(
@@ -326,10 +302,6 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
                 || normalized.contains("0.0.0.0");
     }
 
-
-    private boolean isBlankOrPlaceholder(String value) {
-        return isUnsafeProductionToken(value);
-    }
 
     private record PersistentStoreRequirement(String propertyName, String expectedValue) {
     }

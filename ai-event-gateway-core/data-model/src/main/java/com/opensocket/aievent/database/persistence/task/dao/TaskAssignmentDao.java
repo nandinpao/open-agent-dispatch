@@ -10,7 +10,9 @@ import com.opensocket.aievent.database.persistence.task.po.TaskAssignmentPo;
 public interface TaskAssignmentDao {
     int upsert(@Param("assignment") TaskAssignmentPo assignment);
     TaskAssignmentPo findById(@Param("assignmentId") String assignmentId);
+    TaskAssignmentPo findByTenantAndId(@Param("tenantId") String tenantId, @Param("assignmentId") String assignmentId);
     TaskAssignmentPo findOpenByTaskId(@Param("taskId") String taskId);
+    TaskAssignmentPo findOpenByTenantAndTaskId(@Param("tenantId") String tenantId, @Param("taskId") String taskId);
     int releaseCapacityReservation(@Param("assignmentId") String assignmentId, @Param("releasedAt") OffsetDateTime releasedAt);
     List<TaskAssignmentPo> findByTaskId(@Param("taskId") String taskId, @Param("limit") int limit);
     List<TaskAssignmentPo> recent(@Param("limit") int limit);

@@ -22,8 +22,18 @@ import com.opensocket.aievent.core.agent.governance.AgentProfileApprovalCommand;
 import com.opensocket.aievent.core.agent.governance.AgentProfileUpdateCommand;
 import com.opensocket.aievent.core.agent.governance.AgentRiskStatus;
 import com.opensocket.aievent.core.agent.governance.InMemoryAgentGovernanceRepository;
+import com.opensocket.aievent.core.iam.security.contract.MachinePrincipalType;
+import com.opensocket.aievent.core.iam.security.contract.PrincipalRef;
 
 class AgentGovernanceServiceTest {
+    private static AgentEnrollmentApprovalCommand governedApproval() {
+        AgentEnrollmentApprovalCommand command = new AgentEnrollmentApprovalCommand();
+        command.setOwnerDepartmentId("dept-test");
+        command.setBusinessOwnerUserId("user-owner");
+        command.setResponsibilityRoleId("role-agent-runtime");
+        return command;
+    }
+
     @Test
     void shouldDenyUnknownAgentAndAllowApprovedCredentialedAgent() {
         AgentGovernanceService service = new AgentGovernanceService(new InMemoryAgentGovernanceRepository());
@@ -45,7 +55,7 @@ class AgentGovernanceServiceTest {
         scope.setSystemCode("GITHUB");
         scope.setTaskType("ISSUE_ANALYSIS");
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setApprovedBy("admin");
         approve.setCredentialToken("token-001");
         approve.setCapabilities(List.of("issue-analysis"));
@@ -61,6 +71,11 @@ class AgentGovernanceServiceTest {
         assertThat(result.getDecision()).isEqualTo(AgentAuthorizationDecision.ALLOW);
         assertThat(result.getCapabilities()).containsExactly("issue-analysis");
         assertThat(result.getAllowedSystemCodes()).containsExactly("GITHUB");
+        assertThat(result.getPrincipalType()).isEqualTo("AGENT");
+        assertThat(result.getMachineAuthentication()).isNotNull();
+        assertThat(result.getMachineAuthentication().principal().principalType()).isEqualTo(MachinePrincipalType.AGENT);
+        assertThat(result.getMachineAuthentication().principal().authorizationPrincipalRef().principalType()).isEqualTo(PrincipalRef.PrincipalType.AGENT);
+        assertThat(result.getMachineAuthentication().credential().credentialId()).isNotBlank();
     }
 
     @Test
@@ -70,7 +85,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-no-credential");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setApprovedBy("admin");
 
         String enrollmentId = enrollment.getEnrollmentId();
@@ -91,7 +106,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-002");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("token-002");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
         service.disableAgent("agent-002", "admin", "maintenance");
@@ -111,7 +126,7 @@ class AgentGovernanceServiceTest {
 
         service.rejectEnrollment(enrollment.getEnrollmentId(), null);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("token-reapprove");
         var profile = service.approveEnrollment(enrollment.getEnrollmentId(), approve);
 
@@ -128,7 +143,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-credential-summary");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("secret-token");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
 
@@ -146,7 +161,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-late-credential");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("initial-token");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
         repository.revokeCredentials("agent-late-credential", "simulate missing active credential", java.time.OffsetDateTime.now());
@@ -173,7 +188,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-revoked-restore");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("token-before-revoke");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
 
@@ -211,7 +226,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-restore-no-credential");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("token-before-revoke");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
         service.revokeAgent("agent-restore-no-credential", "admin", "revoked for test");
@@ -232,7 +247,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-reject-disable");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("token-before-reject");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
 
@@ -263,12 +278,12 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-revoked-enrollment-guard");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand initialApproval = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand initialApproval = governedApproval();
         initialApproval.setCredentialToken("token-before-revoke");
         service.approveEnrollment(enrollment.getEnrollmentId(), initialApproval);
         service.revokeAgent("agent-revoked-enrollment-guard", "admin", "security revoke");
 
-        AgentEnrollmentApprovalCommand approveAgain = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approveAgain = governedApproval();
         approveAgain.setCredentialToken("token-should-not-restore");
         String enrollmentId = enrollment.getEnrollmentId();
 
@@ -298,12 +313,12 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-suspended-enrollment-guard");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand initialApproval = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand initialApproval = governedApproval();
         initialApproval.setCredentialToken("token-before-suspend");
         service.approveEnrollment(enrollment.getEnrollmentId(), initialApproval);
         service.suspendAgent("agent-suspended-enrollment-guard", "admin", "security suspend");
 
-        AgentEnrollmentApprovalCommand approveAgain = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approveAgain = governedApproval();
         approveAgain.setCredentialToken("token-should-not-restore");
         String enrollmentId = enrollment.getEnrollmentId();
 
@@ -324,7 +339,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-quarantined-enrollment-guard");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand initialApproval = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand initialApproval = governedApproval();
         initialApproval.setCredentialToken("token-before-quarantine");
         service.approveEnrollment(enrollment.getEnrollmentId(), initialApproval);
 
@@ -333,7 +348,7 @@ class AgentGovernanceServiceTest {
         quarantine.setRevokeCredentials(true);
         service.enforceDuplicateRuntimeSecurity("agent-quarantined-enrollment-guard", quarantine);
 
-        AgentEnrollmentApprovalCommand approveAgain = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approveAgain = governedApproval();
         approveAgain.setCredentialToken("token-should-not-restore");
         String enrollmentId = enrollment.getEnrollmentId();
 
@@ -356,7 +371,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-blocked-restore-credential");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand initialApproval = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand initialApproval = governedApproval();
         initialApproval.setCredentialToken("token-before-suspend");
         service.approveEnrollment(enrollment.getEnrollmentId(), initialApproval);
         service.suspendAgent("agent-blocked-restore-credential", "admin", "security suspend");
@@ -386,7 +401,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-rejected-no-credential-issue");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("token-before-reject");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
 
@@ -414,7 +429,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-quarantined-no-credential-issue");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("token-before-quarantine");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
 
@@ -438,7 +453,7 @@ class AgentGovernanceServiceTest {
         enrollment.setClaimedAgentId("agent-update-enable-guard");
         enrollment = service.submitEnrollment(enrollment);
 
-        AgentEnrollmentApprovalCommand approve = new AgentEnrollmentApprovalCommand();
+        AgentEnrollmentApprovalCommand approve = governedApproval();
         approve.setCredentialToken("token-before-quarantine");
         service.approveEnrollment(enrollment.getEnrollmentId(), approve);
 
@@ -459,6 +474,69 @@ class AgentGovernanceServiceTest {
         var updated = service.updateProfile("agent-update-enable-guard", quarantineOnly);
         assertThat(updated.getRiskStatus()).isEqualTo(AgentRiskStatus.QUARANTINED);
         assertThat(updated.isEnabled()).isFalse();
+    }
+
+    @Test
+    void credentialRotationMustNotRewriteGovernedAgentProfile() {
+        class TrackingRepository extends InMemoryAgentGovernanceRepository {
+            int fullProfileWrites;
+            int policyVersionBumps;
+            boolean observe;
+
+            @Override
+            public com.opensocket.aievent.core.agent.governance.AgentProfile saveProfile(
+                    com.opensocket.aievent.core.agent.governance.AgentProfile profile) {
+                if (observe) fullProfileWrites++;
+                return super.saveProfile(profile);
+            }
+
+            @Override
+            public com.opensocket.aievent.core.agent.governance.AgentProfile bumpPolicyVersion(
+                    String agentId, String tenantId, int expectedPolicyVersion, java.time.OffsetDateTime updatedAt) {
+                if (observe) policyVersionBumps++;
+                return super.bumpPolicyVersion(agentId, tenantId, expectedPolicyVersion, updatedAt);
+            }
+        }
+
+        TrackingRepository repository = new TrackingRepository();
+        AgentGovernanceService service = new AgentGovernanceService(repository);
+        AgentEnrollmentRequest enrollment = new AgentEnrollmentRequest();
+        enrollment.setClaimedAgentId("agent-credential-isolation");
+        enrollment.setTenantId("default");
+        enrollment = service.submitEnrollment(enrollment);
+
+        AgentEnrollmentApprovalCommand approve = governedApproval();
+        approve.setCredentialToken("token-before-rotation");
+        service.approveEnrollment(enrollment.getEnrollmentId(), approve);
+        var before = service.getProfile("agent-credential-isolation");
+        String departmentBefore = before.getOwnerDepartmentId();
+        String ownerBefore = before.getBusinessOwnerUserId();
+        String responsibilityBefore = before.getResponsibilityRoleId();
+        int policyBefore = before.getPolicyVersion();
+
+        repository.observe = true;
+        AgentCredentialIssueCommand issue = new AgentCredentialIssueCommand();
+        issue.setCredentialToken("token-after-rotation");
+        issue.setRevokeExisting(true);
+        issue.setOperatorId("admin");
+        var after = service.issueCredential("agent-credential-isolation", issue);
+
+        assertThat(repository.fullProfileWrites).isZero();
+        assertThat(repository.policyVersionBumps).isEqualTo(1);
+        assertThat(after.getPolicyVersion()).isEqualTo(policyBefore + 1);
+        assertThat(after.getOwnerDepartmentId()).isEqualTo(departmentBefore);
+        assertThat(after.getBusinessOwnerUserId()).isEqualTo(ownerBefore);
+        assertThat(after.getResponsibilityRoleId()).isEqualTo(responsibilityBefore);
+
+        AgentConnectionAuthorizationRequest oldCredential = new AgentConnectionAuthorizationRequest();
+        oldCredential.setClaimedAgentId("agent-credential-isolation");
+        oldCredential.setCredentialToken("token-before-rotation");
+        assertThat(service.authorizeConnection(oldCredential).getDecision()).isEqualTo(AgentAuthorizationDecision.DENY);
+
+        AgentConnectionAuthorizationRequest newCredential = new AgentConnectionAuthorizationRequest();
+        newCredential.setClaimedAgentId("agent-credential-isolation");
+        newCredential.setCredentialToken("token-after-rotation");
+        assertThat(service.authorizeConnection(newCredential).getDecision()).isEqualTo(AgentAuthorizationDecision.ALLOW);
     }
 
 }

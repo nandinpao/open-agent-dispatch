@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record ChangePasswordRequest(@NotBlank @Size(max=1024) String currentPassword,@NotBlank @Size(min=14,max=1024) String newPassword,long expectedVersion){}

@@ -25,6 +25,14 @@ public class EventIntakeRequest {
     private String tenantId;
     @NotBlank
     private String sourceSystem;
+    /** Optional explicit A0-R1 registration. Legacy callers may omit it and resolve the single default registration. */
+    private String sourceRegistrationId;
+    /** Stable source-side event identity. It may be used as the idempotency key when the registration requires SOURCE_EVENT_ID. */
+    private String sourceEventId;
+    /** Registration-scoped idempotency key. Same key + different payload is quarantined by Intake Authority. */
+    private String idempotencyKey;
+    /** Caller declaration only. It is evidence input and never an authorization authority. */
+    private String assertedOriginPrincipal;
     /**
      * R3 envelope stage. Missing value defaults to EXTERNAL in normalization so legacy
      * callers of /api/events/intake remain compatible.
@@ -56,4 +64,12 @@ public class EventIntakeRequest {
     private String message;
     private OffsetDateTime occurredAt;
     private Map<String, Object> attributes;
+
+    /** Server-attached authority evidence. Deliberately not a JavaBean getter/setter so JSON callers cannot supply it. */
+    @lombok.Getter(lombok.AccessLevel.NONE)
+    @lombok.Setter(lombok.AccessLevel.NONE)
+    private transient com.opensocket.aievent.core.workload.WorkloadContext serverWorkloadContext;
+
+    public com.opensocket.aievent.core.workload.WorkloadContext serverWorkloadContext() { return serverWorkloadContext; }
+    public void attachServerWorkloadContext(com.opensocket.aievent.core.workload.WorkloadContext context) { this.serverWorkloadContext = context; }
 }

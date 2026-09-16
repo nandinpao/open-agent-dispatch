@@ -6,7 +6,7 @@ import com.opensocket.aievent.database.persistence.spi.DatabaseRepositoryAdapter
 import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRecord;
 import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRepository;
 import com.opensocket.aievent.database.persistence.adapter.dao.AdapterExecutorAuditDao;
-import com.opensocket.aievent.database.persistence.adapter.po.AdapterExecutorAuditPo;
+
 import com.opensocket.aievent.database.persistence.adapter.converter.AdapterExecutorAuditPersistenceConverter;
 
 

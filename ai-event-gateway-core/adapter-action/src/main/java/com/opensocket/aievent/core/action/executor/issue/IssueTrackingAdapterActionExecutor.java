@@ -1,6 +1,5 @@
 package com.opensocket.aievent.core.action.executor.issue;
 
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -12,7 +11,6 @@ import com.opensocket.aievent.core.action.AdapterType;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutor;
 import com.opensocket.aievent.core.action.executor.AdapterExecutionResult;
-import com.opensocket.aievent.core.action.executor.AdapterExecutorUnavailableException;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -21,7 +19,7 @@ public class IssueTrackingAdapterActionExecutor implements AdapterActionExecutor
     private final AdapterActionExecutionProperties properties;
     private final IssueVendorResolver vendorResolver;
     private final ObjectMapper mapper;
-    private final Map<IssueVendor, IssueTrackingActionExecutor> executors = new EnumMap<>(IssueVendor.class);
+    private RedmineConnectorRuntimeService connectorRuntimeService;
 
     @Autowired
     public IssueTrackingAdapterActionExecutor(AdapterActionExecutionProperties properties,
@@ -35,13 +33,11 @@ public class IssueTrackingAdapterActionExecutor implements AdapterActionExecutor
         this.properties = properties;
         this.vendorResolver = vendorResolver;
         this.mapper = mapper;
-        executors.put(IssueVendor.JIRA, new MockCompatibleIssueVendorExecutor(IssueVendor.JIRA, properties.getIssue().getJiraExecutorName(), properties.getIssue().isJiraMockEnabled()));
-        executors.put(IssueVendor.REDMINE, properties.getIssue().getRedmine().isEnabled()
-                ? new RedmineIssueVendorExecutor(properties.getIssue().getRedmine(), properties.getIssue().getRedmineExecutorName(), mapper, properties.getExecutionTimeout())
-                : new MockCompatibleIssueVendorExecutor(IssueVendor.REDMINE, properties.getIssue().getRedmineExecutorName(), properties.getIssue().isRedmineMockEnabled()));
-        executors.put(IssueVendor.GITLAB, properties.getIssue().getGitlab().isEnabled()
-                ? new GitlabIssueVendorExecutor(properties.getIssue().getGitlab(), properties.getIssue().getGitlabExecutorName(), mapper, properties.getExecutionTimeout())
-                : new MockCompatibleIssueVendorExecutor(IssueVendor.GITLAB, properties.getIssue().getGitlabExecutorName(), properties.getIssue().isGitlabMockEnabled()));
+    }
+
+    @Autowired(required = false)
+    public void setConnectorRuntimeService(RedmineConnectorRuntimeService connectorRuntimeService) {
+        this.connectorRuntimeService = connectorRuntimeService;
     }
 
     @Override
@@ -56,14 +52,8 @@ public class IssueTrackingAdapterActionExecutor implements AdapterActionExecutor
 
     @Override
     public AdapterExecutionResult execute(AdapterAction action) {
-        IssueVendor vendor = vendorResolver.resolve(action);
-        if (vendor == null) {
-            return AdapterExecutionResult.permanentFailure(name(), "Issue vendor is not configured or is unsupported");
-        }
-        if (vendor == IssueVendor.MOCK) {
-            if (!properties.getMock().isEnabled()) {
-                return AdapterExecutionResult.permanentFailure(name(), "MOCK issue vendor is disabled outside explicit local/test/e2e opt-in");
-            }
+        IssueVendor configured = vendorResolver.resolve(action);
+        if (configured == IssueVendor.MOCK && properties.getMock().isEnabled()) {
             AdapterExecutionResult result = AdapterExecutionResult.success(name(), responseRef(IssueExecutorResponse.builder()
                     .success(true)
                     .vendor(IssueVendor.MOCK.name())
@@ -76,38 +66,13 @@ public class IssueTrackingAdapterActionExecutor implements AdapterActionExecutor
             result.setIssueStatus("mock_synced");
             return result;
         }
-        IssueTrackingActionExecutor executor = executors.get(vendor);
-        if (executor == null || !enabled(executor)) {
-            throw new AdapterExecutorUnavailableException("No enabled issue executor for vendor " + vendor);
+        if (connectorRuntimeService != null) {
+            return connectorRuntimeService.execute(action);
         }
-        IssueExecutorResponse response = executor.execute(IssueExecutorRequest.from(action, vendor));
-        if (response.isSuccess()) {
-            AdapterExecutionResult result = AdapterExecutionResult.success(executorName(executor), responseRef(response, action));
-            result.setIssueVendor(response.getVendor() == null ? vendor.name() : response.getVendor());
-            result.setIssueId(response.getIssueId());
-            result.setIssueUrl(response.getIssueUrl());
-            result.setIssueStatus(response.getIssueStatus());
-            return result;
-        }
-        if (response.isRetryable()) {
-            return AdapterExecutionResult.retryableFailure(executorName(executor), response.getError());
-        }
-        return AdapterExecutionResult.permanentFailure(executorName(executor), response.getError());
+        return AdapterExecutionResult.permanentFailure(name(),
+                "Redmine Connector Runtime is unavailable. Legacy scoped Issue authorization is not a production fallback.");
     }
 
-    private boolean enabled(IssueTrackingActionExecutor executor) {
-        if (executor instanceof MockCompatibleIssueVendorExecutor mock) return mock.enabled();
-        if (executor instanceof RedmineIssueVendorExecutor redmine) return redmine.enabled();
-        if (executor instanceof GitlabIssueVendorExecutor gitlab) return gitlab.enabled();
-        return true;
-    }
-
-    private String executorName(IssueTrackingActionExecutor executor) {
-        if (executor instanceof MockCompatibleIssueVendorExecutor mock) return mock.executorName();
-        if (executor instanceof RedmineIssueVendorExecutor redmine) return redmine.executorName();
-        if (executor instanceof GitlabIssueVendorExecutor gitlab) return gitlab.executorName();
-        return name();
-    }
 
     private String responseRef(IssueExecutorResponse response, AdapterAction action) {
         try {

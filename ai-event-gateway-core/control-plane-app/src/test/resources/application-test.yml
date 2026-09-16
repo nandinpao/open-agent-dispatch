@@ -49,8 +49,8 @@ routing:
   load-aware-scoring-enabled: ${ROUTING_LOAD_AWARE_SCORING_ENABLED:true}
   zero-special-case-runtime-enabled: ${ROUTING_ZERO_SPECIAL_CASE_RUNTIME_ENABLED:true}
   persisted-legacy-evidence-recovery-enabled: ${ROUTING_PERSISTED_LEGACY_EVIDENCE_RECOVERY_ENABLED:true}
-  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:true}
-  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:true}
+  skill-version-compatibility-enabled: ${ROUTING_SKILL_VERSION_COMPATIBILITY_ENABLED:false}
+  skill-version-enforced: ${ROUTING_SKILL_VERSION_ENFORCED:false}
   flow-rule-routing-enabled: ${ROUTING_FLOW_RULE_ENABLED:true}
   flow-rule-legacy-fallback-enabled: ${ROUTING_FLOW_RULE_LEGACY_FALLBACK_ENABLED:false}
   formal-success-requires-flow-rule: ${ROUTING_FORMAL_SUCCESS_REQUIRES_FLOW_RULE:true}

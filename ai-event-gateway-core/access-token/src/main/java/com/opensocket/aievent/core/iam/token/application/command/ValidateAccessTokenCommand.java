@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.token.application.command;public record ValidateAccessTokenCommand(String presentedToken,String tenantId,String audience,String apiPath,String sourceIp,String correlationId){}

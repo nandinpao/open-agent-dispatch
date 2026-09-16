@@ -32,7 +32,8 @@ class DispatchEligibilityServiceStage7Test {
         assertThat(result.eligible()).isTrue();
         assertThat(result.reason())
                 .contains("FLOW_RULE_AGENT_CAPABILITY_RUNTIME")
-                .contains("legacyEligibility=DECOMMISSIONED");
+                .contains("candidateDispatchAccessGate=DECOMMISSIONED")
+                .contains("executionAuthorization=RESOURCE_ACCESS_DISPATCH_ACCESS");
     }
 
     private TaskAssignment assignment() {

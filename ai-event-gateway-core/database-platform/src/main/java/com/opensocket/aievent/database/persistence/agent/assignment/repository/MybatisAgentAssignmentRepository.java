@@ -135,6 +135,19 @@ public class MybatisAgentAssignmentRepository implements AgentAssignmentReposito
     }
 
     @Override
+    public Optional<AgentCapabilityCatalog> findCanonicalCapabilityByCode(String tenantId, String capabilityCode) {
+        return Optional.ofNullable(dao.findCanonicalCapabilityByCode(defaultTenant(tenantId), capabilityCode))
+                .map(converter::toCapabilityCatalog);
+    }
+
+    @Override
+    public List<AgentCapabilityCatalog> searchCanonicalCapabilities(String tenantId, String status, int limit) {
+        return dao.searchCanonicalCapabilities(defaultTenant(tenantId), status, Math.max(1, limit)).stream()
+                .map(converter::toCapabilityCatalog)
+                .toList();
+    }
+
+    @Override
     public AssignmentProfileCapabilityBinding saveCapabilityBinding(AssignmentProfileCapabilityBinding binding) {
         dao.upsertCapabilityBinding(converter.toCapabilityBindingPo(binding));
         return findCapabilityBinding(binding.getTenantId(), binding.getProfileCode(), binding.getCapabilityCode()).orElse(binding);

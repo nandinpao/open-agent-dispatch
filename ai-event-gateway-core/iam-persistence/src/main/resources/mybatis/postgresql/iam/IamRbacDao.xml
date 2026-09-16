@@ -1,0 +1,732 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.opensocket.aievent.core.iam.persistence.dao.IamRbacDao">
+  <sql id="permissionColumns">
+    permission_code as "permissionCode",resource_type as "resourceType",action_code as "actionCode",
+    description,risk_level as "riskLevel",array_to_string(allowed_scope_types,E'\x1f') as "allowedScopes",
+    active,system_managed as "systemManaged",version
+  </sql>
+  <select id="findPermissionByCode" resultType="map">
+    select <include refid="permissionColumns"/> from permission_definitions
+    where permission_code=coalesce((
+      select alias.canonical_permission_code
+      from permission_catalog_revision_aliases alias
+      join permission_catalog_active_revision active on active.revision_id=alias.revision_id and active.singleton_id='ACTIVE'
+      where alias.alias_code=#{permissionCode} and alias.valid_from&lt;=now()
+        and (alias.valid_until is null or alias.valid_until&gt;now())
+    ),#{permissionCode})
+  </select>
+  <select id="findPermissionsByCodes" resultType="map">
+    select <include refid="permissionColumns"/> from permission_definitions
+    where permission_code in <foreach collection="permissionCodes" item="code" open="(" separator="," close=")">#{code}</foreach>
+    order by permission_code
+  </select>
+  <select id="findActivePermissionCodes" resultType="string">
+    select permission_code from permission_definitions
+    where active=true and lifecycle in ('ACTIVE','DEPRECATED')
+    order by permission_code
+  </select>
+
+
+  <sql id="catalogRevisionColumns">
+    revision_id as "revisionId",revision_code as "revisionCode",revision_number as "revisionNumber",
+    status,content_hash as "contentHash",description,supersedes_revision_id as "supersedesRevisionId",
+    created_at as "createdAt",created_by as "createdBy",published_at as "publishedAt",
+    published_by as "publishedBy",version
+  </sql>
+  <select id="findActiveCatalogRevision" resultType="map">
+    select revision.revision_id as "revisionId",revision.revision_code as "revisionCode",
+      revision.revision_number as "revisionNumber",revision.status,
+      revision.content_hash as "contentHash",revision.description,
+      revision.supersedes_revision_id as "supersedesRevisionId",
+      revision.created_at as "createdAt",revision.created_by as "createdBy",
+      revision.published_at as "publishedAt",revision.published_by as "publishedBy",
+      revision.version
+    from permission_catalog_revisions revision
+    join permission_catalog_active_revision active on active.revision_id=revision.revision_id
+    where active.singleton_id='ACTIVE'
+  </select>
+  <select id="findActiveCatalogRevisionPointerVersion" resultType="long">
+    select version from permission_catalog_active_revision where singleton_id='ACTIVE'
+  </select>
+  <select id="findCatalogRevision" resultType="map">
+    select <include refid="catalogRevisionColumns"/> from permission_catalog_revisions where revision_id=#{revisionId}::uuid
+  </select>
+  <select id="findCatalogRevisions" resultType="map">
+    select <include refid="catalogRevisionColumns"/> from permission_catalog_revisions order by revision_number desc
+  </select>
+  <select id="countDraftCatalogRevisions" resultType="int">
+    select count(*) from permission_catalog_revisions where status='DRAFT'
+  </select>
+  <select id="nextCatalogRevisionNumber" resultType="long">
+    select coalesce(max(revision_number),0)+1 from permission_catalog_revisions
+  </select>
+  <insert id="insertCatalogRevision">
+    insert into permission_catalog_revisions(revision_id,revision_code,revision_number,status,content_hash,description,
+      supersedes_revision_id,created_at,created_by,published_at,published_by,version)
+    values(#{row.revisionId}::uuid,#{row.revisionCode},#{row.revisionNumber},#{row.status},#{row.contentHash},#{row.description},
+      nullif(#{row.supersedesRevisionId},'')::uuid,#{row.createdAt},#{row.createdBy},#{row.publishedAt},#{row.publishedBy},#{row.version})
+  </insert>
+  <insert id="cloneCatalogEntries">
+    insert into permission_catalog_revision_entries(revision_id,permission_code,owner_module,resource_type,action_code,
+      description,risk_level,risk_lane,lifecycle,allowed_scope_types,system_managed,replacement_permission_code,
+      introduced_at,deprecated_at,retired_at,updated_at,updated_by,version)
+    select #{targetRevisionId}::uuid,permission_code,owner_module,resource_type,action_code,description,risk_level,
+      risk_lane,lifecycle,allowed_scope_types,system_managed,replacement_permission_code,introduced_at,deprecated_at,
+      retired_at,#{at},#{actorId},1
+    from permission_catalog_revision_entries where revision_id=#{sourceRevisionId}::uuid
+  </insert>
+  <insert id="cloneCatalogAliases">
+    insert into permission_catalog_revision_aliases(revision_id,alias_code,canonical_permission_code,alias_type,
+      valid_from,valid_until,reason,created_at,created_by,version)
+    select #{targetRevisionId}::uuid,alias_code,canonical_permission_code,alias_type,valid_from,valid_until,reason,
+      #{at},#{actorId},1
+    from permission_catalog_revision_aliases where revision_id=#{sourceRevisionId}::uuid
+  </insert>
+
+  <sql id="catalogDefinitionColumns">
+    revision_id as "catalogRevisionId",permission_code as "permissionCode",owner_module as "ownerModule",
+    resource_type as "resourceType",action_code as "actionCode",description,risk_level as "riskLevel",
+    risk_lane as "riskLane",lifecycle,array_to_string(allowed_scope_types,E'\x1f') as "allowedScopes",
+    system_managed as "systemManaged",replacement_permission_code as "replacementPermissionCode",
+    introduced_at as "introducedAt",deprecated_at as "deprecatedAt",retired_at as "retiredAt",
+    updated_at as "updatedAt",updated_by as "updatedBy",version
+  </sql>
+  <select id="findCatalogDefinitions" resultType="map">
+    select <include refid="catalogDefinitionColumns"/> from permission_catalog_revision_entries
+    where revision_id=#{revisionId}::uuid order by permission_code
+  </select>
+  <select id="findCatalogDefinition" resultType="map">
+    select <include refid="catalogDefinitionColumns"/> from permission_catalog_revision_entries
+    where revision_id=#{revisionId}::uuid and permission_code=#{permissionCode}
+  </select>
+  <insert id="insertCatalogDefinition">
+    insert into permission_catalog_revision_entries(revision_id,permission_code,owner_module,resource_type,action_code,
+      description,risk_level,risk_lane,lifecycle,allowed_scope_types,system_managed,replacement_permission_code,
+      introduced_at,deprecated_at,retired_at,updated_at,updated_by,version)
+    values(#{row.catalogRevisionId}::uuid,#{row.permissionCode},#{row.ownerModule},#{row.resourceType},#{row.actionCode},
+      #{row.description},#{row.riskLevel},#{row.riskLane},#{row.lifecycle},
+      string_to_array(#{row.allowedScopes},E'\x1f')::varchar[],#{row.systemManaged},nullif(#{row.replacementPermissionCode},''),
+      #{row.introducedAt},#{row.deprecatedAt},#{row.retiredAt},#{row.updatedAt},#{row.updatedBy},#{row.version})
+  </insert>
+  <update id="updateCatalogDefinition">
+    update permission_catalog_revision_entries set owner_module=#{row.ownerModule},resource_type=#{row.resourceType},
+      action_code=#{row.actionCode},description=#{row.description},risk_level=#{row.riskLevel},risk_lane=#{row.riskLane},
+      lifecycle=#{row.lifecycle},allowed_scope_types=string_to_array(#{row.allowedScopes},E'\x1f')::varchar[],
+      system_managed=#{row.systemManaged},replacement_permission_code=nullif(#{row.replacementPermissionCode},''),
+      deprecated_at=#{row.deprecatedAt},retired_at=#{row.retiredAt},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},
+      version=#{row.version}
+    where revision_id=#{row.catalogRevisionId}::uuid and permission_code=#{row.permissionCode} and version=#{expectedVersion}
+  </update>
+  <delete id="deleteCatalogDefinition">
+    delete from permission_catalog_revision_entries
+    where revision_id=#{revisionId}::uuid and permission_code=#{permissionCode} and version=#{expectedVersion}
+  </delete>
+
+  <sql id="catalogAliasColumns">
+    revision_id as "revisionId",alias_code as "aliasCode",canonical_permission_code as "canonicalPermissionCode",
+    alias_type as "aliasType",valid_from as "validFrom",valid_until as "validUntil",reason,
+    created_at as "createdAt",created_by as "createdBy",version
+  </sql>
+  <select id="findCatalogAliases" resultType="map">
+    select <include refid="catalogAliasColumns"/> from permission_catalog_revision_aliases
+    where revision_id=#{revisionId}::uuid order by alias_code
+  </select>
+  <select id="findCatalogAlias" resultType="map">
+    select <include refid="catalogAliasColumns"/> from permission_catalog_revision_aliases
+    where revision_id=#{revisionId}::uuid and alias_code=#{aliasCode}
+  </select>
+  <insert id="insertCatalogAlias">
+    insert into permission_catalog_revision_aliases(revision_id,alias_code,canonical_permission_code,alias_type,
+      valid_from,valid_until,reason,created_at,created_by,version)
+    values(#{row.revisionId}::uuid,#{row.aliasCode},#{row.canonicalPermissionCode},#{row.aliasType},#{row.validFrom},
+      #{row.validUntil},#{row.reason},#{row.createdAt},#{row.createdBy},#{row.version})
+  </insert>
+  <update id="updateCatalogAlias">
+    update permission_catalog_revision_aliases set canonical_permission_code=#{row.canonicalPermissionCode},
+      alias_type=#{row.aliasType},valid_from=#{row.validFrom},valid_until=#{row.validUntil},reason=#{row.reason},
+      version=#{row.version}
+    where revision_id=#{row.revisionId}::uuid and alias_code=#{row.aliasCode} and version=#{expectedVersion}
+  </update>
+  <delete id="deleteCatalogAlias">
+    delete from permission_catalog_revision_aliases
+    where revision_id=#{revisionId}::uuid and alias_code=#{aliasCode} and version=#{expectedVersion}
+  </delete>
+  <select id="findRoleReferencedPermissionCodes" resultType="string">
+    select distinct permission_point from rbac_role_permissions order by permission_point
+  </select>
+  <insert id="insertCatalogChangeEvent">
+    insert into permission_catalog_change_events(event_id,revision_id,permission_code,event_type,change_summary,
+      before_hash,after_hash,actor_id,correlation_id,occurred_at)
+    values(#{row.eventId}::uuid,#{row.revisionId}::uuid,nullif(#{row.permissionCode},''),#{row.eventType},#{row.changeSummary},
+      nullif(#{row.beforeHash},''),nullif(#{row.afterHash},''),#{row.actorId},nullif(#{row.correlationId},''),#{row.occurredAt})
+  </insert>
+  <update id="publishCatalogRevision">
+    update permission_catalog_revisions set status='PUBLISHED',content_hash=#{contentHash},published_at=#{at},
+      published_by=#{actorId},version=version+1
+    where revision_id=#{revisionId}::uuid and status='DRAFT' and version=#{expectedVersion}
+  </update>
+  <update id="supersedeCatalogRevision">
+    update permission_catalog_revisions set status='SUPERSEDED',version=version+1
+    where revision_id=#{revisionId}::uuid and status='PUBLISHED' and version=#{expectedVersion}
+  </update>
+  <select id="setCatalogPublicationContext" resultType="string">
+    select set_config('app.permission_catalog_publish_revision_id',#{revisionId},true)
+  </select>
+  <insert id="upsertActivePermissionDefinition">
+    insert into permission_definitions(permission_code,resource_type,action_code,description,risk_level,active,version,
+      allowed_scope_types,system_managed,owner_module,risk_lane,lifecycle,catalog_revision_id,replacement_permission_code,
+      introduced_at,deprecated_at,retired_at,updated_at,updated_by)
+    values(#{row.permissionCode},#{row.resourceType},#{row.actionCode},#{row.description},#{row.riskLevel},
+      case when #{row.lifecycle} in ('ACTIVE','DEPRECATED') then true else false end,1,
+      string_to_array(#{row.allowedScopes},E'\x1f')::varchar[],#{row.systemManaged},#{row.ownerModule},#{row.riskLane},
+      #{row.lifecycle},#{row.catalogRevisionId}::uuid,nullif(#{row.replacementPermissionCode},''),#{row.introducedAt},
+      #{row.deprecatedAt},#{row.retiredAt},#{row.updatedAt},#{row.updatedBy})
+    on conflict(permission_code) do update set resource_type=excluded.resource_type,action_code=excluded.action_code,
+      description=excluded.description,risk_level=excluded.risk_level,active=excluded.active,
+      allowed_scope_types=excluded.allowed_scope_types,system_managed=excluded.system_managed,
+      owner_module=excluded.owner_module,risk_lane=excluded.risk_lane,lifecycle=excluded.lifecycle,
+      catalog_revision_id=excluded.catalog_revision_id,replacement_permission_code=excluded.replacement_permission_code,
+      introduced_at=excluded.introduced_at,deprecated_at=excluded.deprecated_at,retired_at=excluded.retired_at,
+      updated_at=excluded.updated_at,updated_by=excluded.updated_by,version=permission_definitions.version+1
+  </insert>
+  <update id="activateCatalogRevision">
+    update permission_catalog_active_revision set revision_id=#{revisionId}::uuid,activated_at=#{at},activated_by=#{actorId},
+      version=version+1 where singleton_id='ACTIVE' and version=#{expectedVersion}
+  </update>
+  <insert id="insertCatalogPublication">
+    insert into permission_catalog_publication_events(publication_id,revision_id,previous_revision_id,content_hash,
+      entry_count,alias_count,actor_id,audit_reason,correlation_id,published_at)
+    values(#{row.publicationId}::uuid,#{row.revisionId}::uuid,nullif(#{row.previousRevisionId},'')::uuid,#{row.contentHash},
+      #{row.entryCount},#{row.aliasCount},#{row.actorId},#{row.auditReason},nullif(#{row.correlationId},''),#{row.publishedAt})
+  </insert>
+  <select id="findCatalogPublications" resultType="map">
+    select publication_id as "publicationId",revision_id as "revisionId",
+      previous_revision_id as "previousRevisionId",content_hash as "contentHash",
+      entry_count as "entryCount",alias_count as "aliasCount",actor_id as "actorId",
+      audit_reason as "auditReason",correlation_id as "correlationId",published_at as "publishedAt"
+    from permission_catalog_publication_events
+    order by published_at desc,publication_id desc
+    limit #{limit}
+  </select>
+
+  <select id="setPermissionReadinessContext" resultType="string">
+    select set_config('app.current_actor_id',#{actorId},true)||':'||
+           set_config('app.current_correlation_id',coalesce(#{correlationId},''),true)||':'||
+           set_config('app.current_audit_reason',#{auditReason},true)
+  </select>
+  <sql id="entryPointColumns">
+    entry_point_id as "entryPointId",entry_point_type as "entryPointType",application_id as "applicationId",
+    owner_module as "ownerModule",display_name as "displayName",route_pattern as "routePattern",http_method as "httpMethod",
+    authority_state as "authorityState",target_permission_code as "targetPermissionCode",legacy_authority_type as "legacyAuthorityType",
+    legacy_authorities::text as "legacyAuthorities",resource_type as "resourceType",resource_resolver_id as "resourceResolverId",
+    exemption_reason as "exemptionReason",migration_deadline as "migrationDeadline",manifest_revision as "manifestRevision",
+    source_ref as "sourceRef",source_hash as "sourceHash",last_verified_at as "lastVerifiedAt",version,
+    unknown_permission as "unknownPermission",missing_mapping as "missingMapping",missing_resolver as "missingResolver",
+    overdue,active_bypass as "activeBypass",expired_bypass as "expiredBypass"
+  </sql>
+  <select id="findEntryPoints" resultType="map">
+    select <include refid="entryPointColumns"/> from permission_entry_point_readiness
+    where (#{text}='' or lower(entry_point_id||' '||display_name||' '||source_ref) like '%'||lower(#{text})||'%')
+      and (#{state}='' or authority_state=#{state}) and (#{ownerModule}='' or owner_module=#{ownerModule})
+    order by case authority_state when 'LEGACY_ONLY' then 1 when 'DUAL_SHADOW' then 2 when 'TARGET_READY' then 3 when 'TARGET_ONLY' then 4 else 5 end,entry_point_id
+    limit #{limit}
+  </select>
+  <select id="findEntryPoint" resultType="map">
+    select <include refid="entryPointColumns"/> from permission_entry_point_readiness where entry_point_id=#{entryPointId}
+  </select>
+  <select id="summarizeEntryPoints" resultType="map">
+    select count(*) as total,
+      count(*) filter(where authority_state='LEGACY_ONLY') as "legacyOnly",
+      count(*) filter(where authority_state='DUAL_SHADOW') as "dualShadow",
+      count(*) filter(where authority_state='TARGET_READY') as "targetReady",
+      count(*) filter(where authority_state='TARGET_ONLY') as "targetOnly",
+      count(*) filter(where authority_state='EXEMPT') as exempt,
+      count(*) filter(where unknown_permission) as "unknownPermissions",
+      count(*) filter(where missing_mapping) as "missingMappings",
+      count(*) filter(where missing_resolver) as "missingResolvers",
+      count(*) filter(where overdue) as overdue,
+      count(*) filter(where active_bypass) as "activeBypasses",
+      count(*) filter(where expired_bypass) as "expiredBypasses",
+      count(*) filter(where unknown_permission or missing_mapping or missing_resolver or overdue or expired_bypass) as "cutoverBlockers"
+    from permission_entry_point_readiness
+  </select>
+  <update id="updateEntryPoint">
+    update permission_entry_point_inventory set owner_module=#{row.ownerModule},authority_state=#{row.authorityState},
+      target_permission_code=nullif(#{row.targetPermissionCode},''),legacy_authority_type=nullif(#{row.legacyAuthorityType},''),
+      legacy_authorities=#{row.legacyAuthorities}::jsonb,resource_type=#{row.resourceType},resource_resolver_id=#{row.resourceResolverId},
+      exemption_reason=nullif(#{row.exemptionReason},''),migration_deadline=#{row.migrationDeadline},last_verified_at=#{row.lastVerifiedAt}
+    where entry_point_id=#{row.entryPointId} and version=#{expectedVersion}
+  </update>
+  <sql id="legacyMappingColumns">
+    mapping_id as "mappingId",legacy_authority_type as "legacyAuthorityType",legacy_authority_code as "legacyAuthorityCode",
+    target_permission_code as "targetPermissionCode",owner_module as "ownerModule",status,migration_deadline as "migrationDeadline",
+    notes,updated_at as "updatedAt",version
+  </sql>
+  <select id="findLegacyAuthorityMappings" resultType="map">
+    select <include refid="legacyMappingColumns"/> from permission_legacy_authority_mappings
+    where (#{status}='' or status=#{status}) order by status,legacy_authority_type,legacy_authority_code limit #{limit}
+  </select>
+  <select id="findLegacyAuthorityMapping" resultType="map">
+    select <include refid="legacyMappingColumns"/> from permission_legacy_authority_mappings where mapping_id=#{mappingId}
+  </select>
+  <update id="updateLegacyAuthorityMapping">
+    update permission_legacy_authority_mappings set target_permission_code=nullif(#{row.targetPermissionCode},''),owner_module=#{row.ownerModule},
+      status=#{row.status},migration_deadline=#{row.migrationDeadline},notes=#{row.notes}
+    where mapping_id=#{row.mappingId} and version=#{expectedVersion}
+  </update>
+  <sql id="entryPointBypassColumns">
+    bypass_id as "bypassId",entry_point_id as "entryPointId",owner_id as "ownerId",reason,replacement,
+    expires_at as "expiresAt",status,created_at as "createdAt",created_by as "createdBy",revoked_at as "revokedAt",
+    revoked_by as "revokedBy",revoke_reason as "revokeReason",version
+  </sql>
+  <select id="findEntryPointBypasses" resultType="map">
+    select <include refid="entryPointBypassColumns"/> from permission_entry_point_bypasses
+    where (#{status}='' or status=#{status}) order by expires_at,bypass_id limit #{limit}
+  </select>
+  <select id="findEntryPointBypass" resultType="map">
+    select <include refid="entryPointBypassColumns"/> from permission_entry_point_bypasses where bypass_id=#{bypassId}
+  </select>
+  <insert id="insertEntryPointBypass">
+    insert into permission_entry_point_bypasses(bypass_id,entry_point_id,owner_id,reason,replacement,expires_at,status,created_at,created_by,version)
+    values(#{row.bypassId},#{row.entryPointId},#{row.ownerId},#{row.reason},#{row.replacement},#{row.expiresAt},#{row.status},#{row.createdAt},#{row.createdBy},#{row.version})
+  </insert>
+  <update id="revokeEntryPointBypass">
+    update permission_entry_point_bypasses set status='REVOKED',revoked_by=#{actorId},revoked_at=#{at},revoke_reason=#{reason},version=version+1
+    where bypass_id=#{bypassId} and version=#{expectedVersion} and status='ACTIVE'
+  </update>
+
+  <sql id="applicationManifestColumns">
+    manifest_id::text as "manifestId",application_id as "applicationId",environment,build_version as "buildVersion",
+    manifest_revision as "manifestRevision",schema_version as "schemaVersion",manifest_hash as "manifestHash",
+    catalog_revision_id::text as "catalogRevisionId",catalog_revision_code as "catalogRevisionCode",
+    catalog_content_hash as "catalogContentHash",source_inventory_revision as "sourceInventoryRevision",
+    entry_count as "entryCount",protected_entry_count as "protectedEntryCount",covered_entry_count as "coveredEntryCount",
+    coverage_percent as "coveragePercent",target_permission_count as "targetPermissionCount",
+    legacy_authority_count as "legacyAuthorityCount",exempt_count as "exemptCount",delegated_count as "delegatedCount",
+    uncovered_count as "uncoveredCount",status,registered_at as "registeredAt",registered_by as "registeredBy",
+    activated_at as "activatedAt",activated_by as "activatedBy",version,
+    matching_entries as "matchingEntries",source_changed as "sourceChanged",unregistered_source as "unregisteredSource",
+    descriptor_changed as "descriptorChanged",stale_manifest as "staleManifest",unknown_permission as "unknownPermission",retired_permission as "retiredPermission",
+    missing_resolver as "missingResolver",runtime_drift_blockers as "runtimeDriftBlockers"
+  </sql>
+  <select id="findApplicationManifests" resultType="map">
+    select <include refid="applicationManifestColumns"/> from permission_application_manifest_readiness
+    order by case status when 'ACTIVE' then 0 when 'REGISTERING' then 1 else 2 end,registered_at desc,manifest_id desc
+    limit #{limit}
+  </select>
+  <select id="findApplicationManifest" resultType="map">
+    select <include refid="applicationManifestColumns"/> from permission_application_manifest_readiness
+    where manifest_id=#{manifestId}::uuid
+  </select>
+  <select id="findApplicationManifestEntries" resultType="map">
+    select * from (
+      select e.manifest_id::text as "manifestId",e.entry_point_id as "entryPointId",e.entry_point_type as "entryPointType",
+        e.owner_module as "ownerModule",e.display_name as "displayName",e.route_pattern as "routePattern",e.http_method as "httpMethod",
+        e.authority_state as "authorityState",e.protection_mode as "protectionMode",e.coverage_status as "coverageStatus",
+        e.permission_code as "permissionCode",e.legacy_authorities::text as "legacyAuthorities",e.resource_type as "resourceType",
+        e.resource_resolver_id as "resourceResolverId",e.scope_required as "scopeRequired",e.exemption_reason as "exemptionReason",
+        e.source_ref as "sourceRef",e.source_hash as "sourceHash",e.descriptor_hash as "descriptorHash",
+        coalesce(d.drift_status,case when m.status='ACTIVE' then 'MATCH' else 'NOT_ACTIVE' end) as "driftStatus",
+        coalesce(d.blocker,false) as blocker
+      from permission_application_manifest_entries e
+      join permission_application_manifests m on m.manifest_id=e.manifest_id
+      left join permission_manifest_entry_runtime_drift d on d.manifest_id=e.manifest_id and d.entry_point_id=e.entry_point_id
+      where e.manifest_id=#{manifestId}::uuid
+      union all
+      select d.manifest_id::text as "manifestId",d.entry_point_id as "entryPointId",i.entry_point_type as "entryPointType",
+        i.owner_module as "ownerModule",i.display_name as "displayName",i.route_pattern as "routePattern",i.http_method as "httpMethod",
+        i.authority_state as "authorityState",
+        case when i.entry_point_type in('COMMAND','QUERY') then 'INTERNAL_DELEGATED'
+             when i.authority_state='EXEMPT' then 'EXEMPT'
+             when i.target_permission_code is not null and i.authority_state='DUAL_SHADOW' then 'DUAL_SHADOW'
+             when i.target_permission_code is not null then 'TARGET_PERMISSION' else 'LEGACY_AUTHORITY' end as "protectionMode",
+        'UNCOVERED' as "coverageStatus",i.target_permission_code as "permissionCode",i.legacy_authorities::text as "legacyAuthorities",
+        i.resource_type as "resourceType",i.resource_resolver_id as "resourceResolverId",
+        case when i.target_permission_code is not null and i.resource_type not in('IDENTITY','SECURITY','AUDIT','INSTANCE','PERMISSION','GLOBAL','INTERNAL_MESSAGE') then true else false end as "scopeRequired",
+        i.exemption_reason as "exemptionReason",i.source_ref as "sourceRef",i.source_hash as "sourceHash",
+        d.expected_descriptor_hash as "descriptorHash",d.drift_status as "driftStatus",d.blocker
+      from permission_manifest_entry_runtime_drift d
+      join permission_entry_point_inventory i on i.entry_point_id=d.entry_point_id
+      where d.manifest_id=#{manifestId}::uuid and d.drift_status='UNREGISTERED_SOURCE'
+    ) q
+    where (#{driftStatus}='' or q."driftStatus"=#{driftStatus})
+    order by q.blocker desc,q."entryPointId" limit #{limit}
+  </select>
+  <select id="summarizeApplicationManifestDrift" resultType="map">
+    with selected_manifest as (
+      select manifest_id,status from permission_application_manifests where manifest_id=#{manifestId}::uuid
+    ), drift_rows as (
+      select d.entry_point_id,d.drift_status,d.blocker
+      from permission_manifest_entry_runtime_drift d
+      join selected_manifest m on m.manifest_id=d.manifest_id and m.status='ACTIVE'
+      union all
+      select e.entry_point_id,'NOT_ACTIVE'::text,false
+      from permission_application_manifest_entries e
+      join selected_manifest m on m.manifest_id=e.manifest_id and m.status&lt;&gt;'ACTIVE'
+    )
+    select #{manifestId} as "manifestId",count(*) as total,
+      count(*) filter(where drift_status='MATCH') as matching,
+      count(*) filter(where drift_status='SOURCE_CHANGED') as "sourceChanged",
+      count(*) filter(where drift_status='DESCRIPTOR_CHANGED') as "descriptorChanged",
+      count(*) filter(where drift_status='UNREGISTERED_SOURCE') as "unregisteredSource",
+      count(*) filter(where drift_status='STALE_MANIFEST') as "staleManifest",
+      count(*) filter(where drift_status='UNKNOWN_PERMISSION') as "unknownPermission",
+      count(*) filter(where drift_status='RETIRED_PERMISSION') as "retiredPermission",
+      count(*) filter(where drift_status='MISSING_RESOLVER') as "missingResolver",
+      count(*) filter(where blocker) as blockers
+    from drift_rows
+  </select>
+  <select id="findPermissionCoverageEvidence" resultType="map">
+    select evidence_id::text as "evidenceId",manifest_id::text as "manifestId",evidence_type as "evidenceType",
+      manifest_hash as "manifestHash",catalog_revision_id::text as "catalogRevisionId",catalog_content_hash as "catalogContentHash",
+      entry_count as "entryCount",covered_entry_count as "coveredEntryCount",coverage_percent as "coveragePercent",
+      source_inventory_revision as "sourceInventoryRevision",details::text as "detailsJson",actor_id as "actorId",
+      correlation_id as "correlationId",occurred_at as "occurredAt"
+    from permission_coverage_evidence order by occurred_at desc,evidence_id desc limit #{limit}
+  </select>
+  <insert id="insertApplicationManifest">
+    insert into permission_application_manifests(manifest_id,application_id,environment,build_version,manifest_revision,
+      schema_version,manifest_hash,catalog_revision_id,catalog_revision_code,catalog_content_hash,source_inventory_revision,
+      entry_count,protected_entry_count,covered_entry_count,coverage_percent,target_permission_count,legacy_authority_count,
+      exempt_count,delegated_count,uncovered_count,status,registered_at,registered_by,version)
+    select #{row.manifestId}::uuid,#{row.applicationId},#{row.environment},#{row.buildVersion},#{row.manifestRevision},
+      #{row.schemaVersion},#{row.manifestHash},r.revision_id,r.revision_code,r.content_hash,#{row.sourceInventoryRevision},
+      #{row.entryCount},#{row.protectedEntryCount},#{row.coveredEntryCount},#{row.coveragePercent},#{row.targetPermissionCount},
+      #{row.legacyAuthorityCount},#{row.exemptCount},#{row.delegatedCount},#{row.uncoveredCount},'REGISTERING',
+      #{row.registeredAt},#{row.registeredBy},1
+    from permission_catalog_active_revision a join permission_catalog_revisions r on r.revision_id=a.revision_id
+    where a.singleton_id='ACTIVE' and r.revision_id=#{row.catalogRevisionId}::uuid and r.revision_code=#{row.catalogRevisionCode}
+  </insert>
+  <insert id="insertApplicationManifestEntry">
+    insert into permission_application_manifest_entries(manifest_id,entry_point_id,entry_point_type,owner_module,display_name,
+      route_pattern,http_method,authority_state,protection_mode,coverage_status,permission_code,legacy_authorities,
+      resource_type,resource_resolver_id,scope_required,exemption_reason,source_ref,source_hash,descriptor_hash)
+    values(#{row.manifestId}::uuid,#{row.entryPointId},#{row.entryPointType},#{row.ownerModule},#{row.displayName},
+      nullif(#{row.routePattern},''),nullif(#{row.httpMethod},''),#{row.authorityState},#{row.protectionMode},#{row.coverageStatus},
+      nullif(#{row.permissionCode},''),#{row.legacyAuthorities}::jsonb,#{row.resourceType},#{row.resourceResolverId},
+      #{row.scopeRequired},nullif(#{row.exemptionReason},''),#{row.sourceRef},#{row.sourceHash},#{row.descriptorHash})
+  </insert>
+  <select id="activateApplicationManifest" resultType="string">
+    select coalesce(phase5h_activate_manifest(#{manifestId}::uuid,#{actorId},#{correlationId},#{auditReason})::text,'activated')
+  </select>
+
+
+  <sql id="shadowObservationColumns">
+    tenant_id as "tenantId",comparison_id as "comparisonId",domain_code as "domainCode",entry_point_id as "entryPointId",resource_type as "resourceType",
+    resource_id as "resourceId",permission_code as "permissionCode",legacy_effect as "legacyEffect",legacy_scope as "legacyScope",
+    legacy_visibility as "legacyVisibility",legacy_reason_code as "legacyReasonCode",legacy_context_complete as "legacyContextComplete",
+    target_effect as "targetEffect",target_scope as "targetScope",target_visibility as "targetVisibility",
+    target_reason_code as "targetReasonCode",target_context_complete as "targetContextComplete",mismatch_category as category,
+    severity,risk_lane as "riskLane",protection_mode as "protectionMode",correlation_id as "correlationId",compared_at as "comparedAt",
+    case_id as "caseId",case_status as "caseStatus",owner_id as "ownerId",sla_due_at as "slaDueAt",active_waiver as "activeWaiver",cutover_blocker as "cutoverBlocker"
+  </sql>
+  <select id="findShadowObservations" resultType="map">
+    select <include refid="shadowObservationColumns"/> from permission_shadow_observation_readiness
+    where (#{tenantId}='' or tenant_id=#{tenantId}) and (#{domainCode}='' or domain_code=#{domainCode}) and (#{category}='' or mismatch_category=#{category})
+    order by cutover_blocker desc,compared_at desc limit #{limit}
+  </select>
+  <select id="findShadowObservation" resultType="map">
+    select <include refid="shadowObservationColumns"/> from permission_shadow_observation_readiness where tenant_id=#{tenantId} and comparison_id=#{comparisonId}
+  </select>
+  <select id="summarizeShadowObservations" resultType="map">
+    select count(*) total,
+      count(*) filter(where mismatch_category='MATCH') as match,
+      count(*) filter(where mismatch_category='UNEXPECTED_ALLOW') as "unexpectedAllow",
+      count(*) filter(where mismatch_category='SCOPE_WIDENED') as "scopeWidened",
+      count(*) filter(where mismatch_category='VISIBILITY_WIDENED') as "visibilityWidened",
+      count(*) filter(where mismatch_category='TARGET_ERROR') as "targetError",
+      count(*) filter(where mismatch_category='CONTEXT_INCOMPLETE') as "contextIncomplete",
+      count(*) filter(where mismatch_category='UNEXPECTED_DENY') as "unexpectedDeny",
+      count(*) filter(where mismatch_category='REASON_DIFFERENT') as "reasonDifferent",
+      count(*) filter(where mismatch_category='LEGACY_UNAVAILABLE') as "legacyUnavailable",
+      count(*) filter(where severity='CRITICAL') critical,
+      count(*) filter(where case_status is not null and case_status not in('RESOLVED','WAIVED')) as "openCases",
+      count(*) filter(where case_status is not null and case_status not in('RESOLVED','WAIVED') and sla_due_at&lt;now()) as "overdueCases",
+      count(*) filter(where active_waiver) as "activeWaivers",count(*) filter(where cutover_blocker) as "cutoverBlockers"
+    from permission_shadow_observation_readiness where (#{tenantId}='' or tenant_id=#{tenantId}) and (#{domainCode}='' or domain_code=#{domainCode})
+  </select>
+  <sql id="shadowCaseColumns">
+    c.case_id::text as "caseId",c.source_tenant_id as "sourceTenantId",c.comparison_id as "comparisonId",c.domain_code as "domainCode",c.entry_point_id as "entryPointId",
+    c.permission_code as "permissionCode",c.category,c.severity,c.status,c.owner_id as "ownerId",c.sla_due_at as "slaDueAt",c.title,c.resolution,
+    c.first_seen_at as "firstSeenAt",c.last_seen_at as "lastSeenAt",c.occurrence_count as "occurrenceCount",c.created_at as "createdAt",c.created_by as "createdBy",c.updated_at as "updatedAt",c.updated_by as "updatedBy",c.version,
+    exists(select 1 from permission_shadow_mismatch_waivers w where w.case_id=c.case_id and w.status='ACTIVE' and w.expires_at&gt;now()) as "activeWaiver",
+    (select case when r.result='PASSED' then 1 else 0 end from permission_shadow_regression_evidence r where r.case_id=c.case_id order by r.executed_at desc,r.created_at desc limit 1) as "regressionPassed",
+    (select case when r.result='FAILED' then 1 else 0 end from permission_shadow_regression_evidence r where r.case_id=c.case_id order by r.executed_at desc,r.created_at desc limit 1) as "regressionFailed"
+  </sql>
+  <select id="findShadowMismatchCases" resultType="map">
+    select <include refid="shadowCaseColumns"/> from permission_shadow_mismatch_cases c
+    where (#{tenantId}='' or c.source_tenant_id=#{tenantId}) and (#{domainCode}='' or c.domain_code=#{domainCode}) and (#{status}='' or c.status=#{status})
+    order by case c.severity when 'CRITICAL' then 1 when 'HIGH' then 2 when 'MEDIUM' then 3 else 4 end,c.sla_due_at,c.updated_at desc limit #{limit}
+  </select>
+  <select id="findShadowMismatchCase" resultType="map">select <include refid="shadowCaseColumns"/> from permission_shadow_mismatch_cases c where c.case_id=#{caseId}::uuid</select>
+  <insert id="insertShadowMismatchCase">
+    insert into permission_shadow_mismatch_cases(case_id,source_tenant_id,comparison_id,domain_code,entry_point_id,permission_code,category,severity,status,owner_id,sla_due_at,title,resolution,first_seen_at,last_seen_at,occurrence_count,created_at,created_by,updated_at,updated_by,version)
+    values(#{row.caseId}::uuid,#{row.sourceTenantId},#{row.comparisonId},#{row.domainCode},nullif(#{row.entryPointId},''),#{row.permissionCode},#{row.category},#{row.severity},#{row.status},#{row.ownerId},#{row.slaDueAt},#{row.title},nullif(#{row.resolution},''),#{row.firstSeenAt},#{row.lastSeenAt},#{row.occurrenceCount},#{row.createdAt},#{row.createdBy},#{row.updatedAt},#{row.updatedBy},#{row.version})
+  </insert>
+  <update id="updateShadowMismatchCase">
+    update permission_shadow_mismatch_cases set status=#{row.status},severity=#{row.severity},owner_id=#{row.ownerId},sla_due_at=#{row.slaDueAt},resolution=nullif(#{row.resolution},''),last_seen_at=#{row.lastSeenAt},updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=version+1
+    where case_id=#{row.caseId}::uuid and version=#{expectedVersion}
+  </update>
+  <insert id="insertShadowMismatchWaiver">
+    insert into permission_shadow_mismatch_waivers(waiver_id,case_id,reason,approved_by,approved_at,expires_at,status,version)
+    values(#{row.waiverId}::uuid,#{row.caseId}::uuid,#{row.reason},#{row.approvedBy},#{row.approvedAt},#{row.expiresAt},'ACTIVE',1)
+  </insert>
+  <select id="findShadowMismatchWaiver" resultType="map">
+    select waiver_id::text as "waiverId",case_id::text as "caseId",reason,approved_by as "approvedBy",approved_at as "approvedAt",expires_at as "expiresAt",status,revoked_at as "revokedAt",revoked_by as "revokedBy",version from permission_shadow_mismatch_waivers where waiver_id=#{waiverId}::uuid
+  </select>
+  <insert id="insertShadowRegressionEvidence">
+    insert into permission_shadow_regression_evidence(evidence_id,case_id,test_reference,result,details,executed_at,executed_by,created_at)
+    values(#{row.evidenceId}::uuid,#{row.caseId}::uuid,#{row.testReference},#{row.result},#{row.detailsJson}::jsonb,#{row.executedAt},#{row.executedBy},now())
+  </insert>
+  <select id="findShadowRegressionEvidence" resultType="map">
+    select evidence_id::text as "evidenceId",case_id::text as "caseId",test_reference as "testReference",result,details::text as "detailsJson",executed_at as "executedAt",executed_by as "executedBy",created_at as "createdAt" from permission_shadow_regression_evidence where evidence_id=#{evidenceId}::uuid
+  </select>
+  <sql id="domainReadinessColumns">
+    evidence_id::text as "evidenceId",source_tenant_id as "sourceTenantId",domain_code as "domainCode",status,window_started_at as "windowStartedAt",window_ended_at as "windowEndedAt",
+    sample_count as "sampleCount",match_count as "matchCount",unexpected_allow_count as "unexpectedAllowCount",scope_widened_count as "scopeWidenedCount",visibility_widened_count as "visibilityWidenedCount",target_error_count as "targetErrorCount",context_incomplete_count as "contextIncompleteCount",unexpected_deny_count as "unexpectedDenyCount",reason_different_count as "reasonDifferentCount",open_blocking_cases as "openBlockingCases",active_waivers as "activeWaivers",failed_regressions as "failedRegressions",manifest_coverage_percent as "manifestCoveragePercent",runtime_drift_blockers as "runtimeDriftBlockers",entry_point_blockers as "entryPointBlockers",expired_bypasses as "expiredBypasses",blockers::text as "blockersJson",catalog_revision_id::text as "catalogRevisionId",manifest_id::text as "manifestId",actor_id as "actorId",audit_reason as "auditReason",correlation_id as "correlationId",evaluated_at as "evaluatedAt"
+  </sql>
+  <select id="findDomainReadinessEvidence" resultType="map">select <include refid="domainReadinessColumns"/> from permission_domain_readiness_evidence where source_tenant_id=#{tenantId} and (#{domainCode}='' or domain_code=#{domainCode}) order by evaluated_at desc limit #{limit}</select>
+  <select id="evaluateDomainReadiness" resultType="string">select phase5i_evaluate_domain_readiness(#{tenantId},#{domainCode},#{windowStartedAt},#{windowEndedAt},#{actorId},#{correlationId},#{auditReason})::text</select>
+  <select id="findDomainReadinessEvidenceById" resultType="map">select <include refid="domainReadinessColumns"/> from permission_domain_readiness_evidence where evidence_id=#{evidenceId}::uuid</select>
+  <sql id="phase6EligibilityColumns">
+    evidence_id::text as "evidenceId",source_tenant_id as "sourceTenantId",status,required_domains::text as "requiredDomainsJson",domain_evidence_refs::text as "domainEvidenceRefsJson",eligible_domains as "eligibleDomains",blocked_domains as "blockedDomains",observing_domains as "observingDomains",catalog_revision_id::text as "catalogRevisionId",manifest_id::text as "manifestId",manifest_coverage_percent as "manifestCoveragePercent",runtime_drift_blockers as "runtimeDriftBlockers",entry_point_blockers as "entryPointBlockers",expired_bypasses as "expiredBypasses",open_blocking_cases as "openBlockingCases",blockers::text as "blockersJson",actor_id as "actorId",audit_reason as "auditReason",correlation_id as "correlationId",evaluated_at as "evaluatedAt"
+  </sql>
+  <select id="findPhase6EligibilityEvidence" resultType="map">select <include refid="phase6EligibilityColumns"/> from permission_phase6_eligibility_evidence where source_tenant_id=#{tenantId} order by evaluated_at desc limit #{limit}</select>
+  <select id="evaluatePhase6Eligibility" resultType="string">select phase5i_evaluate_phase6_eligibility(#{tenantId},#{actorId},#{correlationId},#{auditReason})::text</select>
+  <select id="findPhase6EligibilityEvidenceById" resultType="map">select <include refid="phase6EligibilityColumns"/> from permission_phase6_eligibility_evidence where evidence_id=#{evidenceId}::uuid</select>
+  <select id="findShadowPipelineReadiness" resultType="map">
+    select pending_count as "pendingCount",processing_count as "processingCount",ready_count as "readyCount",oldest_pending_seconds as "oldestPendingSeconds",dead_letters_24h as "deadLetters24h",dropped_24h as "dropped24h",retries_24h as "retries24h",processed_24h as "processed24h",queue_capacity as "queueCapacity",enabled from permission_shadow_pipeline_readiness
+  </select>
+  <select id="findShadowStorageReadiness" resultType="map">
+    select durable_mismatch_rows as "durableMismatchRows",sampled_match_rows as "sampledMatchRows",metric_rows as "metricRows",receipt_rows as "receiptRows",archived_partitions as "archivedPartitions",overdue_archive_purges as "overdueArchivePurges",durable_partitions as "durablePartitions",sampled_partitions as "sampledPartitions",dead_letter_partitions as "deadLetterPartitions",last_retention_completed_at as "lastRetentionCompletedAt" from permission_shadow_storage_readiness
+  </select>
+  <sql id="shadowRetentionColumns">run_id::text as "runId",status,metrics_deleted as "metricsDeleted",receipts_deleted as "receiptsDeleted",dead_letters_deleted as "deadLettersDeleted",partitions_archived as "partitionsArchived",partitions_purged as "partitionsPurged",details::text as "detailsJson",started_at as "startedAt",completed_at as "completedAt",actor_id as "actorId",audit_reason as "auditReason",correlation_id as "correlationId"</sql>
+  <select id="findShadowRetentionRuns" resultType="map">select <include refid="shadowRetentionColumns"/> from permission_shadow_retention_runs order by started_at desc limit #{limit}</select>
+  <select id="processShadowPipeline" resultType="string">select phase5j_process_shadow_observation_batch(#{workerId},#{batchSize},#{actorId},#{auditReason},#{correlationId})::text</select>
+  <select id="runShadowRetention" resultType="string">select phase5j_run_shadow_retention(#{actorId},#{auditReason},#{correlationId})::text</select>
+  <select id="findShadowRetentionRun" resultType="map">select <include refid="shadowRetentionColumns"/> from permission_shadow_retention_runs where run_id=#{runId}::uuid</select>
+  <sql id="phase5RuntimeEvidenceColumns">evidence_id::text as "evidenceId",status,source_version as "sourceVersion",catalog_revision_id::text as "catalogRevisionId",manifest_id::text as "manifestId",postgresql_clean_status as "postgresqlCleanStatus",postgresql_upgrade_status as "postgresqlUpgradeStatus",application_context_status as "applicationContextStatus",admin_ui_build_status as "adminUiBuildStatus",playwright_status as "playwrightStatus",load_test_status as "loadTestStatus",pipeline_status as "pipelineStatus",evidence::text as "evidenceJson",actor_id as "actorId",audit_reason as "auditReason",correlation_id as "correlationId",generated_at as "generatedAt"</sql>
+  <select id="findPhase5RuntimeCertificationEvidence" resultType="map">select <include refid="phase5RuntimeEvidenceColumns"/> from permission_phase5_runtime_certification_evidence order by generated_at desc limit #{limit}</select>
+  <select id="generatePhase5RuntimeCertificationEvidence" resultType="string">select phase5j_generate_runtime_certification_evidence(#{sourceVersion},#{postgresqlCleanStatus},#{postgresqlUpgradeStatus},#{applicationContextStatus},#{adminUiBuildStatus},#{playwrightStatus},#{loadTestStatus},#{pipelineStatus},#{evidenceJson}::jsonb,#{actorId},#{auditReason},#{correlationId})::text</select>
+  <select id="findPhase5RuntimeCertificationEvidenceById" resultType="map">select <include refid="phase5RuntimeEvidenceColumns"/> from permission_phase5_runtime_certification_evidence where evidence_id=#{evidenceId}::uuid</select>
+
+  <sql id="roleColumns">
+    role_id as "roleId",tenant_id as "tenantId",role_code as "roleCode",role_name as "roleName",
+    description,role_type as "roleType",status,system_managed as "systemManaged",created_at as "createdAt",
+    updated_at as "updatedAt",created_by as "createdBy",updated_by as "updatedBy",version
+  </sql>
+  <select id="findRoleById" resultType="map">
+    select <include refid="roleColumns"/> from rbac_roles
+    where role_id=#{roleId} and (tenant_id=#{tenantId} or tenant_id is null)
+    order by tenant_id nulls last limit 1
+  </select>
+  <select id="findRoleByCode" resultType="map">
+    select <include refid="roleColumns"/> from rbac_roles
+    where role_code=#{roleCode} and (tenant_id=#{tenantId} or tenant_id is null)
+    order by tenant_id nulls last limit 1
+  </select>
+  <select id="findRolesByIds" resultType="map">
+    select <include refid="roleColumns"/> from rbac_roles
+    where role_id in <foreach collection="roleIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+      and (tenant_id=#{tenantId} or tenant_id is null)
+    order by role_code
+  </select>
+  <insert id="insertRole">
+    insert into rbac_roles(role_id,tenant_id,role_code,role_name,description,role_type,status,system_managed,
+      created_at,updated_at,created_by,updated_by,version)
+    values(#{row.roleId},#{row.tenantId},#{row.roleCode},#{row.roleName},#{row.description},#{row.roleType},#{row.status},#{row.systemManaged},
+      #{row.createdAt},#{row.updatedAt},#{row.createdBy},#{row.updatedBy},#{row.version})
+  </insert>
+  <update id="updateRole">
+    update rbac_roles set role_name=#{row.roleName},description=#{row.description},status=#{row.status},
+      updated_at=#{row.updatedAt},updated_by=#{row.updatedBy},version=#{row.version}
+    where role_id=#{row.roleId} and tenant_id is not distinct from #{row.tenantId} and version=#{expectedVersion}
+  </update>
+
+  <select id="findRolePermissions" resultType="map">
+    select grant_id as "grantId",tenant_id as "tenantId",role_id as "roleId",permission_point as "permissionCode",
+      created_at as "createdAt",created_by as "createdBy",version
+    from rbac_role_permissions
+    where role_id in <foreach collection="roleIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+      and (tenant_id=#{tenantId} or tenant_id is null)
+    order by role_id,permission_point
+  </select>
+  <insert id="insertRolePermission">
+    insert into rbac_role_permissions(grant_id,tenant_id,role_id,permission_point,created_at,created_by,version)
+    values(#{row.grantId},#{row.tenantId},#{row.roleId},#{row.permissionCode},#{row.createdAt},#{row.createdBy},#{row.version})
+  </insert>
+  <delete id="deleteRolePermissions">
+    delete from rbac_role_permissions where tenant_id is not distinct from #{tenantId} and role_id=#{roleId}
+  </delete>
+
+  <sql id="bindingColumns">
+    binding_id as "bindingId",tenant_id as "tenantId",principal_type as "principalType",principal_id as "principalId",
+    role_id as "roleId",scope_type as "scopeType",scope_id as "scopeId",effective_at as "effectiveAt",
+    expires_at as "expiresAt",status,created_at as "createdAt",created_by as "createdBy",revoked_at as "revokedAt",
+    revoked_by as "revokedBy",revoke_reason as "revokeReason",version
+  </sql>
+  <select id="findBindingById" resultType="map">
+    select <include refid="bindingColumns"/> from rbac_principal_role_bindings
+    where binding_id=#{bindingId} and (tenant_id=#{tenantId} or (#{tenantId} is null and tenant_id is null))
+  </select>
+  <select id="findEffectiveBindings" resultType="map">
+    select <include refid="bindingColumns"/> from rbac_principal_role_bindings
+    where (tenant_id=#{tenantId} or (#{tenantId} is null and tenant_id is null))
+      and concat(principal_type,E'\x1f',principal_id) in
+      <foreach collection="principalKeys" item="key" open="(" separator="," close=")">#{key}</foreach>
+      and status='ACTIVE' and effective_at&lt;=#{at} and (expires_at is null or expires_at&gt;#{at})
+    order by binding_id
+  </select>
+  <insert id="insertBinding">
+    insert into rbac_principal_role_bindings(binding_id,tenant_id,principal_type,principal_id,role_id,scope_type,scope_id,
+      effective_at,expires_at,status,created_at,created_by,revoked_at,revoked_by,revoke_reason,version)
+    values(#{row.bindingId},#{row.tenantId},#{row.principalType},#{row.principalId},#{row.roleId},#{row.scopeType},#{row.scopeId},
+      #{row.effectiveAt},#{row.expiresAt},#{row.status},#{row.createdAt},#{row.createdBy},#{row.revokedAt},#{row.revokedBy},null,#{row.version})
+  </insert>
+  <update id="updateBinding">
+    update rbac_principal_role_bindings set
+      role_id=#{row.roleId},scope_type=#{row.scopeType},scope_id=#{row.scopeId},
+      effective_at=#{row.effectiveAt},expires_at=#{row.expiresAt},status=#{row.status},
+      revoked_at=#{row.revokedAt},revoked_by=#{row.revokedBy},version=#{row.version}
+    where binding_id=#{row.bindingId} and tenant_id=#{row.tenantId} and version=#{expectedVersion}
+  </update>
+
+  <select id="findPolicyVersion" resultType="long">
+    select policy_version from rbac_policy_versions
+    where (#{tenantId} is null and scope_type='INSTANCE' and scope_id='INSTANCE')
+       or (#{tenantId} is not null and scope_type='TENANT' and scope_id=#{tenantId} and tenant_id=#{tenantId})
+  </select>
+  <select id="findActiveGroupIds" resultType="string">
+    with recursive effective_groups(group_id) as (
+      select membership.group_id
+      from org_group_memberships membership
+      join organization_groups direct_group on direct_group.tenant_id=membership.tenant_id
+        and direct_group.group_id=membership.group_id and direct_group.status='ACTIVE'
+      where membership.tenant_id=#{tenantId} and membership.user_id=#{userId} and membership.status='ACTIVE'
+        and membership.effective_at&lt;=#{at} and (membership.expires_at is null or membership.expires_at&gt;#{at})
+      union
+      select parent_group.group_id
+      from effective_groups child
+      join organization_groups child_group on child_group.tenant_id=#{tenantId}
+        and child_group.group_id=child.group_id and child_group.status='ACTIVE'
+      join organization_groups parent_group on parent_group.tenant_id=child_group.tenant_id
+        and parent_group.group_id=child_group.parent_group_id and parent_group.status='ACTIVE'
+    )
+    select distinct group_id from effective_groups order by group_id
+  </select>
+  <select id="findEffectiveDepartmentIds" resultType="string">
+    select distinct closure.ancestor_department_id
+    from org_department_memberships membership
+    join departments direct_department on direct_department.tenant_id=membership.tenant_id
+      and direct_department.department_id=membership.department_id and direct_department.status='ACTIVE'
+    join org_department_closure closure on closure.tenant_id=membership.tenant_id
+      and closure.descendant_department_id=membership.department_id
+    join departments effective_department on effective_department.tenant_id=closure.tenant_id
+      and effective_department.department_id=closure.ancestor_department_id and effective_department.status='ACTIVE'
+    where membership.tenant_id=#{tenantId} and membership.user_id=#{userId} and membership.status='ACTIVE'
+      and membership.effective_at&lt;=#{at} and (membership.expires_at is null or membership.expires_at&gt;#{at})
+    order by closure.ancestor_department_id
+  </select>
+
+  <insert id="insertDecisionAudit">
+    insert into rbac_decision_audits(decision_id,tenant_id,principal_type,principal_id,permission_point,resource_type,resource_id,
+      requested_scope_type,requested_scope_id,decision,reason_code,matched_binding_ids,matched_role_ids,effective_scope_type,
+      effective_scope_id,policy_version,global_security_epoch,tenant_security_epoch,principal_security_epoch,correlation_id,decided_at)
+    values(#{row.decisionId},#{row.tenantId},#{row.principalType},#{row.principalId},#{row.permissionCode},#{row.resourceType},#{row.resourceId},
+      #{row.requestedScopeType},#{row.requestedScopeId},#{row.decision},#{row.reasonCode},
+      coalesce(string_to_array(nullif(#{row.matchedBindingIds},''),E'\x1f'),array[]::varchar[]),
+      coalesce(string_to_array(nullif(#{row.matchedRoleIds},''),E'\x1f'),array[]::varchar[]),
+      #{row.effectiveScopeType},#{row.effectiveScopeId},#{row.policyVersion},#{row.globalEpoch},#{row.tenantEpoch},#{row.principalEpoch},
+      nullif(#{row.correlationId},''),#{row.decidedAt})
+  </insert>
+  <insert id="insertShadowDecision">
+    insert into rbac_shadow_decisions(shadow_id,tenant_id,principal_id,permission_point,route,legacy_decision,new_decision,
+      reason_code,lane,high_risk,metadata_json,occurred_at)
+    values(#{row.shadowId},#{row.tenantId},#{row.principalId},#{row.permissionCode},#{row.route},#{row.legacyDecision},#{row.newDecision},
+      #{row.reasonCode},#{row.lane},#{row.highRisk},cast(#{row.metadataJson} as jsonb),#{row.occurredAt})
+  </insert>
+  <insert id="upsertShadowAggregate">
+    insert into rbac_shadow_aggregates(tenant_id,route,permission_point,legacy_decision,new_decision,reason_code,time_bucket,decision_count)
+    values(#{row.tenantId},#{row.route},#{row.permissionCode},#{row.legacyDecision},#{row.newDecision},#{row.reasonCode},#{row.timeBucket},1)
+    on conflict(tenant_id,route,permission_point,legacy_decision,new_decision,reason_code,time_bucket)
+    do update set decision_count=rbac_shadow_aggregates.decision_count+1
+  </insert>
+
+  <select id="findActiveUserIdsForGroup" resultType="string">
+    with recursive group_subtree(group_id) as (
+      select root_group.group_id from organization_groups root_group
+      where root_group.tenant_id=#{tenantId} and root_group.group_id=#{groupId} and root_group.status='ACTIVE'
+      union
+      select child.group_id from organization_groups child
+      join group_subtree parent on child.parent_group_id=parent.group_id
+      where child.tenant_id=#{tenantId} and child.status='ACTIVE'
+    )
+    select distinct membership.user_id from org_group_memberships membership
+    join group_subtree scope on scope.group_id=membership.group_id
+    where membership.tenant_id=#{tenantId} and membership.status='ACTIVE'
+      and membership.effective_at&lt;=#{at} and (membership.expires_at is null or membership.expires_at&gt;#{at})
+    order by membership.user_id
+  </select>
+  <select id="findActiveUserIdsForDepartment" resultType="string">
+    select distinct membership.user_id from org_department_memberships membership
+    join departments root_department on root_department.tenant_id=membership.tenant_id
+      and root_department.department_id=#{departmentId} and root_department.status='ACTIVE'
+    join departments member_department on member_department.tenant_id=membership.tenant_id
+      and member_department.department_id=membership.department_id and member_department.status='ACTIVE'
+    join org_department_closure closure on closure.tenant_id=membership.tenant_id
+      and closure.descendant_department_id=membership.department_id
+    where membership.tenant_id=#{tenantId} and closure.ancestor_department_id=#{departmentId}
+      and membership.status='ACTIVE' and membership.effective_at&lt;=#{at}
+      and (membership.expires_at is null or membership.expires_at&gt;#{at})
+    order by membership.user_id
+  </select>
+  <select id="findActiveSeparationOfDutiesRules" resultType="map">
+    select rule_id::text as "ruleId",tenant_id as "tenantId",left_role_id as "leftRoleId",
+      right_role_id as "rightRoleId",scope_overlap_required as "scopeOverlapRequired",description
+    from rbac_separation_of_duties_rules
+    where status='ACTIVE' and (tenant_id=#{tenantId} or tenant_id is null)
+    order by rule_id
+  </select>
+  <select id="r7ScopesOverlap" resultType="boolean">
+    select r7_rbac_scopes_overlap(#{tenantId},#{leftType},#{leftId},#{rightType},#{rightId})
+  </select>
+  <select id="r7ScopeContains" resultType="boolean">
+    select r7_rbac_scope_contains(#{tenantId},#{containerType},#{containerId},#{candidateType},#{candidateId})
+  </select>
+  <sql id="r7ApprovalColumns">
+    approval_id as "approvalId",tenant_id as "tenantId",operation,request_hash as "requestHash",
+    requester_id as "requesterId",target_type as "targetType",target_id as "targetId",status,
+    approver_id as "approverId",decision_reason as "decisionReason",requested_at as "requestedAt",
+    expires_at as "expiresAt",decided_at as "decidedAt",consumed_at as "consumedAt",version
+  </sql>
+  <select id="findRbacApproval" resultType="map">
+    select <include refid="r7ApprovalColumns"/> from rbac_critical_change_approvals
+    where tenant_id is not distinct from nullif(#{tenantId},'INSTANCE') and approval_id=#{approvalId}
+  </select>
+  <select id="findRbacApprovals" resultType="map">
+    select <include refid="r7ApprovalColumns"/> from rbac_critical_change_approvals
+    where tenant_id is not distinct from nullif(#{tenantId},'INSTANCE') and (#{status}='' or status=#{status})
+    order by requested_at desc,approval_id desc limit #{limit}
+  </select>
+  <insert id="insertRbacApproval">
+    insert into rbac_critical_change_approvals(approval_id,tenant_id,operation,request_hash,requester_id,
+      target_type,target_id,status,approver_id,decision_reason,requested_at,expires_at,decided_at,consumed_at,version)
+    values(#{row.approvalId},nullif(#{row.tenantId},'INSTANCE'),#{row.operation},#{row.requestHash},#{row.requesterId},
+      #{row.targetType},#{row.targetId},#{row.status},nullif(#{row.approverId},''),nullif(#{row.decisionReason},''),
+      #{row.requestedAt},#{row.expiresAt},#{row.decidedAt},#{row.consumedAt},#{row.version})
+  </insert>
+  <update id="updateRbacApproval">
+    update rbac_critical_change_approvals set status=#{row.status},approver_id=nullif(#{row.approverId},''),
+      decision_reason=nullif(#{row.decisionReason},''),decided_at=#{row.decidedAt},consumed_at=#{row.consumedAt},
+      version=#{row.version}
+    where tenant_id is not distinct from nullif(#{row.tenantId},'INSTANCE') and approval_id=#{row.approvalId} and version=#{expectedVersion}
+  </update>
+  <insert id="insertRbacChangeEvidence">
+    insert into rbac_change_evidence(evidence_id,tenant_id,operation,actor_id,target_type,target_id,approval_id,
+      before_json,after_json,added_permissions,removed_permissions,warnings,correlation_id,audit_reason,occurred_at)
+    values(#{row.evidenceId},nullif(#{row.tenantId},'INSTANCE'),#{row.operation},#{row.actorId},#{row.targetType},#{row.targetId},
+      nullif(#{row.approvalId},''),#{row.beforeJson}::jsonb,#{row.afterJson}::jsonb,#{row.addedPermissions}::jsonb,
+      #{row.removedPermissions}::jsonb,#{row.warnings}::jsonb,nullif(#{row.correlationId},''),#{row.auditReason},#{row.occurredAt})
+  </insert>
+</mapper>

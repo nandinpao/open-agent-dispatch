@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import com.opensocket.aievent.core.iam.identity.domain.AccountStatus;import jakarta.validation.constraints.*;public record ChangeUserStatusRequest(@NotNull AccountStatus status,@NotBlank @Size(max=500) String reason){}

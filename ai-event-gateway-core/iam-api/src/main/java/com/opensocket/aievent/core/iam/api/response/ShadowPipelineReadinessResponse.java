@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.api.response;
+import com.opensocket.aievent.core.iam.rbac.domain.shadow.ShadowPipelineReadiness;
+public record ShadowPipelineReadinessResponse(long pendingCount,long processingCount,long readyCount,long oldestPendingSeconds,long deadLetters24h,long dropped24h,long retries24h,long processed24h,long queueCapacity,boolean enabled){public static ShadowPipelineReadinessResponse from(ShadowPipelineReadiness v){return new ShadowPipelineReadinessResponse(v.pendingCount(),v.processingCount(),v.readyCount(),v.oldestPendingSeconds(),v.deadLetters24h(),v.dropped24h(),v.retries24h(),v.processed24h(),v.queueCapacity(),v.enabled());}}

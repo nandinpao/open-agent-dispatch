@@ -1,14 +1,16 @@
 package com.opensocket.aievent.database.persistence.execution.converter;
 
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
+
+
+
 import tools.jackson.databind.ObjectMapper;
 import com.opensocket.aievent.database.persistence.spi.DatabasePersistenceConverter;
 import com.opensocket.aievent.core.dispatch.DispatchEligibilityStatus;
 import com.opensocket.aievent.core.dispatch.DispatchMethod;
 import com.opensocket.aievent.core.dispatch.DispatchRequest;
 import com.opensocket.aievent.core.dispatch.DispatchRequestStatus;
+import com.opensocket.aievent.core.dispatch.DispatchOutboxStatus;
+import com.opensocket.aievent.core.dispatch.DispatchRecoveryClassification;
 import com.opensocket.aievent.core.dispatch.DispatchReviewMode;
 import com.opensocket.aievent.core.dispatch.NettyDispatchCommand;
 import com.opensocket.aievent.database.persistence.execution.po.DispatchRequestPo;
@@ -26,7 +28,11 @@ public class DispatchRequestPersistenceConverter {
     public DispatchRequestPo toPo(DispatchRequest request) {
             DispatchRequestPo po = new DispatchRequestPo();
             po.setDispatchRequestId(request.getDispatchRequestId());
+            po.setTenantId(request.getTenantId());
             po.setAssignmentId(request.getAssignmentId());
+            po.setExecutionAuthorityVersion(request.getExecutionAuthorityVersion());
+            po.setCanonicalExecutionAssignmentId(request.getCanonicalExecutionAssignmentId());
+            po.setAuthorityProvenance(request.getAuthorityProvenance() == null ? null : request.getAuthorityProvenance().name());
             po.setTaskId(request.getTaskId());
             po.setIncidentId(request.getIncidentId());
             po.setAgentId(request.getAgentId());
@@ -57,13 +63,30 @@ public class DispatchRequestPersistenceConverter {
             po.setClaimedBy(request.getClaimedBy());
             po.setClaimStartedAt(request.getClaimStartedAt());
             po.setClaimUntil(request.getClaimUntil());
+            po.setOutboxStatus(request.getOutboxStatus() == null ? null : request.getOutboxStatus().name());
+            po.setClaimToken(request.getClaimToken());
+            po.setClaimHeartbeatAt(request.getClaimHeartbeatAt());
+            po.setDispatchTokenHash(request.getDispatchTokenHash());
+            po.setFencingTokenHash(request.getFencingTokenHash());
+            po.setRuntimeSessionId(request.getRuntimeSessionId());
+            po.setAckEvidenceId(request.getAckEvidenceId());
+            po.setAckedAt(request.getAckedAt());
+            po.setRecoveryClassification(request.getRecoveryClassification() == null ? null : request.getRecoveryClassification().name());
+            po.setUncertainSince(request.getUncertainSince());
+            po.setLastReconciledAt(request.getLastReconciledAt());
+            po.setReconciliationCount(request.getReconciliationCount());
+            po.setRowVersion(request.getRowVersion());
             return po;
         }
 
     public DispatchRequest toRequest(DispatchRequestPo po) {
             DispatchRequest request = new DispatchRequest();
             request.setDispatchRequestId(po.getDispatchRequestId());
+            request.setTenantId(po.getTenantId());
             request.setAssignmentId(po.getAssignmentId());
+            request.setExecutionAuthorityVersion(po.getExecutionAuthorityVersion());
+            request.setCanonicalExecutionAssignmentId(po.getCanonicalExecutionAssignmentId());
+            request.setAuthorityProvenance(po.getAuthorityProvenance() == null ? com.opensocket.aievent.core.dispatch.DispatchAuthorityProvenance.LEGACY_COMPATIBILITY : com.opensocket.aievent.core.dispatch.DispatchAuthorityProvenance.valueOf(po.getAuthorityProvenance()));
             request.setTaskId(po.getTaskId());
             request.setIncidentId(po.getIncidentId());
             request.setAgentId(po.getAgentId());
@@ -94,6 +117,19 @@ public class DispatchRequestPersistenceConverter {
             request.setClaimedBy(po.getClaimedBy());
             request.setClaimStartedAt(po.getClaimStartedAt());
             request.setClaimUntil(po.getClaimUntil());
+            request.setOutboxStatus(po.getOutboxStatus() == null ? DispatchOutboxStatus.PENDING : DispatchOutboxStatus.valueOf(po.getOutboxStatus()));
+            request.setClaimToken(po.getClaimToken());
+            request.setClaimHeartbeatAt(po.getClaimHeartbeatAt());
+            request.setDispatchTokenHash(po.getDispatchTokenHash());
+            request.setFencingTokenHash(po.getFencingTokenHash());
+            request.setRuntimeSessionId(po.getRuntimeSessionId());
+            request.setAckEvidenceId(po.getAckEvidenceId());
+            request.setAckedAt(po.getAckedAt());
+            request.setRecoveryClassification(po.getRecoveryClassification() == null ? DispatchRecoveryClassification.NONE : DispatchRecoveryClassification.valueOf(po.getRecoveryClassification()));
+            request.setUncertainSince(po.getUncertainSince());
+            request.setLastReconciledAt(po.getLastReconciledAt());
+            request.setReconciliationCount(po.getReconciliationCount());
+            request.setRowVersion(po.getRowVersion());
             return request;
         }
 

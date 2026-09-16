@@ -13,6 +13,9 @@ public class DatabasePlatformProperties {
     private boolean requireSqlSessionFactory = true;
     private boolean requireFlyway = true;
     private Duration validationTimeout = Duration.ofSeconds(2);
+    private DatabasePlatformLifecycleMode lifecycleMode = DatabasePlatformLifecycleMode.SETUP_TOLERANT;
+    private Duration probeInterval = Duration.ofSeconds(15);
+    private Duration degradedProbeInterval = Duration.ofSeconds(30);
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -27,5 +30,19 @@ public class DatabasePlatformProperties {
     public boolean isRequireFlyway() { return requireFlyway; }
     public void setRequireFlyway(boolean requireFlyway) { this.requireFlyway = requireFlyway; }
     public Duration getValidationTimeout() { return validationTimeout; }
-    public void setValidationTimeout(Duration validationTimeout) { this.validationTimeout = validationTimeout == null ? Duration.ofSeconds(2) : validationTimeout; }
+    public void setValidationTimeout(Duration validationTimeout) { this.validationTimeout = positiveOrDefault(validationTimeout, Duration.ofSeconds(2)); }
+    public DatabasePlatformLifecycleMode getLifecycleMode() { return lifecycleMode; }
+    public void setLifecycleMode(DatabasePlatformLifecycleMode lifecycleMode) {
+        this.lifecycleMode = lifecycleMode == null ? DatabasePlatformLifecycleMode.SETUP_TOLERANT : lifecycleMode;
+    }
+    public Duration getProbeInterval() { return probeInterval; }
+    public void setProbeInterval(Duration probeInterval) { this.probeInterval = positiveOrDefault(probeInterval, Duration.ofSeconds(15)); }
+    public Duration getDegradedProbeInterval() { return degradedProbeInterval; }
+    public void setDegradedProbeInterval(Duration degradedProbeInterval) {
+        this.degradedProbeInterval = positiveOrDefault(degradedProbeInterval, Duration.ofSeconds(30));
+    }
+
+    private static Duration positiveOrDefault(Duration value, Duration fallback) {
+        return value == null || value.isZero() || value.isNegative() ? fallback : value;
+    }
 }

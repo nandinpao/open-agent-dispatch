@@ -8,7 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -28,11 +28,11 @@ import com.opensocket.aievent.core.executionattempt.TaskExecutionAttemptReposito
 import com.opensocket.aievent.core.routing.DispatchUserFacingError;
 import com.opensocket.aievent.core.routing.RoutingDecisionRecord;
 import com.opensocket.aievent.core.task.TaskOperationalQuery;
-import com.opensocket.aievent.core.task.TaskPriority;
+
 import com.opensocket.aievent.core.task.TaskQuery;
 import com.opensocket.aievent.core.task.TaskRecord;
 import com.opensocket.aievent.core.task.TaskStatus;
-import com.opensocket.aievent.core.task.TaskType;
+
 
 /**
  * TODO 15-E read model that merges task, dispatch, assignment, execution attempt,

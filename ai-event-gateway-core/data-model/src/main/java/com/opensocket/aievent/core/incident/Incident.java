@@ -34,6 +34,11 @@ public class Incident {
     private OffsetDateTime reopenedAt;
     private int reopenCount;
     private String lifecycleReason;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
+    private String scopeStatus;
+    private Long scopeSourceVersion;
+    private OffsetDateTime scopeInheritedAt;
     public void setIncidentId(String incidentId) { this.incidentId = incidentId; }
     public void setFingerprint(String fingerprint) { this.fingerprint = fingerprint; }
     public void setTenantId(String tenantId) { this.tenantId = tenantId; }
@@ -56,4 +61,9 @@ public class Incident {
     public void setReopenedAt(OffsetDateTime reopenedAt) { this.reopenedAt = reopenedAt; }
     public void setReopenCount(int reopenCount) { this.reopenCount = Math.max(0, reopenCount); }
     public void setLifecycleReason(String lifecycleReason) { this.lifecycleReason = lifecycleReason; }
+    public void setOwnerDepartmentId(String value) { this.ownerDepartmentId = value; }
+    public void setOwnerGroupId(String value) { this.ownerGroupId = value; }
+    public void setScopeStatus(String value) { this.scopeStatus = value; }
+    public void setScopeSourceVersion(Long value) { this.scopeSourceVersion = value; }
+    public void setScopeInheritedAt(OffsetDateTime value) { this.scopeInheritedAt = value; }
 }

@@ -59,6 +59,8 @@ public class AdapterActionProperties {
     }
 
     public static class Issue {
+        /** v24 Phase 4 compatibility switch. Canonical Issue Projection is the default write authority. */
+        private boolean legacyWriteEnabled = false;
         private boolean enabled = false;
         private boolean createOnCompletedTask = false;
         private boolean createOnFailedTask = true;
@@ -67,6 +69,8 @@ public class AdapterActionProperties {
         private boolean oneUpdatePerTask = true;
         private String adapterName = "issue-default";
 
+        public boolean isLegacyWriteEnabled() { return legacyWriteEnabled; }
+        public void setLegacyWriteEnabled(boolean legacyWriteEnabled) { this.legacyWriteEnabled = legacyWriteEnabled; }
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public boolean isCreateOnCompletedTask() { return createOnCompletedTask; }

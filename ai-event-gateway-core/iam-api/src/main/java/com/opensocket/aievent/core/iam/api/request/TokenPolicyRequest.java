@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record TokenPolicyRequest(@Min(1) int personalTokenMaxTtlDays,@Min(1) @Max(90) int serviceTokenMaxTtlDays,@Min(1) @Max(10) int maxActiveTokens,boolean requireServiceAccountCidr){}

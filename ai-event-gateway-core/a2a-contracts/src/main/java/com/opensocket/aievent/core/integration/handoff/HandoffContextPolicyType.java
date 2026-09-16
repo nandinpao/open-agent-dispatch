@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.integration.handoff;
+public enum HandoffContextPolicyType { NONE, SUMMARY_ONLY, SELECTED_FIELDS, SELECTED_COMMENTS, METADATA_ONLY, NO_ATTACHMENTS, ATTACHMENT_METADATA_ONLY, FULL_APPROVED_SNAPSHOT, CUSTOM_TEMPLATE }

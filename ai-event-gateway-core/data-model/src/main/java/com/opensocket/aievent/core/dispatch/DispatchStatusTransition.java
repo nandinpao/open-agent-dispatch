@@ -26,6 +26,13 @@ public class DispatchStatusTransition {
     private OffsetDateTime nextRetryAt;
     private OffsetDateTime updatedAt;
     private boolean clearClaim = true;
+    private DispatchOutboxStatus outboxStatus;
+    private String ackEvidenceId;
+    private OffsetDateTime ackedAt;
+    private DispatchRecoveryClassification recoveryClassification;
+    private OffsetDateTime uncertainSince;
+    private OffsetDateTime lastReconciledAt;
+    private Integer reconciliationCountIncrement;
 
     public String getDispatchRequestId() { return dispatchRequestId; }
     public void setDispatchRequestId(String dispatchRequestId) { this.dispatchRequestId = dispatchRequestId; }
@@ -57,6 +64,20 @@ public class DispatchStatusTransition {
     public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
     public boolean isClearClaim() { return clearClaim; }
     public void setClearClaim(boolean clearClaim) { this.clearClaim = clearClaim; }
+    public DispatchOutboxStatus getOutboxStatus() { return outboxStatus; }
+    public void setOutboxStatus(DispatchOutboxStatus outboxStatus) { this.outboxStatus = outboxStatus; }
+    public String getAckEvidenceId() { return ackEvidenceId; }
+    public void setAckEvidenceId(String ackEvidenceId) { this.ackEvidenceId = ackEvidenceId; }
+    public OffsetDateTime getAckedAt() { return ackedAt; }
+    public void setAckedAt(OffsetDateTime ackedAt) { this.ackedAt = ackedAt; }
+    public DispatchRecoveryClassification getRecoveryClassification() { return recoveryClassification; }
+    public void setRecoveryClassification(DispatchRecoveryClassification recoveryClassification) { this.recoveryClassification = recoveryClassification; }
+    public OffsetDateTime getUncertainSince() { return uncertainSince; }
+    public void setUncertainSince(OffsetDateTime uncertainSince) { this.uncertainSince = uncertainSince; }
+    public OffsetDateTime getLastReconciledAt() { return lastReconciledAt; }
+    public void setLastReconciledAt(OffsetDateTime lastReconciledAt) { this.lastReconciledAt = lastReconciledAt; }
+    public Integer getReconciliationCountIncrement() { return reconciliationCountIncrement; }
+    public void setReconciliationCountIncrement(Integer reconciliationCountIncrement) { this.reconciliationCountIncrement = reconciliationCountIncrement; }
 
     public List<String> allowedCurrentStatusNames() {
         return allowedCurrentStatuses.stream().map(Enum::name).toList();
@@ -64,5 +85,13 @@ public class DispatchStatusTransition {
 
     public String newStatusName() {
         return newStatus == null ? null : newStatus.name();
+    }
+
+    public String outboxStatusName() {
+        return outboxStatus == null ? null : outboxStatus.name();
+    }
+
+    public String recoveryClassificationName() {
+        return recoveryClassification == null ? null : recoveryClassification.name();
     }
 }

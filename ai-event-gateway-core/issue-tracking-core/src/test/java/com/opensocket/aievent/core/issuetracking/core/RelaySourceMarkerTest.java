@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.issuetracking.core; import static org.junit.jupiter.api.Assertions.*; import org.junit.jupiter.api.Test; class RelaySourceMarkerTest { @Test void markerIsStableAndRecognized(){String a=RelaySourceMarker.create("t","top","e");assertEquals(a,RelaySourceMarker.create("t","top","e"));assertTrue(RelaySourceMarker.isOpenDispatchMarker(a));}}

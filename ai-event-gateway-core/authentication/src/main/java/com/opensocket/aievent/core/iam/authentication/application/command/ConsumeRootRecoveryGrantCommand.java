@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import java.time.Instant;public record ConsumeRootRecoveryGrantCommand(String grantId,String secret,String ipAddress,String userAgent,String correlationId,Instant occurredAt,long expectedVersion){}

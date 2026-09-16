@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.authentication.application.command;import com.opensocket.aievent.core.iam.authentication.domain.CredentialSubjectType;import java.time.Instant;public record ResetMfaCommand(CredentialSubjectType subjectType,String subjectId,String actorId,String reason,String correlationId,Instant occurredAt){}

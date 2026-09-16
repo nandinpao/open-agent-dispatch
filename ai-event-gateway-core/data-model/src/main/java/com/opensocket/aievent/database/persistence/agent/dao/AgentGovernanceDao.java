@@ -24,6 +24,10 @@ public interface AgentGovernanceDao {
     List<AgentEnrollmentRequestPo> searchEnrollments(@Param("status") String status, @Param("limit") int limit);
 
     int upsertProfile(@Param("profile") AgentProfilePo profile);
+    int bumpProfilePolicyVersion(@Param("agentId") String agentId,
+                                 @Param("tenantId") String tenantId,
+                                 @Param("expectedPolicyVersion") int expectedPolicyVersion,
+                                 @Param("updatedAt") OffsetDateTime updatedAt);
     AgentProfilePo findProfile(@Param("agentId") String agentId);
     List<AgentProfilePo> searchProfiles(@Param("approvalStatus") String approvalStatus, @Param("limit") int limit);
 

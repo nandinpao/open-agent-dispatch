@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record SwitchTenantRequest(@NotBlank @Size(max=128) String tenantId){}

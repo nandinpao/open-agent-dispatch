@@ -22,7 +22,10 @@ public class CoreInternalSecurityRequestClassifier {
         if (path.startsWith("/actuator")) {
             return Optional.of(CoreInternalSecurityRole.ACTUATOR);
         }
-        if (path.startsWith("/api/auth/")) {
+        if (path.startsWith("/api/external/provider-webhooks/")) {
+            return Optional.empty();
+        }
+        if (path.startsWith("/api/session/")) {
             return Optional.empty();
         }
         if (path.startsWith("/api/events/")) {
@@ -43,7 +46,7 @@ public class CoreInternalSecurityRequestClassifier {
             return Optional.of(CoreInternalSecurityRole.ADAPTER_WORKER);
         }
         if (path.startsWith("/internal/control-plane/tasks")) {
-            if (isTaskCallbackWrite(path, method)) {
+            if (isTaskCallbackWrite(path, method) || isCapabilityDelegationClosureRead(path, method)) {
                 return Optional.of(CoreInternalSecurityRole.GATEWAY);
             }
             return Optional.of(CoreInternalSecurityRole.OPERATOR);
@@ -93,6 +96,13 @@ public class CoreInternalSecurityRequestClassifier {
     }
 
 
+
+    private boolean isCapabilityDelegationClosureRead(String path, String method) {
+        return "GET".equals(method)
+                && path.contains("/capability-delegations/")
+                && path.endsWith("/closure-evidence");
+    }
+
     private boolean isTaskCallbackWrite(String path, String method) {
         if (!"POST".equals(method)) {
             return false;
@@ -100,7 +110,8 @@ public class CoreInternalSecurityRequestClassifier {
         return path.endsWith("/ack")
                 || path.endsWith("/progress")
                 || path.endsWith("/result")
-                || path.endsWith("/error");
+                || path.endsWith("/error")
+                || path.endsWith("/capability-delegations");
     }
 
     private boolean isMutation(String method) {

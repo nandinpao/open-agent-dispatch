@@ -4,17 +4,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.time.Duration;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionService;
 import com.opensocket.aievent.core.action.executor.AdapterExecutorCircuitBreaker;
 import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditService;
 import com.opensocket.aievent.core.action.executor.audit.InMemoryAdapterExecutorAuditRepository;
-import com.opensocket.aievent.core.action.executor.issue.IssueTrackingAdapterActionExecutor;
+import com.opensocket.aievent.core.action.executor.issue.IssueVendor;
+import com.opensocket.aievent.core.action.executor.issue.IssueExecutorRequest;
+import com.opensocket.aievent.core.action.executor.issue.IssueExecutorResponse;
+import com.opensocket.aievent.core.action.executor.issue.RedmineIssueVendorExecutor;
+import com.opensocket.aievent.core.action.executor.AdapterExecutionResult;
+import tools.jackson.databind.json.JsonMapper;
 import com.opensocket.aievent.core.action.executor.issue.IssueVendorResolver;
 import com.opensocket.aievent.core.callback.TaskCallbackRequest;
 import com.opensocket.aievent.core.callback.TaskCallbackType;
@@ -22,6 +29,8 @@ import com.opensocket.aievent.core.dispatch.DispatchRequest;
 import com.opensocket.aievent.core.incident.Incident;
 import com.opensocket.aievent.core.incident.IncidentFacade;
 import com.opensocket.aievent.core.incident.IncidentObservationCommand;
+import com.opensocket.aievent.core.issue.TaskIssueLink;
+import com.opensocket.aievent.core.issue.TaskIssueLinkRepository;
 import com.opensocket.aievent.core.task.TaskRecord;
 import com.opensocket.aievent.core.task.TaskStatus;
 import com.sun.net.httpserver.HttpExchange;
@@ -50,12 +59,22 @@ class TaskTerminalIssueSyncIntegrationTest {
             assertThat(pendingIssueAction.getPayload()).containsEntry("issueCommentMode", "APPEND");
             assertThat(pendingIssueAction.getPayload()).containsEntry("adapterActionId", pendingIssueAction.getActionId());
             assertThat(pendingIssueAction.getPayload()).containsEntry("issueActionIdempotencyKey", pendingIssueAction.getIdempotencyKey());
+            assertThat(pendingIssueAction.getPayload()).containsEntry("tenantId", "tenant-a");
+            assertThat(pendingIssueAction.getPayload()).containsEntry("sourceSystemId", "ERP");
+            assertThat(pendingIssueAction.getPayload()).containsEntry("taskType", "INCIDENT_RESPONSE");
+            assertThat(pendingIssueAction.getPayload()).containsEntry("ownerDepartmentId", "dept-erp");
+            assertThat(pendingIssueAction.getPayload()).containsEntry("ownerGroupId", "group-risk");
+            assertThat(pendingIssueAction.getPayload()).containsEntry("executorDomainId", "domain-payment-risk");
             assertThat(String.valueOf(pendingIssueAction.getPayload().get("agentSummary"))).contains("Agent execution completed");
 
-            AdapterActionExecutionService executionService = executionService(repository, incidentFacade, redmine.baseUrl());
+            RecordingTaskIssueLinkRepository issueLinks = new RecordingTaskIssueLinkRepository();
+            AdapterActionExecutionService executionService = executionService(repository, incidentFacade, redmine.baseUrl(), issueLinks);
             AdapterAction completed = executionService.execute(pendingIssueAction.getActionId());
 
             assertThat(completed.getStatus()).isEqualTo(AdapterActionStatus.COMPLETED);
+            assertThat(issueLinks.statusHistory()).containsExactly(TaskIssueLink.SYNC_IN_PROGRESS, TaskIssueLink.SYNCED);
+            assertThat(issueLinks.latest().getIssueId()).isEqualTo("701");
+            assertThat(issueLinks.latest().getIssueUrl()).isEqualTo(redmine.baseUrl() + "/issues/701");
             assertThat(completed.getResponseRef()).contains("\"vendor\":\"REDMINE\"");
             assertThat(completed.getResponseRef()).contains("\"issueId\":\"701\"");
             assertThat(completed.getResponseRef()).contains("\"idempotencyKey\":\"" + pendingIssueAction.getIdempotencyKey() + "\"");
@@ -150,6 +169,13 @@ class TaskTerminalIssueSyncIntegrationTest {
     private AdapterActionExecutionService executionService(InMemoryAdapterActionRepository repository,
                                                           IncidentFacade incidentFacade,
                                                           String redmineBaseUrl) {
+        return executionService(repository, incidentFacade, redmineBaseUrl, TaskIssueLinkRepository.noop());
+    }
+
+    private AdapterActionExecutionService executionService(InMemoryAdapterActionRepository repository,
+                                                          IncidentFacade incidentFacade,
+                                                          String redmineBaseUrl,
+                                                          TaskIssueLinkRepository issueLinks) {
         AdapterActionExecutionProperties properties = new AdapterActionExecutionProperties();
         properties.setMode("embedded");
         properties.setEnabled(true);
@@ -159,14 +185,38 @@ class TaskTerminalIssueSyncIntegrationTest {
         properties.getIssue().getRedmine().setBaseUrl(redmineBaseUrl);
         properties.getIssue().getRedmine().setApiKey("redmine-token");
         properties.getIssue().getRedmine().setProjectId("MES-OPS");
+        RedmineIssueVendorExecutor redmineExecutor = new RedmineIssueVendorExecutor(
+                properties.getIssue().getRedmine(), "redmine-test", JsonMapper.builder().build(),
+                properties.getExecutionTimeout());
+        com.opensocket.aievent.core.action.executor.AdapterActionExecutor issueExecutor =
+                new com.opensocket.aievent.core.action.executor.AdapterActionExecutor() {
+                    @Override public String name() { return "canonical-redmine-test-double"; }
+                    @Override public boolean supports(AdapterAction action) { return action != null && action.getAdapterType() == AdapterType.ISSUE_TRACKING; }
+                    @Override public AdapterExecutionResult execute(AdapterAction action) {
+                        IssueVendor vendor = IssueVendor.REDMINE;
+                        IssueExecutorResponse response = redmineExecutor.execute(IssueExecutorRequest.from(action, vendor));
+                        if (response.isSuccess()) {
+                            AdapterExecutionResult result = AdapterExecutionResult.success(name(), response.getResponseRef());
+                            result.setIssueVendor(response.getVendor());
+                            result.setIssueId(response.getIssueId());
+                            result.setIssueUrl(response.getIssueUrl());
+                            result.setIssueStatus(response.getIssueStatus());
+                            return result;
+                        }
+                        return response.isRetryable()
+                                ? AdapterExecutionResult.retryableFailure(name(), response.getError())
+                                : AdapterExecutionResult.permanentFailure(name(), response.getError());
+                    }
+                };
         InMemoryAdapterExecutorAuditRepository auditRepository = new InMemoryAdapterExecutorAuditRepository();
         return new AdapterActionExecutionService(
                 repository,
-                List.of(new IssueTrackingAdapterActionExecutor(properties, new IssueVendorResolver(properties))),
+                List.of(issueExecutor),
                 properties,
                 new AdapterExecutorCircuitBreaker(properties),
                 new AdapterExecutorAuditService(auditRepository, properties),
-                incidentFacade);
+                incidentFacade,
+                issueLinks);
     }
 
     private TaskRecord completedTask() {
@@ -178,6 +228,12 @@ class TaskTerminalIssueSyncIntegrationTest {
         task.setTaskId(taskId);
         task.setIncidentId(incidentId);
         task.setStatus(TaskStatus.COMPLETED);
+        task.setTenantId("tenant-a");
+        task.setSourceSystem("ERP");
+        task.setTaskType(com.opensocket.aievent.core.task.TaskType.INCIDENT_RESPONSE);
+        task.setOwnerDepartmentId("dept-erp");
+        task.setOwnerGroupId("group-risk");
+        task.setExecutorDomainId("domain-payment-risk");
         task.setSiteId("TPE");
         task.setPlantId("PLANT-A");
         task.setObjectType("EQUIPMENT");
@@ -240,6 +296,28 @@ class TaskTerminalIssueSyncIntegrationTest {
         public Optional<Incident> findById(String incidentId) {
             return incident.getIncidentId().equals(incidentId) ? Optional.of(incident) : Optional.empty();
         }
+    }
+
+    private static final class RecordingTaskIssueLinkRepository implements TaskIssueLinkRepository {
+        private final Map<String, TaskIssueLink> links = new LinkedHashMap<>();
+        private final List<String> statuses = new ArrayList<>();
+
+        @Override
+        public TaskIssueLink save(TaskIssueLink link) {
+            statuses.add(link.getSyncStatus());
+            links.put(link.getLinkId(), link);
+            return link;
+        }
+
+        private List<String> statusHistory() { return List.copyOf(statuses); }
+        private TaskIssueLink latest() { return links.values().stream().reduce((left, right) -> right).orElseThrow(); }
+        @Override public Optional<TaskIssueLink> findByTenantAndLinkId(String tenantId, String linkId) { return Optional.ofNullable(links.get(linkId)); }
+        @Override public Optional<TaskIssueLink> findByTenantAndIdempotencyKey(String tenantId, String idempotencyKey) { return links.values().stream().filter(v -> java.util.Objects.equals(v.getIdempotencyKey(), idempotencyKey)).findFirst(); }
+        @Override public List<TaskIssueLink> findAllByTenantAndTaskId(String tenantId, String taskId) { return links.values().stream().filter(v -> java.util.Objects.equals(v.getTaskId(), taskId)).toList(); }
+        @Override public Optional<TaskIssueLink> findByExternalIssue(String tenantId, String connectionId, String externalProjectId, String externalIssueId) { return links.values().stream().filter(v -> java.util.Objects.equals(v.getExternalIssueId(), externalIssueId)).findFirst(); }
+        @Override public List<TaskIssueLink> findAllByTenantAndTaskIds(String tenantId, List<String> taskIds) { return links.values().stream().filter(v -> taskIds.contains(v.getTaskId())).toList(); }
+        @Override public List<TaskIssueLink> recent(String tenantId, int limit) { return links.values().stream().limit(limit).toList(); }
+        @Override public String mode() { return "RECORDING"; }
     }
 
     private static final class RecordingIssueServer implements AutoCloseable {

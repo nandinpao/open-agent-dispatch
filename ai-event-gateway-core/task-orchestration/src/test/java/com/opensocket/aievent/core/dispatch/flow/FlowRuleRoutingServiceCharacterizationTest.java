@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 import com.opensocket.aievent.core.task.TaskRecord;
+import com.opensocket.aievent.core.task.domain.TaskIssueSyncPolicy;
 
 class FlowRuleRoutingServiceCharacterizationTest {
 
@@ -83,7 +84,7 @@ class FlowRuleRoutingServiceCharacterizationTest {
         assertThat(plan.getRuleId()).isEqualTo("rule-random-4b92");
         assertThat(plan.getRequestedSkill()).isEqualTo("CAP_AUTHORITATIVE_RETRY_EVIDENCE");
         assertThat(plan.getRequiredSkills()).containsExactly("CAP_AUTHORITATIVE_RETRY_EVIDENCE");
-        assertThat(plan.getCapabilityRequirementMode()).isEqualTo("SOURCE_DEFAULT");
+        assertThat(plan.getCapabilityRequirementMode()).isEqualTo("EXPLICIT");
         assertThat(plan.getRequiredOperation()).isEqualTo("ANALYZE");
         assertThat(plan.getSideEffectLevel()).isEqualTo("NONE");
         assertThat(plan.getCandidatePoolMode()).isEqualTo("SOURCE_SYSTEM_POOL");
@@ -108,14 +109,11 @@ class FlowRuleRoutingServiceCharacterizationTest {
         assertThat(captured.get().getSourceSystem()).isEqualTo("SRC_RANDOM_8F2A");
         assertThat(captured.get().getRequestedSkill()).isNull();
         assertThat(plan.isMatched()).isFalse();
-        assertThat(plan.getRoutingPath()).isEqualTo("FLOW_RULE_REQUIRED_BLOCKED");
+        assertThat(plan.getRoutingPath()).isEqualTo("FLOW_RULE_NO_MATCH_TRIAGE");
         assertThat(plan.getReason())
-                .contains("No ACTIVE Flow-owned Dispatch Rule matched")
-                .contains("Assign at least one approved Agent to the Flow")
-                .doesNotContain("SOURCE_DEFAULT")
-                .doesNotContain("Agent Source Coverage")
-                .doesNotContain("Operation Profile")
-                .doesNotContain("Service Scope");
+                .contains("No deterministic Flow Rule matched")
+                .contains("semantic triage")
+                .doesNotContain("SOURCE_DEFAULT");
     }
 
     @Test
@@ -139,7 +137,105 @@ class FlowRuleRoutingServiceCharacterizationTest {
         assertThat(task.getRequestedSkill()).isEqualTo("CAP_RANDOM_719CD");
         assertThat(task.getRoutingPath()).isEqualTo("FLOW_RULE");
         assertThat(task.getRoutingPolicy()).isEqualTo("FLOW_RULE");
-        assertThat(task.getRequiredCapabilities()).containsExactly("CAP_EXISTING_001", "CAP_RANDOM_719CD");
+        assertThat(task.getRequiredCapabilities()).containsExactly("CAP_RANDOM_719CD");
+    }
+
+    @Test
+    void shouldApplyCanonicalIssueSyncPolicyFromMatchedFlowRulePlan() {
+        TaskRecord task = syntheticTask();
+        assertThat(task.getIssueSyncPolicy()).isEqualTo(TaskIssueSyncPolicy.OPTIONAL);
+
+        FlowRuleRoutingPlan plan = new FlowRuleRoutingPlan();
+        plan.setMatched(true);
+        plan.setFlowId("flow-random-7f31");
+        plan.setRuleId("rule-random-4b92");
+        plan.setRoutingPath("FLOW_RULE");
+        plan.setIssueSyncPolicy("REQUIRED");
+
+        new FlowRuleRoutingService(query -> Optional.empty()).applyToTask(task, plan);
+
+        assertThat(task.getIssueSyncPolicy()).isEqualTo(TaskIssueSyncPolicy.REQUIRED);
+    }
+
+    @Test
+    void shouldCarryPersistedRuleIssuePolicyIntoRoutingPlan() {
+        FlowRuleRoutingRepository repository = query -> {
+            FlowRuleRuntimeMatch match = new FlowRuleRuntimeMatch();
+            match.setFlowId("flow-random-7f31");
+            match.setRuleId("rule-random-4b92");
+            match.setIssueSyncPolicy("MANUAL");
+            return Optional.of(match);
+        };
+
+        FlowRuleRoutingPlan plan = new FlowRuleRoutingService(repository).resolve(syntheticTask());
+
+        assertThat(plan.isMatched()).isTrue();
+        assertThat(plan.getIssueSyncPolicy()).isEqualTo("MANUAL");
+    }
+
+
+    @Test
+    void shouldPreserveLegacyCreateOnCompletedForMigrationOnlyOptionalFlow() {
+        FlowRuleRoutingRepository repository = query -> {
+            FlowRuleRuntimeMatch match = new FlowRuleRuntimeMatch();
+            match.setFlowId("flow-legacy");
+            match.setRuleId("rule-legacy");
+            match.setFlowIssueSyncPolicy("OPTIONAL");
+            match.setIssueSyncPolicy("OPTIONAL");
+            match.setIssueSyncPolicySource("FLOW_DEFAULT");
+            match.setFlowIssuePolicyExplicitlyManaged(false);
+            return Optional.of(match);
+        };
+
+        FlowRuleRoutingService service = new FlowRuleRoutingService(repository);
+        service.setLegacyCreateOnCompletedCompatibilityEnabled(true);
+        FlowRuleRoutingPlan plan = service.resolve(syntheticTask());
+
+        assertThat(plan.getIssueSyncPolicy()).isEqualTo("REQUIRED");
+        assertThat(plan.getIssueSyncPolicySource()).isEqualTo("LEGACY_CREATE_ON_COMPLETED_COMPAT");
+    }
+
+    @Test
+    void shouldRespectAdministratorExplicitOptionalPolicy() {
+        FlowRuleRoutingRepository repository = query -> {
+            FlowRuleRuntimeMatch match = new FlowRuleRuntimeMatch();
+            match.setFlowId("flow-managed");
+            match.setRuleId("rule-managed");
+            match.setFlowIssueSyncPolicy("OPTIONAL");
+            match.setIssueSyncPolicy("OPTIONAL");
+            match.setIssueSyncPolicySource("FLOW_DEFAULT");
+            match.setFlowIssuePolicyExplicitlyManaged(true);
+            return Optional.of(match);
+        };
+
+        FlowRuleRoutingService service = new FlowRuleRoutingService(repository);
+        service.setLegacyCreateOnCompletedCompatibilityEnabled(true);
+        FlowRuleRoutingPlan plan = service.resolve(syntheticTask());
+
+        assertThat(plan.getIssueSyncPolicy()).isEqualTo("OPTIONAL");
+        assertThat(plan.getIssueSyncPolicySource()).isEqualTo("FLOW_DEFAULT");
+    }
+
+    @Test
+    void shouldRespectExplicitRuleOptionalOverrideEvenForLegacyFlow() {
+        FlowRuleRoutingRepository repository = query -> {
+            FlowRuleRuntimeMatch match = new FlowRuleRuntimeMatch();
+            match.setFlowId("flow-legacy");
+            match.setRuleId("rule-override");
+            match.setFlowIssueSyncPolicy("OPTIONAL");
+            match.setRuleIssueSyncPolicy("OPTIONAL");
+            match.setIssueSyncPolicy("OPTIONAL");
+            match.setIssueSyncPolicySource("RULE_OVERRIDE");
+            match.setFlowIssuePolicyExplicitlyManaged(false);
+            return Optional.of(match);
+        };
+
+        FlowRuleRoutingService service = new FlowRuleRoutingService(repository);
+        service.setLegacyCreateOnCompletedCompatibilityEnabled(true);
+        FlowRuleRoutingPlan plan = service.resolve(syntheticTask());
+
+        assertThat(plan.getIssueSyncPolicy()).isEqualTo("OPTIONAL");
+        assertThat(plan.getIssueSyncPolicySource()).isEqualTo("RULE_OVERRIDE");
     }
 
     private TaskRecord syntheticTask() {

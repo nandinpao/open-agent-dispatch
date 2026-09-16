@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.opensocket</groupId>
+        <artifactId>control-plane-parent</artifactId>
+        <version>0.8.2-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <artifactId>access-token</artifactId>
+    <name>access-token</name>
+    <description>Human and service-account token lifecycle boundary.</description>
+    <dependencies>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>security-principal-contracts</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>identity-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-access-token-boundary</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <searchTransitive>true</searchTransitive>
+                                    <excludes>
+                                            <exclude>org.springframework:*</exclude>
+                                            <exclude>org.mybatis:*</exclude>
+                                            <exclude>jakarta.persistence:*</exclude>
+                                            <exclude>com.opensocket:iam-persistence</exclude>
+                                            <exclude>com.opensocket:iam-api</exclude>
+                                            <exclude>com.opensocket:control-plane-app</exclude>
+                                            <exclude>com.opensocket:identity-access</exclude>
+                                            <exclude>com.opensocket:agent-control</exclude>
+                                            <exclude>com.opensocket:task-orchestration</exclude>
+                                            <exclude>com.opensocket:execution-control</exclude>
+                                            <exclude>com.opensocket:adapter-action</exclude>
+                                            <exclude>com.opensocket:rbac</exclude>
+                                            <exclude>com.opensocket:authentication</exclude>
+                                    </excludes>
+                                    <message>Phase 1A-0 IAM module boundary violation in access-token.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

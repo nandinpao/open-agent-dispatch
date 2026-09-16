@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.response;import java.util.Set;public record PermissionResponse(String permissionCode,String displayName,String description,Set<String> allowedScopeTypes,boolean systemManaged){}

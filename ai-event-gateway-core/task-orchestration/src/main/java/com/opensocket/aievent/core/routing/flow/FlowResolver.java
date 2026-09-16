@@ -22,9 +22,30 @@ public class FlowResolver {
     public FlowResolution resolve(TaskRecord task) {
         TaskRecord repaired = ruleResolver.applyRuntimeRepair(task);
         boolean flowRuleTask = ruleResolver.isFlowRuleTask(repaired);
-        RoutingPolicy policy = flowRuleTask ? RoutingPolicy.FLOW_RULE : RoutingPolicy.MANUAL_REVIEW;
+        boolean governedPoolTask = ruleResolver.isGovernedPoolTask(repaired);
+        RoutingPolicy policy = flowRuleTask
+                ? RoutingPolicy.FLOW_RULE
+                : governedPoolTask ? RoutingPolicy.GOVERNED_POOL : RoutingPolicy.MANUAL_REVIEW;
         boolean sourceFlowPoolFirstTask = ruleResolver.isSourceFlowPoolFirstTask(repaired);
-        return new FlowResolution(repaired, policy, flowRuleTask, sourceFlowPoolFirstTask);
+        return new FlowResolution(repaired, policy, flowRuleTask, sourceFlowPoolFirstTask, null);
+    }
+
+
+    /** C7 simulation-only resolver. Production resolve() remains ACTIVE/ENABLED-only. */
+    public FlowResolution resolveSimulation(TaskRecord task) {
+        return resolveSimulation(task, java.util.Map.of());
+    }
+
+    public FlowResolution resolveSimulation(TaskRecord task, java.util.Map<String,Object> matchAttributes) {
+        RuleResolver.SimulationRepairResult simulation = ruleResolver.applySimulationRepair(task, matchAttributes);
+        TaskRecord repaired = simulation.task();
+        boolean flowRuleTask = ruleResolver.isFlowRuleTask(repaired);
+        boolean governedPoolTask = ruleResolver.isGovernedPoolTask(repaired);
+        RoutingPolicy policy = flowRuleTask
+                ? RoutingPolicy.FLOW_RULE
+                : governedPoolTask ? RoutingPolicy.GOVERNED_POOL : RoutingPolicy.MANUAL_REVIEW;
+        boolean sourceFlowPoolFirstTask = ruleResolver.isSourceFlowPoolFirstTask(repaired);
+        return new FlowResolution(repaired, policy, flowRuleTask, sourceFlowPoolFirstTask, simulation.flowVersion());
     }
 
     public boolean isFlowRuleTask(TaskRecord task) {
@@ -33,6 +54,14 @@ public class FlowResolver {
 
     public boolean isSourceFlowPoolFirstTask(TaskRecord task) {
         return ruleResolver.isSourceFlowPoolFirstTask(task);
+    }
+
+    public boolean isGovernedPoolTask(TaskRecord task) {
+        return ruleResolver.isGovernedPoolTask(task);
+    }
+
+    public boolean isAuthoritativePoolTask(TaskRecord task) {
+        return ruleResolver.isAuthoritativePoolTask(task);
     }
 
     public String decisionSuffix(TaskRecord task) {

@@ -1,7 +1,7 @@
 package com.opensocket.aievent.core.routing;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+
+
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
+
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,18 +21,16 @@ import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 
 import com.opensocket.aievent.core.agent.AgentDirectoryFacade;
-import com.opensocket.aievent.core.agent.AgentSnapshot;
+
 import com.opensocket.aievent.core.agent.eligibility.DispatchEligibilityV2BlockingReason;
 import com.opensocket.aievent.core.agent.eligibility.DispatchEligibilityV2Candidate;
 import com.opensocket.aievent.core.agent.eligibility.DispatchEligibilityV2Response;
-import com.opensocket.aievent.core.agent.skill.AgentDispatchSkillEvaluationService;
-import com.opensocket.aievent.core.agent.skill.AgentSkillRegistryService;
 import com.opensocket.aievent.core.dispatch.flow.AgentPoolRoutingRepository;
 import com.opensocket.aievent.core.dispatch.flow.FlowRuleRoutingService;
 import com.opensocket.aievent.core.routing.eligibility.CandidateFilterResult;
 import com.opensocket.aievent.core.routing.legacy.GenericAuthorityBridge;
 import com.opensocket.aievent.core.routing.eligibility.RuntimeEligibilityEvaluator;
-import com.opensocket.aievent.core.routing.flow.FlowResolution;
+
 import com.opensocket.aievent.core.routing.flow.FlowResolver;
 import com.opensocket.aievent.core.routing.evidence.RoutingBlockerResolver;
 import com.opensocket.aievent.core.routing.evidence.RoutingEvidenceBuilder;
@@ -45,7 +43,8 @@ import com.opensocket.aievent.core.routing.observation.RoutingObservationDocumen
 import com.opensocket.aievent.core.routing.observation.RoutingObservationDocumentation.HighCardinalityKeyNames;
 import com.opensocket.aievent.core.routing.observation.RoutingObservationDocumentation.LowCardinalityKeyNames;
 import com.opensocket.aievent.core.routing.cutover.DispatchCutoverService;
-import com.opensocket.aievent.core.routing.cutover.GenericDispatchAuthoritativeService;
+import com.opensocket.aievent.core.routing.authority.DispatchDecisionEngine;
+import com.opensocket.aievent.core.routing.authority.AuthoritativePoolRoutingBridge;
 import com.opensocket.aievent.core.task.TaskRecord;
 
 @Service
@@ -64,13 +63,6 @@ public class RoutingDecisionService {
     @Autowired(required = false)
     private RoutingMetricsPort metrics;
 
-    @Autowired(required = false)
-    private AgentSkillRegistryService skillRegistryService;
-
-    @Autowired(required = false)
-    private AgentDispatchSkillEvaluationService dispatchSkillEvaluationService;
-
-
 
 
     @Autowired(required = false)
@@ -83,7 +75,7 @@ public class RoutingDecisionService {
     private DispatchCutoverService dispatchCutoverService;
 
     @Autowired(required = false)
-    private GenericDispatchAuthoritativeService genericAuthoritativeService;
+    private DispatchDecisionEngine dispatchDecisionEngine;
 
     public RoutingDecisionService(AgentDirectoryFacade agentDirectory,
                                   RoutingDecisionRepository routingDecisionRepository,
@@ -152,9 +144,21 @@ public class RoutingDecisionService {
         return flowResolver().isSourceFlowPoolFirstTask(task);
     }
 
+    boolean isGovernedPoolTask(TaskRecord task) {
+        return flowResolver().isGovernedPoolTask(task);
+    }
+
+    boolean isAuthoritativePoolTask(TaskRecord task) {
+        return flowResolver().isAuthoritativePoolTask(task);
+    }
+
     GenericAuthorityBridge genericAuthorityBridge() {
-        return new GenericAuthorityBridge(properties, dispatchCutoverService, genericAuthoritativeService,
+        return new GenericAuthorityBridge(properties, dispatchCutoverService, dispatchDecisionEngine,
                 routingEvidenceBuilder, this::saveAndRecord);
+    }
+
+    AuthoritativePoolRoutingBridge authoritativePoolRoutingBridge() {
+        return new AuthoritativePoolRoutingBridge(dispatchDecisionEngine, routingEvidenceBuilder, this::saveAndRecord);
     }
 
     RoutingCandidateSelection selectCandidates(
@@ -163,11 +167,12 @@ public class RoutingDecisionService {
             RoutingPolicy policy,
             V2RoutingComparison v2Comparison,
             EligibilityEngineMode eligibilityMode) {
+        EligibilityEngineMode effectiveEligibilityMode = eligibilityMode == null ? EligibilityEngineMode.SHADOW : eligibilityMode;
         Observation observation = RoutingObservationDocumentation.CANDIDATE_SELECTION
                 .observation(observationRegistry)
                 .lowCardinalityKeyValue(LowCardinalityKeyNames.CANDIDATE_RESULT.withValue("processing"))
                 .lowCardinalityKeyValue(LowCardinalityKeyNames.ROUTING_POLICY.withValue(normalizeObservationValue(policy == null ? null : policy.name())))
-                .lowCardinalityKeyValue(LowCardinalityKeyNames.ELIGIBILITY_MODE.withValue(normalizeObservationValue(eligibilityMode == null ? null : eligibilityMode.name())))
+                .lowCardinalityKeyValue(LowCardinalityKeyNames.ELIGIBILITY_MODE.withValue(normalizeObservationValue(effectiveEligibilityMode.name())))
                 .lowCardinalityKeyValue(LowCardinalityKeyNames.BLOCKING_REASON_CODE.withValue("none"))
                 .highCardinalityKeyValue(HighCardinalityKeyNames.TENANT_ID.withValue(valueOrNone(task == null ? null : task.getTenantId())))
                 .highCardinalityKeyValue(HighCardinalityKeyNames.TASK_ID.withValue(valueOrNone(task == null ? null : task.getTaskId())))
@@ -187,11 +192,11 @@ public class RoutingDecisionService {
             List<AgentCandidateScore> scores = candidatePool.included().stream()
                     .map(agent -> candidateScoringService.score(task, agent, policy, flowRuleTask))
                     .map(score -> selectionStrategyRegistry.annotate(score, selectionContext))
-                    .map(score -> applyV2ScoreAnnotations(score, v2Comparison, eligibilityMode))
+                    .map(score -> applyV2ScoreAnnotations(score, v2Comparison, effectiveEligibilityMode))
                     .toList();
             SelectionResult selectionResult = selectionStrategyRegistry.select(scores, selectionContext);
             scores = selectionResult.candidates();
-            if (eligibilityMode.enforce() && v2Comparison.applied()) {
+            if (effectiveEligibilityMode.enforce() && v2Comparison.applied()) {
                 scores = scores.stream()
                         .filter(score -> v2Comparison.v2EligibleAgentIds().contains(normalize(score.agentId())))
                         .sorted(Comparator.comparingInt(AgentCandidateScore::score).reversed())
@@ -199,7 +204,7 @@ public class RoutingDecisionService {
             }
             low(observation, LowCardinalityKeyNames.CANDIDATE_RESULT, scores.isEmpty() ? "no_candidate" : "candidates_available");
             low(observation, LowCardinalityKeyNames.BLOCKING_REASON_CODE, scores.isEmpty()
-                    ? candidateBlockingReason(v2Comparison, eligibilityMode, candidatePool)
+                    ? candidateBlockingReason(v2Comparison, effectiveEligibilityMode, candidatePool)
                     : "none");
             return new RoutingCandidateSelection(candidatePool, scores);
         });
@@ -226,8 +231,7 @@ public class RoutingDecisionService {
     }
 
     private CandidateScoringService candidateScoringService() {
-        return new CandidateScoringService(properties, runtimeEligibilityEvaluator,
-                skillRegistryService, dispatchSkillEvaluationService);
+        return new CandidateScoringService(properties, runtimeEligibilityEvaluator);
     }
 
     private V2RoutingComparison evaluateV2Routing(TaskRecord task, EligibilityEngineMode mode) {

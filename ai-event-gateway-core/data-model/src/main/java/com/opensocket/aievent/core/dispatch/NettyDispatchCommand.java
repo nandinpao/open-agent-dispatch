@@ -19,6 +19,7 @@ public class NettyDispatchCommand {
     private String taskType;
     private String priority;
     private String routingPolicy;
+    private String correlationId;
     private List<String> requiredCapabilities = List.of();
     private Map<String, Object> input = new LinkedHashMap<>();
 
@@ -50,6 +51,9 @@ public class NettyDispatchCommand {
     public void setPriority(String priority) { this.priority = priority; }
     public String getRoutingPolicy() { return routingPolicy; }
     public void setRoutingPolicy(String routingPolicy) { this.routingPolicy = routingPolicy; }
+    /** Business correlation propagated from the canonical Task into the Agent dispatch contract. */
+    public String getCorrelationId() { return correlationId; }
+    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
     public List<String> getRequiredCapabilities() { return requiredCapabilities; }
     public void setRequiredCapabilities(List<String> requiredCapabilities) { this.requiredCapabilities = requiredCapabilities == null ? List.of() : List.copyOf(requiredCapabilities); }
     public Map<String, Object> getInput() { return input; }

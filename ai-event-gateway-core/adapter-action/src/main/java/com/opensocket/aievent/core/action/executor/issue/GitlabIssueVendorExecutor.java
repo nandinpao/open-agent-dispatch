@@ -28,9 +28,9 @@ public class GitlabIssueVendorExecutor extends AbstractHttpIssueVendorExecutor {
     @Override
     public IssueExecutorResponse execute(IssueExecutorRequest request) {
         if (!enabled()) return failed("GitLab executor is disabled");
-        if (properties.getBaseUrl().isBlank()) return failed("GITLAB_EXECUTOR_BASE_URL is required");
-        if (properties.getPrivateToken().isBlank()) return failed("GITLAB_EXECUTOR_PRIVATE_TOKEN is required");
-        if (properties.getProjectId().isBlank()) return failed("GITLAB_EXECUTOR_PROJECT_ID is required");
+        if (properties.getBaseUrl().isBlank()) return failed("GitLab base URL is required by the resolved Integration Connection");
+        if (properties.getPrivateToken().isBlank()) return failed("GitLab credential is required by the resolved Integration Identity");
+        if (properties.getProjectId().isBlank()) return failed("GitLab project id is required by the resolved Project Mapping");
         try {
             if ("ISSUE_UPDATE_COMMENT".equalsIgnoreCase(request.getActionType())) {
                 return updateComment(request);
@@ -95,11 +95,11 @@ public class GitlabIssueVendorExecutor extends AbstractHttpIssueVendorExecutor {
     private String encodedProjectId() {
         String projectId = properties.getProjectId();
         if (projectId == null || projectId.isBlank()) {
-            throw new IllegalArgumentException("GITLAB_EXECUTOR_PROJECT_ID is required");
+            throw new IllegalArgumentException("GitLab project id is required by the resolved Project Mapping");
         }
         String normalized = projectId.trim();
         if (normalized.contains("%2F") || normalized.contains("%2f")) {
-            throw new IllegalArgumentException("GITLAB_EXECUTOR_PROJECT_ID must be a numeric id or raw path like group/project; do not pre-encode '/' as %2F");
+            throw new IllegalArgumentException("GitLab project id must be numeric or a raw path such as group/project; do not pre-encode '/' as %2F");
         }
         return encode(normalized);
     }

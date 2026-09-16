@@ -20,6 +20,7 @@ import com.opensocket.aievent.core.agent.governance.AgentSecurityEvent;
 import com.opensocket.aievent.core.agent.governance.AgentSecurityEnforcementPolicy;
 import com.opensocket.aievent.database.persistence.agent.governance.converter.AgentGovernancePersistenceConverter;
 import com.opensocket.aievent.database.persistence.agent.dao.AgentGovernanceDao;
+import com.opensocket.aievent.database.persistence.agent.po.AgentProfilePo;
 import com.opensocket.aievent.database.persistence.spi.DatabaseRepositoryAdapter;
 
 @DatabaseRepositoryAdapter
@@ -58,6 +59,19 @@ public class MybatisAgentGovernanceRepository implements AgentGovernanceReposito
     public AgentProfile saveProfile(AgentProfile profile) {
         dao.upsertProfile(converter.toPo(profile));
         return profile;
+    }
+
+    @Override
+    public AgentProfile bumpPolicyVersion(String agentId, String tenantId, int expectedPolicyVersion, OffsetDateTime updatedAt) {
+        int updated = dao.bumpProfilePolicyVersion(agentId, tenantId, expectedPolicyVersion, updatedAt);
+        if (updated != 1) {
+            throw new IllegalStateException("AGENT_POLICY_VERSION_CONFLICT: " + agentId);
+        }
+        AgentProfilePo saved = dao.findProfile(agentId);
+        if (saved == null) {
+            throw new IllegalStateException("AGENT_PROFILE_NOT_FOUND_AFTER_POLICY_VERSION_BUMP: " + agentId);
+        }
+        return converter.toProfile(saved);
     }
 
     @Override

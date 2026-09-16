@@ -7,19 +7,8 @@ import org.springframework.web.util.pattern.PathPatternParser;
 
 class CoreInternalSecurityConfigurationTest {
     @Test
-    void distinctRolesRemovesDuplicateHumanAndMachineRoleNames() {
-        assertThat(CoreInternalSecurityConfiguration.distinctRoles(
-                "ADMIN",
-                "RECOVERY_APPROVER",
-                CoreInternalSecurityRole.RECOVERY_APPROVER.name(),
-                "OPERATOR",
-                CoreInternalSecurityRole.OPERATOR.name()))
-                .containsExactly("ADMIN", "RECOVERY_APPROVER", "OPERATOR");
-    }
-    @Test
     void adapterActionRecoveryMatcherIsCompatibleWithSpringPathPatternParser() {
         var parser = new PathPatternParser();
-
         var pattern = parser.parse(
                 CoreInternalSecurityConfiguration.ADAPTER_ACTION_RECOVER_EXPIRED_LEASE_PATTERN);
 
@@ -44,19 +33,8 @@ class CoreInternalSecurityConfigurationTest {
     }
 
     @Test
-    void standardAdminWorkflowRolesAreExplicitAndDoNotDependOnRecoveryRoles() {
-        assertThat(CoreInternalSecurityConfiguration.STANDARD_ADMIN_WORKFLOW_PATHS)
-                .contains(
-                        "/admin/source-systems/**",
-                        "/admin/agent-enrollments/**",
-                        "/admin/agents/**",
-                        "/admin/dispatch-flows/**",
-                        "/admin/tasks/**",
-                        "/admin/dispatch-requests/**");
-        assertThat(CoreInternalSecurityConfiguration.STANDARD_ADMIN_READ_ROLES)
-                .containsExactly("VIEWER", "OPERATOR", "ADMIN");
-        assertThat(CoreInternalSecurityConfiguration.STANDARD_ADMIN_MUTATION_ROLES)
-                .containsExactly("OPERATOR", "ADMIN");
+    void internalMachineAuthorityUsesExplicitSpringAuthorityCode() {
+        assertThat(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.OPERATOR))
+                .isEqualTo("ROLE_OPERATOR");
     }
-
 }

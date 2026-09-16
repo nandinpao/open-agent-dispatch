@@ -9,9 +9,14 @@ import org.springframework.stereotype.Component;
 
 import com.opensocket.aievent.core.agent.assignment.AgentCapabilityAssignment;
 import com.opensocket.aievent.core.agent.assignment.AgentCapabilityAssignmentStatus;
-import com.opensocket.aievent.core.routing.governance.eligibility.AgentEligibilityShadowCheck;
-import com.opensocket.aievent.core.routing.governance.eligibility.EligibilityShadowCheckOutcome;
 
+/**
+ * V38 canonical Capability eligibility gate.
+ *
+ * <p>Flow membership determines where to look. Task requiredCapabilities determines who is
+ * qualified inside that candidate set. Only active Core-approved Agent Capability assignments
+ * satisfy the requirement. Runtime readiness and capacity are evaluated by their own gates.</p>
+ */
 @Component
 public class CapabilityEligibilityEvaluator implements DispatchEligibilityShadowEvaluator {
     public static final String CODE = "CAPABILITY";
@@ -26,8 +31,11 @@ public class CapabilityEligibilityEvaluator implements DispatchEligibilityShadow
         Set<String> required = normalized(context.getRequirement().getRequiredCapabilities());
         if (required.isEmpty()) {
             return AgentEligibilityShadowCheck.of(CODE, EligibilityShadowCheckOutcome.NOT_APPLICABLE,
-                    "NO_EXPLICIT_CAPABILITY_REQUIRED", "Requirement does not specify an explicit Capability.");
+                    "NO_REQUIRED_CAPABILITY",
+                    "The Task has no required Capability; Flow membership and the remaining runtime gates determine eligibility.")
+                    .withDetail("capabilityAuthority", "TASK_REQUIRED_CAPABILITY");
         }
+
         OffsetDateTime now = context.getEvaluatedAt() == null ? OffsetDateTime.now() : context.getEvaluatedAt();
         Set<String> approved = new LinkedHashSet<>();
         for (AgentCapabilityAssignment assignment : context.getCapabilityAssignments()) {
@@ -37,18 +45,24 @@ public class CapabilityEligibilityEvaluator implements DispatchEligibilityShadow
                     && !tenantKey(context.getRequirement().getTenantId()).equals(tenantKey(assignment.getTenantId()))) continue;
             approved.add(normalize(assignment.getCapabilityCode()));
         }
+
         Set<String> missing = new LinkedHashSet<>(required);
         missing.removeAll(approved);
         if (!missing.isEmpty()) {
             return block("REQUIRED_CAPABILITY_NOT_APPROVED",
-                    "Agent does not have all explicitly required approved Capabilities.")
+                    "Agent does not have every Core-approved Capability required by this Task.")
+                    .withDetail("matchMode", "ALL")
                     .withDetail("requiredCapabilities", required)
                     .withDetail("approvedCapabilities", approved)
-                    .withDetail("missingCapabilities", missing);
+                    .withDetail("missingCapabilities", missing)
+                    .withDetail("capabilityAuthority", "TASK_REQUIRED_CAPABILITY");
         }
         return AgentEligibilityShadowCheck.of(CODE, EligibilityShadowCheckOutcome.PASS,
-                "REQUIRED_CAPABILITY_APPROVED", "All explicitly required Capabilities are approved.")
-                .withDetail("matchedCapabilities", required);
+                "REQUIRED_CAPABILITY_APPROVED",
+                "The Agent has every Core-approved Capability required by this Task.")
+                .withDetail("matchMode", "ALL")
+                .withDetail("matchedCapabilities", required)
+                .withDetail("capabilityAuthority", "TASK_REQUIRED_CAPABILITY");
     }
 
     private AgentEligibilityShadowCheck block(String reason, String message) {
@@ -71,4 +85,3 @@ public class CapabilityEligibilityEvaluator implements DispatchEligibilityShadow
         return value.trim().replace('-', '_').replace('.', '_').replace(' ', '_').toUpperCase(Locale.ROOT);
     }
 }
-

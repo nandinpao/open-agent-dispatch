@@ -3,14 +3,21 @@ package com.opensocket.aievent.core.task;
 import java.util.List;
 
 /**
- * Phase 9F A2A Classification Flow contract.
+ * Phase 9F classification-continuation compatibility contract.
  *
- * <p>This is a Current support contract that describes how TRIAGE Agents may
- * submit classification results while Core remains the only authority allowed
- * to create child / continuation Tasks.</p>
+ * <p>The historical API/model name contains A2A, but this contract is not the
+ * capability-first A2A delegation authority. TRIAGE Agents submit classification
+ * results only; Core may create a normal RESOLUTION continuation Task and route it
+ * through Source Flow / Agent Pool dispatch. Capability delegation remains solely
+ * owned by ManagedCapabilityDelegationRuntimeService.</p>
  */
 public class TaskA2AClassificationFlowContract {
     private String modelVersion = "A2A_CLASSIFICATION_V1";
+    private String currentAuthorityModel = "CORE_TASK_CLASSIFICATION_CONTINUATION";
+    private boolean a2aDelegationAuthority = false;
+    private String continuationRoutingMode = "SOURCE_FLOW_DIRECT_DISPATCH";
+    private boolean recommendedPoolRoutingAuthority = false;
+    private String canonicalA2ADelegationAuthority = "ManagedCapabilityDelegationRuntimeService";
     private boolean coreOwnedTaskCreation = true;
     private boolean agentCanCreateTask = false;
     private boolean cycleDetectionRequired = true;
@@ -35,14 +42,26 @@ public class TaskA2AClassificationFlowContract {
     );
     private List<String> childTaskRules = List.of(
             "Classification Agent submits result only",
-            "Core validates classification result",
-            "Core checks depth and cycle guardrails",
-            "Core creates child / continuation Task when classification is clear",
-            "Unclear or failed classification routes to manual review instead of uncontrolled A2A"
+            "recommendedPoolCode is evidence only and cannot select the runtime pool or Agent",
+            "Core validates classification result and recursion guardrails",
+            "Core creates a normal RESOLUTION continuation Task when automation is allowed",
+            "Source Flow and Agent Pool direct-dispatch authority route the continuation Task",
+            "Capability-first A2A delegation remains a separate ManagedCapabilityDelegationRuntimeService path",
+            "Unclear or failed classification routes to manual review instead of uncontrolled continuation"
     );
 
     public String getModelVersion() { return modelVersion; }
     public void setModelVersion(String modelVersion) { this.modelVersion = modelVersion; }
+    public String getCurrentAuthorityModel() { return currentAuthorityModel; }
+    public void setCurrentAuthorityModel(String currentAuthorityModel) { this.currentAuthorityModel = currentAuthorityModel; }
+    public boolean isA2aDelegationAuthority() { return a2aDelegationAuthority; }
+    public void setA2aDelegationAuthority(boolean a2aDelegationAuthority) { this.a2aDelegationAuthority = a2aDelegationAuthority; }
+    public String getContinuationRoutingMode() { return continuationRoutingMode; }
+    public void setContinuationRoutingMode(String continuationRoutingMode) { this.continuationRoutingMode = continuationRoutingMode; }
+    public boolean isRecommendedPoolRoutingAuthority() { return recommendedPoolRoutingAuthority; }
+    public void setRecommendedPoolRoutingAuthority(boolean recommendedPoolRoutingAuthority) { this.recommendedPoolRoutingAuthority = recommendedPoolRoutingAuthority; }
+    public String getCanonicalA2ADelegationAuthority() { return canonicalA2ADelegationAuthority; }
+    public void setCanonicalA2ADelegationAuthority(String canonicalA2ADelegationAuthority) { this.canonicalA2ADelegationAuthority = canonicalA2ADelegationAuthority; }
     public boolean isCoreOwnedTaskCreation() { return coreOwnedTaskCreation; }
     public void setCoreOwnedTaskCreation(boolean coreOwnedTaskCreation) { this.coreOwnedTaskCreation = coreOwnedTaskCreation; }
     public boolean isAgentCanCreateTask() { return agentCanCreateTask; }

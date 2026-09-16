@@ -1,0 +1,6 @@
+package com.opensocket.aievent.core.issuetracking.relay;
+import java.time.OffsetDateTime; import java.util.Objects;
+public record RelayTopology(String tenantId,String topologyId,String canonicalRelationId,RelayTopologyType topologyType,RelayTopologyStatus status,int edgeCount,int syncedEdgeCount,int failedEdgeCount,int decisionEdgeCount,long version,OffsetDateTime createdAt,OffsetDateTime updatedAt,String correlationId) {
+ public RelayTopology { tenantId=req(tenantId,"tenantId");topologyId=req(topologyId,"topologyId");canonicalRelationId=req(canonicalRelationId,"canonicalRelationId");topologyType=Objects.requireNonNull(topologyType,"topologyType is required");status=Objects.requireNonNull(status,"status is required");if(edgeCount<0||syncedEdgeCount<0||failedEdgeCount<0||decisionEdgeCount<0)throw new IllegalArgumentException("edge counts cannot be negative");if(version<1)throw new IllegalArgumentException("version must be positive");createdAt=Objects.requireNonNull(createdAt,"createdAt is required");updatedAt=Objects.requireNonNull(updatedAt,"updatedAt is required");correlationId=norm(correlationId); }
+ private static String req(String v,String n){Objects.requireNonNull(v,n+" is required");String x=v.trim();if(x.isEmpty())throw new IllegalArgumentException(n+" is required");return x;} private static String norm(String v){return v==null?"":v.trim();}
+}

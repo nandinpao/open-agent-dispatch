@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.issuetracking.change;
+public enum ProviderActionCandidateType { CLOSE_TASK, CANCEL_TASK, APPROVE_TASK, REJECT_TASK, CHANGE_STATUS, CHANGE_PRIORITY, CHANGE_ASSIGNEE, APPLY_FIELD_UPDATE, DELETE_EXTERNAL_ISSUE, MOVE_EXTERNAL_PROJECT }

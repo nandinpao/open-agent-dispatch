@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.rbac.domain.shadow;
+import java.math.BigDecimal;import java.time.Instant;import java.util.Optional;
+public record Phase6EligibilityEvidence(String evidenceId,String sourceTenantId,String status,String requiredDomainsJson,String domainEvidenceRefsJson,long eligibleDomains,long blockedDomains,long observingDomains,String catalogRevisionId,Optional<String> manifestId,BigDecimal manifestCoveragePercent,long runtimeDriftBlockers,long entryPointBlockers,long expiredBypasses,long openBlockingCases,String blockersJson,String actorId,String auditReason,Optional<String> correlationId,Instant evaluatedAt){}

@@ -12,6 +12,8 @@ public class DispatchFlowView {
     private String flowCode;
     private String flowName;
     private String sourceSystem;
+    private String ownerDepartmentId;
+    private String ownerGroupId;
     private String flowType = "SOURCE_FLOW";
     private String defaultPoolId;
     private String status = "DRAFT";
@@ -21,6 +23,9 @@ public class DispatchFlowView {
     private String defaultSideEffectLevel = "NONE";
     private String defaultCandidatePoolMode = "EXPLICIT_FLOW_AGENTS";
     private String defaultRoutingStrategy = "WEIGHTED_SCORE";
+    private String defaultIssueSyncPolicy = "OPTIONAL";
+    private transient boolean defaultIssueSyncPolicyProvided;
+    private transient String evidenceMutationSource;
     private Integer externalRuleCount = 0;
     private Integer a2aRuleCount = 0;
     private Integer skillCount = 0;
@@ -44,6 +49,10 @@ public class DispatchFlowView {
     public void setFlowName(String flowName) { this.flowName = flowName; }
     public String getSourceSystem() { return sourceSystem; }
     public void setSourceSystem(String sourceSystem) { this.sourceSystem = sourceSystem; }
+    public String getOwnerDepartmentId() { return ownerDepartmentId; }
+    public void setOwnerDepartmentId(String ownerDepartmentId) { this.ownerDepartmentId = ownerDepartmentId; }
+    public String getOwnerGroupId() { return ownerGroupId; }
+    public void setOwnerGroupId(String ownerGroupId) { this.ownerGroupId = ownerGroupId; }
     public String getFlowType() { return flowType; }
     public void setFlowType(String flowType) { this.flowType = flowType; }
     public String getDefaultPoolId() { return defaultPoolId; }
@@ -62,6 +71,13 @@ public class DispatchFlowView {
     public void setDefaultCandidatePoolMode(String defaultCandidatePoolMode) { this.defaultCandidatePoolMode = defaultCandidatePoolMode; }
     public String getDefaultRoutingStrategy() { return defaultRoutingStrategy; }
     public void setDefaultRoutingStrategy(String defaultRoutingStrategy) { this.defaultRoutingStrategy = defaultRoutingStrategy; }
+    public String getDefaultIssueSyncPolicy() { return defaultIssueSyncPolicy; }
+    public void setDefaultIssueSyncPolicy(String defaultIssueSyncPolicy) { this.defaultIssueSyncPolicy = defaultIssueSyncPolicy; this.defaultIssueSyncPolicyProvided = true; }
+    /** Evidence-only: distinguishes an omitted API field from an explicitly supplied OPTIONAL/null value. */
+    public boolean defaultIssueSyncPolicyWasProvided() { return defaultIssueSyncPolicyProvided; }
+    /** Evidence-only, setter-only JSON input. It is intentionally not persisted or returned as product state. */
+    public void setEvidenceMutationSource(String evidenceMutationSource) { this.evidenceMutationSource = evidenceMutationSource; }
+    public String evidenceMutationSource() { return evidenceMutationSource; }
     public Integer getExternalRuleCount() { return externalRuleCount; }
     public void setExternalRuleCount(Integer externalRuleCount) { this.externalRuleCount = externalRuleCount; }
     public Integer getA2aRuleCount() { return a2aRuleCount; }

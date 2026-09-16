@@ -23,11 +23,14 @@ import com.opensocket.aievent.core.dispatch.flow.FlowRuleRoutingService;
 import com.opensocket.aievent.core.event.EventSeverity;
 
 /**
- * Phase 9F A2A Classification Flow service.
+ * Task classification continuation compatibility service (historically Phase 9F).
  *
- * <p>Classification Agents submit results only. Core validates parent / root /
- * correlation / depth / cycle / idempotency guardrails and remains the only
- * authority allowed to create child or continuation Tasks.</p>
+ * <p>This is not the capability-first A2A delegation authority. Classification
+ * Agents submit results only. Core validates parent / root / correlation /
+ * recursion / idempotency guardrails and may create a normal RESOLUTION
+ * continuation Task. That continuation is routed through Source Flow / Agent Pool
+ * direct-dispatch authority. ManagedCapabilityDelegationRuntimeService remains the
+ * sole Current A2A capability-delegation execution authority.</p>
  */
 @Service
 public class TaskClassificationService {
@@ -37,6 +40,8 @@ public class TaskClassificationService {
     private static final String CLASSIFICATION_FAILED = "CLASSIFICATION_FAILED";
     private static final String UNKNOWN = "UNKNOWN";
     private static final String DEFAULT_CLASSIFICATION_VERSION = "A2A_CLASSIFICATION_V1";
+    private static final String CURRENT_AUTHORITY_MODEL = "CORE_TASK_CLASSIFICATION_CONTINUATION";
+    private static final String CONTINUATION_ROUTING_MODE = "SOURCE_FLOW_DIRECT_DISPATCH";
     private static final int DEFAULT_MAX_A2A_DEPTH = 3;
 
     private final TaskRepository taskRepository;
@@ -87,8 +92,8 @@ public class TaskClassificationService {
         parent.setTerminalAt(CLASSIFIED.equals(classificationStatus) ? now : parent.getTerminalAt());
         parent.setStatus(CLASSIFIED.equals(classificationStatus) ? TaskStatus.SUCCEEDED : TaskStatus.RETRY_WAIT);
         parent.setLifecycleReason(CLASSIFIED.equals(classificationStatus)
-                ? "A2A classification completed; Core will create child task if requested and guardrails pass"
-                : "A2A classification requires manual review: " + classificationStatus);
+                ? "Classification completed; Core may create a Resolution continuation when automation is requested and guardrails pass"
+                : "Classification continuation requires manual review: " + classificationStatus);
         taskRepository.save(parent);
         releaseParentTriageCapacity(parent);
 
@@ -114,10 +119,17 @@ public class TaskClassificationService {
         resolution.setCreatedReason(appendRoutingReason(resolution.getCreatedReason(), plan));
         resolution.setLifecycleReason(resolution.getCreatedReason());
         TaskRecord savedResolution = taskRepository.save(resolution);
+        if (flowRuleRoutingService != null && plan != null) {
+            flowRuleRoutingService.recordAuthoritativeDecision(savedResolution, plan);
+        }
         rememberIdempotency(parent, guard, savedResolution);
-        AssignmentDecisionResult assignment = taskAssignmentService == null
-                ? AssignmentDecisionResult.none("Assignment service unavailable")
-                : taskAssignmentService.assignIfPossible(savedResolution);
+        AssignmentDecisionResult assignment = plan != null && !plan.isMatched()
+                ? AssignmentDecisionResult.none(plan.isAmbiguous()
+                        ? "FLOW_RULE_SAME_PRIORITY_AMBIGUOUS: child executor selection is blocked"
+                        : "FLOW_RULE_NO_MATCH: child executor selection waits for semantic triage")
+                : (taskAssignmentService == null
+                        ? AssignmentDecisionResult.none("Assignment service unavailable")
+                        : taskAssignmentService.assignIfPossible(savedResolution));
         log.info("task_a2a_classification_child_created parentTaskId={} rootTaskId={} childTaskId={} classificationVersion={} idempotencyKey={} eventType={} matchedFlowId={} matchedRuleId={} targetPoolId={} assignmentCreated={} assignmentId={} selectedAgentId={}",
                 parent.getTaskId(), guard.rootTaskId(), savedResolution.getTaskId(), guard.classificationVersion(), guard.idempotencyKey(), savedResolution.getEventType(), savedResolution.getMatchedFlowId(),
                 savedResolution.getMatchedRuleId(), savedResolution.getTargetPoolId(), assignment.assignmentCreated(), assignment.assignmentId(), assignment.selectedAgentId());
@@ -219,7 +231,7 @@ public class TaskClassificationService {
         task.setRoutingPolicy("SOURCE_FLOW");
         task.setRoutingPath("SOURCE_FLOW_RESOLUTION_PENDING");
         task.setRequiredCapabilities(List.of());
-        task.setCreatedReason("A2A child task created by Core from classification result parentTaskId=" + parent.getTaskId()
+        task.setCreatedReason("Classification continuation Task created by Core from classification result parentTaskId=" + parent.getTaskId()
                 + "; rootTaskId=" + guard.rootTaskId()
                 + "; classificationVersion=" + guard.classificationVersion()
                 + "; idempotencyKey=" + guard.idempotencyKey()
@@ -247,10 +259,10 @@ public class TaskClassificationService {
             return reason;
         }
         if (!plan.isMatched()) {
-            return firstNonBlank(reason, "A2A child task created")
+            return firstNonBlank(reason, "Classification continuation Task created")
                     + " | Source Flow routing failed: " + firstNonBlank(plan.getReason(), "SOURCE_FLOW_NOT_FOUND");
         }
-        return firstNonBlank(reason, "A2A child task created")
+        return firstNonBlank(reason, "Classification continuation Task created")
                 + " | Source Flow routed: flowId=" + plan.getFlowId()
                 + "; ruleId=" + plan.getRuleId()
                 + "; targetPoolId=" + plan.getTargetPoolId()
@@ -292,6 +304,8 @@ public class TaskClassificationService {
         StringBuilder json = new StringBuilder();
         json.append('{');
         appendJson(json, "model", "A2A_CLASSIFICATION_FLOW");
+        appendJson(json, "currentAuthorityModel", CURRENT_AUTHORITY_MODEL);
+        appendJson(json, "continuationRoutingMode", CONTINUATION_ROUTING_MODE);
         appendJson(json, "classificationVersion", guard.classificationVersion());
         appendJson(json, "parentTaskId", parent.getTaskId());
         appendJson(json, "rootTaskId", guard.rootTaskId());
@@ -306,6 +320,10 @@ public class TaskClassificationService {
         appendJson(json, "recommendedPoolCode", request.getRecommendedPoolCode());
         appendJson(json, "reason", request.getReason());
         appendJson(json, "childTaskCreationAuthority", "CORE_ONLY");
+        appendCommaIfNeeded(json);
+        json.append('"').append("a2aDelegationAuthority").append('"').append(':').append(false);
+        appendCommaIfNeeded(json);
+        json.append('"').append("recommendedPoolRoutingAuthority").append('"').append(':').append(false);
         if (request.getConfidence() != null) {
             appendCommaIfNeeded(json);
             json.append('"').append("confidence").append('"').append(':').append(Math.max(0.0, Math.min(1.0, request.getConfidence())));

@@ -12,6 +12,7 @@ import com.opensocket.aievent.database.persistence.agent.po.AgentSnapshotPo;
 public interface AgentDirectoryDao {
     int upsert(@Param("agent") AgentSnapshotPo agent);
     AgentSnapshotPo findById(@Param("agentId") String agentId);
+    AgentSnapshotPo findByTenantAndId(@Param("tenantId") String tenantId, @Param("agentId") String agentId);
     List<AgentSnapshotPo> search(@Param("siteId") String siteId,
                                   @Param("ownerGatewayNodeId") String ownerGatewayNodeId,
                                   @Param("status") String status,

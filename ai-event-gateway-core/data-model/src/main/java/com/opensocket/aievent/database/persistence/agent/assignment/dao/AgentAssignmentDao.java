@@ -62,6 +62,8 @@ public interface AgentAssignmentDao {
     int upsertCapabilityCatalog(@Param("capability") AgentCapabilityCatalogPo capability);
     AgentCapabilityCatalogPo findCapabilityByCode(@Param("tenantId") String tenantId, @Param("capabilityCode") String capabilityCode);
     List<AgentCapabilityCatalogPo> searchCapabilities(@Param("tenantId") String tenantId, @Param("status") String status, @Param("taskDefinitionId") String taskDefinitionId, @Param("limit") int limit);
+    AgentCapabilityCatalogPo findCanonicalCapabilityByCode(@Param("tenantId") String tenantId, @Param("capabilityCode") String capabilityCode);
+    List<AgentCapabilityCatalogPo> searchCanonicalCapabilities(@Param("tenantId") String tenantId, @Param("status") String status, @Param("limit") int limit);
 
     int upsertCapabilityBinding(@Param("binding") AssignmentProfileCapabilityBindingPo binding);
     AssignmentProfileCapabilityBindingPo findCapabilityBinding(@Param("tenantId") String tenantId, @Param("profileCode") String profileCode, @Param("capabilityCode") String capabilityCode);

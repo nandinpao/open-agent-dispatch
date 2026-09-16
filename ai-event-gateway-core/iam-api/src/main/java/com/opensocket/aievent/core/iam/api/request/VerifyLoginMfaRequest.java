@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record VerifyLoginMfaRequest(@NotBlank String challengeId,@NotBlank @Size(max=100) String code,boolean recoveryCode){}

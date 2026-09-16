@@ -1,0 +1,3 @@
+package com.opensocket.aievent.database.persistence.a2a.dao;
+import java.util.List; import org.apache.ibatis.annotations.Mapper; import org.apache.ibatis.annotations.Param; import com.opensocket.aievent.database.persistence.a2a.po.A2AResultPo;
+@Mapper public interface A2AResultDao { int insert(@Param("result") A2AResultPo result); A2AResultPo findById(@Param("tenantId")String tenantId,@Param("resultId")String resultId); A2AResultPo findByRequest(@Param("tenantId")String tenantId,@Param("requestId")String requestId); A2AResultPo findByIdempotencyKey(@Param("tenantId")String tenantId,@Param("idempotencyKey")String idempotencyKey); List<A2AResultPo> findByParentTask(@Param("tenantId")String tenantId,@Param("parentTaskId")String parentTaskId,@Param("limit")int limit); }

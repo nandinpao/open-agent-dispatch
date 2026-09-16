@@ -1,16 +1,16 @@
 package com.opensocket.aievent.database.persistence.agent.converter;
 
-import java.time.OffsetDateTime;
+
 import java.util.LinkedHashMap;
-import java.util.List;
+
 import java.util.Map;
-import java.util.Optional;
+
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import com.opensocket.aievent.database.persistence.spi.DatabasePersistenceConverter;
 import com.opensocket.aievent.core.gateway.GatewayNode;
-import com.opensocket.aievent.core.gateway.GatewayNodeQuery;
+
 import com.opensocket.aievent.core.gateway.GatewayNodeStatus;
 import com.opensocket.aievent.database.persistence.agent.po.GatewayNodePo;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

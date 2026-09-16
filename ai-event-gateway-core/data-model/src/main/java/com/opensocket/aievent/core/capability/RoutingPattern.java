@@ -1,0 +1,4 @@
+package com.opensocket.aievent.core.capability;
+import java.time.OffsetDateTime;import java.util.List;import java.util.Map;
+/** Governed reusable semantic plan template. Lifecycle: SHADOW -> ACTIVE -> DEGRADED -> SHADOW or RETIRED. Never pins Provider, Agent, Pool, transport or credential. */
+public record RoutingPattern(String patternId,String tenantId,String candidateId,String problemSignature,String signatureVersion,String classification,List<String> capabilityKeys,Map<String,Object> planTemplate,String status,int version,String learningPolicyId,int learningPolicyVersion,OffsetDateTime activatedAt,OffsetDateTime degradedAt,OffsetDateTime createdAt,OffsetDateTime updatedAt){public RoutingPattern{capabilityKeys=capabilityKeys==null?List.of():List.copyOf(capabilityKeys);planTemplate=planTemplate==null?Map.of():Map.copyOf(planTemplate);}}

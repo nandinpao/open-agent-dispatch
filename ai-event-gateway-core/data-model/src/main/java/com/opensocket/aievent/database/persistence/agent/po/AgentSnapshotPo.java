@@ -10,6 +10,7 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 public class AgentSnapshotPo {
     private String agentId;
+    private String tenantId;
     private String agentType;
     private String ownerGatewayNodeId;
     private String agentSessionId;

@@ -10,7 +10,11 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 public class DispatchRequestPo {
     private String dispatchRequestId;
+    private String tenantId;
     private String assignmentId;
+    private String executionAuthorityVersion;
+    private String canonicalExecutionAssignmentId;
+    private String authorityProvenance;
     private String taskId;
     private String incidentId;
     private String agentId;
@@ -41,5 +45,18 @@ public class DispatchRequestPo {
     private String claimedBy;
     private OffsetDateTime claimStartedAt;
     private OffsetDateTime claimUntil;
+    private String outboxStatus;
+    private String claimToken;
+    private OffsetDateTime claimHeartbeatAt;
+    private String dispatchTokenHash;
+    private String fencingTokenHash;
+    private String runtimeSessionId;
+    private String ackEvidenceId;
+    private OffsetDateTime ackedAt;
+    private String recoveryClassification;
+    private OffsetDateTime uncertainSince;
+    private OffsetDateTime lastReconciledAt;
+    private int reconciliationCount;
+    private long rowVersion;
 }
 

@@ -6,13 +6,13 @@ import java.util.Optional;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DuplicateKeyException;
 import com.opensocket.aievent.database.persistence.spi.DatabaseRepositoryAdapter;
-import com.opensocket.aievent.core.event.EventSeverity;
+
 import com.opensocket.aievent.core.incident.Incident;
 import com.opensocket.aievent.core.incident.IncidentQuery;
 import com.opensocket.aievent.core.incident.IncidentRepository;
-import com.opensocket.aievent.core.incident.IncidentStatus;
+
 import com.opensocket.aievent.database.persistence.incident.dao.IncidentDao;
-import com.opensocket.aievent.database.persistence.incident.po.IncidentPo;
+
 import com.opensocket.aievent.database.persistence.incident.converter.IncidentPersistenceConverter;
 
 

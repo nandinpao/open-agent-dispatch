@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import com.opensocket.aievent.core.iam.organization.domain.DepartmentMembershipType;import java.time.Instant;import jakarta.validation.constraints.*;public record AddDepartmentMembershipRequest(String membershipId,@NotBlank String departmentId,@NotNull DepartmentMembershipType membershipType,boolean primary,Instant expiresAt){}

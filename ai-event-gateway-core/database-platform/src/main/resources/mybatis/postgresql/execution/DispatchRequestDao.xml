@@ -3,7 +3,11 @@
 <mapper namespace="com.opensocket.aievent.database.persistence.execution.dao.DispatchRequestDao">
     <resultMap id="DispatchRequestPoMap" type="com.opensocket.aievent.database.persistence.execution.po.DispatchRequestPo">
         <id property="dispatchRequestId" column="dispatch_request_id"/>
+        <result property="tenantId" column="tenant_id"/>
         <result property="assignmentId" column="assignment_id"/>
+        <result property="executionAuthorityVersion" column="execution_authority_version"/>
+        <result property="canonicalExecutionAssignmentId" column="canonical_execution_assignment_id"/>
+        <result property="authorityProvenance" column="authority_provenance"/>
         <result property="taskId" column="task_id"/>
         <result property="incidentId" column="incident_id"/>
         <result property="agentId" column="agent_id"/>
@@ -34,28 +38,49 @@
         <result property="claimedBy" column="claimed_by"/>
         <result property="claimStartedAt" column="claim_started_at"/>
         <result property="claimUntil" column="claim_until"/>
+        <result property="outboxStatus" column="outbox_status"/>
+        <result property="claimToken" column="claim_token"/>
+        <result property="claimHeartbeatAt" column="claim_heartbeat_at"/>
+        <result property="dispatchTokenHash" column="dispatch_token_hash"/>
+        <result property="fencingTokenHash" column="fencing_token_hash"/>
+        <result property="runtimeSessionId" column="runtime_session_id"/>
+        <result property="ackEvidenceId" column="ack_evidence_id"/>
+        <result property="ackedAt" column="acked_at"/>
+        <result property="recoveryClassification" column="recovery_classification"/>
+        <result property="uncertainSince" column="uncertain_since"/>
+        <result property="lastReconciledAt" column="last_reconciled_at"/>
+        <result property="reconciliationCount" column="reconciliation_count"/>
+        <result property="rowVersion" column="row_version"/>
     </resultMap>
 
     <sql id="DispatchColumns">
-        dispatch_request_id, assignment_id, task_id, incident_id, agent_id,
+        dispatch_request_id, tenant_id, assignment_id, execution_authority_version, canonical_execution_assignment_id, authority_provenance, task_id, incident_id, agent_id,
         owner_gateway_node_id, agent_session_id, site_id, status, review_mode,
         eligibility_status, dispatch_method, gateway_dispatch_path, dispatch_token,
         reason, command_json, created_at, updated_at, approved_at, dispatched_at,
         failed_at, attempt_count, last_error, last_callback_id, completed_at,
         timed_out_at, retry_waiting_at, next_retry_at, dead_letter_at,
-        claimed_by, claim_started_at, claim_until
+        claimed_by, claim_started_at, claim_until, outbox_status, claim_token, claim_heartbeat_at,
+        dispatch_token_hash, fencing_token_hash, runtime_session_id, ack_evidence_id, acked_at,
+        recovery_classification, uncertain_since, last_reconciled_at, reconciliation_count, row_version
     </sql>
 
     <insert id="upsert">
         insert into dispatch_requests (<include refid="DispatchColumns"/>) values (
-            #{request.dispatchRequestId}, #{request.assignmentId}, #{request.taskId}, #{request.incidentId}, #{request.agentId},
+            #{request.dispatchRequestId}, #{request.tenantId}, #{request.assignmentId}, #{request.executionAuthorityVersion}, #{request.canonicalExecutionAssignmentId}, #{request.authorityProvenance}, #{request.taskId}, #{request.incidentId}, #{request.agentId},
             #{request.ownerGatewayNodeId}, #{request.agentSessionId}, #{request.siteId}, #{request.status}, #{request.reviewMode},
             #{request.eligibilityStatus}, #{request.dispatchMethod}, #{request.gatewayDispatchPath}, #{request.dispatchToken},
             #{request.reason}, coalesce(cast(#{request.commandJson} as jsonb), '{}'::jsonb), #{request.createdAt}, #{request.updatedAt}, #{request.approvedAt},
             #{request.dispatchedAt}, #{request.failedAt}, #{request.attemptCount}, #{request.lastError}, #{request.lastCallbackId},
             #{request.completedAt}, #{request.timedOutAt}, #{request.retryWaitingAt}, #{request.nextRetryAt}, #{request.deadLetterAt},
-            #{request.claimedBy}, #{request.claimStartedAt}, #{request.claimUntil}
+            #{request.claimedBy}, #{request.claimStartedAt}, #{request.claimUntil}, #{request.outboxStatus}, #{request.claimToken}, #{request.claimHeartbeatAt},
+            #{request.dispatchTokenHash}, #{request.fencingTokenHash}, #{request.runtimeSessionId}, #{request.ackEvidenceId}, #{request.ackedAt},
+            #{request.recoveryClassification}, #{request.uncertainSince}, #{request.lastReconciledAt}, #{request.reconciliationCount}, #{request.rowVersion}
         ) on conflict (dispatch_request_id) do update set
+            tenant_id = dispatch_requests.tenant_id,
+            execution_authority_version = dispatch_requests.execution_authority_version,
+            canonical_execution_assignment_id = dispatch_requests.canonical_execution_assignment_id,
+            authority_provenance = dispatch_requests.authority_provenance,
             agent_id = excluded.agent_id,
             owner_gateway_node_id = excluded.owner_gateway_node_id,
             agent_session_id = excluded.agent_session_id,
@@ -82,7 +107,20 @@
             dead_letter_at = excluded.dead_letter_at,
             claimed_by = excluded.claimed_by,
             claim_started_at = excluded.claim_started_at,
-            claim_until = excluded.claim_until
+            claim_until = excluded.claim_until,
+            outbox_status = excluded.outbox_status,
+            claim_token = excluded.claim_token,
+            claim_heartbeat_at = excluded.claim_heartbeat_at,
+            dispatch_token_hash = excluded.dispatch_token_hash,
+            fencing_token_hash = excluded.fencing_token_hash,
+            runtime_session_id = excluded.runtime_session_id,
+            ack_evidence_id = excluded.ack_evidence_id,
+            acked_at = excluded.acked_at,
+            recovery_classification = excluded.recovery_classification,
+            uncertain_since = excluded.uncertain_since,
+            last_reconciled_at = excluded.last_reconciled_at,
+            reconciliation_count = excluded.reconciliation_count,
+            row_version = dispatch_requests.row_version + 1
     </insert>
 
     <select id="findById" resultMap="DispatchRequestPoMap">
@@ -130,6 +168,10 @@
         )
         update dispatch_requests request
         set status = 'DISPATCHING',
+            outbox_status = 'CLAIMED',
+            claim_token = md5(random()::text || clock_timestamp()::text || request.dispatch_request_id),
+            claim_heartbeat_at = #{now},
+            row_version = request.row_version + 1,
             claimed_by = #{workerId},
             claim_started_at = #{now},
             claim_until = #{claimUntil},
@@ -156,6 +198,10 @@
         )
         update dispatch_requests request
         set status = 'DISPATCHING',
+            outbox_status = 'CLAIMED',
+            claim_token = md5(random()::text || clock_timestamp()::text || request.dispatch_request_id),
+            claim_heartbeat_at = #{now},
+            row_version = request.row_version + 1,
             claimed_by = #{workerId},
             claim_started_at = #{now},
             claim_until = #{claimUntil},
@@ -197,13 +243,49 @@
             dead_letter_at = #{request.deadLetterAt},
             claimed_by = null,
             claim_started_at = null,
-            claim_until = null
+            claim_until = null,
+            outbox_status = #{request.outboxStatus},
+            claim_token = null,
+            claim_heartbeat_at = #{request.claimHeartbeatAt},
+            dispatch_token_hash = #{request.dispatchTokenHash},
+            fencing_token_hash = #{request.fencingTokenHash},
+            runtime_session_id = #{request.runtimeSessionId},
+            ack_evidence_id = #{request.ackEvidenceId},
+            acked_at = #{request.ackedAt},
+            recovery_classification = #{request.recoveryClassification},
+            uncertain_since = #{request.uncertainSince},
+            last_reconciled_at = #{request.lastReconciledAt},
+            reconciliation_count = #{request.reconciliationCount},
+            row_version = row_version + 1
         where dispatch_request_id = #{request.dispatchRequestId}
           and status = 'DISPATCHING'
           and claimed_by = #{workerId}
           and claim_until = #{expectedClaimUntil}
+          and claim_token = #{request.claimToken}
     </update>
 
+
+    <update id="markClaimDispatching">
+        update dispatch_requests set outbox_status='DISPATCHING', claim_heartbeat_at=#{heartbeatAt},
+            updated_at=#{heartbeatAt}, row_version=row_version+1
+        where dispatch_request_id=#{dispatchRequestId} and claimed_by=#{workerId}
+          and claim_until=#{expectedClaimUntil} and outbox_status='CLAIMED'
+    </update>
+
+    <update id="heartbeatClaim">
+        update dispatch_requests set claim_heartbeat_at=#{heartbeatAt}, claim_until=#{extendedUntil},
+            updated_at=#{heartbeatAt}, row_version=row_version+1
+        where dispatch_request_id=#{dispatchRequestId} and claimed_by=#{workerId}
+          and claim_until=#{expectedClaimUntil} and outbox_status in ('CLAIMED','DISPATCHING')
+    </update>
+
+    <select id="findRecoveryCandidates" resultMap="DispatchRequestPoMap">
+        select <include refid="DispatchColumns"/> from dispatch_requests
+        where ((outbox_status in ('CLAIMED','DISPATCHING') and claim_until is not null and claim_until &lt;= #{now})
+           or recovery_classification = 'ACK_PERSISTENCE_UNCERTAIN')
+        order by coalesce(uncertain_since, claim_until, updated_at) asc
+        limit #{limit}
+    </select>
 
     <update id="transitionStatus">
         update dispatch_requests set
@@ -216,11 +298,21 @@
             timed_out_at = #{timedOutAt},
             retry_waiting_at = #{retryWaitingAt},
             next_retry_at = #{nextRetryAt},
-            updated_at = #{updatedAt}
+            updated_at = #{updatedAt},
+            outbox_status = coalesce(#{outboxStatus}, outbox_status),
+            ack_evidence_id = coalesce(#{ackEvidenceId}, ack_evidence_id),
+            acked_at = coalesce(#{ackedAt}, acked_at),
+            recovery_classification = coalesce(#{recoveryClassification}, recovery_classification),
+            uncertain_since = coalesce(cast(#{uncertainSince} as timestamptz), uncertain_since),
+            last_reconciled_at = coalesce(#{lastReconciledAt}, last_reconciled_at),
+            reconciliation_count = reconciliation_count + coalesce(#{reconciliationCountIncrement}, 0),
+            row_version = row_version + 1
             <if test="clearClaim">
                 , claimed_by = null,
                   claim_started_at = null,
-                  claim_until = null
+                  claim_until = null,
+                  claim_token = null,
+                  claim_heartbeat_at = null
             </if>
         where dispatch_request_id = #{dispatchRequestId}
           and status in

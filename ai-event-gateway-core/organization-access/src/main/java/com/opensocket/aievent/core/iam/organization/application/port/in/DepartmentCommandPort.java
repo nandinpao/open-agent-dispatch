@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.organization.application.port.in;
+import com.opensocket.aievent.core.iam.organization.application.command.*;import com.opensocket.aievent.core.iam.organization.domain.*;
+public interface DepartmentCommandPort { Department createDepartment(CreateDepartmentCommand command); Department moveDepartment(MoveDepartmentCommand command); Department updateDepartment(UpdateDepartmentCommand command); Department changeDepartmentStatus(ChangeDepartmentStatusCommand command); DepartmentMembership addDepartmentMembership(AddDepartmentMembershipCommand command); DepartmentMembership updateDepartmentMembership(UpdateDepartmentMembershipCommand command); OrganizationSnapshot captureSnapshot(CaptureOrganizationSnapshotCommand command); }

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import com.opensocket.aievent.core.agent.AgentDirectoryFacade;
 import com.opensocket.aievent.core.agent.AgentSnapshot;
 import com.opensocket.aievent.core.events.DispatchDeadLetteredEvent;
+import com.opensocket.aievent.core.events.A2ADispatchProgressedEvent;
 import com.opensocket.aievent.core.kernel.persistence.ClaimOwnership;
 import com.opensocket.aievent.core.kernel.persistence.ClaimRequest;
 import com.opensocket.aievent.core.kernel.persistence.PersistenceWriteResult;
@@ -38,6 +39,18 @@ public class DispatchExecutionService {
 
     @Autowired(required = false)
     private DispatchAttemptHistoryService attemptHistoryService;
+
+    /** Stage 5 additive pre-network safety guards. Empty preserves legacy behavior. */
+    @Autowired(required = false)
+    private List<DispatchExecutionSafetyGuard> executionSafetyGuards = List.of();
+    /** Final Core-owned admission gates. They commit authority before network and never perform network I/O. */
+    @Autowired(required = false)
+    private List<DispatchPreSendAdmission> preSendAdmissions = List.of();
+    /** A0-R7 additive lifecycle observers. They never initiate dispatch themselves. */
+    @Autowired(required = false)
+    private List<DispatchExecutionLifecycleObserver> executionLifecycleObservers = List.of();
+    @Autowired(required = false)
+    private DispatchAssignmentEvidenceService assignmentEvidenceService;
 
     public DispatchExecutionService(
             DispatchRequestRepository dispatchRepository,
@@ -157,9 +170,20 @@ public class DispatchExecutionService {
             DispatchRequest request,
             ClaimOwnership ownership,
             long startedAt) {
-        if (request.getCommand() != null) {
-            request.getCommand().setAttemptNo(request.getAttemptCount());
+        if (request.getCommand() != null) { request.getCommand().setAttemptNo(request.getAttemptCount()); }
+        OffsetDateTime claimHeartbeatAt = OffsetDateTime.now(ZoneOffset.UTC);
+        DispatchExecutionSafetyDecision safetyDecision = evaluateExecutionSafety(request, claimHeartbeatAt);
+        if (!safetyDecision.allowed()) {
+            return handleSafetyDecision(request, ownership, safetyDecision, claimHeartbeatAt, startedAt);
         }
+        PersistenceWriteResult dispatchingWrite = dispatchRepository.markClaimDispatching(request.getDispatchRequestId(), ownership, claimHeartbeatAt);
+        if (!dispatchingWrite.applied()) {
+            return record(claimLostResult(request, null, dispatchingWrite), startedAt);
+        }
+        request.setOutboxStatus(DispatchOutboxStatus.DISPATCHING);
+        request.setClaimHeartbeatAt(claimHeartbeatAt);
+        recordAssignmentEvidence(request, "CLAIMED", null, null, "{\"authority\":\"DISPATCH_AUTHORITY\"}");
+        publishA2AProgress(request, "CLAIMED", null, "Dispatch worker claimed durable intent", "dispatch-claim:" + request.getDispatchRequestId() + ":" + request.getAttemptCount());
         recordAttemptStarted(request);
         log.info("dispatch_delivery_attempt_started dispatchRequestId={} taskId={} assignmentId={} agentId={} attemptCount={} gatewayNode={} gatewayPath={} clientEnabled={} gatewayBaseUrl={}",
                 safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAssignmentId()), safe(request.getAgentId()),
@@ -168,6 +192,25 @@ public class DispatchExecutionService {
 
         GatewayDispatchResult gatewayResult;
         try {
+            // All non-authoritative observer preparation happens before the final authority gate.
+            // After the admission transaction commits, no database write or observer callback may
+            // occur before the network call. This keeps the revalidation -> SEND_STARTED -> send
+            // boundary as narrow as possible without holding a database transaction across I/O.
+            notifyBeforeNetwork(request, OffsetDateTime.now(ZoneOffset.UTC));
+            DispatchPreSendAdmissionDecision admission = admitPreSend(request, OffsetDateTime.now(ZoneOffset.UTC));
+            if (!admission.allowed()) {
+                return handleSafetyDecision(
+                        request,
+                        ownership,
+                        new DispatchExecutionSafetyDecision(false, admission.disposition(), admission.reasonCode(), admission.message()),
+                        OffsetDateTime.now(ZoneOffset.UTC),
+                        startedAt);
+            }
+            DispatchSendPermit permit = admission.permit();
+            log.info("dispatch_pre_send_admitted dispatchRequestId={} assignmentId={} permitId={} authorityVersion={} leaseId={} fencingToken={} expiresAt={}",
+                    safe(request.getDispatchRequestId()), safe(request.getAssignmentId()), safe(permit == null ? null : permit.permitId()),
+                    safe(permit == null ? null : permit.authorityVersion()), safe(permit == null ? null : permit.leaseId()),
+                    permit == null ? null : permit.fencingToken(), permit == null ? null : permit.expiresAt());
             gatewayResult = nettyDispatchPort.dispatch(request);
         } catch (RuntimeException exception) {
             gatewayResult = GatewayDispatchResult.failure(
@@ -183,11 +226,15 @@ public class DispatchExecutionService {
         }
 
         OffsetDateTime completedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        notifyAfterNetwork(request, gatewayResult, completedAt);
         log.info("dispatch_delivery_attempt_result dispatchRequestId={} taskId={} agentId={} success={} gatewayStatus={} message={}",
                 safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAgentId()), gatewayResult.success(),
                 safe(gatewayResult.gatewayStatus()), safe(gatewayResult.message()));
         if (gatewayResult.success()) {
             request.setStatus(DispatchRequestStatus.DISPATCHED);
+            request.setOutboxStatus(DispatchOutboxStatus.ACKNOWLEDGED);
+            request.setRecoveryClassification(DispatchRecoveryClassification.NONE);
+            request.setUncertainSince(null);
             request.setDispatchedAt(completedAt);
             request.setUpdatedAt(completedAt);
             request.setLastError(null);
@@ -198,10 +245,13 @@ public class DispatchExecutionService {
                         safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAgentId()), safe(gatewayResult.gatewayStatus()), write);
                 return record(claimLostResult(request, gatewayResult, write), startedAt);
             }
+            recordAssignmentEvidence(request, "GATEWAY_ACCEPTED", gatewayResult.gatewayStatus(), null,
+                    "{\"delivery\":\"accepted\"}");
             clearClaim(request);
             clearRuntimeBackoffAfterSuccessfulDispatch(request);
             updateTaskDispatched(request, completedAt);
             recordGatewayDelivered(request, gatewayResult, completedAt);
+            publishA2AProgress(request, "ACKNOWLEDGED", null, request.getReason(), "gateway-accepted:" + request.getDispatchRequestId() + ":" + request.getAttemptCount());
 
             DispatchExecutionResult result = DispatchExecutionResult.from(request);
             result.setExecuted(true);
@@ -216,19 +266,30 @@ public class DispatchExecutionService {
         String error = gatewayResult.gatewayStatus() + ": " + safe(gatewayResult.message());
         log.warn("dispatch_delivery_failed dispatchRequestId={} taskId={} agentId={} attemptCount={} gatewayStatus={} error={}",
                 safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAgentId()), request.getAttemptCount(), safe(gatewayResult.gatewayStatus()), safe(error));
+        // PC-S2: once SEND_STARTED has committed, a timeout/connection exception is an unknown
+        // delivery outcome, not proof of non-delivery. Blind retry or reassignment can duplicate
+        // side effects at the executor. Hold for callback/reconciliation instead.
+        if (isUncertainGatewayResult(gatewayResult)) {
+            return holdDeliveryUnknown(request, ownership, gatewayResult, completedAt, error, startedAt);
+        }
         if (shouldRequeueAfterRuntimeFailure(request, gatewayResult)) {
             return requeueAfterRuntimeFailure(request, ownership, gatewayResult, completedAt, error, startedAt);
         }
         if (properties.getRetry().isEnabled()
                 && request.getAttemptCount() < properties.getRetry().getMaxAttempts()) {
             scheduleRetry(request, completedAt, error);
+            request.setOutboxStatus(DispatchOutboxStatus.FAILED_RETRYABLE);
             recordRetryWaiting(request, gatewayResult, completedAt);
+            recordAssignmentEvidence(request, "FAILED_RETRYABLE", gatewayResult.gatewayStatus(), null,
+                    "{\"retryAt\":\"" + request.getNextRetryAt() + "\"}");
             PersistenceWriteResult write = dispatchRepository.saveClaimed(request, ownership);
             if (!write.applied()) {
                 log.warn("dispatch_delivery_claim_lost dispatchRequestId={} taskId={} agentId={} gatewayStatus={} writeResult={}",
                         safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAgentId()), safe(gatewayResult.gatewayStatus()), write);
                 return record(claimLostResult(request, gatewayResult, write), startedAt);
             }
+            publishA2AProgress(request, "FAILED_RETRYABLE", "DISPATCH_RETRY_WAITING", request.getReason(),
+                    "dispatch-retry:" + request.getDispatchRequestId() + ":" + request.getAttemptCount());
             clearClaim(request);
             updateTaskRetryWaiting(request, completedAt);
 
@@ -245,6 +306,8 @@ public class DispatchExecutionService {
         }
 
         request.setStatus(DispatchRequestStatus.DEAD_LETTER);
+        request.setOutboxStatus(DispatchOutboxStatus.DEAD_LETTER);
+        request.setRecoveryClassification(DispatchRecoveryClassification.RETRY_EXHAUSTED);
         request.setFailedAt(completedAt);
         request.setDeadLetterAt(completedAt);
         request.setUpdatedAt(completedAt);
@@ -254,10 +317,13 @@ public class DispatchExecutionService {
         if (!write.applied()) {
             return record(claimLostResult(request, gatewayResult, write), startedAt);
         }
+        recordAssignmentEvidence(request, "DEAD_LETTER", gatewayResult.gatewayStatus(), null,
+                "{\"retryExhausted\":true}");
         clearClaim(request);
         publishDeadLetter(request, completedAt);
         updateTaskDeadLetter(request, completedAt, error);
         recordDeadLettered(request, gatewayResult, completedAt);
+        publishA2AProgress(request, "DEAD_LETTER", "DISPATCH_DEAD_LETTER", request.getReason(), "dispatch-dead-letter:" + request.getDispatchRequestId());
 
         DispatchExecutionResult result = DispatchExecutionResult.from(request);
         result.setExecuted(false);
@@ -265,6 +331,236 @@ public class DispatchExecutionService {
         result.setTaskStatus(TaskStatus.DEAD_LETTER.name());
         result.setMessage(gatewayResult.message());
         return record(result, startedAt);
+    }
+
+    private DispatchPreSendAdmissionDecision admitPreSend(DispatchRequest request, OffsetDateTime now) {
+        if (preSendAdmissions == null || preSendAdmissions.isEmpty()) {
+            return DispatchPreSendAdmissionDecision.allow(
+                    "LEGACY_PRE_SEND_ADMISSION",
+                    "No additive pre-send authority gate configured",
+                    DispatchSendPermit.legacy(request, now));
+        }
+        DispatchSendPermit permit = null;
+        boolean applicable = false;
+        for (DispatchPreSendAdmission admission : preSendAdmissions.stream()
+                .filter(java.util.Objects::nonNull)
+                .sorted(java.util.Comparator.comparingInt(DispatchPreSendAdmission::order))
+                .toList()) {
+            DispatchPreSendAdmissionDecision decision;
+            try {
+                decision = admission.admit(request, now);
+            } catch (RuntimeException ex) {
+                log.error("dispatch_pre_send_admission_failed dispatchRequestId={} admission={} authoritativeStateUnchanged=true",
+                        safe(request == null ? null : request.getDispatchRequestId()), admission.getClass().getName(), ex);
+                return DispatchPreSendAdmissionDecision.retryInfrastructure(
+                        "PRE_SEND_ADMISSION_FAILED",
+                        "Final pre-send authority admission failed closed");
+            }
+            if (decision == null) {
+                return DispatchPreSendAdmissionDecision.retryInfrastructure(
+                        "PRE_SEND_ADMISSION_EMPTY_DECISION",
+                        "Final pre-send authority admission returned no decision");
+            }
+            if (!decision.applicable()) continue;
+            applicable = true;
+            if (!decision.allowed()) return decision;
+            if (decision.permit() != null) {
+                if (permit != null) {
+                    return DispatchPreSendAdmissionDecision.terminal(
+                            "MULTIPLE_PRE_SEND_AUTHORITIES",
+                            "More than one pre-send authority attempted to issue a send permit");
+                }
+                permit = decision.permit();
+            }
+        }
+        if (!applicable) {
+            return DispatchPreSendAdmissionDecision.allow(
+                    "LEGACY_PRE_SEND_ADMISSION",
+                    "No current-authority pre-send admission applied",
+                    DispatchSendPermit.legacy(request, now));
+        }
+        if (permit == null) {
+            return DispatchPreSendAdmissionDecision.retryInfrastructure(
+                    "PRE_SEND_PERMIT_MISSING",
+                    "Applicable pre-send authority did not issue a send permit");
+        }
+        return DispatchPreSendAdmissionDecision.allow(
+                "PRE_SEND_ADMITTED",
+                "Final pre-send authority admission passed",
+                permit);
+    }
+
+    private void notifyBeforeNetwork(DispatchRequest request, OffsetDateTime at) {
+        executionLifecycleObservers.stream().sorted(java.util.Comparator.comparingInt(DispatchExecutionLifecycleObserver::order))
+                .forEach(observer -> observer.beforeNetwork(request, at));
+    }
+
+    private void notifyAfterNetwork(DispatchRequest request, GatewayDispatchResult result, OffsetDateTime at) {
+        for (DispatchExecutionLifecycleObserver observer : executionLifecycleObservers.stream().sorted(java.util.Comparator.comparingInt(DispatchExecutionLifecycleObserver::order)).toList()) {
+            try { observer.afterNetwork(request, result, at); }
+            catch (RuntimeException ex) { log.error("dispatch_lifecycle_observer_failed dispatchRequestId={} observer={} error={}", safe(request == null ? null : request.getDispatchRequestId()), observer.getClass().getSimpleName(), rootMessage(ex)); }
+        }
+    }
+
+    private DispatchExecutionSafetyDecision evaluateExecutionSafety(DispatchRequest request, OffsetDateTime now) {
+        if (executionSafetyGuards == null || executionSafetyGuards.isEmpty()) {
+            return DispatchExecutionSafetyDecision.allow("No additive execution safety guard configured");
+        }
+        return executionSafetyGuards.stream()
+                .filter(java.util.Objects::nonNull)
+                .sorted(java.util.Comparator.comparingInt(DispatchExecutionSafetyGuard::order))
+                .map(guard -> {
+                    try {
+                        DispatchExecutionSafetyDecision decision = guard.evaluate(request, now);
+                        return decision == null
+                                ? DispatchExecutionSafetyDecision.retryInfrastructure("EXECUTION_SAFETY_EMPTY_DECISION", "Execution safety guard returned no decision")
+                                : decision;
+                    } catch (RuntimeException ex) {
+                        log.error("dispatch_execution_safety_guard_failed dispatchRequestId={} guard={} authoritativeStateUnchanged=true",
+                                safe(request.getDispatchRequestId()), guard.getClass().getName(), ex);
+                        return DispatchExecutionSafetyDecision.retryInfrastructure("EXECUTION_SAFETY_GUARD_FAILED", "Execution safety guard failed closed");
+                    }
+                })
+                .filter(decision -> !decision.allowed())
+                .findFirst()
+                .orElseGet(() -> DispatchExecutionSafetyDecision.allow("All execution safety guards passed"));
+    }
+
+    private DispatchExecutionResult handleSafetyDecision(DispatchRequest request, ClaimOwnership ownership,
+            DispatchExecutionSafetyDecision decision, OffsetDateTime now, long startedAt) {
+        DispatchFailureDisposition disposition = decision.disposition() == null
+                ? DispatchFailureDisposition.TERMINAL_FAILURE
+                : decision.disposition();
+        return switch (disposition) {
+            case RETRY_INFRASTRUCTURE -> retryInfrastructureFailure(request, ownership, decision, now, startedAt);
+            case REASSIGN_REQUIRED -> reassignAfterAuthorityLoss(request, ownership, decision, now, startedAt);
+            case BLOCK_POLICY -> blockDispatch(request, ownership, decision, now, startedAt, false);
+            case BLOCK_SECURITY -> blockDispatch(request, ownership, decision, now, startedAt, true);
+            case TERMINAL_FAILURE -> terminalSafetyFailure(request, ownership, decision, now, startedAt);
+            case NONE -> throw new IllegalStateException("Blocked dispatch cannot use NONE failure disposition");
+        };
+    }
+
+    private DispatchExecutionResult retryInfrastructureFailure(DispatchRequest request, ClaimOwnership ownership,
+            DispatchExecutionSafetyDecision decision, OffsetDateTime now, long startedAt) {
+        String reason = failureReason(decision);
+        if (properties.getRetry().isEnabled() && request.getAttemptCount() < properties.getRetry().getMaxAttempts()) {
+            scheduleRetry(request, now, reason);
+            request.setOutboxStatus(DispatchOutboxStatus.FAILED_RETRYABLE);
+            request.setRecoveryClassification(DispatchRecoveryClassification.INFRASTRUCTURE_RETRY);
+            request.setLastError(reason);
+            request.setReason("Infrastructure safety failure; retry scheduled: " + reason);
+            PersistenceWriteResult write = dispatchRepository.saveClaimed(request, ownership);
+            if (!write.applied()) return record(claimLostResult(request, null, write), startedAt);
+            recordAssignmentEvidence(request, "SAFETY_RETRY_INFRASTRUCTURE", null, null,
+                    failureEvidence(decision));
+            clearClaim(request);
+            updateTaskRetryWaiting(request, now);
+            return safetyResult(request, TaskStatus.RETRY_WAIT, reason, startedAt);
+        }
+        return terminalSafetyFailure(
+                request, ownership,
+                DispatchExecutionSafetyDecision.terminal("INFRASTRUCTURE_RETRY_EXHAUSTED", reason),
+                now, startedAt);
+    }
+
+    private DispatchExecutionResult reassignAfterAuthorityLoss(DispatchRequest request, ClaimOwnership ownership,
+            DispatchExecutionSafetyDecision decision, OffsetDateTime now, long startedAt) {
+        String reason = failureReason(decision);
+        request.setStatus(DispatchRequestStatus.FAILED);
+        request.setOutboxStatus(DispatchOutboxStatus.ABANDONED);
+        request.setRecoveryClassification(DispatchRecoveryClassification.REASSIGN_REQUIRED);
+        request.setFailedAt(now);
+        request.setUpdatedAt(now);
+        request.setLastError(reason);
+        request.setReason("Stale dispatch authority abandoned; Core must select a new assignment: " + reason);
+        PersistenceWriteResult write = dispatchRepository.saveClaimed(request, ownership);
+        if (!write.applied()) return record(claimLostResult(request, null, write), startedAt);
+        recordAssignmentEvidence(request, "SAFETY_REASSIGN_REQUIRED", null, null, failureEvidence(decision));
+        clearClaim(request);
+        TaskRecord task = taskOrchestrationFacade.reassignTask(
+                request.getTaskId(),
+                "Dispatch authority lost; previousAssignment=" + request.getAssignmentId() + "; reason=" + reason,
+                now);
+        recordTaskRequeued(request, task, request.getReason(), now);
+        DispatchExecutionResult result = DispatchExecutionResult.from(request);
+        result.setExecuted(false);
+        result.setTaskStatus(task == null || task.getStatus() == null ? TaskStatus.QUEUED.name() : task.getStatus().name());
+        result.setMessage(reason);
+        log.warn("dispatch_execution_reassignment_required dispatchRequestId={} taskId={} assignmentId={} reasonCode={}",
+                safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAssignmentId()), safe(decision.reasonCode()));
+        return record(result, startedAt);
+    }
+
+    private DispatchExecutionResult blockDispatch(DispatchRequest request, ClaimOwnership ownership,
+            DispatchExecutionSafetyDecision decision, OffsetDateTime now, long startedAt, boolean security) {
+        String reason = failureReason(decision);
+        request.setStatus(DispatchRequestStatus.FAILED);
+        request.setOutboxStatus(DispatchOutboxStatus.BLOCKED);
+        request.setRecoveryClassification(security
+                ? DispatchRecoveryClassification.SECURITY_BLOCKED
+                : DispatchRecoveryClassification.POLICY_BLOCKED);
+        request.setFailedAt(now);
+        request.setUpdatedAt(now);
+        request.setLastError(reason);
+        request.setReason((security ? "Security" : "Policy") + " authority blocked dispatch: " + reason);
+        PersistenceWriteResult write = dispatchRepository.saveClaimed(request, ownership);
+        if (!write.applied()) return record(claimLostResult(request, null, write), startedAt);
+        recordAssignmentEvidence(request, security ? "SAFETY_SECURITY_BLOCKED" : "SAFETY_POLICY_BLOCKED",
+                null, null, failureEvidence(decision));
+        clearClaim(request);
+        updateTaskBlocked(request, now, reason, security);
+        DispatchExecutionResult result = DispatchExecutionResult.from(request);
+        result.setExecuted(false);
+        result.setTaskStatus(TaskStatus.BLOCKED.name());
+        result.setMessage(reason);
+        log.warn("dispatch_execution_{}_blocked dispatchRequestId={} taskId={} assignmentId={} reasonCode={}",
+                security ? "security" : "policy", safe(request.getDispatchRequestId()), safe(request.getTaskId()),
+                safe(request.getAssignmentId()), safe(decision.reasonCode()));
+        return record(result, startedAt);
+    }
+
+    private DispatchExecutionResult terminalSafetyFailure(DispatchRequest request, ClaimOwnership ownership,
+            DispatchExecutionSafetyDecision decision, OffsetDateTime now, long startedAt) {
+        String reason = failureReason(decision);
+        request.setStatus(DispatchRequestStatus.DEAD_LETTER);
+        request.setOutboxStatus(DispatchOutboxStatus.DEAD_LETTER);
+        request.setRecoveryClassification(DispatchRecoveryClassification.TERMINAL_FAILURE);
+        request.setFailedAt(now);
+        request.setDeadLetterAt(now);
+        request.setUpdatedAt(now);
+        request.setLastError(reason);
+        request.setReason(reason);
+        PersistenceWriteResult write = dispatchRepository.saveClaimed(request, ownership);
+        if (!write.applied()) return record(claimLostResult(request, null, write), startedAt);
+        recordAssignmentEvidence(request, "EXECUTION_SAFETY_TERMINAL", null, null, failureEvidence(decision));
+        clearClaim(request);
+        publishDeadLetter(request, now);
+        updateTaskDeadLetter(request, now, reason);
+        DispatchExecutionResult result = DispatchExecutionResult.from(request);
+        result.setExecuted(false);
+        result.setTaskStatus(TaskStatus.DEAD_LETTER.name());
+        result.setMessage(reason);
+        log.warn("dispatch_execution_terminal_failure dispatchRequestId={} taskId={} assignmentId={} reasonCode={}",
+                safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAssignmentId()), safe(decision.reasonCode()));
+        return record(result, startedAt);
+    }
+
+    private DispatchExecutionResult safetyResult(DispatchRequest request, TaskStatus taskStatus, String message, long startedAt) {
+        DispatchExecutionResult result = DispatchExecutionResult.from(request);
+        result.setExecuted(false);
+        result.setTaskStatus(taskStatus.name());
+        result.setMessage(message);
+        return record(result, startedAt);
+    }
+
+    private String failureReason(DispatchExecutionSafetyDecision decision) {
+        return "SAFETY_" + decision.disposition().name() + ":" + safe(decision.reasonCode()) + ":" + safe(decision.message());
+    }
+
+    private String failureEvidence(DispatchExecutionSafetyDecision decision) {
+        return "{\"disposition\":\"" + safe(decision.disposition() == null ? null : decision.disposition().name())
+                + "\",\"reasonCode\":\"" + safe(decision.reasonCode()) + "\"}";
     }
 
     private ClaimRequest claimRequest(OffsetDateTime now, int limit) {
@@ -303,7 +599,12 @@ public class DispatchExecutionService {
         DispatchRequest current = dispatchRepository.findById(attempted.getDispatchRequestId())
                 .orElse(attempted);
         if (gatewayResult != null && gatewayResult.success()) {
-            recordGatewayDeliveredUnconfirmed(attempted, gatewayResult, write, OffsetDateTime.now(ZoneOffset.UTC));
+            OffsetDateTime uncertainAt = OffsetDateTime.now(ZoneOffset.UTC);
+            attempted.setRecoveryClassification(DispatchRecoveryClassification.ACK_PERSISTENCE_UNCERTAIN);
+            attempted.setUncertainSince(uncertainAt);
+            persistUncertainGatewayAcceptance(attempted, uncertainAt, write);
+            recordGatewayDeliveredUnconfirmed(attempted, gatewayResult, write, uncertainAt);
+            recordAssignmentEvidence(attempted, "GATEWAY_ACCEPTED_UNCONFIRMED", gatewayResult.gatewayStatus(), null, "{\"writeOutcome\":\"" + write.outcome() + "\"}");
         }
         DispatchExecutionResult result = DispatchExecutionResult.from(current);
         result.setExecuted(isAcceptedOrLater(current.getStatus()) || (gatewayResult != null && gatewayResult.success()));
@@ -317,6 +618,25 @@ public class DispatchExecutionService {
                         ? "; Netty accepted the command, so callback reconciliation must rely on dispatchToken and attemptNo."
                         : ""));
         return result;
+    }
+
+    private void persistUncertainGatewayAcceptance(
+            DispatchRequest attempted,
+            OffsetDateTime uncertainAt,
+            PersistenceWriteResult write) {
+        DispatchStatusTransition uncertain = new DispatchStatusTransition();
+        uncertain.setDispatchRequestId(attempted.getDispatchRequestId());
+        uncertain.setAllowedCurrentStatuses(List.of(DispatchRequestStatus.DISPATCHING));
+        uncertain.setNewStatus(DispatchRequestStatus.DISPATCHING);
+        uncertain.setExpectedAttemptNo(attempted.getAttemptCount());
+        uncertain.setExpectedDispatchToken(attempted.getDispatchToken());
+        uncertain.setOutboxStatus(DispatchOutboxStatus.DISPATCHING);
+        uncertain.setRecoveryClassification(DispatchRecoveryClassification.ACK_PERSISTENCE_UNCERTAIN);
+        uncertain.setUncertainSince(uncertainAt);
+        uncertain.setReason("Gateway accepted but local final persistence lost claim ownership: " + write.outcome());
+        uncertain.setUpdatedAt(uncertainAt);
+        uncertain.setClearClaim(false);
+        dispatchRepository.transitionStatus(uncertain);
     }
 
     private boolean isAcceptedOrLater(DispatchRequestStatus status) {
@@ -343,6 +663,43 @@ public class DispatchExecutionService {
         return task.getReassignmentCount() < properties.getFailureRequeue().getMaxReassignments();
     }
 
+    private DispatchExecutionResult holdDeliveryUnknown(
+            DispatchRequest request,
+            ClaimOwnership ownership,
+            GatewayDispatchResult gatewayResult,
+            OffsetDateTime now,
+            String error,
+            long startedAt) {
+        request.setStatus(DispatchRequestStatus.DELIVERY_UNKNOWN);
+        request.setOutboxStatus(DispatchOutboxStatus.RECOVERY_PENDING);
+        request.setRecoveryClassification(DispatchRecoveryClassification.RESPONSE_LOST);
+        request.setUncertainSince(now);
+        request.setNextRetryAt(null);
+        request.setRetryWaitingAt(null);
+        request.setUpdatedAt(now);
+        request.setLastError(error);
+        request.setReason("Dispatch delivery outcome is unknown; automatic retry/reassignment is suppressed pending callback or reconciliation: " + error);
+        PersistenceWriteResult write = dispatchRepository.saveClaimed(request, ownership);
+        if (!write.applied()) {
+            return record(claimLostResult(request, gatewayResult, write), startedAt);
+        }
+        recordAssignmentEvidence(request, "DELIVERY_UNKNOWN", gatewayResult.gatewayStatus(), null,
+                "{\"automaticRetrySuppressed\":true}");
+        clearClaim(request);
+        updateTaskReconciling(request, now, error);
+        publishA2AProgress(request, "DELIVERY_UNKNOWN", "DISPATCH_RESPONSE_LOST", request.getReason(),
+                "dispatch-delivery-unknown:" + request.getDispatchRequestId() + ":" + request.getAttemptCount());
+
+        DispatchExecutionResult result = DispatchExecutionResult.from(request);
+        result.setExecuted(false);
+        result.setGatewayStatus(gatewayResult.gatewayStatus());
+        result.setTaskStatus(TaskStatus.RECONCILING.name());
+        result.setMessage(request.getReason());
+        log.warn("dispatch_delivery_unknown dispatchRequestId={} taskId={} assignmentId={} attemptCount={} automaticRetrySuppressed=true",
+                safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAssignmentId()), request.getAttemptCount());
+        return record(result, startedAt);
+    }
+
     private DispatchExecutionResult requeueAfterRuntimeFailure(
             DispatchRequest request,
             ClaimOwnership ownership,
@@ -355,6 +712,13 @@ public class DispatchExecutionService {
                 + (backoffUntil == null ? "" : "; failed agent backoffUntil=" + backoffUntil)
                 + ": " + error;
         request.setStatus(DispatchRequestStatus.FAILED);
+        // Runtime delivery failure is not a retry of this same dispatch authority.
+        // Core is about to cancel the stale assignment and select a replacement, so the
+        // current durable outbox row must leave CLAIMED/DISPATCHING before saveClaimed()
+        // clears its claim evidence. Otherwise ck_dispatch_claim_evidence_p2d correctly
+        // rejects a DISPATCHING row whose claimed_by/claim_token/claim_until were nulled.
+        request.setOutboxStatus(DispatchOutboxStatus.ABANDONED);
+        request.setRecoveryClassification(DispatchRecoveryClassification.REASSIGN_REQUIRED);
         request.setFailedAt(now);
         request.setUpdatedAt(now);
         request.setLastError(error);
@@ -522,6 +886,28 @@ public class DispatchExecutionService {
         });
     }
 
+    private void updateTaskReconciling(DispatchRequest request, OffsetDateTime now, String reason) {
+        taskOrchestrationFacade.findTask(request.getTaskId()).ifPresent(task -> {
+            task.setStatus(TaskStatus.RECONCILING);
+            task.setNextDispatchAttemptAt(null);
+            task.setDispatchRetryReason("Dispatch delivery outcome unknown; reconciliation required: " + safe(reason));
+            task.setUpdatedAt(now);
+            task.setLifecycleReason(task.getDispatchRetryReason());
+            taskOrchestrationFacade.saveExecutionState(task);
+        });
+    }
+
+    private void updateTaskBlocked(DispatchRequest request, OffsetDateTime now, String reason, boolean security) {
+        taskOrchestrationFacade.findTask(request.getTaskId()).ifPresent(task -> {
+            task.setStatus(TaskStatus.BLOCKED);
+            task.setNextDispatchAttemptAt(null);
+            task.setDispatchRetryReason((security ? "Security" : "Policy") + " dispatch block: " + reason);
+            task.setUpdatedAt(now);
+            task.setLifecycleReason(task.getDispatchRetryReason());
+            taskOrchestrationFacade.saveExecutionState(task);
+        });
+    }
+
     private void updateTaskDeadLetter(
             DispatchRequest request,
             OffsetDateTime now,
@@ -550,6 +936,7 @@ public class DispatchExecutionService {
                 request.getAgentId(),
                 request.getAttemptCount(),
                 request.getReason(),
+                request.getTenantId(),
                 now));
     }
 
@@ -566,6 +953,7 @@ public class DispatchExecutionService {
             String error) {
         Duration backoff = computeBackoff(request.getAttemptCount(), request.getDispatchRequestId());
         request.setStatus(DispatchRequestStatus.RETRY_WAITING);
+        request.setOutboxStatus(DispatchOutboxStatus.FAILED_RETRYABLE);
         request.setRetryWaitingAt(now);
         request.setNextRetryAt(now.plus(backoff));
         request.setFailedAt(now);
@@ -598,6 +986,26 @@ public class DispatchExecutionService {
         request.setClaimedBy(null);
         request.setClaimStartedAt(null);
         request.setClaimUntil(null);
+        request.setClaimToken(null);
+        request.setClaimHeartbeatAt(null);
+    }
+
+
+    private boolean isUncertainGatewayResult(GatewayDispatchResult result) {
+        if (result == null) return true;
+        String status = safe(result.gatewayStatus()).toUpperCase(Locale.ROOT);
+        return result.httpStatus() == 0 || status.contains("TIMEOUT") || status.contains("NULL_GATEWAY_RESPONSE") || status.contains("DISPATCH_EXCEPTION");
+    }
+
+    private void recordAssignmentEvidence(DispatchRequest request, String eventType, String gatewayStatus, String ackEvidenceId, String json) {
+        if (assignmentEvidenceService != null) assignmentEvidenceService.record(request, eventType, gatewayStatus, ackEvidenceId, json);
+    }
+
+    private void publishA2AProgress(DispatchRequest request, String stage, String blockerCode, String reason, String evidenceReference) {
+        if (request == null || request.getTenantId() == null || request.getTaskId() == null) return;
+        eventPublisher.publish(new A2ADispatchProgressedEvent("a2a-dispatch-progress-" + java.util.UUID.randomUUID(),
+                request.getTenantId(), request.getTaskId(), request.getDispatchRequestId(), stage, blockerCode, reason,
+                evidenceReference, OffsetDateTime.now(ZoneOffset.UTC)));
     }
 
     private String safe(String value) {

@@ -2,6 +2,7 @@ package com.opensocket.aievent.core.api;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -73,7 +74,7 @@ public class CoreDashboardController {
         this.operationalSummaryService = operationalSummaryService;
     }
 
-    @GetMapping("/dashboard/snapshot")
+    @GetMapping("/tenants/{tenantId}/dashboard/snapshot")
     public CoreDashboardSnapshot snapshot(@RequestParam(defaultValue = "50") int limit) {
         int safeLimit = safeLimit(limit);
         return new CoreDashboardSnapshot(
@@ -104,7 +105,7 @@ public class CoreDashboardController {
         );
     }
 
-    @GetMapping("/agents/runtime-view")
+    @GetMapping("/tenants/{tenantId}/agents/runtime-view")
     public List<CoreAgentRuntimeView> agentRuntimeView(@RequestParam(defaultValue = "100") int limit) {
         int safeLimit = safeLimit(limit);
         List<AgentProfile> profiles = agentGovernanceService.searchProfiles(null, safeLimit);
@@ -114,7 +115,7 @@ public class CoreDashboardController {
                 .toList();
     }
 
-    @GetMapping("/tasks/runtime-view")
+    @GetMapping("/tenants/{tenantId}/tasks/runtime-view")
     public CoreTaskRuntimeView tasksRuntimeView(@RequestParam(defaultValue = "100") int limit) {
         int safeLimit = safeLimit(limit);
         List<TaskRecord> tasks = recentTasks(safeLimit);
@@ -135,13 +136,13 @@ public class CoreDashboardController {
         );
     }
 
-    @GetMapping("/security-events")
+    @GetMapping("/tenants/{tenantId}/security-events")
     public List<AgentSecurityEvent> securityEvents(@RequestParam(required = false) String agentId,
                                                    @RequestParam(defaultValue = "100") int limit) {
         return agentGovernanceService.searchSecurityEvents(agentId, safeLimit(limit));
     }
 
-    @GetMapping("/agent-governance/summary")
+    @GetMapping("/tenants/{tenantId}/agent-governance/summary")
     public CoreAgentGovernanceSummary agentGovernanceSummary(@RequestParam(defaultValue = "100") int limit) {
         int safeLimit = safeLimit(limit);
         return new CoreAgentGovernanceSummary(
@@ -317,10 +318,21 @@ public class CoreDashboardController {
 
     private Map<String, TaskIssueLink> taskIssueLinksByTask(List<TaskRecord> tasks) {
         if (tasks == null || tasks.isEmpty()) return Map.of();
-        return taskIssueLinkRepository.findByTaskIdsAsMap(tasks.stream()
-                .map(TaskRecord::getTaskId)
-                .filter(id -> id != null && !id.isBlank())
-                .toList());
+
+        Map<String, List<String>> taskIdsByTenant = new LinkedHashMap<>();
+        for (TaskRecord task : tasks) {
+            if (task == null || !hasText(task.getTenantId()) || !hasText(task.getTaskId())) continue;
+            taskIdsByTenant.computeIfAbsent(task.getTenantId(), ignored -> new ArrayList<>())
+                    .add(task.getTaskId());
+        }
+
+        Map<String, TaskIssueLink> result = new LinkedHashMap<>();
+        taskIdsByTenant.forEach((tenantId, taskIds) ->
+                taskIssueLinkRepository.findAllByTenantAndTaskIds(tenantId, taskIds).stream()
+                        .filter(link -> link != null && hasText(link.getTaskId()))
+                        .forEach(link -> result.putIfAbsent(link.getTaskId(), link))
+        );
+        return result;
     }
 
     private int safeLimit(int limit) {

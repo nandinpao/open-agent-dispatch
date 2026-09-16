@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
+import com.opensocket.aievent.core.task.domain.TaskStateTransitionCommand;
 
 @Repository
 @Profile("!prod")
@@ -18,13 +19,21 @@ public class InMemoryTaskRepository implements TaskRepository {
 
     @Override
     public synchronized TaskRecord save(TaskRecord task) {
+        if (task.getTaskKey() == null) task.setTaskKey(task.getTaskId());
+        if (task.getTitle() == null) task.setTitle((task.getEffectiveTaskTypeCode() == null ? "Task" : task.getEffectiveTaskTypeCode()) + " " + task.getTaskId());
+        if (task.getRootTaskId() == null) {
+            if (task.getParentTaskId() == null) task.setRootTaskId(task.getTaskId());
+            else { TaskRecord parent = tasks.get(task.getParentTaskId()); if (parent != null && task.getTenantId().equals(parent.getTenantId())) task.setRootTaskId(parent.getRootTaskId()); }
+        }
+        if (task.getVersion() < 1) task.setVersion(1L);
+        task.ensureCreationProvenanceDefaults();
         tasks.put(task.getTaskId(), task);
         return task;
     }
 
     @Override
     public synchronized TaskRecord saveNewOrGetOpen(TaskRecord task) {
-        Optional<TaskRecord> existing = findOpenByIncidentAndType(task.getIncidentId(), task.getTaskType());
+        Optional<TaskRecord> existing = findOpenByTenantAndIncidentAndType(task.getTenantId(), task.getIncidentId(), task.getTaskType());
         if (existing.isPresent()) {
             return existing.get();
         }
@@ -37,6 +46,36 @@ public class InMemoryTaskRepository implements TaskRepository {
     }
 
     @Override
+    public Optional<TaskRecord> findByTenantAndId(String tenantId, String taskId) {
+        TaskRecord task = tasks.get(taskId);
+        return task != null && tenantId != null && tenantId.equals(task.getTenantId()) ? Optional.of(task) : Optional.empty();
+    }
+
+    @Override
+    public List<TaskRecord> findByRootTaskId(String tenantId, String rootTaskId, int limit) {
+        return tasks.values().stream()
+                .filter(task -> tenantId != null && tenantId.equals(task.getTenantId()))
+                .filter(task -> rootTaskId != null && rootTaskId.equals(task.getRootTaskId()))
+                .sorted(Comparator.comparing(TaskRecord::getCreatedAt, Comparator.nullsFirst(Comparator.naturalOrder())))
+                .limit(Math.max(1, Math.min(limit, 1000)))
+                .toList();
+    }
+
+    @Override
+    public synchronized Optional<TaskRecord> transitionGovernanceState(TaskStateTransitionCommand command) {
+        if (command == null || command.newStatus() == null) return Optional.empty();
+        TaskRecord task = tasks.get(command.taskId());
+        if (task == null || !command.tenantId().equals(task.getTenantId()) || task.getVersion() != command.expectedVersion()) return Optional.empty();
+        if (!TaskLifecycleTransitionGuard.canTransition(task.getStatus(), command.newStatus())) return Optional.empty();
+        task.setStatus(command.newStatus());
+        task.setLifecycleReason(command.reason());
+        task.setCorrelationId(command.correlationId());
+        task.setUpdatedAt(command.transitionAt());
+        task.setVersion(task.getVersion() + 1);
+        return Optional.of(task);
+    }
+
+    @Override
     public Optional<TaskRecord> findOpenByIncidentAndType(String incidentId, TaskType taskType) {
         return tasks.values().stream()
                 .filter(task -> incidentId.equals(task.getIncidentId()))
@@ -46,9 +85,29 @@ public class InMemoryTaskRepository implements TaskRepository {
     }
 
     @Override
+    public Optional<TaskRecord> findOpenByTenantAndIncidentAndType(String tenantId, String incidentId, TaskType taskType) {
+        return tasks.values().stream()
+                .filter(task -> tenantId != null && tenantId.equals(task.getTenantId()))
+                .filter(task -> java.util.Objects.equals(incidentId, task.getIncidentId()))
+                .filter(task -> taskType == task.getTaskType())
+                .filter(this::isOpen)
+                .max(Comparator.comparing(TaskRecord::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+    }
+
+    @Override
     public List<TaskRecord> findByIncidentId(String incidentId, int limit) {
         return tasks.values().stream()
                 .filter(task -> incidentId.equals(task.getIncidentId()))
+                .sorted(Comparator.comparing(TaskRecord::getCreatedAt).reversed())
+                .limit(Math.max(1, Math.min(limit, 1000)))
+                .toList();
+    }
+
+    @Override
+    public List<TaskRecord> findByTenantAndIncidentId(String tenantId, String incidentId, int limit) {
+        return tasks.values().stream()
+                .filter(task -> tenantId != null && tenantId.equals(task.getTenantId()))
+                .filter(task -> incidentId != null && incidentId.equals(task.getIncidentId()))
                 .sorted(Comparator.comparing(TaskRecord::getCreatedAt).reversed())
                 .limit(Math.max(1, Math.min(limit, 1000)))
                 .toList();
@@ -165,7 +224,10 @@ public class InMemoryTaskRepository implements TaskRepository {
 
     @Override
     public synchronized boolean transitionExecutionState(TaskExecutionStateTransition transition) {
-        TaskRecord task = transition == null ? null : tasks.get(transition.getTaskId());
+        if (transition == null) {
+            return false;
+        }
+        TaskRecord task = tasks.get(transition.getTaskId());
         if (task == null) {
             return false;
         }

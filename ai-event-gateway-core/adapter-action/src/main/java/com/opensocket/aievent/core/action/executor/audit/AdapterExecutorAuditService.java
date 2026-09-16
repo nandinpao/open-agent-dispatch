@@ -35,6 +35,29 @@ public class AdapterExecutorAuditService {
         r.setActionId(action.getActionId());
         r.setTaskId(action.getTaskId());
         r.setIncidentId(action.getIncidentId());
+        r.setDispatchRequestId(action.getDispatchRequestId());
+        r.setAssignmentId(action.getAssignmentId());
+        r.setAgentId(action.getAgentId());
+        r.setIdempotencyKey(action.getIdempotencyKey());
+        if (result != null) {
+            r.setTenantId(result.getTenantId());
+            r.setCorrelationId(result.getCorrelationId());
+            r.setA2aRequestId(result.getA2aRequestId());
+            r.setSourceSystemId(result.getSourceSystemId());
+            r.setConnectionId(result.getConnectionId());
+            r.setProjectMappingId(result.getProjectMappingId());
+            r.setExternalProjectId(result.getExternalProjectId());
+            r.setExternalIssueId(result.getIssueId());
+            r.setProviderStatusCode(result.getProviderStatusCode());
+            r.setProviderFailureCode(result.getErrorCode());
+            r.setProviderHealthImpact(result.getProviderHealthImpact());
+            r.setProviderOutcomeCertainty(result.getProviderOutcomeCertainty());
+            r.setOperationFingerprint(result.getOperationFingerprint());
+            r.setTechnicalPrincipalId(result.getTechnicalPrincipalId());
+            r.setCredentialId(result.getCredentialId());
+            r.setCredentialVersion(result.getCredentialVersion());
+            if (result.getIdempotencyKey() != null) r.setIdempotencyKey(result.getIdempotencyKey());
+        }
         r.setAdapterType(action.getAdapterType() == null ? null : action.getAdapterType().name());
         r.setActionType(action.getActionType() == null ? null : action.getActionType().name());
         r.setExecutorName(action.getExecutorName());

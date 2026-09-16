@@ -17,7 +17,8 @@ public class AgentProfileEligibilityEvaluator implements DispatchEligibilityShad
 
     @Override
     public AgentEligibilityShadowCheck evaluate(DispatchEligibilityShadowContext context) {
-        AgentProfile profile = context == null ? null : context.getAgentProfile();
+        if (context == null) return block("ELIGIBILITY_CONTEXT_MISSING", "Dispatch eligibility context is missing.");
+        AgentProfile profile = context.getAgentProfile();
         if (profile == null) return block("AGENT_PROFILE_NOT_FOUND", "Agent profile is missing.");
         if (context.getRequirement() != null && profile.getTenantId() != null
                 && !tenantKey(context.getRequirement().getTenantId()).equals(tenantKey(profile.getTenantId()))) {

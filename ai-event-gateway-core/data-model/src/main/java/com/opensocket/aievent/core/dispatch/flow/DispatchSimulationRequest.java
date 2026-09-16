@@ -25,6 +25,8 @@ public class DispatchSimulationRequest {
     private String plantId;
     private Map<String, Object> attributes = new LinkedHashMap<>();
     private Boolean includeRuntimeSnapshot = Boolean.TRUE;
+    /** C7: DRAFT_SIMULATION may inspect only the explicitly selected Flow; RUNTIME_READINESS remains ACTIVE-only. */
+    private String evaluationMode = "DRAFT_SIMULATION";
 
     public String getTenantId() { return tenantId; }
     public void setTenantId(String tenantId) { this.tenantId = tenantId; }
@@ -56,4 +58,6 @@ public class DispatchSimulationRequest {
     public void setAttributes(Map<String, Object> attributes) { this.attributes = attributes == null ? new LinkedHashMap<>() : new LinkedHashMap<>(attributes); }
     public Boolean getIncludeRuntimeSnapshot() { return includeRuntimeSnapshot; }
     public void setIncludeRuntimeSnapshot(Boolean includeRuntimeSnapshot) { this.includeRuntimeSnapshot = includeRuntimeSnapshot; }
+    public String getEvaluationMode() { return evaluationMode; }
+    public void setEvaluationMode(String evaluationMode) { this.evaluationMode = evaluationMode; }
 }

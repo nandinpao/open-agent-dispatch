@@ -1,0 +1,3 @@
+package com.opensocket.aievent.core.iam.api.response;
+import com.opensocket.aievent.core.iam.rbac.domain.shadow.ShadowMismatchWaiver;import java.time.Instant;
+public record ShadowMismatchWaiverResponse(String waiverId,String caseId,String reason,String approvedBy,Instant approvedAt,Instant expiresAt,String status,Instant revokedAt,String revokedBy,long version){public static ShadowMismatchWaiverResponse from(ShadowMismatchWaiver v){return new ShadowMismatchWaiverResponse(v.waiverId(),v.caseId(),v.reason(),v.approvedBy(),v.approvedAt(),v.expiresAt(),v.status(),v.revokedAt().orElse(null),v.revokedBy().orElse(null),v.version());}}

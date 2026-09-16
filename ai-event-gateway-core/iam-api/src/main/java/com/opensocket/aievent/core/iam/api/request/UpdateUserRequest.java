@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.request;import jakarta.validation.constraints.*;public record UpdateUserRequest(@NotBlank String displayName,@Email String email){}

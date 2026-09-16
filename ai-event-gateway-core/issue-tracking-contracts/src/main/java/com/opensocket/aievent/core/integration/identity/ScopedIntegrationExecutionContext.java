@@ -1,0 +1,2 @@
+package com.opensocket.aievent.core.integration.identity;
+public record ScopedIntegrationExecutionContext(IntegrationConnection connection,IntegrationPrincipal principal,IntegrationPrincipalScope principalScope,IntegrationCredentialMetadata credential,IntegrationProjectMapping mapping,IntegrationOperation operation,PermissionProbeResult latestProbe) {}

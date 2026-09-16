@@ -10,6 +10,7 @@ import org.springframework.mock.env.MockEnvironment;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
 import com.opensocket.aievent.core.dispatch.DispatchProperties;
 import com.opensocket.aievent.core.integration.IntegrationEventProperties;
+import com.opensocket.aievent.core.iam.runtime.config.EventIntakeSecurityProperties;
 import com.opensocket.aievent.core.security.CoreInternalSecurityProperties;
 
 class CoreDeploymentModeValidatorTest {
@@ -134,75 +135,31 @@ class CoreDeploymentModeValidatorTest {
     }
 
     @Test
-    void shouldRejectRedmineDefaultVendorWithoutRealExecutorInProdProfile() {
+    void shouldRejectDisabledScopedIssueIdentityInProdProfile() {
+        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
+        adapter.getIssue().setScopedIdentityEnabled(false);
+
+        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores());
+
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
+    }
+
+    @Test
+    void shouldRejectOptionalScopedIssueIdentityInProdProfile() {
+        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
+        adapter.getIssue().setScopedIdentityRequired(false);
+
+        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores());
+
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
+    }
+
+    @Test
+    void shouldAllowScopedIssueExecutionWithoutFixedProviderCredentialsInProdProfile() {
         AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
         adapter.getIssue().setDefaultVendor("REDMINE");
-
-        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores());
-
-        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
-    }
-
-    @Test
-    void shouldRejectPlaceholderRedmineApiKeyInProdProfile() {
-        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
-        adapter.getIssue().setDefaultVendor("REDMINE");
-        adapter.getIssue().getRedmine().setEnabled(true);
-        adapter.getIssue().getRedmine().setBaseUrl("https://redmine.prod.internal");
-        adapter.getIssue().getRedmine().setApiKey("<change-me>");
-        adapter.getIssue().getRedmine().setProjectId("MES-OPS");
-
-        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores());
-
-        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
-    }
-
-    @Test
-    void shouldRejectLocalGitlabEndpointInProdProfile() {
-        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
-        adapter.getIssue().setDefaultVendor("GITLAB");
-        adapter.getIssue().getGitlab().setEnabled(true);
-        adapter.getIssue().getGitlab().setBaseUrl("http://127.0.0.1:8080");
-        adapter.getIssue().getGitlab().setPrivateToken("gitlab-prod-token-123");
-        adapter.getIssue().getGitlab().setProjectId("group/project");
-
-        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores());
-
-        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
-    }
-
-    @Test
-    void shouldRejectPreEncodedGitlabProjectIdInProdProfile() {
-        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
-        adapter.getIssue().setDefaultVendor("GITLAB");
-        adapter.getIssue().getGitlab().setEnabled(true);
-        adapter.getIssue().getGitlab().setBaseUrl("https://gitlab.prod.internal");
-        adapter.getIssue().getGitlab().setPrivateToken("gitlab-prod-token-123");
-        adapter.getIssue().getGitlab().setProjectId("group%2Fproject");
-
-        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores());
-
-        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
-    }
-
-    @Test
-    void shouldRejectJiraDefaultVendorUntilRealJiraExecutorProfileExistsInProdProfile() {
-        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
-        adapter.getIssue().setDefaultVendor("JIRA");
-
-        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores());
-
-        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
-    }
-
-    @Test
-    void shouldAllowRealRedmineIssueExecutorInProdProfile() {
-        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
-        adapter.getIssue().setDefaultVendor("REDMINE");
-        adapter.getIssue().getRedmine().setEnabled(true);
-        adapter.getIssue().getRedmine().setBaseUrl("https://redmine.prod.internal");
-        adapter.getIssue().getRedmine().setApiKey("redmine-prod-token-123");
-        adapter.getIssue().getRedmine().setProjectId("MES-OPS");
+        adapter.getIssue().setScopedIdentityEnabled(true);
+        adapter.getIssue().setScopedIdentityRequired(true);
 
         CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores());
 
@@ -229,6 +186,54 @@ class CoreDeploymentModeValidatorTest {
         CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores(), productionSecurity(), recoveryGovernance);
 
         assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
+    }
+
+    @Test
+    void shouldRejectLegacyOnlyEventIntakeInProdProfile() {
+        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
+        EventIntakeSecurityProperties eventIntake = productionEventIntakeSecurity();
+        eventIntake.setMode(EventIntakeSecurityProperties.Mode.LEGACY_ONLY);
+
+        CoreDeploymentModeValidator validator = validator(
+                adapter, productionEnvironmentWithPersistentStores(), productionSecurity(),
+                productionDispatchProperties(), productionRecoveryGovernance(), eventIntake);
+
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
+    }
+
+    @Test
+    void shouldRejectSharedEventIntakeAndOperatorTokenInProdProfile() {
+        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
+        CoreInternalSecurityProperties security = productionSecurity();
+        security.setEventIntakeToken(security.getOperatorToken());
+
+        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores(), security);
+
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
+    }
+
+    @Test
+    void shouldRejectSharedEventIntakeAndClusterTokenInProdProfile() {
+        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
+        CoreInternalSecurityProperties security = productionSecurity();
+        security.setEventIntakeToken("cluster-token-123");
+        MockEnvironment environment = productionEnvironmentWithPersistentStores();
+        environment.setProperty("CLUSTER_INTERNAL_TOKEN", "cluster-token-123");
+
+        CoreDeploymentModeValidator validator = validator(adapter, environment, security);
+
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
+    }
+
+    @Test
+    void shouldAllowJwtRequiredWithoutLegacyEventIntakeTokenInProdProfile() {
+        AdapterActionExecutionProperties adapter = new AdapterActionExecutionProperties();
+        CoreInternalSecurityProperties security = productionSecurity();
+        security.setEventIntakeToken("");
+
+        CoreDeploymentModeValidator validator = validator(adapter, productionEnvironmentWithPersistentStores(), security);
+
+        assertDoesNotThrow(() -> validator.run(new DefaultApplicationArguments(new String[0])));
     }
 
     @Test
@@ -271,10 +276,20 @@ class CoreDeploymentModeValidatorTest {
                                                   CoreInternalSecurityProperties security,
                                                   DispatchProperties dispatchProperties,
                                                   RecoveryGovernanceProperties recoveryGovernance) {
+        return validator(adapter, environment, security, dispatchProperties, recoveryGovernance, productionEventIntakeSecurity());
+    }
+
+    private CoreDeploymentModeValidator validator(AdapterActionExecutionProperties adapter,
+                                                  MockEnvironment environment,
+                                                  CoreInternalSecurityProperties security,
+                                                  DispatchProperties dispatchProperties,
+                                                  RecoveryGovernanceProperties recoveryGovernance,
+                                                  EventIntakeSecurityProperties eventIntakeSecurity) {
         return new CoreDeploymentModeValidator(
                 new CoreDeploymentProperties(),
                 adapter,
                 new IntegrationEventProperties(),
+                eventIntakeSecurity,
                 security,
                 dispatchProperties,
                 recoveryGovernance,
@@ -290,12 +305,21 @@ class CoreDeploymentModeValidatorTest {
         security.setAllowLegacyTokenHeader(false);
         security.setGatewayToken("gateway-token-123");
         security.setAdapterWorkerToken("adapter-token-123");
+        security.setEventIntakeToken("event-intake-token-123");
         security.setOperatorToken("operator-token-123");
         security.setRecoveryOperatorToken("recovery-operator-token-123");
         security.setRecoveryAdminToken("recovery-admin-token-123");
         security.setRecoveryApproverToken("recovery-approver-token-123");
         security.setActuatorToken("actuator-token-123");
         return security;
+    }
+
+
+    private EventIntakeSecurityProperties productionEventIntakeSecurity() {
+        EventIntakeSecurityProperties properties = new EventIntakeSecurityProperties();
+        properties.setMode(EventIntakeSecurityProperties.Mode.JWT_REQUIRED);
+        properties.setAuditEnabled(true);
+        return properties;
     }
 
 

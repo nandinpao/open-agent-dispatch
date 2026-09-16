@@ -1,0 +1,1 @@
+package com.opensocket.aievent.core.iam.api.application.port;import com.opensocket.aievent.core.iam.api.context.IamApiRequestContext;public interface IamSessionAdministrationApiPort{void revoke(String sessionId,long expectedVersion,String reason,IamApiRequestContext context);void revokeAllForUser(String userId,String reason,IamApiRequestContext context);}

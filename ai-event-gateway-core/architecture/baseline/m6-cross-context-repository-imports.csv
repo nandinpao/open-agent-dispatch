@@ -1,0 +1,12 @@
+source_context,target_context,source_file,imported_type
+adapter-action,infrastructure,action/mybatis/MybatisAdapterActionRepository.java,com.opensocket.aievent.database.persistence.adapter.dao.AdapterActionDao
+agent-control,infrastructure,agent/mybatis/MybatisAgentDirectoryRepository.java,com.opensocket.aievent.database.persistence.agent.dao.AgentDirectoryDao
+agent-control,infrastructure,gateway/mybatis/MybatisGatewayNodeRepository.java,com.opensocket.aievent.database.persistence.agent.dao.GatewayNodeDao
+execution-control,infrastructure,callback/mybatis/MybatisTaskCallbackRepository.java,com.opensocket.aievent.database.persistence.execution.dao.TaskCallbackDao
+execution-control,infrastructure,dispatch/mybatis/MybatisDispatchRequestRepository.java,com.opensocket.aievent.database.persistence.execution.dao.DispatchRequestDao
+incident-management,infrastructure,incident/mybatis/MybatisIncidentRepository.java,com.opensocket.aievent.database.persistence.incident.dao.IncidentDao
+lifecycle-control,execution-control,lifecycle/TaskLifecycleService.java,com.opensocket.aievent.core.dispatch.DispatchRequestRepository
+lifecycle-control,incident-management,lifecycle/IncidentLifecycleService.java,com.opensocket.aievent.core.incident.IncidentRepository
+lifecycle-control,task-orchestration,lifecycle/TaskLifecycleService.java,com.opensocket.aievent.core.assignment.TaskAssignmentRepository
+lifecycle-control,task-orchestration,lifecycle/TaskLifecycleService.java,com.opensocket.aievent.core.task.TaskRepository
+task-orchestration,infrastructure,task/mybatis/MybatisTaskRepository.java,com.opensocket.aievent.database.persistence.task.dao.TaskDao

@@ -15,7 +15,7 @@ public class ScheduledTaskLifecycle {
         this.service = service;
     }
 
-    @Scheduled(fixedDelayString = "${core.lifecycle.task.scan-interval-ms:30000}")
+    @Scheduled(fixedDelayString = "${core.lifecycle.task.scan-interval-ms:30000}", scheduler = "maintenanceOperationalScheduler")
     public void processTimeoutsAndReassignments() {
         log.debug("task_lifecycle_scan_started reason=SCHEDULED");
         LifecycleScanResult result = service.processTimeoutsAndReassignments();

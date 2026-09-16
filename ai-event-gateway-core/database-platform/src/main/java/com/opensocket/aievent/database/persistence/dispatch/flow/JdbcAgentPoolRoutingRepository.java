@@ -47,6 +47,8 @@ public class JdbcAgentPoolRoutingRepository implements AgentPoolRoutingRepositor
             snapshot.setPoolCode(first.poolCode());
             snapshot.setPoolName(first.poolName());
             snapshot.setSourceSystem(first.sourceSystem());
+            snapshot.setOwnerDepartmentId(first.ownerDepartmentId());
+            snapshot.setOwnerGroupId(first.ownerGroupId());
             snapshot.setPoolType(first.poolType());
             snapshot.setSelectionStrategy(first.selectionStrategy());
             snapshot.setStatus(first.status());
@@ -76,6 +78,8 @@ public class JdbcAgentPoolRoutingRepository implements AgentPoolRoutingRepositor
                 p.pool_code,
                 p.pool_name,
                 p.source_system,
+                p.owner_department_id,
+                p.owner_group_id,
                 p.pool_type,
                 p.selection_strategy,
                 p.status,
@@ -101,6 +105,8 @@ public class JdbcAgentPoolRoutingRepository implements AgentPoolRoutingRepositor
                 rs.getString("pool_code"),
                 rs.getString("pool_name"),
                 rs.getString("source_system"),
+                rs.getString("owner_department_id"),
+                rs.getString("owner_group_id"),
                 rs.getString("pool_type"),
                 rs.getString("selection_strategy"),
                 rs.getString("status"),
@@ -134,6 +140,8 @@ public class JdbcAgentPoolRoutingRepository implements AgentPoolRoutingRepositor
             String poolCode,
             String poolName,
             String sourceSystem,
+            String ownerDepartmentId,
+            String ownerGroupId,
             String poolType,
             String selectionStrategy,
             String status,

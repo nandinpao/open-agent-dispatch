@@ -25,10 +25,12 @@ public class IntegrationEventProjector {
         if (!properties.isProjectionEnabled() || !properties.getExportedEventTypes().contains(event.eventType())) return;
         try {
             IntegrationEventEnvelope envelope = new IntegrationEventEnvelope(
-                    "1.0", event.eventId(), event.eventType(), properties.getSource(),
-                    event.aggregateType(), event.aggregateId(), event.occurredAt(),
+                    "1.0", event.eventId(), event.eventType(), properties.getSource(), event.tenantId(),
+                    event.aggregateType(), event.aggregateId(), event.rootTaskId(), event.correlationId(), event.causationId(),
+                    event.actorType(), event.actorId(), event.occurredAt(), event.payloadVersion(),
                     mapper.convertValue(event, Map.class),
-                    Map.of("delivery", "at-least-once", "schema", event.eventType()));
+                    Map.of("delivery", "at-least-once", "schema", event.eventType(), "payloadVersion", event.payloadVersion()))
+                    .requireExportable();
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             IntegrationEventRecord record = new IntegrationEventRecord();
             record.setIntegrationEventId("integration-" + UUID.randomUUID());

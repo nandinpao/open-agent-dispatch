@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.opensocket</groupId><artifactId>control-plane-parent</artifactId>
+    <version>0.8.2-SNAPSHOT</version><relativePath>../pom.xml</relativePath>
+  </parent>
+  <artifactId>ui-capability-core</artifactId>
+  <name>ui-capability-core</name>
+  <description>Authority-free projection of canonical Resource Access decisions into short-lived UI capability envelopes.</description>
+  <dependencies>
+    <dependency><groupId>com.opensocket</groupId><artifactId>ui-capability-contracts</artifactId></dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+  </dependencies>
+  <build><plugins><plugin>
+    <groupId>org.apache.maven.plugins</groupId><artifactId>maven-enforcer-plugin</artifactId>
+    <executions><execution><id>enforce-ui-capability-core-boundary</id><goals><goal>enforce</goal></goals>
+      <configuration><rules><bannedDependencies><searchTransitive>false</searchTransitive><excludes>
+        <exclude>org.springframework:*</exclude><exclude>org.mybatis:*</exclude>
+        <exclude>com.opensocket:resource-access-core</exclude>
+        <exclude>com.opensocket:resource-access-persistence</exclude>
+        <exclude>com.opensocket:iam-persistence</exclude><exclude>com.opensocket:*api</exclude>
+      </excludes><message>UI capability core may consume authority ports but must remain framework and persistence neutral.</message></bannedDependencies></rules></configuration>
+    </execution></executions>
+  </plugin></plugins></build>
+</project>
