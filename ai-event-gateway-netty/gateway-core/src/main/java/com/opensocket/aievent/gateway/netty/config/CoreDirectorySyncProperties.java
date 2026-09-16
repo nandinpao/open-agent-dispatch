@@ -17,6 +17,7 @@ public class CoreDirectorySyncProperties {
     private String authToken = "";
     private String authHeaderName = "X-Cluster-Token";
     private boolean registerOnStartup = true;
+    private long startupFailureGraceMs = 10000;
     private long gatewayHeartbeatIntervalMs = 15000;
     private long snapshotIntervalMs = 60000;
     private long gatewayLeaseTtlSeconds = 45;
@@ -54,6 +55,10 @@ public class CoreDirectorySyncProperties {
     public boolean registerOnStartup() { return registerOnStartup; }
     public boolean isRegisterOnStartup() { return registerOnStartup(); }
     public void setRegisterOnStartup(boolean registerOnStartup) { this.registerOnStartup = registerOnStartup; }
+
+    public long startupFailureGraceMs() { return startupFailureGraceMs < 0 ? 0 : startupFailureGraceMs; }
+    public long getStartupFailureGraceMs() { return startupFailureGraceMs(); }
+    public void setStartupFailureGraceMs(long startupFailureGraceMs) { this.startupFailureGraceMs = startupFailureGraceMs; }
 
     public long gatewayHeartbeatIntervalMs() { return gatewayHeartbeatIntervalMs <= 0 ? 15000 : gatewayHeartbeatIntervalMs; }
     public long getGatewayHeartbeatIntervalMs() { return gatewayHeartbeatIntervalMs(); }

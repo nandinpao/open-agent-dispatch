@@ -8,10 +8,13 @@ public enum MessageType {
     AGENT_STATUS_CHANGE,
     TASK_SUBMIT,
     TASK_DISPATCH,
+    TASK_CANCEL,
     TASK_ACK,
     TASK_PROGRESS,
     TASK_RESULT,
     TASK_ERROR,
+    A2A_REQUEST,
+    CAPABILITY_DELEGATION_RESULT,
     GATEWAY_ACK,
     ERROR,
     ADMIN_EVENT,
@@ -46,10 +49,13 @@ public enum MessageType {
             case "ai.agent.status.changed", "agent.status.changed" -> AGENT_STATUS_CHANGE;
             case "ai.task.requested", "task.submit" -> TASK_SUBMIT;
             case "ai.task.dispatch", "ai.task.dispatched", "task.dispatch" -> TASK_DISPATCH;
+            case "ai.task.cancel", "task.cancel" -> TASK_CANCEL;
             case "ai.task.ack", "task.ack" -> TASK_ACK;
             case "ai.task.progress", "task.progress" -> TASK_PROGRESS;
             case "ai.task.result", "task.result" -> TASK_RESULT;
             case "ai.task.error", "task.error" -> TASK_ERROR;
+            case "ai.a2a.request", "a2a.request" -> A2A_REQUEST;
+            case "ai.capability.delegation.result", "capability.delegation.result" -> CAPABILITY_DELEGATION_RESULT;
             case "gateway.ack" -> GATEWAY_ACK;
             case "gateway.error" -> ERROR;
             case "admin.event" -> ADMIN_EVENT;
@@ -69,10 +75,13 @@ public enum MessageType {
             case AGENT_STATUS_CHANGE -> "ai.agent.status.changed";
             case TASK_SUBMIT -> "ai.task.requested";
             case TASK_DISPATCH -> "ai.task.dispatch";
+            case TASK_CANCEL -> "ai.task.cancel";
             case TASK_ACK -> "ai.task.ack";
             case TASK_PROGRESS -> "ai.task.progress";
             case TASK_RESULT -> "ai.task.result";
             case TASK_ERROR -> "ai.task.error";
+            case A2A_REQUEST -> "ai.a2a.request";
+            case CAPABILITY_DELEGATION_RESULT -> "ai.capability.delegation.result";
             case GATEWAY_ACK -> "gateway.ack";
             case ERROR -> "gateway.error";
             case ADMIN_EVENT -> "admin.event";

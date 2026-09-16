@@ -195,29 +195,28 @@ public class CommandDeliveryService {
     }
 
     private String validateTaskDispatchContext(String targetAgentId, CommandDeliveryRequest request, DispatchContext context) {
-        if (request == null || request.messageType() != MessageType.TASK_DISPATCH) {
+        if (request == null || (request.messageType() != MessageType.TASK_DISPATCH
+                && request.messageType() != MessageType.TASK_CANCEL)) {
             return null;
         }
+        String command = request.messageType().name();
         if (blank(context.agentId())) {
-            return "TASK_DISPATCH payload.agentId is required and must match the delivery path agentId";
+            return command + " payload.agentId is required and must match the delivery path agentId";
         }
         if (!context.agentId().trim().equals(targetAgentId.trim())) {
-            return "TASK_DISPATCH payload.agentId must match the delivery path agentId";
+            return command + " payload.agentId must match the delivery path agentId";
         }
-        if (blank(context.taskId())) {
-            return "TASK_DISPATCH payload.taskId is required";
-        }
-        if (blank(context.assignmentId())) {
-            return "TASK_DISPATCH payload.assignmentId is required";
-        }
-        if (blank(context.dispatchRequestId())) {
-            return "TASK_DISPATCH payload.dispatchRequestId is required";
-        }
-        if (blank(context.dispatchToken())) {
-            return "TASK_DISPATCH payload.dispatchToken is required";
-        }
-        if (context.attemptNo() == null || context.attemptNo() <= 0) {
+        if (blank(context.taskId())) return command + " payload.taskId is required";
+        if (blank(context.assignmentId())) return command + " payload.assignmentId is required";
+        if (blank(context.dispatchRequestId())) return command + " payload.dispatchRequestId is required";
+        if (blank(context.dispatchToken())) return command + " payload.dispatchToken is required";
+        if (request.messageType() == MessageType.TASK_DISPATCH
+                && (context.attemptNo() == null || context.attemptNo() <= 0)) {
             return "TASK_DISPATCH payload.attemptNo or payload.attempt is required";
+        }
+        if (request.messageType() == MessageType.TASK_CANCEL) {
+            if (blank(context.cancellationId())) return "TASK_CANCEL payload.cancellationId is required";
+            if (blank(context.fencingToken())) return "TASK_CANCEL payload.fencingToken is required";
         }
         return null;
     }
@@ -236,7 +235,9 @@ public class CommandDeliveryService {
                 trimToNull(stringValue(payload.get("assignmentId"))),
                 trimToNull(stringValue(payload.get("dispatchRequestId"))),
                 trimToNull(stringValue(payload.get("dispatchToken"))),
-                parsePositiveAttempt(payload.get("attemptNo"), payload.get("attempt"))
+                parsePositiveAttempt(payload.get("attemptNo"), payload.get("attempt")),
+                trimToNull(stringValue(payload.get("cancellationId"))),
+                trimToNull(stringValue(payload.get("fencingToken")))
         );
     }
 
@@ -285,6 +286,23 @@ public class CommandDeliveryService {
             }
             event.put("payload", normalizeOpenSocketTaskAssignPayload(
                     snapshot, commandId, issuedBy, request.payload(), legacyEnvelope.trace()));
+            return objectMapper.writeValueAsString(event);
+        }
+        if (shouldUseOpenSocketProtocol(snapshot) && request.messageType() == MessageType.TASK_CANCEL) {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("type", "event");
+            event.put("id", commandId);
+            event.put("event", "task.cancel");
+            event.put("timestamp", OffsetDateTime.now().toString());
+            if (legacyEnvelope.trace() != null && legacyEnvelope.trace().present()) {
+                event.put("trace", legacyEnvelope.trace());
+            }
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("taskId", request.payload().get("taskId"));
+            putIfPresent(payload, "assignmentId", stringValue(request.payload().get("assignmentId")));
+            putIfPresent(payload, "reason", stringValue(request.payload().get("reason")));
+            payload.put("requestedAt", OffsetDateTime.now().toString());
+            event.put("payload", payload);
             return objectMapper.writeValueAsString(event);
         }
         return objectMapper.writeValueAsString(legacyEnvelope);
@@ -472,10 +490,12 @@ public class CommandDeliveryService {
             String assignmentId,
             String dispatchRequestId,
             String dispatchToken,
-            Integer attemptNo
+            Integer attemptNo,
+            String cancellationId,
+            String fencingToken
     ) {
         static DispatchContext empty() {
-            return new DispatchContext(null, null, null, null, null, null);
+            return new DispatchContext(null, null, null, null, null, null, null, null);
         }
     }
 

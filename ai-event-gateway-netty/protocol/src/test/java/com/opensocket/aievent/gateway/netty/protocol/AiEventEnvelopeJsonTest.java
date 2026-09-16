@@ -63,4 +63,15 @@ class AiEventEnvelopeJsonTest {
         assertThat(actual.eventType()).isEqualTo("ai.task.requested");
     }
 
+    @Test
+    void shouldDeserializeTaskCancelWireValue() throws Exception {
+        String json = """
+                {"messageId":"cancel-001","messageType":"TASK_CANCEL","source":"core","target":"agent-001","payload":{"taskId":"task-001"}}
+                """;
+        AiEventEnvelope<Map<String, Object>> actual = objectMapper.readValue(
+                json, new TypeReference<>() { });
+        assertThat(actual.messageType()).isEqualTo(MessageType.TASK_CANCEL);
+        assertThat(MessageType.toDomainEventName(actual.messageType())).isEqualTo("ai.task.cancel");
+    }
+
 }

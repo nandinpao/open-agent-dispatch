@@ -81,6 +81,22 @@ public class AgentAuthorizationRuntimeRegistry {
         return Optional.ofNullable(authorizedByAgentId.get(agentId));
     }
 
+    /**
+     * Returns the exact pending authorization request for a live transport endpoint.
+     *
+     * <p>This is intentionally endpoint-scoped instead of agent-id scoped so a stale request from
+     * an older connection can never be replayed onto a replacement TCP/WebSocket session. The
+     * request may contain credential material supplied by the Agent registration frame and must
+     * remain in-memory only.</p>
+     */
+    public Optional<AgentConnectionAuthorizationRequest> findUnverified(
+            ConnectionType connectionType,
+            String connectionId,
+            String sessionId
+    ) {
+        return Optional.ofNullable(unverifiedByEndpoint.get(endpointKey(connectionType, connectionId, sessionId)));
+    }
+
     public void removeByEndpoint(ConnectionType connectionType, String endpointId) {
         authorizedByAgentId.entrySet().removeIf(entry -> {
             var context = entry.getValue();

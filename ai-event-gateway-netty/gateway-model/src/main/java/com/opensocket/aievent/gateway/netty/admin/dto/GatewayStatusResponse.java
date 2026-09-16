@@ -12,6 +12,8 @@ public record GatewayStatusResponse(
         String nodeId,
         String environment,
         String version,
+        String releaseLabel,
+        String artifactRevision,
         String status,
         boolean tcpEnabled,
         String tcpHost,

@@ -24,7 +24,7 @@ public class AgentProperties {
     /** Enables onboarding-token validation for Agent registration over TCP and WebSocket. */
     private boolean authEnabled = false;
 
-    /** Shared secret used to onboard Agents into this gateway node. */
+    /** Shared transport-admission secret used only to reach Agent registration on this gateway node. Core per-Agent credentials are separate. */
     private String onboardingToken = "";
 
     /**

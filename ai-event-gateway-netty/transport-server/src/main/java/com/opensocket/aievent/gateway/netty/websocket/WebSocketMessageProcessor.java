@@ -6,6 +6,9 @@ import com.opensocket.aievent.gateway.netty.agent.AgentType;
 import com.opensocket.aievent.gateway.netty.agent.AgentOnboardingTokenValidator;
 import com.opensocket.aievent.gateway.netty.agent.ConnectionType;
 import com.opensocket.aievent.gateway.netty.authorization.AgentAuthorizationDeniedException;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARelayResult;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARequestPayload;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARequestRelay;
 import com.opensocket.aievent.gateway.netty.agent.dto.AgentHeartbeatPayload;
 import com.opensocket.aievent.gateway.netty.agent.dto.AgentRegisterPayload;
 import com.opensocket.aievent.gateway.netty.agent.dto.AgentStatusChangePayload;
@@ -60,6 +63,7 @@ public class WebSocketMessageProcessor {
     private final AgentOnboardingTokenValidator agentOnboardingTokenValidator;
     private final InboundEventForwarder inboundEventForwarder;
     private final TaskCallbackRelay taskCallbackRelay;
+    private final AgentA2ARequestRelay agentA2ARequestRelay;
     private final TaskAssignmentProperties taskAssignmentProperties;
     private final AgentProtocolTraceService agentProtocolTraceService;
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
@@ -74,6 +78,7 @@ public class WebSocketMessageProcessor {
             AgentOnboardingTokenValidator agentOnboardingTokenValidator,
             InboundEventForwarder inboundEventForwarder,
             TaskCallbackRelay taskCallbackRelay,
+            AgentA2ARequestRelay agentA2ARequestRelay,
             TaskAssignmentProperties taskAssignmentProperties,
             AgentProtocolTraceService agentProtocolTraceService
     ) {
@@ -85,6 +90,7 @@ public class WebSocketMessageProcessor {
         this.agentOnboardingTokenValidator = agentOnboardingTokenValidator;
         this.inboundEventForwarder = inboundEventForwarder;
         this.taskCallbackRelay = taskCallbackRelay;
+        this.agentA2ARequestRelay = agentA2ARequestRelay;
         this.taskAssignmentProperties = taskAssignmentProperties == null ? new TaskAssignmentProperties() : taskAssignmentProperties;
         this.agentProtocolTraceService = agentProtocolTraceService == null ? AgentProtocolTraceService.noop() : agentProtocolTraceService;
     }
@@ -101,7 +107,7 @@ public class WebSocketMessageProcessor {
             TaskAssignmentProperties taskAssignmentProperties
     ) {
         this(objectMapper, gatewayProperties, sessionRegistry, agentLifecycleService, eventMetricsMeter,
-                agentOnboardingTokenValidator, inboundEventForwarder, taskCallbackRelay, taskAssignmentProperties,
+                agentOnboardingTokenValidator, inboundEventForwarder, taskCallbackRelay, null, taskAssignmentProperties,
                 AgentProtocolTraceService.noop());
     }
 
@@ -176,8 +182,16 @@ public class WebSocketMessageProcessor {
         eventMetricsMeter.recordInbound();
         handleTransportSideEffects(sessionId, clientType, inbound);
         TaskCallbackRelayResult callbackRelayResult = null;
+        AgentA2ARelayResult a2aRelayResult = null;
         InboundEventRecord inboundForwardRecord = null;
-        if (taskCallbackRelay.isTaskCallback(inbound.messageType())) {
+        if (inbound.messageType() == MessageType.A2A_REQUEST) {
+            if (agentA2ARequestRelay == null) {
+                throw new PayloadValidationException("A2A runtime relay is unavailable");
+            }
+            var payload = bindPayload(inbound.payload(), AgentA2ARequestPayload.class);
+            a2aRelayResult = agentA2ARequestRelay.accept(
+                    inbound, payload, ConnectionType.WEBSOCKET, sessionId, sessionRegistry.getAgentId(sessionId));
+        } else if (taskCallbackRelay.isTaskCallback(inbound.messageType())) {
             callbackRelayResult = taskCallbackRelay.accept(
                     inbound, ConnectionType.WEBSOCKET, sessionId, sessionRegistry.getAgentId(sessionId));
         } else {
@@ -189,8 +203,9 @@ public class WebSocketMessageProcessor {
                 MessageType.GATEWAY_ACK, gatewayProperties.nodeId(), inbound.source(),
                 new GatewayAckPayload(
                         inbound.messageId(), inbound.messageType().name(), sessionId,
-                        gatewayAckStatus(callbackRelayResult, inboundForwardRecord),
-                        gatewayAckMessage(callbackRelayResult, inboundForwardRecord, "WebSocket")));
+                        gatewayAckStatus(callbackRelayResult, a2aRelayResult, inboundForwardRecord),
+                        gatewayAckMessage(callbackRelayResult, a2aRelayResult, inboundForwardRecord, "WebSocket"),
+                        gatewayAckEvidence(a2aRelayResult)));
         var sendContext = AgentProtocolTraceService.MessageContext.of(
                 "websocket", MessageType.GATEWAY_ACK, "gateway.ack", ack.messageId(),
                 sessionRegistry.getAgentId(sessionId), sessionId, taskId(inbound.payload()));
@@ -272,6 +287,22 @@ public class WebSocketMessageProcessor {
                 assertRegisteredAgent(sessionId, payload.agentId());
                 agentLifecycleService.heartbeat(payload);
                 return toJson(openSocketHeartbeatAck(payload));
+            }
+            if ("event".equals(type) && "ai.a2a.request".equals(event)) {
+                Map<String, Object> payloadMap = asMap(envelope.get("payload"));
+                String registeredAgentId = sessionRegistry.getAgentId(sessionId);
+                if (registeredAgentId == null || registeredAgentId.isBlank()) {
+                    throw new PayloadValidationException("agent.connect must complete before ai.a2a.request");
+                }
+                AgentA2ARequestPayload payload = bindPayload(objectMapper.convertValue(payloadMap, JsonNode.class), AgentA2ARequestPayload.class);
+                String messageId = firstNonBlank(textValue(envelope.get("id")), "opensocket-a2a-" + java.util.UUID.randomUUID());
+                AiEventEnvelope<JsonNode> adapted = new AiEventEnvelope<>(
+                        messageId, MessageType.A2A_REQUEST, "ai.a2a.request", registeredAgentId,
+                        gatewayProperties.nodeId(), OffsetDateTime.now(),
+                        objectMapper.convertValue(payloadMap, JsonNode.class), TraceEnvelope.fromMap(envelope));
+                AgentA2ARelayResult result = agentA2ARequestRelay.accept(
+                        adapted, payload, ConnectionType.WEBSOCKET, sessionId, registeredAgentId);
+                return toJson(openSocketCapabilityDelegationResult(messageId, payload, result));
             }
             if ("event".equals(type) && "agent.capabilities.update".equals(event)) {
                 Map<String, Object> payloadMap = asMap(envelope.get("payload"));
@@ -412,6 +443,30 @@ public class WebSocketMessageProcessor {
         body.put("reconciliationRequired", false);
         body.put("maxPayloadBytes", 1048576);
         body.put("capabilityRevisionAccepted", textValue(payload.metadata().get("capabilityRevision")));
+        response.put("payload", body);
+        return response;
+    }
+
+    private Map<String, Object> openSocketCapabilityDelegationResult(
+            String requestId, AgentA2ARequestPayload request, AgentA2ARelayResult result) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("type", "event");
+        response.put("event", "capability.delegation.result");
+        response.put("timestamp", OffsetDateTime.now().toString());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("requestId", requestId);
+        body.put("accepted", result.accepted());
+        body.put("gatewayStatus", result.status());
+        body.put("message", result.message());
+        body.put("httpStatus", result.httpStatus());
+        body.put("correlationId", request.correlationId());
+        if (result.delegationId() != null) body.put("delegationId", result.delegationId());
+        if (result.delegationStatus() != null) body.put("delegationStatus", result.delegationStatus());
+        if (result.childTaskId() != null) body.put("childTaskId", result.childTaskId());
+        if (result.authorizationDecisionId() != null) body.put("authorizationDecisionId", result.authorizationDecisionId());
+        if (result.routingDecisionId() != null) body.put("routingDecisionId", result.routingDecisionId());
+        if (result.adapterResolutionId() != null) body.put("adapterResolutionId", result.adapterResolutionId());
+        body.put("reasonCodes", result.reasonCodes());
         response.put("payload", body);
         return response;
     }
@@ -641,7 +696,7 @@ public class WebSocketMessageProcessor {
         return value == null || value.toString().isBlank() ? null : value.toString();
     }
 
-    private String gatewayAckStatus(TaskCallbackRelayResult callbackRelayResult, InboundEventRecord inboundForwardRecord) {
+    private String gatewayAckStatus(TaskCallbackRelayResult callbackRelayResult, AgentA2ARelayResult a2aRelayResult, InboundEventRecord inboundForwardRecord) {
         if (callbackRelayResult != null) {
             if (callbackRelayResult.submitted()) {
                 return callbackRelayResult.status();
@@ -663,6 +718,9 @@ public class WebSocketMessageProcessor {
             }
             return "RELAY_REJECTED";
         }
+        if (a2aRelayResult != null) {
+            return a2aRelayResult.status();
+        }
         if (inboundForwardRecord != null) {
             if (inboundForwardRecord.status() == InboundForwardStatus.FORWARD_QUEUE_FULL) {
                 return "REJECTED_BACKPRESSURE";
@@ -674,9 +732,16 @@ public class WebSocketMessageProcessor {
         return "ACCEPTED";
     }
 
-    private String gatewayAckMessage(TaskCallbackRelayResult callbackRelayResult, InboundEventRecord inboundForwardRecord, String transportName) {
+    private Map<String, Object> gatewayAckEvidence(AgentA2ARelayResult a2aRelayResult) {
+        return a2aRelayResult == null ? Map.of() : a2aRelayResult.evidence();
+    }
+
+    private String gatewayAckMessage(TaskCallbackRelayResult callbackRelayResult, AgentA2ARelayResult a2aRelayResult, InboundEventRecord inboundForwardRecord, String transportName) {
         if (callbackRelayResult != null) {
             return callbackRelayResult.message();
+        }
+        if (a2aRelayResult != null) {
+            return a2aRelayResult.message();
         }
         if (inboundForwardRecord != null) {
             return inboundForwardRecord.message();
@@ -727,6 +792,15 @@ public class WebSocketMessageProcessor {
 
         if (inbound.messageType() == MessageType.TASK_DISPATCH) {
             guardExternalTaskDispatch();
+            return;
+        }
+
+        if (inbound.messageType() == MessageType.A2A_REQUEST) {
+            bindPayload(inbound.payload(), AgentA2ARequestPayload.class);
+            String registeredAgentId = sessionRegistry.getAgentId(sessionId);
+            if (registeredAgentId == null || registeredAgentId.isBlank()) {
+                throw new PayloadValidationException("WebSocket connection must send AGENT_REGISTER or agent.connect before A2A_REQUEST");
+            }
             return;
         }
 

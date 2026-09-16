@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>netty-gateway-parent</artifactId>
-        <version>1.2.5-p9-p6.5.1-multisite-transport-topology-compile-fix</version>
+        <version>0.8.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>audit-file</artifactId>

@@ -13,7 +13,7 @@
 
     <groupId>com.opensocket</groupId>
     <artifactId>netty-gateway-parent</artifactId>
-    <version>1.2.5-p9-p6.5.1-multisite-transport-topology-compile-fix</version>
+    <version>0.8.2-SNAPSHOT</version>
     <name>netty-gateway-parent</name>
     <description>AI Event Gateway Netty transport gateway multi-module reactor.</description>
     <packaging>pom</packaging>

@@ -12,6 +12,8 @@ public record AdminHealthResponse(
         String nodeId,
         String environment,
         String version,
+        String releaseLabel,
+        String artifactRevision,
         boolean tcpEnabled,
         boolean websocketEnabled,
         boolean clusterEnabled,

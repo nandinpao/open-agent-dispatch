@@ -12,9 +12,10 @@ import java.util.Optional;
 /**
  * Validates the lightweight Agent onboarding token used by TCP and WebSocket Agent connectors.
  *
- * <p>P8 intentionally keeps this as a static-token scaffold. It prevents accidental open Agent
- * registration in production while leaving room for mTLS, OAuth2 client credentials, signed Agent
- * manifests, or per-Agent secrets in later phases.</p>
+ * <p>This token is a transport-admission guard only. It is deliberately separate from the
+ * Agent-specific credential forwarded to Core governance. A valid transport token therefore
+ * never grants workload authority by itself. mTLS/OAuth2 can replace this admission scaffold
+ * later without changing the per-Agent Core credential contract.</p>
  */
 @Component
 public class AgentOnboardingTokenValidator {

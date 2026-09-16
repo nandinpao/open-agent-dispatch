@@ -4,6 +4,9 @@ import com.opensocket.aievent.gateway.netty.admin.AdminEventMetricsRecorder;
 import com.opensocket.aievent.gateway.netty.agent.AgentLifecycleService;
 import com.opensocket.aievent.gateway.netty.agent.AgentOnboardingTokenValidator;
 import com.opensocket.aievent.gateway.netty.agent.ConnectionType;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARequestPayload;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARequestRelay;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARelayResult;
 import com.opensocket.aievent.gateway.netty.authorization.AgentAuthorizationDeniedException;
 import com.opensocket.aievent.gateway.netty.agent.dto.AgentHeartbeatPayload;
 import com.opensocket.aievent.gateway.netty.agent.dto.AgentRegisterPayload;
@@ -34,6 +37,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -54,6 +58,7 @@ public class TcpMessageProcessor {
     private final AgentOnboardingTokenValidator agentOnboardingTokenValidator;
     private final InboundEventForwarder inboundEventForwarder;
     private final TaskCallbackRelay taskCallbackRelay;
+    private final AgentA2ARequestRelay agentA2ARequestRelay;
     private final TaskAssignmentProperties taskAssignmentProperties;
     private final AgentProtocolTraceService agentProtocolTraceService;
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
@@ -68,6 +73,7 @@ public class TcpMessageProcessor {
             AgentOnboardingTokenValidator agentOnboardingTokenValidator,
             InboundEventForwarder inboundEventForwarder,
             TaskCallbackRelay taskCallbackRelay,
+            AgentA2ARequestRelay agentA2ARequestRelay,
             TaskAssignmentProperties taskAssignmentProperties,
             AgentProtocolTraceService agentProtocolTraceService
     ) {
@@ -79,6 +85,7 @@ public class TcpMessageProcessor {
         this.agentOnboardingTokenValidator = agentOnboardingTokenValidator;
         this.inboundEventForwarder = inboundEventForwarder;
         this.taskCallbackRelay = taskCallbackRelay;
+        this.agentA2ARequestRelay = agentA2ARequestRelay;
         this.taskAssignmentProperties = taskAssignmentProperties == null ? new TaskAssignmentProperties() : taskAssignmentProperties;
         this.agentProtocolTraceService = agentProtocolTraceService == null ? AgentProtocolTraceService.noop() : agentProtocolTraceService;
     }
@@ -95,7 +102,7 @@ public class TcpMessageProcessor {
             TaskAssignmentProperties taskAssignmentProperties
     ) {
         this(objectMapper, gatewayProperties, connectionRegistry, agentLifecycleService, eventMetricsMeter,
-                agentOnboardingTokenValidator, inboundEventForwarder, taskCallbackRelay, taskAssignmentProperties,
+                agentOnboardingTokenValidator, inboundEventForwarder, taskCallbackRelay, null, taskAssignmentProperties,
                 AgentProtocolTraceService.noop());
     }
 
@@ -156,8 +163,15 @@ public class TcpMessageProcessor {
         eventMetricsMeter.recordInbound();
         handleTransportSideEffects(connectionId, inbound);
         TaskCallbackRelayResult callbackRelayResult = null;
+        AgentA2ARelayResult a2aRelayResult = null;
         InboundEventRecord inboundForwardRecord = null;
-        if (taskCallbackRelay.isTaskCallback(inbound.messageType())) {
+        if (inbound.messageType() == MessageType.A2A_REQUEST) {
+            if (agentA2ARequestRelay == null) {
+                throw new PayloadValidationException("A2A runtime relay is unavailable");
+            }
+            var payload = bindPayload(inbound.payload(), AgentA2ARequestPayload.class);
+            a2aRelayResult = agentA2ARequestRelay.accept(inbound, payload, ConnectionType.TCP, connectionId, connectionRegistry.getAgentId(connectionId));
+        } else if (taskCallbackRelay.isTaskCallback(inbound.messageType())) {
             log.info("netty_callback_frame_received transport=TCP connectionId={} agentId={} messageType={} messageId={}",
                     connectionId, connectionRegistry.getAgentId(connectionId), inbound.messageType(), inbound.messageId());
             callbackRelayResult = taskCallbackRelay.accept(
@@ -178,8 +192,9 @@ public class TcpMessageProcessor {
                 inbound.source(),
                 new GatewayAckPayload(
                         inbound.messageId(), inbound.messageType().name(), connectionId,
-                        gatewayAckStatus(callbackRelayResult, inboundForwardRecord),
-                        gatewayAckMessage(callbackRelayResult, inboundForwardRecord, "TCP")));
+                        gatewayAckStatus(callbackRelayResult, a2aRelayResult, inboundForwardRecord),
+                        gatewayAckMessage(callbackRelayResult, a2aRelayResult, inboundForwardRecord, "TCP"),
+                        gatewayAckEvidence(a2aRelayResult)));
 
         if (callbackRelayResult != null) {
             log.info("netty_callback_gateway_ack_returned transport=TCP connectionId={} agentId={} messageType={} messageId={} ackStatus={}",
@@ -200,7 +215,7 @@ public class TcpMessageProcessor {
         return taskId == null || taskId.isNull() ? null : taskId.asText();
     }
 
-    private String gatewayAckStatus(TaskCallbackRelayResult callbackRelayResult, InboundEventRecord inboundForwardRecord) {
+    private String gatewayAckStatus(TaskCallbackRelayResult callbackRelayResult, AgentA2ARelayResult a2aRelayResult, InboundEventRecord inboundForwardRecord) {
         if (callbackRelayResult != null) {
             if (callbackRelayResult.submitted()) {
                 return callbackRelayResult.status();
@@ -222,6 +237,9 @@ public class TcpMessageProcessor {
             }
             return "RELAY_REJECTED";
         }
+        if (a2aRelayResult != null) {
+            return a2aRelayResult.status();
+        }
         if (inboundForwardRecord != null) {
             if (inboundForwardRecord.status() == InboundForwardStatus.FORWARD_QUEUE_FULL) {
                 return "REJECTED_BACKPRESSURE";
@@ -233,9 +251,16 @@ public class TcpMessageProcessor {
         return "ACCEPTED";
     }
 
-    private String gatewayAckMessage(TaskCallbackRelayResult callbackRelayResult, InboundEventRecord inboundForwardRecord, String transportName) {
+    private Map<String, Object> gatewayAckEvidence(AgentA2ARelayResult a2aRelayResult) {
+        return a2aRelayResult == null ? Map.of() : a2aRelayResult.evidence();
+    }
+
+    private String gatewayAckMessage(TaskCallbackRelayResult callbackRelayResult, AgentA2ARelayResult a2aRelayResult, InboundEventRecord inboundForwardRecord, String transportName) {
         if (callbackRelayResult != null) {
             return callbackRelayResult.message();
+        }
+        if (a2aRelayResult != null) {
+            return a2aRelayResult.message();
         }
         if (inboundForwardRecord != null) {
             return inboundForwardRecord.message();
@@ -287,6 +312,15 @@ public class TcpMessageProcessor {
 
         if (inbound.messageType() == MessageType.TASK_DISPATCH) {
             guardExternalTaskDispatch();
+            return;
+        }
+
+        if (inbound.messageType() == MessageType.A2A_REQUEST) {
+            // Source identity is the already registered connection. Payload intentionally has no agentId.
+            bindPayload(inbound.payload(), AgentA2ARequestPayload.class);
+            if (connectionRegistry.getAgentId(connectionId) == null || connectionRegistry.getAgentId(connectionId).isBlank()) {
+                throw new PayloadValidationException("TCP connection must send AGENT_REGISTER before A2A_REQUEST");
+            }
             return;
         }
 

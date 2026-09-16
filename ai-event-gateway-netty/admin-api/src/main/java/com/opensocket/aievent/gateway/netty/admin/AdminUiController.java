@@ -109,6 +109,8 @@ public class AdminUiController {
                 status.nodeId(),
                 status.environment(),
                 status.version(),
+                status.releaseLabel(),
+                status.artifactRevision(),
                 status.tcpEnabled(),
                 status.websocketEnabled(),
                 status.clusterEnabled(),

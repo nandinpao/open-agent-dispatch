@@ -1,11 +1,16 @@
 package com.opensocket.aievent.gateway.netty.websocket;
 
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import com.opensocket.aievent.gateway.netty.admin.AdminEventMetricsRecorder;
 import com.opensocket.aievent.gateway.netty.admin.AdminEventStore;
 import com.opensocket.aievent.gateway.netty.agent.AgentLifecycleService;
 import com.opensocket.aievent.gateway.netty.agent.AgentRegistry;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARelayResult;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARequestPayload;
+import com.opensocket.aievent.gateway.netty.a2a.AgentA2ARequestRelay;
+import com.opensocket.aievent.gateway.netty.agent.ConnectionType;
 import com.opensocket.aievent.gateway.netty.config.AdminProperties;
 import com.opensocket.aievent.gateway.netty.config.AuditLogProperties;
 import com.opensocket.aievent.gateway.netty.config.AgentProperties;
@@ -19,12 +24,17 @@ import com.opensocket.aievent.gateway.netty.callback.TaskCallbackRelay;
 import com.opensocket.aievent.gateway.netty.callback.TaskCallbackRelayMetrics;
 import com.opensocket.aievent.gateway.netty.inbound.InboundEventForwarder;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundDispatcher;
+import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundRequest;
+import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundResult;
 import com.opensocket.aievent.gateway.netty.inbound.InboundEventTracker;
 import com.opensocket.aievent.gateway.netty.admin.audit.NoopAuditEventPersistencePort;
 import com.opensocket.aievent.gateway.netty.protocol.MessageType;
+import com.opensocket.aievent.gateway.netty.protocol.AiEventEnvelope;
+import com.opensocket.aievent.gateway.netty.observability.AgentProtocolTraceService;
 import com.opensocket.aievent.gateway.netty.tcp.TcpConnectionRegistry;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -202,5 +212,114 @@ class WebSocketMessageProcessorTest {
         assertThat(response).contains("ASSIGN-001");
     }
 
+
+    @Test
+    void shouldRelayLegacyA2ARequestFromRegisteredWebSocketAgent() {
+        var relay = new AgentA2ARequestRelay(
+                objectMapper, gatewayProperties, new CoreTaskCallbackRelayProperties(),
+                new CoreOutboundDispatcher(new CoreOutboundProperties())) {
+            @Override
+            public AgentA2ARelayResult accept(
+                    AiEventEnvelope<JsonNode> envelope, AgentA2ARequestPayload payload,
+                    ConnectionType transport, String connectionId, String registeredAgentId) {
+                assertThat(transport).isEqualTo(ConnectionType.WEBSOCKET);
+                assertThat(connectionId).isEqualTo("session-a2a-ws-001");
+                assertThat(registeredAgentId).isEqualTo("openclaw-agent-a2a-001");
+                assertThat(payload.taskId()).isEqualTo("task-parent-001");
+                assertThat(payload.requestedCapabilityCodes()).containsExactly("test.capability.execute");
+                return AgentA2ARelayResult.accepted(202, "cap-delegation-hf16", "ROUTING_UNAVAILABLE", null,
+                        "auth-hf16", "routing-hf16", null, java.util.List.of("NO_ELIGIBLE_PROVIDER"));
+            }
+        };
+        var a2aProcessor = new WebSocketMessageProcessor(
+                objectMapper, gatewayProperties, sessionRegistry, lifecycleService, eventMetricsMeter,
+                new AgentOnboardingTokenValidator(new AgentProperties()), inboundEventForwarder,
+                taskCallbackRelay, relay, new TaskAssignmentProperties(), AgentProtocolTraceService.noop());
+
+        var connect = a2aProcessor.processText("session-a2a-ws-001", WebSocketClientType.AGENT, """
+                {"type":"req","id":"connect-a2a-001","method":"agent.connect","params":{"agentId":"openclaw-agent-a2a-001","agentType":"CUSTOM","pluginName":"test","pluginVersion":"1","capabilities":["A2A_REQUEST"],"capabilityProfile":{"revision":"a2a-r1","maxConcurrentTasks":1},"auth":{"type":"bearer","token":"runtime-token"}}}
+                """);
+        assertThat(connect).contains("\"ok\":true");
+
+        var response = a2aProcessor.processText("session-a2a-ws-001", WebSocketClientType.AGENT, """
+                {"messageId":"a2a-request-001","messageType":"A2A_REQUEST","eventType":"ai.a2a.request","source":"openclaw-agent-a2a-001","target":"gateway-node-test","timestamp":"2026-09-04T18:00:00+08:00","payload":{"taskId":"task-parent-001","requestedCapabilityCodes":["test.capability.execute"],"reason":"delegate","inputPayloadRef":"test:1","sensitivityLevel":"INTERNAL","idempotencyKey":"idem-a2a-001","correlationId":"corr-a2a-001"}}
+                """);
+
+        assertThat(response).contains("\"messageType\":\"GATEWAY_ACK\"");
+        assertThat(response).contains("\"status\":\"A2A_CORE_ACCEPTED\"");
+        assertThat(response).contains("Core processed Agent A2A request");
+        assertThat(response).contains("\"delegationId\":\"cap-delegation-hf16\"");
+        assertThat(response).contains("\"delegationStatus\":\"ROUTING_UNAVAILABLE\"");
+        assertThat(response).contains("\"routingDecisionId\":\"routing-hf16\"");
+        assertThat(response).contains("NO_ELIGIBLE_PROVIDER");
+        assertThat(response).doesNotContain("UNSUPPORTED_MESSAGE_TYPE");
+    }
+
+    @Test
+    void shouldRelayOpenSocketCapabilityDelegationAndReturnCanonicalResultEvent() {
+        var relay = new AgentA2ARequestRelay(
+                objectMapper, gatewayProperties, new CoreTaskCallbackRelayProperties(),
+                new CoreOutboundDispatcher(new CoreOutboundProperties())) {
+            @Override
+            public AgentA2ARelayResult accept(
+                    AiEventEnvelope<JsonNode> envelope, AgentA2ARequestPayload payload,
+                    ConnectionType transport, String connectionId, String registeredAgentId) {
+                assertThat(envelope.eventType()).isEqualTo("ai.a2a.request");
+                assertThat(transport).isEqualTo(ConnectionType.WEBSOCKET);
+                assertThat(connectionId).isEqualTo("session-opensocket-a2a-001");
+                assertThat(registeredAgentId).isEqualTo("openclaw-agent-a2a-002");
+                assertThat(payload.taskId()).isEqualTo("task-parent-002");
+                assertThat(payload.requestedCapabilityCodes()).containsExactly("erp.issue.diagnose");
+                assertThat(payload.correlationId()).isEqualTo("corr-openclaw-a2a-002");
+                return AgentA2ARelayResult.accepted(202, "cap-delegation-002", "DISPATCH_QUEUED", "child-task-002",
+                        "auth-002", "routing-002", "adapter-002", java.util.List.of("AUTHORITATIVE_CHILD_TASK_CREATED"));
+            }
+        };
+        var a2aProcessor = new WebSocketMessageProcessor(
+                objectMapper, gatewayProperties, sessionRegistry, lifecycleService, eventMetricsMeter,
+                new AgentOnboardingTokenValidator(new AgentProperties()), inboundEventForwarder,
+                taskCallbackRelay, relay, new TaskAssignmentProperties(), AgentProtocolTraceService.noop());
+
+        var connect = a2aProcessor.processText("session-opensocket-a2a-001", WebSocketClientType.AGENT, """
+                {"type":"req","id":"connect-a2a-002","method":"agent.connect","params":{"agentId":"openclaw-agent-a2a-002","agentType":"OPENCLAW","pluginName":"openclaw-plugin-opensocket","pluginVersion":"1.0.1","capabilities":["A2A_REQUEST","CAPABILITY_DELEGATION_RESULT"],"capabilityProfile":{"revision":"a2a-r2","maxConcurrentTasks":1},"auth":{"type":"bearer","token":"runtime-token"}}}
+                """);
+        assertThat(connect).contains("\"ok\":true");
+
+        var response = a2aProcessor.processText("session-opensocket-a2a-001", WebSocketClientType.AGENT, """
+                {"type":"event","id":"a2a-open-002","event":"ai.a2a.request","timestamp":"2026-09-08T18:00:00+08:00","payload":{"taskId":"task-parent-002","requestedCapabilityCodes":["erp.issue.diagnose"],"reason":"Need ERP domain diagnosis","inputPayloadRef":"task:task-parent-002","sensitivityLevel":"INTERNAL","idempotencyKey":"idem-a2a-open-002","correlationId":"corr-openclaw-a2a-002"}}
+                """);
+
+        assertThat(response).contains("\"event\":\"capability.delegation.result\"");
+        assertThat(response).contains("\"requestId\":\"a2a-open-002\"");
+        assertThat(response).contains("\"accepted\":true");
+        assertThat(response).contains("\"delegationId\":\"cap-delegation-002\"");
+        assertThat(response).contains("\"delegationStatus\":\"DISPATCH_QUEUED\"");
+        assertThat(response).contains("\"childTaskId\":\"child-task-002\"");
+        assertThat(response).doesNotContain("UNSUPPORTED_OPENSOCKET_EVENT");
+    }
+
+    @Test
+    void shouldPropagateWrappedCoreDelegationReceiptIntoGatewayAckEvidence() {
+        var dispatcher = new CoreOutboundDispatcher(new CoreOutboundProperties()) {
+            @Override
+            public CoreOutboundResult executeSynchronously(String operation, CoreOutboundRequest request) {
+                return CoreOutboundResult.completed(200, """
+                        {"code":"OK","message":"OK","data":{"delegationId":"cap-delegation-hf16-core","status":"NO_CANDIDATE","parentTaskId":"task-parent-hf16","childTaskId":null,"authorizationDecisionId":null,"routingDecisionId":null,"adapterResolutionId":null,"reasonCodes":["NO_DISTINCT_APPROVED_MANAGED_AGENT_PROVIDER"]}}
+                        """, Duration.ZERO);
+            }
+        };
+        var relay = new AgentA2ARequestRelay(objectMapper, gatewayProperties, new CoreTaskCallbackRelayProperties(), dispatcher);
+        AiEventEnvelope<JsonNode> envelope = AiEventEnvelope.<JsonNode>of(MessageType.A2A_REQUEST, "agent-hf16", "gateway-node-test", objectMapper.createObjectNode());
+        var payload = new AgentA2ARequestPayload("task-parent-hf16", null, null, List.of("test.capability.execute"), "delegate", "test:1", "INTERNAL", "idem-hf16", "corr-hf16");
+
+        var result = relay.accept(envelope, payload, ConnectionType.WEBSOCKET, "session-hf16", "agent-hf16");
+
+        assertThat(result.accepted()).isTrue();
+        assertThat(result.status()).isEqualTo("A2A_CORE_ACCEPTED");
+        assertThat(result.delegationId()).isEqualTo("cap-delegation-hf16-core");
+        assertThat(result.delegationStatus()).isEqualTo("NO_CANDIDATE");
+        assertThat(result.reasonCodes()).containsExactly("NO_DISTINCT_APPROVED_MANAGED_AGENT_PROVIDER");
+        assertThat(result.evidence()).containsEntry("delegationStatus", "NO_CANDIDATE");
+    }
 
 }

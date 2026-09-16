@@ -57,6 +57,8 @@ public class GatewayStatusService {
                 gatewayProperties.nodeId(),
                 gatewayProperties.environment(),
                 gatewayProperties.version(),
+                gatewayProperties.releaseLabel(),
+                gatewayProperties.artifactRevision(),
                 "UP",
                 tcp.enabled(),
                 tcp.host(),

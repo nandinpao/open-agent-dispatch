@@ -19,6 +19,8 @@ public class GatewayProperties {
     private String nodeId = "gateway-node-001";
     private String environment = "local";
     private String version = "dev";
+    private String releaseLabel = "dev";
+    private String artifactRevision = "dev";
     private String description = "AI Event Gateway Netty";
     private String siteId = "LOCAL";
     private String siteName = "Local Site";
@@ -87,6 +89,22 @@ public class GatewayProperties {
         this.version = blank(version) ? "dev" : version.trim();
     }
 
+    public String getReleaseLabel() {
+        return releaseLabel;
+    }
+
+    public void setReleaseLabel(String releaseLabel) {
+        this.releaseLabel = blank(releaseLabel) ? "dev" : releaseLabel.trim();
+    }
+
+    public String getArtifactRevision() {
+        return artifactRevision;
+    }
+
+    public void setArtifactRevision(String artifactRevision) {
+        this.artifactRevision = blank(artifactRevision) ? "dev" : artifactRevision.trim();
+    }
+
     public String getDescription() {
         return description;
     }
@@ -146,6 +164,16 @@ public class GatewayProperties {
     /** Record-compatible accessor retained to avoid changing existing call sites. */
     public String version() {
         return version;
+    }
+
+    /** Record-compatible accessor retained to avoid changing existing call sites. */
+    public String releaseLabel() {
+        return releaseLabel;
+    }
+
+    /** Record-compatible accessor retained to avoid changing existing call sites. */
+    public String artifactRevision() {
+        return artifactRevision;
     }
 
     /** Record-compatible accessor retained to avoid changing existing call sites. */

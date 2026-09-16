@@ -3,6 +3,7 @@ package com.opensocket.aievent.gateway.netty.directory;
 import com.opensocket.aievent.gateway.netty.agent.AgentSnapshot;
 import com.opensocket.aievent.gateway.netty.agent.AgentStatus;
 import com.opensocket.aievent.gateway.netty.agent.AgentRegistry;
+import com.opensocket.aievent.gateway.netty.authorization.AgentAuthorizationRuntimeRegistry;
 import com.opensocket.aievent.gateway.netty.config.CoreDirectorySyncProperties;
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
 import com.opensocket.aievent.gateway.netty.config.NettyServerProperties;
@@ -20,11 +21,14 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * HTTP publisher from Netty's local runtime view into Core's Global Agent Directory.
@@ -36,14 +40,18 @@ import java.util.Map;
 @Service
 public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
     private static final Logger log = LoggerFactory.getLogger(CoreDirectorySyncService.class);
+    private static final Duration AGENT_DIRECTORY_RECONCILE_COOLDOWN = Duration.ofSeconds(10);
 
     private final CoreDirectorySyncProperties properties;
     private final GatewayProperties gatewayProperties;
     private final NettyServerProperties nettyServerProperties;
     private final AgentRegistry agentRegistry;
+    private final AgentAuthorizationRuntimeRegistry authorizationRuntimeRegistry;
     private final ObjectMapper objectMapper;
     private final CoreOutboundDispatcher coreOutboundDispatcher;
     private final Environment environment;
+    private final Map<String, Long> agentDirectoryReconcileAttempts = new ConcurrentHashMap<>();
+    private volatile long applicationReadyNanos;
 
     @Autowired
     public CoreDirectorySyncService(
@@ -51,6 +59,7 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
             GatewayProperties gatewayProperties,
             NettyServerProperties nettyServerProperties,
             AgentRegistry agentRegistry,
+            AgentAuthorizationRuntimeRegistry authorizationRuntimeRegistry,
             ObjectMapper objectMapper,
             Environment environment,
             CoreOutboundDispatcher coreOutboundDispatcher
@@ -59,13 +68,28 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         this.gatewayProperties = gatewayProperties;
         this.nettyServerProperties = nettyServerProperties;
         this.agentRegistry = agentRegistry;
+        this.authorizationRuntimeRegistry = authorizationRuntimeRegistry;
         this.objectMapper = objectMapper;
         this.environment = environment;
         this.coreOutboundDispatcher = coreOutboundDispatcher;
     }
 
+    CoreDirectorySyncService(
+            CoreDirectorySyncProperties properties,
+            GatewayProperties gatewayProperties,
+            NettyServerProperties nettyServerProperties,
+            AgentRegistry agentRegistry,
+            ObjectMapper objectMapper,
+            Environment environment,
+            CoreOutboundDispatcher coreOutboundDispatcher
+    ) {
+        this(properties, gatewayProperties, nettyServerProperties, agentRegistry, null,
+                objectMapper, environment, coreOutboundDispatcher);
+    }
+
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
+        applicationReadyNanos = System.nanoTime();
         if (!properties.enabled() || !properties.registerOnStartup()) {
             return;
         }
@@ -108,6 +132,12 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         if (!properties.enabled() || agent == null || blank(agent.agentId())) {
             return;
         }
+        // Discovery-only Agents must stay local to Netty until Core authorization provides
+        // an authoritative tenant/profile. This guards the single-agent sync path in addition
+        // to the periodic snapshot filter.
+        if (!eligibleForCoreDirectorySync(agent)) {
+            return;
+        }
         post(properties.agentConnectedUrl(gatewayProperties.nodeId(), agent.agentId()), agentPayload(agent), "agent connected");
     }
 
@@ -116,12 +146,17 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         if (!properties.enabled() || agent == null || blank(agent.agentId())) {
             return;
         }
+        // Defense in depth: transport-only/discovery Agents are intentionally absent from Core's
+        // tenant-scoped runtime directory. Never send their heartbeats to Core.
+        if (!eligibleForCoreDirectorySync(agent)) {
+            return;
+        }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("status", toCoreAgentStatus(agent.status()));
         payload.put("currentTaskCount", currentTaskCount(agent));
         payload.put("healthScore", healthScore(agent));
         payload.put("agentSessionId", agentSessionId(agent));
-        Map<String, Object> runtimeLoad = runtimeLoad(agent);
+        Map<String, Object> runtimeLoad = runtimeLoadForCore(agent);
         if (!runtimeLoad.isEmpty()) {
             payload.put("runtimeLoad", runtimeLoad);
         }
@@ -134,7 +169,17 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         if (capabilityProfile != null) {
             payload.put("capabilityProfile", capabilityProfile);
         }
-        post(properties.agentHeartbeatUrl(gatewayProperties.nodeId(), agent.agentId()), payload, "agent heartbeat");
+        post(properties.agentHeartbeatUrl(gatewayProperties.nodeId(), agent.agentId()), payload, "agent heartbeat", result -> {
+            if (result.success2xx()) {
+                agentDirectoryReconcileAttempts.remove(agent.agentId());
+                return;
+            }
+            if (coreDirectoryMissingAgent(result) && eligibleForCoreDirectorySync(agent) && claimDirectoryReconcile(agent.agentId())) {
+                log.info("Core directory is missing an already authorized Agent. Replaying governed connected snapshot. agentId={}, gatewayNodeId={}",
+                        agent.agentId(), gatewayProperties.nodeId());
+                publishAgentConnected(agent);
+            }
+        });
     }
 
     @Override
@@ -156,10 +201,37 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         List<Map<String, Object>> agentPayloads = agents == null ? List.of() : agents.stream()
                 .filter(agent -> agent != null && !blank(agent.agentId()))
                 .filter(agent -> agent.status() != AgentStatus.OFFLINE && agent.status() != AgentStatus.TIMEOUT)
+                // Core Global Agent Directory is tenant-scoped authority/runtime state.
+                // Discovery-only Agents deliberately remain in Netty AgentRegistry until Core
+                // authorization succeeds and supplies an authoritative Tenant. Admin UI observes
+                // those candidates directly through /api/admin/runtime/agents.
+                .filter(this::eligibleForCoreDirectorySync)
                 .map(this::agentPayload)
                 .toList();
         Map<String, Object> payload = Map.of("agents", agentPayloads);
         post(properties.gatewaySnapshotUrl(gatewayProperties.nodeId()), payload, "gateway agent snapshot");
+    }
+
+
+    private boolean eligibleForCoreDirectorySync(AgentSnapshot agent) {
+        if (agent == null || blank(agent.agentId())) {
+            return false;
+        }
+        // Compatibility constructor is retained for focused unit tests and legacy embedding.
+        // Normal Spring runtime always injects the authorization registry.
+        if (authorizationRuntimeRegistry == null) {
+            return true;
+        }
+        var context = authorizationRuntimeRegistry.findByAgentId(agent.agentId()).orElse(null);
+        if (!authorizationRuntimeRegistry.isAuthorizedAgent(context) || blank(context.tenantId())) {
+            return false;
+        }
+        return authorizationRuntimeRegistry.isAuthorized(
+                agent.connectionType(),
+                agent.connectionId(),
+                agent.sessionId(),
+                agent.agentId()
+        );
     }
 
     private Map<String, Object> gatewayNodePayload() {
@@ -189,6 +261,10 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
     private Map<String, Object> agentPayload(AgentSnapshot agent) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("agentId", agent.agentId());
+        String tenantId = tenantId(agent);
+        if (!blank(tenantId)) {
+            payload.put("tenantId", tenantId);
+        }
         payload.put("agentType", agent.agentType() == null ? "CUSTOM" : agent.agentType().name());
         payload.put("ownerGatewayNodeId", gatewayProperties.nodeId());
         payload.put("agentSessionId", agentSessionId(agent));
@@ -202,7 +278,7 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         payload.put("reservedTaskCount", 0);
         payload.put("maxConcurrentTasks", maxConcurrentTasks(agent));
         payload.put("healthScore", healthScore(agent));
-        Map<String, Object> runtimeLoad = runtimeLoad(agent);
+        Map<String, Object> runtimeLoad = runtimeLoadForCore(agent);
         if (!runtimeLoad.isEmpty()) {
             payload.put("runtimeLoad", runtimeLoad);
         }
@@ -223,7 +299,26 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         return payload;
     }
 
+    private String tenantId(AgentSnapshot agent) {
+        if (agent == null || blank(agent.agentId())) {
+            return null;
+        }
+        if (authorizationRuntimeRegistry != null) {
+            String authorizedTenant = authorizationRuntimeRegistry.findByAgentId(agent.agentId())
+                    .map(context -> context.tenantId())
+                    .orElse(null);
+            if (!blank(authorizedTenant)) {
+                return authorizedTenant;
+            }
+        }
+        return metadataText(agent, "tenantId");
+    }
+
     private void post(String url, Object payload, String operation) {
+        post(url, payload, operation, null);
+    }
+
+    private void post(String url, Object payload, String operation, Consumer<com.opensocket.aievent.gateway.netty.outbound.CoreOutboundResult> completion) {
         try {
             String body = objectMapper.writeValueAsString(payload);
             Map<String, String> headers = new LinkedHashMap<>();
@@ -234,24 +329,75 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
                     "directory sync " + operation,
                     CoreOutboundRequest.jsonPost(URI.create(url), body, headers),
                     result -> {
-                        if (result.success2xx()) {
-                            return;
+                        if (!result.success2xx()) {
+                            if (result.status() == CoreOutboundStatus.HTTP_ERROR) {
+                                log.warn("Core directory sync failed. operation={}, status={}, body={}",
+                                        operation, result.httpStatus(), truncate(result.responseBody()));
+                            } else if (withinStartupFailureGrace()) {
+                                log.info("Core directory sync startup pending. operation={}, status={}, reason={}",
+                                        operation, result.status(), result.message());
+                            } else {
+                                log.warn("Core directory sync request failed. operation={}, status={}, reason={}",
+                                        operation, result.status(), result.message());
+                            }
                         }
-                        if (result.status() == CoreOutboundStatus.HTTP_ERROR) {
-                            log.warn("Core directory sync failed. operation={}, status={}, body={}",
-                                    operation, result.httpStatus(), truncate(result.responseBody()));
-                            return;
+                        if (completion != null) {
+                            completion.accept(result);
                         }
-                        log.warn("Core directory sync request failed. operation={}, status={}, reason={}",
-                                operation, result.status(), result.message());
                     }
             );
             if (!submission.accepted()) {
-                log.warn("Core directory sync request rejected before HTTP execution. operation={}, status={}, reason={}",
-                        operation, submission.status(), submission.message());
+                if (withinStartupFailureGrace()) {
+                    log.info("Core directory sync startup submission pending. operation={}, status={}, reason={}",
+                            operation, submission.status(), submission.message());
+                } else {
+                    log.warn("Core directory sync request rejected before HTTP execution. operation={}, status={}, reason={}",
+                            operation, submission.status(), submission.message());
+                }
             }
         } catch (Exception ex) {
             log.warn("Core directory sync request could not be created. operation={}, reason={}", operation, ex.getMessage());
+        }
+    }
+
+    private boolean withinStartupFailureGrace() {
+        long started = applicationReadyNanos;
+        long graceMs = properties.startupFailureGraceMs();
+        if (started == 0L || graceMs <= 0L) {
+            return false;
+        }
+        return System.nanoTime() - started <= java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(graceMs);
+    }
+
+    private boolean coreDirectoryMissingAgent(com.opensocket.aievent.gateway.netty.outbound.CoreOutboundResult result) {
+        if (result == null || result.status() != CoreOutboundStatus.HTTP_ERROR) {
+            return false;
+        }
+        if (result.httpStatus() != 400 && result.httpStatus() != 404) {
+            return false;
+        }
+        String body = result.responseBody();
+        return body != null && body.toLowerCase(java.util.Locale.ROOT).contains("agent not found");
+    }
+
+    private boolean claimDirectoryReconcile(String agentId) {
+        if (blank(agentId)) {
+            return false;
+        }
+        long now = System.nanoTime();
+        long cooldown = AGENT_DIRECTORY_RECONCILE_COOLDOWN.toNanos();
+        while (true) {
+            Long previous = agentDirectoryReconcileAttempts.get(agentId);
+            if (previous != null && now - previous < cooldown) {
+                return false;
+            }
+            if (previous == null) {
+                if (agentDirectoryReconcileAttempts.putIfAbsent(agentId, now) == null) {
+                    return true;
+                }
+            } else if (agentDirectoryReconcileAttempts.replace(agentId, previous, now)) {
+                return true;
+            }
         }
     }
 
@@ -309,6 +455,18 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
             return (int) Math.round(100.0d - (value * 50.0d));
         }
         return properties.defaultAgentHealthScore();
+    }
+
+    private Map<String, Object> runtimeLoadForCore(AgentSnapshot agent) {
+        Map<String, Object> result = new LinkedHashMap<>(runtimeLoad(agent));
+        if (agent != null && agent.connectionType() != null) {
+            result.put("connectionType", agent.connectionType().name());
+        }
+        String protocolVersion = metadataText(agent, "protocolVersion");
+        if (!blank(protocolVersion)) {
+            result.put("protocolVersion", protocolVersion);
+        }
+        return result;
     }
 
     @SuppressWarnings("unchecked")

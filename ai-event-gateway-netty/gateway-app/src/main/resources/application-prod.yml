@@ -37,13 +37,15 @@ logging:
 info:
   app:
     name: ai-event-gateway-netty
-    version: ${GATEWAY_VERSION:1.2.5-p9-p6.5.1-multisite-transport-topology-compile-fix}
+    version: ${GATEWAY_VERSION:0.8.2-SNAPSHOT}
     phase: P9
 
 gateway:
   node-id: ${GATEWAY_NODE_ID:gateway-node-001}
   environment: ${GATEWAY_ENVIRONMENT:prod}
-  version: ${GATEWAY_VERSION:1.2.5-p9-p6.5.1-multisite-transport-topology-compile-fix}
+  version: ${GATEWAY_VERSION:0.8.2-SNAPSHOT}
+  release-label: ${OPENDISPATCH_RELEASE_LABEL:v38}
+  artifact-revision: ${OPENDISPATCH_ARTIFACT_REVISION:V38_7B1_HF10_RUNTIME_CERTIFICATION_MATRIX}
   description: AI Event Gateway Netty P9 Production Ready
   site-id: ${GATEWAY_SITE_ID:LOCAL}
   site-name: ${GATEWAY_SITE_NAME:Local Site}
@@ -173,8 +175,8 @@ agent:
   heartbeat-timeout-seconds: ${AGENT_HEARTBEAT_TIMEOUT_SECONDS:30}
   timeout-scan-interval-ms: ${AGENT_TIMEOUT_SCAN_INTERVAL_MS:5000}
   auth-enabled: ${AGENT_AUTH_ENABLED:true}
-  onboarding-token: ${AGENT_ONBOARDING_TOKEN:}
-  additional-onboarding-tokens: ${AGENT_ADDITIONAL_ONBOARDING_TOKENS:}
+  onboarding-token: ${AGENT_TRANSPORT_ONBOARDING_TOKEN:${AGENT_ONBOARDING_TOKEN:}}
+  additional-onboarding-tokens: ${AGENT_TRANSPORT_ADDITIONAL_ONBOARDING_TOKENS:${AGENT_ADDITIONAL_ONBOARDING_TOKENS:}}
   web-socket-handshake-auth-enabled: ${AGENT_WS_HANDSHAKE_AUTH_ENABLED:true}
 
 admin:
