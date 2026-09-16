@@ -1,0 +1,30 @@
+pipeline {
+  agent { label 'jdk25-node22-docker' }
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    timeout(time: 90, unit: 'MINUTES')
+  }
+  environment {
+    PHASE7A_RUNTIME_MODE = 'live'
+    PHASE7A_CERTIFICATION_OUTPUT = '.ci-output/phase7a-runtime'
+  }
+  stages {
+    stage('Toolchain preflight') {
+      steps {
+        sh 'bash scripts/certification/phase7a-runtime-certification.sh --preflight-only'
+      }
+    }
+    stage('Runtime certification') {
+      steps {
+        sh 'PHASE7A_RUNTIME_MODE=live bash scripts/certification/phase7a-runtime-certification.sh'
+      }
+    }
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: '.ci-output/phase7a-runtime/**/*', allowEmptyArchive: true, fingerprint: true
+      junit testResults: '.ci-output/phase7a-runtime/playwright-junit.xml', allowEmptyResults: true
+    }
+  }
+}

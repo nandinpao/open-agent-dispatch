@@ -1,0 +1,52 @@
+# Java / Maven
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+**/out/
+**/dist/
+**/coverage/
+**/tsconfig.tsbuildinfo
+
+# Runtime data
+**/.runtime/
+**/data/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS / archive metadata
+.DS_Store
+__MACOSX/
+._*
+
+# Environment files: keep examples, ignore real secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+!**/.env.example
+!**/.env.*.example
+
+# Local CI generated outputs
+.ci-output/
+
+# P13 local CI non-production env fixture
+!deploy/env/.env.local.ci
+ai-event-gateway-admin-ui/.next-ci
+docs
+.github
+.local
+plugin
+release
+documentation-src
+examples
+contracts
