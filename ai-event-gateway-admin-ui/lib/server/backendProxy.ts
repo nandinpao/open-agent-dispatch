@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { makeStandardApiEnvelope, type StandardApiEnvelope } from '@/lib/api/envelope';
 import { fetchBackend } from '@/lib/server/backendOrigins';
+import { canonicalizeLegacyTenantAccessTarget } from '@/lib/server/accessRouteCanonicalization';
 
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -26,6 +27,40 @@ const BROWSER_CORS_REQUEST_HEADERS = new Set([
 ]);
 
 export type BackendPlane = 'core' | 'netty' | 'gateway';
+
+const CORE_SESSION_API_ROOTS = new Set([
+  'a2a-operations',
+  'a2a-policies',
+  'a2a-requests',
+  'a2a-reconciliation-cases',
+  'a2a-result-quarantine',
+  'a2a-cancellations',
+  'a2a-reconciliation',
+  'tasks',
+  'bootstrap',
+  'identity',
+  'security',
+  'platform',
+  'iam-migration',
+  // Browser-admin integration APIs use the canonical IAM cookie session and
+  // CSRF contract. Treating /api/integrations/** as a machine/operator proxy
+  // path masks Core's 403 AUTH_CSRF_TOKEN_* response as ADMIN_PROXY_CORE_ERROR
+  // and prevents the browser client from refreshing/retrying the token.
+  'integrations',
+]);
+
+function isCanonicalAccessManagementPath(path: string[]): boolean {
+  return path[0] === 'api' && path[1] === 'admin' && path[2] === 'access';
+}
+
+
+function isUserSessionCorePath(path: string[]): boolean {
+  if (path[0] !== 'api') return false;
+  if (isCanonicalAccessManagementPath(path)) return true;
+  if (typeof path[1] === 'string' && CORE_SESSION_API_ROOTS.has(path[1])) return true;
+  if (path[1] === 'admin' && path[2] === 'tenants') return true;
+  return path[1] === 'audit' && path[2] === 'identity';
+}
 
 function prefixFor(plane: BackendPlane): string {
   if (plane === 'core') return '/core-api';
@@ -150,13 +185,35 @@ function recoveryTokenFor(path: string[]): string | undefined {
   );
 }
 
+function stripCoreMachineCredentials(headers: Headers): void {
+  headers.delete('x-cluster-token');
+  const configuredHeader = firstNonBlank(
+    process.env.CORE_BACKEND_OPERATOR_TOKEN_HEADER,
+    process.env.CORE_INTERNAL_TOKEN_HEADER,
+  );
+  if (configuredHeader) headers.delete(configuredHeader);
+}
+
 function injectCoreOperatorToken(headers: Headers, path: string[]): void {
+  stripCoreMachineCredentials(headers);
+
   if (path[0] === 'admin') {
     headers.delete('authorization');
-    headers.delete('x-cluster-token');
     headers.set('x-admin-ui-auth-mode', 'core-session');
     return;
   }
+
+  if (isUserSessionCorePath(path)) {
+    // Canonical browser-session APIs must never be upgraded to a machine
+    // operator request. Preserve the HttpOnly session cookie, remove any
+    // browser Authorization header, and let Core return the real HTTP status.
+    headers.delete('authorization');
+    headers.set('x-admin-ui-auth-mode', 'core-session');
+    headers.set('x-admin-ui-proxy-plane', 'core-session');
+    headers.set('x-admin-ui-proxy-path', `/${path.join('/')}`);
+    return;
+  }
+
   const operatorToken = recoveryTokenFor(path);
   if (!operatorToken) return;
 
@@ -263,22 +320,29 @@ export async function proxyToBackend(
   const { path = [] } = await context.params;
   const method = request.method.toUpperCase();
   const hasRequestBody = !['GET', 'HEAD'].includes(method);
-  const query = request.nextUrl.searchParams.toString();
-  const pathname = `/${path.map(encodeURIComponent).join('/')}`;
+  const target = plane === 'core'
+    ? canonicalizeLegacyTenantAccessTarget(path, request.nextUrl.searchParams, request.headers.get('x-tenant-id'))
+    : { path, query: new URLSearchParams(request.nextUrl.searchParams.toString()), rewritten: false };
+  const query = target.query.toString();
+  const encodePathSegment = (segment: string) => encodeURIComponent(segment).replace(/%3A/gi, ':');
+  const pathname = `/${target.path.map(encodePathSegment).join('/')}`;
   const pathAndQuery = query ? `${pathname}?${query}` : pathname;
   const body = hasRequestBody ? new Uint8Array(await request.arrayBuffer()) : undefined;
 
   try {
     const { response, origin, attempts } = await fetchBackend(plane, pathAndQuery, {
       method,
-      headers: forwardRequestHeaders(request, plane, path),
+      headers: forwardRequestHeaders(request, plane, target.path),
       body
     });
     if (attempts.length > 0) {
       console.warn(`[admin-backend-proxy] ${plane} fallback origin selected:`, origin, attempts);
     }
 
-    const preserveBackendStatus = plane === 'core' && path[0] === 'admin';
+    const preserveBackendStatus = plane === 'core'
+      && (target.path[0] === 'admin'
+        || (target.path[0] === 'api' && target.path[1] === 'ui')
+        || isUserSessionCorePath(target.path));
 
     if (!response.ok && !preserveBackendStatus) {
       const message = await readBackendErrorMessage(response);

@@ -9,10 +9,10 @@ export function TaskLogPanel({ logs }: Readonly<{ logs?: TaskLogRecord[] | null 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-base font-bold text-slate-900">Task Logs</h2>
-      <p className="mt-1 text-sm text-slate-500">保留 Gateway / Agent 執行過程中的關鍵 log，方便定位錯誤階段。</p>
+      <p className="mt-1 text-sm text-slate-500"> Gateway / Agent  logError</p>
       <div className="mt-4 space-y-3">
         {safeLogs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">目前沒有 Task logs。</div>
+          <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">No Task logs.</div>
         ) : safeLogs.map((log) => (
           <div key={log.logId} className="rounded-2xl border border-slate-200 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

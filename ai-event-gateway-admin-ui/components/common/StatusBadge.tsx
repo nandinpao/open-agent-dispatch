@@ -185,7 +185,7 @@ export function StatusBadge({
   const display = label ?? beginnerStatusLabel(normalized);
   const centralizedHelp = getStatusHelp(normalized);
   const tooltip = title ?? (centralizedHelp
-    ? `${centralizedHelp.description}${centralizedHelp.operatorAction ? ` 下一步：${centralizedHelp.operatorAction}` : ''} code: ${normalized || '-'}`
+    ? `${centralizedHelp.description}${centralizedHelp.operatorAction ? ` Next step: ${centralizedHelp.operatorAction}` : ''} code: ${normalized || '-'}`
     : `${beginnerStatusDescription(normalized)} code: ${normalized || '-'}`);
   return (
     <span
@@ -193,7 +193,7 @@ export function StatusBadge({
       title={tooltip}
     >
       <span>{display}</span>
-      {!label && normalized && display !== normalized ? <span className="font-mono text-[10px] opacity-60">{normalized}</span> : null}
+      {!label && normalized && display !== normalized ? <span className="font-mono text-xs opacity-60">{normalized}</span> : null}
     </span>
   );
 }

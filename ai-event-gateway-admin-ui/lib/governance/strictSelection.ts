@@ -8,7 +8,7 @@ export const GOVERNED_AGENT_TYPES: GovernedOption[] = [
   { value: 'ANY', label: 'Any governed agent' },
   { value: 'OPENCLAW', label: 'OpenClaw worker' },
   { value: 'LOCAL_SIMULATOR', label: 'Local simulator' },
-  { value: 'ISSUE_SYNC', label: 'Issue sync worker' },
+  { value: 'ISSUE_SYNC', label: 'Legacy issue worker (retired code)' },
   { value: 'REMEDIATION', label: 'Remediation worker' },
   { value: 'DISPATCH_TEST', label: 'Dispatch test worker' },
 ];
@@ -40,7 +40,7 @@ export const GOVERNED_POLICY_TEMPLATES: GovernedOption[] = [
   { value: 'BASELINE_POLICY', label: 'Baseline policy' },
   { value: 'HIGH_RISK_POLICY', label: 'High-risk policy' },
   { value: 'PII_POLICY', label: 'PII / masking policy' },
-  { value: 'ISSUE_SYNC_POLICY', label: 'Issue sync policy' },
+  { value: 'ISSUE_SYNC_POLICY', label: 'Legacy issue policy (retired code)' },
 ];
 
 export const GOVERNED_PROFILE_ROLES: GovernedOption[] = [
@@ -56,7 +56,7 @@ export const GOVERNED_POLICY_OPERATIONS: GovernedOption[] = [
   { value: 'ANALYZE', label: 'Analyze' },
   { value: 'PROPOSE', label: 'Propose' },
   { value: 'EXECUTE', label: 'Execute' },
-  { value: 'SYNC_ISSUE', label: 'Sync issue' },
+  { value: 'SYNC_ISSUE', label: 'Issue provider operation (legacy code)' },
 ];
 
 export const GOVERNED_DATA_CLASSES: GovernedOption[] = [

@@ -1,10 +1,18 @@
 export const AUTH_SESSION_CHANGED_EVENT = 'ai-event-gateway-admin:auth-session-changed';
 export const UNAUTHORIZED_EVENT = 'ai-event-gateway-admin:unauthorized';
 
+export interface UnauthorizedEventDetail {
+  status: number;
+  path: string;
+  plane: string;
+  code?: string;
+}
+
 export type AuthSessionChangeReason =
   | 'login'
   | 'user-updated'
   | 'tenant-changed'
+  | 'password-changed'
   | 'logout'
   | 'cleared';
 
@@ -51,7 +59,8 @@ export function clearAuthSession(reason: AuthSessionChangeReason = 'cleared'): v
   notifyAuthSessionChanged(reason);
 }
 
-export function dispatchUnauthorized(): void {
+export function dispatchUnauthorized(detail: UnauthorizedEventDetail): void {
   if (!isBrowser()) return;
-  window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+  window.dispatchEvent(new CustomEvent<UnauthorizedEventDetail>(UNAUTHORIZED_EVENT, { detail }));
 }
+

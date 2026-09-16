@@ -27,10 +27,10 @@ type ChecklistItem = {
 
 function statusLabel(status: ChecklistStatus): string {
   switch (status) {
-    case 'DONE': return '完成';
-    case 'WAITING': return '等待';
-    case 'OPTIONAL': return '可選';
-    default: return '需處理';
+    case 'DONE': return 'DONE';
+    case 'WAITING': return 'WAITING';
+    case 'OPTIONAL': return 'OPTIONAL';
+    default: return 'ACTION_REQUIRED';
   }
 }
 
@@ -83,6 +83,7 @@ export function DispatchSetupChecklist({
   agentError,
   simulationResult,
   realTestResult,
+  onCreateSource,
   onCreateFlow,
   onToggleOpen,
 }: Readonly<{
@@ -98,11 +99,14 @@ export function DispatchSetupChecklist({
   agentError?: string | null;
   simulationResult?: CoreDispatchSimulationResponse | null;
   realTestResult?: CoreEventIntakeDecisionResponse | null;
+  onCreateSource: () => void;
   onCreateFlow: () => void;
   onToggleOpen: () => void;
 }>) {
   const sourceReady = sourceSystems.length > 0 || Boolean(selectedFlow?.sourceSystem);
   const flowReady = Boolean(selectedFlow?.flowId);
+  const classificationReady = (selectedFlow?.rules ?? []).some((rule) => rule.enabled !== false);
+  const capabilityCount = (selectedFlow?.requiredCapabilities ?? selectedFlow?.requiredSkills ?? []).filter((item) => item.required !== false).length;
   const poolReady = Boolean(selectedPool?.poolId && selectedFlow?.defaultPoolId);
   const membersReady = hasPoolMembers(selectedPool);
   const agentReady = hasApprovedAgent(agents) || membersReady;
@@ -115,89 +119,84 @@ export function DispatchSetupChecklist({
   const items: ChecklistItem[] = [
     {
       id: 'source-system',
-      title: '建立來源系統',
-      description: sourceReady ? `目前可用來源系統：${sourceSystems.length || 1}。` : '先建立來源系統，後續 Source Flow 才有明確業務入口。',
+      title: 'Source System',
+      description: sourceReady ? `${sourceSystems.length || 1} Source System${(sourceSystems.length || 1) === 1 ? '' : 's'} available.` : 'Create the business source that will send work to OpenDispatch.',
       status: sourceReady ? 'DONE' : 'ACTION_REQUIRED',
-      actionLabel: '前往來源系統',
-      actionHref: '/source-systems',
+      actionLabel: sourceReady ? undefined : 'Create Source System',
+      onAction: sourceReady ? undefined : onCreateSource,
     },
     {
-      id: 'agent',
-      title: '建立並核准 Agent',
-      description: agentReady ? '已有可作為 Pool Member 的 Agent 或既有工作池成員。' : '請先建立 Agent，完成核准後再加入工作池。Capability 僅作參考，不是此流程 Gate。',
-      status: agentReady ? 'DONE' : 'ACTION_REQUIRED',
-      actionLabel: '前往 Agent',
-      actionHref: '/agents',
-    },
-    {
-      id: 'pool',
-      title: '建立工作池並加入 Agent',
-      description: poolReady ? `Default Pool：${poolDisplay(selectedPool, selectedFlow?.defaultPoolId)}。` : '在預設派工區建立或選擇工作池，並加入 Pool Member Agent。',
-      status: poolReady && membersReady ? 'DONE' : poolReady ? 'WAITING' : 'ACTION_REQUIRED',
-    },
-    {
-      id: 'flow',
-      title: '建立 Source Flow 並指定 Default Pool',
-      description: flowReady ? `${flowDisplay(selectedFlow)}${configIssues.length ? `：${configIssues.join('；')}` : ' 已具備基本派工設定。'}` : '建立 Source Flow 後，將未命中特殊規則的事件送入 Default Pool。',
-      status: flowReady && configIssues.length === 0 ? 'DONE' : flowReady ? 'WAITING' : 'ACTION_REQUIRED',
-      actionLabel: flowReady ? undefined : '建立 Source Flow',
+      id: 'classification',
+      title: 'Flow & Classification',
+      description: !flowReady ? 'Create a Dispatch Flow for the Source System.' : classificationReady ? `${flowDisplay(selectedFlow)} has an active classification rule.` : 'Add a classification rule for known work. Unmatched work stays in Triage.',
+      status: flowReady && classificationReady && configIssues.length === 0 ? 'DONE' : flowReady ? 'WAITING' : 'ACTION_REQUIRED',
+      actionLabel: flowReady ? undefined : 'Create Source Flow',
       onAction: flowReady ? undefined : onCreateFlow,
     },
     {
-      id: 'runtime',
-      title: '確認 Runtime 可接單',
-      description: runtimeReady ? 'Runtime evidence 顯示至少一個 Agent 可作為派工候選。' : '請確認 Agent 已連線、heartbeat 正常、容量未滿，且沒有 backoff 或停用狀態。',
-      status: runtimeReady ? 'DONE' : 'WAITING',
-      actionLabel: '查看 Agent Runtime',
-      actionHref: '/agents',
+      id: 'capability',
+      title: 'Required Capability',
+      description: capabilityCount ? `${capabilityCount} Canonical Capabilit${capabilityCount === 1 ? 'y is' : 'ies are'} required by this Flow.` : 'Add at least one Required Capability. Pool membership defines where to search; it does not prove that an Agent is qualified for the Task.',
+      status: capabilityCount ? 'DONE' : 'ACTION_REQUIRED',
+      actionLabel: 'Review Capabilities',
+      actionHref: '#dispatch-workspace-capabilities',
     },
     {
-      id: 'simulation',
-      title: '執行派工模擬',
-      description: simulationReady ? 'no-side-effect simulation 已產生可用派工 Evidence。' : '使用測試與啟用區塊執行 Simulation；它不會建立 Task、Assignment 或 Delivery。',
-      status: simulationReady ? 'DONE' : poolReady ? 'WAITING' : 'OPTIONAL',
-      actionLabel: '前往模擬區塊',
-      actionHref: '#dispatch-workspace-simulation',
+      id: 'pool',
+      title: 'Agent Pool',
+      description: poolReady && membersReady ? `${poolDisplay(selectedPool, selectedFlow?.defaultPoolId)} has Agent members.` : !agentReady ? 'Create and approve an Agent, then add it to an Agent Pool.' : 'Choose a default Agent Pool and add one or more approved Agents.',
+      status: poolReady && membersReady ? 'DONE' : poolReady ? 'WAITING' : 'ACTION_REQUIRED',
+      actionLabel: !agentReady ? 'Open Agents' : undefined,
+      actionHref: !agentReady ? '/agents' : undefined,
     },
     {
-      id: 'real-event',
-      title: '送出真實測試事件',
-      description: realReady ? `真實測試事件已送出${realTestResult?.taskId ? `，Task：${realTestResult.taskId}` : ''}。` : 'Simulation 通過後，再送出真實測試事件建立正式 Task，確認 Event → Task → Assignment → Delivery 流程。',
+      id: 'preview',
+      title: 'Safe Preview',
+      description: simulationReady ? 'The saved Flow passed a side-effect-free dispatch preview.' : 'Preview the saved Flow before activation. No production Task or Assignment is created.',
+      status: simulationReady ? 'DONE' : poolReady && membersReady ? 'WAITING' : 'OPTIONAL',
+      actionLabel: 'Open Test & Activate',
+      actionHref: '#dispatch-workspace-test',
+    },
+    {
+      id: 'live-test',
+      title: 'Activate & Live Test',
+      description: realReady ? `The governed test entered production intake${realTestResult?.taskId ? ` as Task ${realTestResult.taskId}` : ''}.` : runtimeReady ? 'Activate the Flow, check Live Readiness, then send one governed test event.' : 'Confirm Agent runtime readiness before the governed live test.',
       status: realReady ? 'DONE' : simulationReady ? 'WAITING' : 'OPTIONAL',
-      actionLabel: '前往真實測試',
+      actionLabel: 'Open Live Test',
       actionHref: '#dispatch-workspace-real-test',
     },
   ];
 
   const doneCount = items.filter((item) => item.status === 'DONE').length;
   const actionRequiredCount = items.filter((item) => item.status === 'ACTION_REQUIRED').length;
-  const setupReady = doneCount === items.length && !sourceLoadProblem;
+  const requiredItems = items.filter((item) => item.status !== 'OPTIONAL');
+  const setupReady = requiredItems.length > 0 && requiredItems.every((item) => item.status === 'DONE') && !sourceLoadProblem;
   const summaryStatus = setupReady ? 'READY' : actionRequiredCount ? 'NOT_READY' : 'IN_PROGRESS';
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" id="dispatch-workspace-setup-check">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="text-xs font-black uppercase tracking-wide text-purple-700">Beginner Journey / Setup Check</div>
-          <h2 className="mt-1 text-xl font-black text-slate-950">設定檢查</h2>
+          <div className="text-xs font-black uppercase tracking-wide text-purple-700">Guided Dispatch Setup</div>
+          <h2 className="mt-1 text-xl font-black text-slate-950">Follow the business setup path</h2>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
-            依序完成來源系統、Agent、工作池、Source Flow、Runtime、Simulation 與真實測試事件。此流程不要求理解 Capability、Profile 或 Scope。
+            Source System → Flow & Classification → Required Capability → Agent Pool → Safe Preview → Activate & Live Test. Advanced routing and migration evidence are not required for normal setup.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={summaryStatus} />
-          <Button size="xs" onClick={onToggleOpen}>{open ? '收合設定檢查' : '重新開啟設定檢查'}</Button>
+          <Button size="xs" onClick={onToggleOpen}>{open ? 'Hide steps' : 'Show steps'}</Button>
         </div>
       </div>
 
       {sourceLoadProblem ? (
         <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-6 text-rose-900">
-          設定檢查目前有載入問題：{[sourceError, flowError, poolError, agentError].filter(Boolean).join('；')}
+          Some setup data could not be loaded: {[sourceError, flowError, poolError, agentError].filter(Boolean).join('; ')}
         </div>
       ) : null}
 
       {open ? (
-        <div className="mt-5 grid gap-3 xl:grid-cols-7">
+        <div className="mt-5 grid gap-3 xl:grid-cols-6">
           {items.map((item, index) => (
             <div key={item.id} className={`rounded-2xl border p-4 ${itemTone(item.status)}`}>
               <div className="flex items-start justify-between gap-3">
@@ -216,7 +215,7 @@ export function DispatchSetupChecklist({
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-600">
-          已收合。需要再次檢查設定時，點選「重新開啟設定檢查」。目前完成 {doneCount} / {items.length} 項。
+          {doneCount} of {items.length} setup steps currently complete. Open the checklist for the next action. 
         </div>
       )}
     </section>

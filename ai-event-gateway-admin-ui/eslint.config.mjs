@@ -20,6 +20,7 @@ const eslintConfig = [
       'out/**',
       'dist/**',
       'coverage/**',
+      'public/vendor/**',
       '.test-build/**',
       'next-env.d.ts',
       '*.tsbuildinfo',

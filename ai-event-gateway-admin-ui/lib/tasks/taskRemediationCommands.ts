@@ -10,6 +10,8 @@ export interface TaskRemediationCommandDefinition {
   label: string;
   description: string;
   tone: 'primary' | 'warning' | 'danger';
+  riskLevel: 'MODERATE' | 'HIGH';
+  scope: 'ROUTING' | 'ASSIGNMENT' | 'DELIVERY' | 'TASK' | 'HUMAN_CONTROL';
   requiredPayload?: 'targetAgentId' | 'targetPoolId';
   requiredPhrase?: string;
 }
@@ -17,54 +19,70 @@ export interface TaskRemediationCommandDefinition {
 const COMMAND_DEFINITIONS: Record<CoreTaskRemediationCommandType, TaskRemediationCommandDefinition> = {
   REEVALUATE_ROUTING: {
     commandType: 'REEVALUATE_ROUTING',
-    label: '重新評估派工',
-    description: '清除目前可重試阻擋並重新走 Source Flow、Pool、Eligibility 與 Selection。',
+    label: 'Re-evaluate Routing',
+    description: 'Re-evaluate Source Flow, pool, eligibility, and routing selection using Core authority.',
     tone: 'warning',
+    riskLevel: 'MODERATE',
+    scope: 'ROUTING',
   },
   ASSIGN_AGENT: {
     commandType: 'ASSIGN_AGENT',
-    label: '指定 Agent',
-    description: '由 Operator 指定可用 Agent。Tenant、Credential 與 Runtime identity 仍由 Core 檢查。',
+    label: 'Reassign Agent',
+    description: 'Assign an eligible Agent explicitly. Tenant, credential, authorization, and runtime identity remain Core-authoritative.',
     tone: 'warning',
+    riskLevel: 'MODERATE',
+    scope: 'ASSIGNMENT',
     requiredPayload: 'targetAgentId',
   },
   CHANGE_POOL: {
     commandType: 'CHANGE_POOL',
-    label: '更換工作池',
-    description: '將 Task 目標 Pool 改為指定工作池，再重新評估派工。',
+    label: 'Change Agent Pool',
+    description: 'Change the Task target pool and let Core re-evaluate the eligible Agent set.',
     tone: 'warning',
+    riskLevel: 'MODERATE',
+    scope: 'ROUTING',
     requiredPayload: 'targetPoolId',
   },
   MOVE_TO_MANUAL_QUEUE: {
     commandType: 'MOVE_TO_MANUAL_QUEUE',
-    label: '轉人工佇列',
-    description: '停止自動派工，等待 Operator 指定 Agent 或更換工作池。',
+    label: 'Move to Manual Queue',
+    description: 'Pause automatic dispatch and require an operator to choose the next Agent or Agent Pool action.',
     tone: 'warning',
+    riskLevel: 'MODERATE',
+    scope: 'HUMAN_CONTROL',
   },
   RETRY_DELIVERY: {
     commandType: 'RETRY_DELIVERY',
-    label: '重送 Delivery',
-    description: '重送最近一次 Dispatch Request，不覆蓋原始 Routing Evidence。',
+    label: 'Retry Delivery',
+    description: 'Retry the current Dispatch Request delivery without recreating the Task or replacing routing evidence.',
     tone: 'warning',
+    riskLevel: 'MODERATE',
+    scope: 'DELIVERY',
   },
   RETRY_TASK: {
     commandType: 'RETRY_TASK',
-    label: '重試 Task',
-    description: '將失敗或等待中的 Task 放回可派工狀態。',
+    label: 'Retry Task',
+    description: 'Retry the failed Task through the authoritative Task lifecycle and dispatch pipeline.',
     tone: 'warning',
+    riskLevel: 'MODERATE',
+    scope: 'TASK',
   },
   CANCEL_TASK: {
     commandType: 'CANCEL_TASK',
-    label: '取消 Task',
-    description: '取消尚未完成的 Task，會保留 before/after audit。',
+    label: 'Cancel Task',
+    description: 'Cancel this non-terminal Task and preserve before/after audit evidence.',
     tone: 'danger',
+    riskLevel: 'HIGH',
+    scope: 'TASK',
     requiredPhrase: 'CONFIRM_CANCEL_TASK',
   },
   IGNORE_TASK: {
     commandType: 'IGNORE_TASK',
-    label: '標記忽略',
-    description: '將 Task 移至不再處理的人工決策結果，適用於已確認不需處理的失敗。',
+    label: 'Ignore Task',
+    description: 'Mark this failed Task as intentionally ignored/dead-lettered with explicit operator evidence.',
     tone: 'danger',
+    riskLevel: 'HIGH',
+    scope: 'TASK',
     requiredPhrase: 'CONFIRM_IGNORE_TASK',
   },
 };
@@ -83,10 +101,12 @@ function isTerminal(task: CoreTaskRuntimeView): boolean {
   return ['SUCCEEDED', 'COMPLETED', 'DEAD_LETTER', 'CANCELLED'].includes(raw);
 }
 
-export function taskRuntimeVersion(task: CoreTaskRuntimeView): number | undefined {
-  if (!task.updatedAt) return undefined;
-  const time = Date.parse(task.updatedAt);
-  return Number.isFinite(time) ? time : undefined;
+export function taskRuntimeVersion(task: CoreTaskRuntimeView): number {
+  const version = task.version;
+  if (!Number.isSafeInteger(version) || Number(version) < 1) {
+    throw new Error('Task resource version is unavailable. Refresh the Task before running a remediation command.');
+  }
+  return Number(version);
 }
 
 export function deriveAllowedTaskRemediationCommands(
@@ -119,19 +139,19 @@ export function buildTaskRemediationCommandRequest(input: Readonly<{
   task: CoreTaskRuntimeView;
   commandType: CoreTaskRemediationCommandType;
   reason: string;
-  operatorId?: string;
+  idempotencyKey: string;
   targetAgentId?: string;
   targetPoolId?: string;
 }>): CoreTaskRemediationCommandRequest {
+  if (!input.idempotencyKey.trim()) throw new Error('A logical idempotency key is required.');
   const payload: Record<string, unknown> = {};
   if (input.targetAgentId) payload.targetAgentId = input.targetAgentId;
   if (input.targetPoolId) payload.targetPoolId = input.targetPoolId;
   return {
     commandType: input.commandType,
     expectedTaskVersion: taskRuntimeVersion(input.task),
-    idempotencyKey: `admin-ui-${input.commandType}-${input.task.taskId}-${Date.now()}`,
+    idempotencyKey: input.idempotencyKey,
     reason: input.reason,
-    operatorId: input.operatorId ?? 'admin-ui',
     payload,
   };
 }

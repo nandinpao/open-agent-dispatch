@@ -3,12 +3,20 @@ import type { GatewayTaskDetail } from '@/lib/types/admin';
 import { formatDateTime } from '@/lib/utils/format';
 
 function buildSuggestion(task: GatewayTaskDetail): string {
-  if (!task.failureReason) return '目前沒有失敗原因；先檢查 trace timeline 是否停在 routing、assignment 或 agent processing。';
+  if (!task.failureReason) {
+    return 'Review the dispatch evidence timeline to identify the first blocked stage before retrying.';
+  }
   const reason = task.failureReason.toLowerCase();
-  if (reason.includes('timeout')) return '建議先檢查 Agent heartbeat、平均延遲、MCP/tool-call timeout 設定，再決定是否 retry。';
-  if (reason.includes('capability')) return 'Capability 目前是 reference-only / diagnostic-only 線索；請先檢查 Current Source Flow / Agent Pool 設定、Pool membership 與 Runtime eligibility，再用 capability registry 輔助追查。';
-  if (reason.includes('disconnect')) return '建議先確認 Agent 是否自動重連成功，再執行 retry，避免再次指派到離線節點。';
-  return '建議先查看 Task Logs 與 request payload，確認是否為資料格式、權限或 Agent runtime 錯誤。';
+  if (reason.includes('capability') || reason.includes('skill')) {
+    return 'Check the Task Required Capability and confirm that at least one member of the selected Agent Pool has the matching Core APPROVED capability assignment. Runtime-reported capability values are diagnostic only.';
+  }
+  if (reason.includes('timeout')) {
+    return 'Check Agent heartbeat, runtime capacity, delivery/ACK evidence, and MCP or tool-call timeout details before retrying.';
+  }
+  if (reason.includes('disconnect') || reason.includes('offline') || reason.includes('session')) {
+    return 'Check the selected Agent runtime session, credential, gateway connection, heartbeat, and capacity before retrying.';
+  }
+  return 'Review the Task dispatch evidence, logs, request payload, and Agent runtime error. Repair the first canonical blocker before retrying.';
 }
 
 export function FailureAnalysisPanel({ task }: Readonly<{ task: GatewayTaskDetail }>) {
@@ -18,7 +26,7 @@ export function FailureAnalysisPanel({ task }: Readonly<{ task: GatewayTaskDetai
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className={`text-base font-bold ${failed ? 'text-rose-900' : 'text-slate-900'}`}>Failure Analysis</h2>
-          <p className={`mt-1 text-sm ${failed ? 'text-rose-700' : 'text-slate-500'}`}>針對失敗任務提供 retry 前的判斷依據。</p>
+          <p className={`mt-1 text-sm ${failed ? 'text-rose-700' : 'text-slate-500'}`}>Find the first blocked dispatch stage, repair that authority, then retry.</p>
         </div>
         <StatusBadge status={task.status} />
       </div>
@@ -37,8 +45,8 @@ export function FailureAnalysisPanel({ task }: Readonly<{ task: GatewayTaskDetai
         </div>
       </div>
       <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
-        <div className="text-xs font-black uppercase tracking-wide text-indigo-700">Diagnostic-only legacy fields</div>
-        <p className="mt-1 leading-6">Capability-related failure text is retained as troubleshooting evidence. Current routing setup should be checked through Source Flow, Agent Pool, Pool membership and runtime eligibility first.</p>
+        <div className="text-xs font-black uppercase tracking-wide text-indigo-700">Canonical dispatch authority</div>
+        <p className="mt-1 leading-6">Check Source Flow → Agent Pool → Pool membership → Core APPROVED Required Capability qualification → runtime eligibility/capacity → routing selection. Runtime-reported capability observations are troubleshooting diagnostics only.</p>
       </div>
       <div className="mt-4 rounded-xl bg-white p-4">
         <div className="text-xs font-semibold text-slate-400">Failure Reason</div>

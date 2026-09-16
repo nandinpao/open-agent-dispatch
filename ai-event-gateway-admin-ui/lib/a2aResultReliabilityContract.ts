@@ -1,0 +1,16 @@
+export const A2A_RESULT_CLASSIFICATIONS = [
+  "IDENTICAL_DUPLICATE", "CONFLICTING_DUPLICATE", "STALE_ATTEMPT", "LATE_RESULT",
+  "UNKNOWN_ASSIGNMENT", "TOKEN_MISMATCH", "TERMINAL_REQUEST", "MISSING_EVIDENCE", "BINDING_CONFLICT",
+] as const;
+export type A2AResultClassification = (typeof A2A_RESULT_CLASSIFICATIONS)[number];
+export const A2A_RESULT_PROCESSING_STATUSES = ["CHILD_COMPLETION_PENDING", "CHILD_COMPLETED", "PARENT_AGGREGATION_PENDING", "COMPLETED", "FAILED_RETRYABLE", "WAIT_HUMAN"] as const;
+export type A2AResultProcessingStatus = (typeof A2A_RESULT_PROCESSING_STATUSES)[number];
+export interface A2ACanonicalResultView { tenantId:string; resultId:string; requestId:string; parentTaskId:string; childTaskId:string; resultStatus:string; resultSummary?:string; completedByAgentId?:string; assignmentId?:string; attemptNo?:number; callbackInboxId?:string; payloadHash?:string; resultSchemaVersion?:number; resultEvidenceHash?:string; resultFingerprint?:string; policyVersion?:number; policySnapshotHash?:string; acceptedAt?:string; completedAt?:string; }
+export interface A2AResultProcessingView { tenantId:string; resultId:string; requestId:string; parentTaskId:string; childTaskId:string; processingStatus:A2AResultProcessingStatus; reconciliationClassification:string; lastErrorCode?:string; lastError?:string; attemptCount:number; nextReconcileAt?:string; lastReconciledAt?:string; completedAt?:string; rowVersion:number; }
+export interface A2AResultAttemptView { attemptId:string; resultId?:string; decision:string; classification?:A2AResultClassification; reasonCode:string; reason?:string; resultFingerprint?:string; resultEvidenceHash?:string; policyVersion?:number; receivedAt?:string; }
+export interface A2AResultEvidenceView { evidenceId:string; attemptId:string; evidenceType:string; evidenceReference?:string; evidenceHash?:string; verificationDecision:string; classification?:A2AResultClassification; resultFingerprint?:string; reasonCode?:string; verifiedAt?:string; }
+export interface A2AResultQuarantineView { quarantineId:string; attemptId:string; classification:A2AResultClassification; reasonCode:string; reason?:string; status:string; quarantinedAt?:string; }
+export interface A2AParentAggregationView { parentTaskId:string; aggregationPolicy:string; policyVersion?:number; policySnapshotHash?:string; quorumCount?:number; aggregateStatus:string; decisionReason?:string; manualDecisionRequired?:boolean; totalCount:number; resultCount?:number; pendingCount:number; succeededCount:number; partialCount:number; failedCount:number; cancelledCount:number; computationHash:string; version:number; computedAt?:string; }
+export interface A2AAggregationEvidenceView { evidenceId:string; resultId?:string; evidenceType:string; computationHash:string; aggregateStatus?:string; decisionReason?:string; expectedVersion:number; resultingVersion:number; attemptNo:number; occurredAt?:string; }
+export interface A2AResultReliabilityResultView { result:A2ACanonicalResultView; processing:A2AResultProcessingView; attempts:A2AResultAttemptView[]; evidence:A2AResultEvidenceView[]; quarantine:A2AResultQuarantineView[]; }
+export interface A2AResultReliabilityView { taskId:string; results:A2AResultReliabilityResultView[]; aggregations:Array<{parentTaskId:string; aggregation?:A2AParentAggregationView; evidence:A2AAggregationEvidenceView[]}>; }

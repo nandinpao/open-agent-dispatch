@@ -1,24 +1,23 @@
 import { enMessages, type I18nMessageKey } from './resources/en';
-import { zhTWMessages } from './resources/zh-TW';
 
-export type AdminLocale = 'en' | 'zh-TW';
-
-export const DEFAULT_ADMIN_LOCALE: AdminLocale = 'en';
+export type AdminLocale = 'en-US';
+export const DEFAULT_ADMIN_LOCALE: AdminLocale = 'en-US';
 
 const resources: Record<AdminLocale, Record<string, string>> = {
-  en: enMessages,
-  'zh-TW': zhTWMessages,
+  'en-US': enMessages,
 };
 
 export function normalizeAdminLocale(value: unknown): AdminLocale {
-  return value === 'zh-TW' || value === 'en' ? value : DEFAULT_ADMIN_LOCALE;
+  return value === 'en-US' || value === 'en' ? 'en-US' : DEFAULT_ADMIN_LOCALE;
 }
 
-export function translate(key: I18nMessageKey, params?: Record<string, string | number | undefined>, locale: AdminLocale = DEFAULT_ADMIN_LOCALE): string {
+export function translate(
+  key: I18nMessageKey,
+  params?: Record<string, string | number | undefined>,
+  locale: AdminLocale = DEFAULT_ADMIN_LOCALE,
+): string {
   const message = resources[locale]?.[key] ?? resources[DEFAULT_ADMIN_LOCALE][key] ?? key;
-  if (!params) {
-    return message;
-  }
+  if (!params) return message;
   return message.replace(/\{(\w+)\}/g, (_, name: string) => String(params[name] ?? ''));
 }
 

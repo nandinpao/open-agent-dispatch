@@ -80,9 +80,9 @@ export function SecurityEventTable() {
     setEventTypeFilter(allValue);
   }
 
-  if (loading) return <LoadingBox label="讀取 Core security events..." />;
+  if (loading) return <LoadingBox label="load Core security events..." />;
   if (error) return <ErrorBox message={error} />;
-  if (!data || data.length === 0) return <EmptyState title="目前沒有 Security Event" description="Core 會記錄 Agent 授權失敗、憑證撤銷後重連、未知 Agent 嘗試連線等安全事件。" />;
+  if (!data || data.length === 0) return <EmptyState title="No security events are available" description="Core  Agent Operation failed.Unknown Agent Event details" />;
 
   return (
     <div className="space-y-4">
@@ -91,19 +91,19 @@ export function SecurityEventTable() {
       </div>
 
       <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-800">
-        此頁資料來源為 Core。它是安全稽核與治理資料，不應由 Netty runtime 取代。
+        this pagedata source is Core Netty runtime 
       </div>
 
       <ListFilterBar
         search={search}
-        searchPlaceholder="搜尋 event、Agent、reason、remote IP、gateway node..."
+        searchPlaceholder="search event,Agent,reason,remote IP,gateway node..."
         onSearchChange={setSearch}
         filters={filters}
         onClear={clearFilters}
       />
 
       {filtered.length === 0 ? (
-        <EmptyState title="沒有符合條件的安全事件" description="請調整關鍵字、severity 或 event type 篩選條件。" />
+        <EmptyState title="No security events match the filters" description="Review the configuration and try again.severity or event type " />
       ) : (
         <>
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

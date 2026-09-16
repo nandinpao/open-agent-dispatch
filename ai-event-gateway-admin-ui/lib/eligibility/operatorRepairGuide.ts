@@ -21,7 +21,7 @@ export const p3kOperatorRepairGuides: OperatorRepairGuide[] = [
     title: 'Activate Agent Runtime Binding',
     owner: 'Runtime Resources',
     description: 'Runtime observation alone is not dispatch authority. Bind the Agent to a trusted Runtime Resource and activate the binding.',
-    href: '/settings/runtime-resources',
+    href: '/agents/runtime',
     actionLabel: 'Fix Runtime Binding',
   },
   {
@@ -29,7 +29,7 @@ export const p3kOperatorRepairGuides: OperatorRepairGuide[] = [
     title: 'Resume or replace inactive runtime binding',
     owner: 'Runtime Resources',
     description: 'The candidate has a runtime binding, but it is not active. Resume it or bind a different trusted runtime.',
-    href: '/settings/runtime-resources',
+    href: '/agents/runtime',
     actionLabel: 'Review Runtime Binding',
   },
   {

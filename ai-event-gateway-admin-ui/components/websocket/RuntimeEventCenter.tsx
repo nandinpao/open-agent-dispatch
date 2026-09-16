@@ -174,7 +174,7 @@ export function RuntimeEventCenter() {
 
       <ListFilterBar
         search={search}
-        searchPlaceholder="搜尋 event type、category、severity、node、agent、task、trace、message..."
+        searchPlaceholder="search event type,category,severity,node,agent,task,trace,message..."
         onSearchChange={(value) => {
           setSearch(value);
           setPage(1);
@@ -186,7 +186,7 @@ export function RuntimeEventCenter() {
       <div className="space-y-3">
         {filteredEvents.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-            目前沒有符合條件的 runtime event。
+            currentNo matching runtime event.
           </div>
         ) : pagination.items.map((event, index) => {
           const display = getRuntimeEventDisplay(event);
@@ -207,10 +207,10 @@ export function RuntimeEventCenter() {
               <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm text-slate-600">
                 <div className="font-medium text-slate-700">{display.description}</div>
                 <div className="mt-2 grid grid-cols-1 gap-2 text-xs md:grid-cols-4">
-                  <div>Node：{event.nodeId ?? '-'}</div>
-                  <div>Agent：{event.agentId ?? '-'}</div>
-                  <div>Task：{event.taskId ?? '-'}</div>
-                  <div>Trace：{event.traceId ?? '-'}</div>
+                  <div>Node:{event.nodeId ?? '-'}</div>
+                  <div>Agent:{event.agentId ?? '-'}</div>
+                  <div>Task:{event.taskId ?? '-'}</div>
+                  <div>Trace:{event.traceId ?? '-'}</div>
                 </div>
               </div>
 

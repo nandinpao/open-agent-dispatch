@@ -86,7 +86,7 @@ function RealtimeSummary() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-bold text-slate-950">Realtime Event Center</div>
-          <div className="mt-1 text-xs text-slate-500">Netty runtime stream 的摘要：Agent authorization、delivery、callback relay 與 security event。這不是 Core 權威狀態。</div>
+          <div className="mt-1 text-xs text-slate-500">Netty runtime summary: Agent authorization, delivery, callback relay, and security events. Core remains authoritative for governed state.</div>
         </div>
         <StatusBadge status={connection.status} />
       </div>
@@ -98,11 +98,11 @@ function RealtimeSummary() {
         <MiniStat label="Risk / Failed" value={summary.failedOrRiskEvents} />
       </div>
       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
-        Last message：{connection.lastMessageAt ? formatDateTime(connection.lastMessageAt) : '-'}；Last metrics：{lastMetricsAt ? formatDateTime(lastMetricsAt) : '-'}
+        Last message:{connection.lastMessageAt ? formatDateTime(connection.lastMessageAt) : '-'};Last metrics:{lastMetricsAt ? formatDateTime(lastMetricsAt) : '-'}
       </div>
       <div className="space-y-2">
         {latestEvents.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">尚未收到 realtime event。</div>
+          <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">Not received yet realtime event.</div>
         ) : latestEvents.map((event, index) => {
           const display = getRuntimeEventDisplay(event);
           return (
@@ -118,10 +118,10 @@ function RealtimeSummary() {
                 </div>
               </div>
               <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-slate-600 md:grid-cols-4">
-                <div>Node：{event.nodeId ?? '-'}</div>
-                <div>Agent：{event.agentId ?? '-'}</div>
-                <div>Task：{event.taskId ?? '-'}</div>
-                <div>Trace：{event.traceId ?? '-'}</div>
+                <div>Node:{event.nodeId ?? '-'}</div>
+                <div>Agent:{event.agentId ?? '-'}</div>
+                <div>Task:{event.taskId ?? '-'}</div>
+                <div>Trace:{event.traceId ?? '-'}</div>
               </div>
             </div>
           );
@@ -210,7 +210,7 @@ function OperationalSloPanel({ slo }: Readonly<{ slo?: Record<string, unknown> }
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-bold text-slate-900">Operational SLO Snapshot</div>
-          <div className="mt-1 text-xs text-slate-500">Core 權威營運指標：callback lag、dispatch retry/dead-letter、adapter failure、routing no-candidate。</div>
+          <div className="mt-1 text-xs text-slate-500">Core callback lag,dispatch retry/dead-letter,adapter failure,routing no-candidate.</div>
         </div>
         <StatusBadge status={status} />
       </div>
@@ -220,7 +220,7 @@ function OperationalSloPanel({ slo }: Readonly<{ slo?: Record<string, unknown> }
         <SloObjectiveCard title="Adapter Failure" status={metricStatus(slo, 'adapterExecutor.status')} value={formatRatio(adapterFailureRatio)} subtitle="failed + retrying / sample" />
         <SloObjectiveCard title="No Candidate" status={metricStatus(slo, 'routingNoCandidate.status')} value={formatRatio(noCandidateRatio)} subtitle="routing no-candidate ratio" />
       </div>
-      {alerts.length > 0 ? <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Active SLO alerts：{alerts.length}</div> : null}
+      {alerts.length > 0 ? <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Active SLO alerts:{alerts.length}</div> : null}
     </div>
   );
 }
@@ -233,7 +233,7 @@ function ControlPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle
         title="Business Truth / Core Authority"
-        description="Core 權威資料：Incident、Task、Agent 審核、Skill approval、Security 與 operator decision。"
+        description="Core authoritative data: Incident, Task, Agent Capability approval, Security and operator decision."
         status={planeStatus(data, 'core')}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -249,7 +249,7 @@ function ControlPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
       <OperationalSloPanel slo={data.coreSnapshot?.operationalSlo} />
       <div>
         <div className="mb-3 text-sm font-bold text-slate-900">Recent Core Tasks</div>
-        {tasks.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">尚無 Core task runtime-view 資料。</div> : (
+        {tasks.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">No Core task runtime-view data.</div> : (
           <div className="overflow-hidden rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -292,7 +292,7 @@ function DispatchTruthSection({ data }: Readonly<{ data: DualDashboardData }>) {
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle
         title="Dispatch Truth / Callback Ledger"
-        description="Core persisted dispatch view：用 Dispatch Request、Timeline、Attempt Ledger 與 Callback Inbox 解釋任務卡在哪一步。"
+        description="Core persisted dispatch view Dispatch Request,Timeline,Attempt Ledger and Callback Inbox Task details"
         status={planeStatus(data, 'core')}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -304,23 +304,23 @@ function DispatchTruthSection({ data }: Readonly<{ data: DualDashboardData }>) {
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-xs font-black uppercase tracking-wide text-slate-500">1. Routing</div>
-          <div className="mt-2 text-sm font-bold text-slate-900">Core 找候選 Agent</div>
-          <div className="mt-1 text-xs leading-5 text-slate-500">看 Skill、Agent approval、capability、policy 與 no-candidate reason。</div>
+          <div className="mt-2 text-sm font-bold text-slate-900">Core  Agent</div>
+          <div className="mt-1 text-xs leading-5 text-slate-500"> Capability definition, Agent approval, policy and no-candidate reason.</div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-xs font-black uppercase tracking-wide text-slate-500">2. Delivery</div>
-          <div className="mt-2 text-sm font-bold text-slate-900">Netty 送 command</div>
-          <div className="mt-1 text-xs leading-5 text-slate-500">delivery event 只能證明 transport 嘗試，不代表任務完成。</div>
+          <div className="mt-2 text-sm font-bold text-slate-900">Netty  command</div>
+          <div className="mt-1 text-xs leading-5 text-slate-500">delivery event  transport Task details</div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-xs font-black uppercase tracking-wide text-slate-500">3. Callback</div>
-          <div className="mt-2 text-sm font-bold text-slate-900">Core inbox 接收結果</div>
-          <div className="mt-1 text-xs leading-5 text-slate-500">ACK / progress / result / error 需進入 Core callback inbox 才可更新 lifecycle。</div>
+          <div className="mt-2 text-sm font-bold text-slate-900">Core inbox Result</div>
+          <div className="mt-1 text-xs leading-5 text-slate-500">ACK / progress / result / error  Core callback inbox  lifecycle.</div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-xs font-black uppercase tracking-wide text-slate-500">4. Recovery</div>
-          <div className="mt-2 text-sm font-bold text-slate-900">Retry 或 dead-letter</div>
-          <div className="mt-1 text-xs leading-5 text-slate-500">延遲重派、manual retry、DLQ 與 issue sync 都應回到 Core ledger 判斷。</div>
+          <div className="mt-2 text-sm font-bold text-slate-900">Retry or dead-letter</div>
+          <div className="mt-1 text-xs leading-5 text-slate-500">manual retry,DLQ and issue sync  Core ledger </div>
         </div>
       </div>
     </section>
@@ -334,7 +334,7 @@ function RuntimePlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle
         title="Runtime Diagnostics"
-        description="Netty 即時資料：Agent session、Gateway runtime、delivery、callback relay 與 rejected connections；只解釋 transport 現象。"
+        description="Netty Agent session,Gateway runtime,delivery,callback relay and rejected connections transport "
         status={planeStatus(data, 'netty')}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -352,7 +352,7 @@ function RuntimePlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-sm font-bold text-slate-900">Gateway Runtime SLO Snapshot</div>
-              <div className="mt-1 text-xs text-slate-500">Netty local runtime 指標：delivery backlog、gateway relay backlog、callback relay failure ratio。這不是 Core 任務真相。</div>
+              <div className="mt-1 text-xs text-slate-500">Netty local runtime delivery backlog,gateway relay backlog,callback relay failure ratio Core Task details</div>
             </div>
             <StatusBadge status={data.runtimeSlo.status ?? 'UNKNOWN'} />
           </div>
@@ -395,17 +395,17 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
   const latestCritical = metrics?.recentCriticalEvents ?? [];
 
   async function decideApproval(approval: CoreRecoveryApprovalRequest, decision: 'approve' | 'reject') {
-    const reason = window.prompt(`請輸入 ${decision === 'approve' ? '核准' : '拒絕'} approval ${approval.approvalId} 的原因，至少 12 個字元。`)?.trim();
+    const reason = window.prompt(`Enter  ${decision === 'approve' ? 'approve' : 'reject'} approval ${approval.approvalId}  12 `)?.trim();
     if (!reason || reason.length < 12) {
-      window.alert('原因太短；高風險復原操作至少需要 12 個字元。');
+      window.alert('The reason is too short. High-risk recovery actions require at least 12 characters.');
       return;
     }
     const phrase = runbook?.policy?.approvalConfirmationPhrase ?? 'CONFIRM_DUAL_CONTROL_APPROVAL';
-    const confirmed = window.confirm(`${decision === 'approve' ? '核准並執行' : '拒絕'}是雙人覆核操作。請確認你不是原申請人，且已檢查 dispatch timeline。`);
+    const confirmed = window.confirm(`${decision === 'approve' ? 'approve and run' : 'reject'}ActionsReview the configuration and try again. dispatch timeline.`);
     if (!confirmed) return;
-    const supplied = window.prompt(`請輸入核准確認字串：${phrase}`)?.trim();
+    const supplied = window.prompt(`Enter ${phrase}`)?.trim();
     if (supplied !== phrase) {
-      window.alert(`確認字串不正確。必須輸入：${phrase}`);
+      window.alert(`The confirmation phrase is incorrect. Enter: ${phrase}`);
       return;
     }
     const body = {
@@ -427,11 +427,11 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle
         title="Recovery Operations / Alerting"
-        description="以 Core dispatch attempt history 統計 delayed requeue、runtime backoff、dead-letter 與 scanner failed，支援 SLA/SLO 與告警判斷。"
+        description=" Core dispatch attempt history  delayed requeue,runtime backoff,dead-letter and scanner failed SLA/SLO "
         status={error ? 'UNAVAILABLE' : metrics?.status ?? 'NO_DATA'}
       />
       {error ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{error}</div> : null}
-      {!error && !metrics ? <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">Core 尚未回傳 recovery metrics。</div> : null}
+      {!error && !metrics ? <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">Core has not returned recovery metrics.</div> : null}
       {metrics ? (
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -450,12 +450,12 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-sm font-bold text-slate-900">Alert Policy Evaluation</div>
-                  <div className="mt-1 text-xs text-slate-500">Window：{metrics.window}；History limit：{formatNumber(metrics.historyLimit)}</div>
+                  <div className="mt-1 text-xs text-slate-500">Window:{metrics.window};History limit:{formatNumber(metrics.historyLimit)}</div>
                 </div>
                 <StatusBadge status={metrics.status} />
               </div>
               <div className="mt-3 space-y-2">
-                {alerts.length === 0 ? <div className="text-sm text-slate-500">沒有設定告警規則。</div> : alerts.map((alert) => (
+                {alerts.length === 0 ? <div className="text-sm text-slate-500">No data is currently available.</div> : alerts.map((alert) => (
                   <div key={alert.code} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
@@ -465,9 +465,9 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
                       <StatusBadge status={alert.severity} />
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-600">
-                      <div>Observed：<span className="font-bold">{formatNumber(alert.observed)}</span></div>
-                      <div>Warning：{formatNumber(alert.warningThreshold)}</div>
-                      <div>Critical：{formatNumber(alert.criticalThreshold)}</div>
+                      <div>Observed:<span className="font-bold">{formatNumber(alert.observed)}</span></div>
+                      <div>Warning:{formatNumber(alert.warningThreshold)}</div>
+                      <div>Critical:{formatNumber(alert.criticalThreshold)}</div>
                     </div>
                   </div>
                 ))}
@@ -477,13 +477,13 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
             <div className="rounded-xl border border-slate-200 p-4">
               <div className="text-sm font-bold text-slate-900">Top Recovery Agents</div>
               <div className="mt-3 space-y-2">
-                {(metrics.byAgent ?? []).slice(0, 6).length === 0 ? <div className="text-sm text-slate-500">沒有 Agent recovery 事件。</div> : metrics.byAgent.slice(0, 6).map((bucket) => (
+                {(metrics.byAgent ?? []).slice(0, 6).length === 0 ? <div className="text-sm text-slate-500">No data is currently available. Agent recovery event.</div> : metrics.byAgent.slice(0, 6).map((bucket) => (
                   <div key={bucket.key} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-700">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-bold text-slate-900">{bucket.key}</span>
                       <span>{formatNumber(bucket.count)}</span>
                     </div>
-                    <div className="mt-1 text-slate-500">Latest：{bucket.latestOccurredAt ? formatDateTime(bucket.latestOccurredAt) : '-'}</div>
+                    <div className="mt-1 text-slate-500">Latest:{bucket.latestOccurredAt ? formatDateTime(bucket.latestOccurredAt) : '-'}</div>
                   </div>
                 ))}
               </div>
@@ -492,7 +492,7 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
 
           {activeAlerts.length > 0 ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <div className="font-bold">Active recovery alerts：{activeAlerts.map((alert) => `${alert.code}=${alert.severity}`).join('；')}</div>
+              <div className="font-bold">Active recovery alerts:{activeAlerts.map((alert) => `${alert.code}=${alert.severity}`).join(';')}</div>
             </div>
           ) : null}
 
@@ -500,7 +500,7 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-bold text-slate-900">Operator Recovery Runbook</div>
-                <div className="mt-1 text-xs text-slate-500">Runbook 由 Core /admin/recovery/runbook 提供；包含 RBAC、reason、confirmation 與 dual-control policy。</div>
+                <div className="mt-1 text-xs text-slate-500">Runbook by Core /admin/recovery/runbook  RBAC,reason,confirmation and dual-control policy.</div>
               </div>
               <StatusBadge status={runbookError ? 'RUNBOOK_UNAVAILABLE' : runbook?.version ?? 'NO_RUNBOOK'} />
             </div>
@@ -526,7 +526,7 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
                   </ul>
                 </div>
               ))}
-              {!runbookError && (!runbook || runbook.entries.length === 0) ? <div className="text-sm text-slate-500">Core 尚未回傳 runbook。</div> : null}
+              {!runbookError && (!runbook || runbook.entries.length === 0) ? <div className="text-sm text-slate-500">Core has not returned runbook.</div> : null}
             </div>
           </div>
 
@@ -540,15 +540,15 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
             </div>
             {approvalError ? <div className="mt-3 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-700">{approvalError}</div> : null}
             <div className="mt-3 space-y-2">
-              {approvals.length === 0 ? <div className="text-sm text-slate-500">目前沒有 pending recovery approvals。</div> : approvals.slice(0, 8).map((approval) => (
+              {approvals.length === 0 ? <div className="text-sm text-slate-500">There are no pending recovery approvals.</div> : approvals.slice(0, 8).map((approval) => (
                 <div key={approval.approvalId} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-700">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <div className="font-bold text-slate-900">{approval.action}</div>
-                      <div className="mt-1">Approval：{approval.approvalId}</div>
-                      <div className="mt-1">Task：{approval.taskId ?? '-'}；Dispatch：{approval.dispatchRequestId ?? '-'}</div>
-                      <div className="mt-1">Requested by：{approval.requestedBy ?? '-'}；Expires：{approval.expiresAt ? formatDateTime(approval.expiresAt) : '-'}</div>
-                      <div className="mt-1 text-slate-500">Reason：{approval.requestReason ?? '-'}</div>
+                      <div className="mt-1">Approval:{approval.approvalId}</div>
+                      <div className="mt-1">Task:{approval.taskId ?? '-'};Dispatch:{approval.dispatchRequestId ?? '-'}</div>
+                      <div className="mt-1">Requested by:{approval.requestedBy ?? '-'};Expires:{approval.expiresAt ? formatDateTime(approval.expiresAt) : '-'}</div>
+                      <div className="mt-1 text-slate-500">Reason:{approval.requestReason ?? '-'}</div>
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <button type="button" onClick={() => void decideApproval(approval, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700">Approve & Execute</button>
@@ -563,17 +563,17 @@ function RecoveryOperationsSection({ metrics, runbook, approvals, error, runbook
           <div className="rounded-xl border border-slate-200 p-4">
             <div className="text-sm font-bold text-slate-900">Recent Critical Recovery Events</div>
             <div className="mt-3 space-y-2">
-              {latestCritical.length === 0 ? <div className="text-sm text-slate-500">目前沒有 critical recovery events。</div> : latestCritical.map((event) => (
+              {latestCritical.length === 0 ? <div className="text-sm text-slate-500">There are no critical recovery events.</div> : latestCritical.map((event) => (
                 <div key={event.historyId} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-700">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="font-bold text-slate-900">{event.eventType}</div>
-                      <div className="mt-1">Task：{event.taskId ?? '-'}；Agent：{event.agentId ?? '-'}</div>
+                      <div className="mt-1">Task:{event.taskId ?? '-'};Agent:{event.agentId ?? '-'}</div>
                       <div className="mt-1 text-slate-500">{event.reason ?? event.errorMessage ?? '-'}</div>
                     </div>
                     <StatusBadge status={event.errorCode ?? event.status ?? event.eventType} />
                   </div>
-                  <div className="mt-2 text-slate-500">Occurred：{event.occurredAt ? formatDateTime(event.occurredAt) : '-'}</div>
+                  <div className="mt-2 text-slate-500">Occurred:{event.occurredAt ? formatDateTime(event.occurredAt) : '-'}</div>
                 </div>
               ))}
             </div>
@@ -594,7 +594,7 @@ function TrustPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle
         title="Security / Trust"
-        description="以 Core 的治理狀態與 Netty 的拒絕連線觀測交叉比對，避免未知或未授權 Agent 被誤認為可派工。"
+        description=" Core Statusand Netty Unknown Agent Dispatch information"
         status={summary.criticalSecurityEvents > 0 || summary.connectedButNotApproved > 0 || summary.connectedButDisabled > 0 || summary.profileMissingRuntimePresent > 0 ? 'WARNING' : 'OK'}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -612,11 +612,11 @@ function TrustPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
         <div className="rounded-xl border border-slate-200 p-4">
           <div className="text-sm font-bold text-slate-900">Agent Trust Mismatches</div>
           <div className="mt-3 space-y-2">
-            {riskyRows.length === 0 ? <div className="text-sm text-slate-500">目前沒有明顯 Core / Netty Agent mismatch。</div> : riskyRows.map((row) => (
+            {riskyRows.length === 0 ? <div className="text-sm text-slate-500">No significant Core / Netty Agent mismatch is currently detected.</div> : riskyRows.map((row) => (
               <div key={row.agentId} className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-900">
                 <div className="font-bold">{row.agentId}</div>
-                <div className="mt-1">Profile：{row.source.profile}；Runtime：{row.source.runtime}</div>
-                <div className="mt-1">Approval：{row.profile?.approvalStatus ?? '-'}；Enabled：{row.profile ? String(row.profile.enabled) : '-'}</div>
+                <div className="mt-1">Profile:{row.source.profile};Runtime:{row.source.runtime}</div>
+                <div className="mt-1">Approval:{row.profile?.approvalStatus ?? '-'};Enabled:{row.profile ? String(row.profile.enabled) : '-'}</div>
               </div>
             ))}
           </div>
@@ -625,13 +625,13 @@ function TrustPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
         <div className="rounded-xl border border-slate-200 p-4">
           <div className="text-sm font-bold text-slate-900">Recent Security Events</div>
           <div className="mt-3 space-y-2">
-            {securityEvents.length === 0 ? <div className="text-sm text-slate-500">目前沒有 Core security event。</div> : securityEvents.map((event) => (
+            {securityEvents.length === 0 ? <div className="text-sm text-slate-500">There are no Core security events.</div> : securityEvents.map((event) => (
               <div key={event.eventId} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-700">
                 <div className="flex items-start justify-between gap-2">
                   <div className="font-bold text-slate-900">{event.eventType}</div>
                   {event.severity ? <StatusBadge status={event.severity} /> : null}
                 </div>
-                <div className="mt-1">Agent：{event.agentId ?? event.claimedAgentId ?? '-'}</div>
+                <div className="mt-1">Agent:{event.agentId ?? event.claimedAgentId ?? '-'}</div>
                 <div className="mt-1">{formatDateTime(event.occurredAt)}</div>
               </div>
             ))}
@@ -640,7 +640,7 @@ function TrustPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
 
         <div className="rounded-xl border border-slate-200 p-4">
           <div className="text-sm font-bold text-slate-900">Latest Rejected Connections</div>
-          <div className="mt-1 text-xs text-slate-500">{rejectedConnectionSemantics().title}；manual disconnect 請看 Runtime Events。</div>
+          <div className="mt-1 text-xs text-slate-500">{rejectedConnectionSemantics().title};manual disconnect Review the configuration and try again. Runtime Events.</div>
           <div className="mt-3 space-y-2">
             {rejectedConnections.length === 0 ? <div className="text-sm text-slate-500">{latestRejectedConnectionsEmptyText()}</div> : rejectedConnections.map((item, index) => (
               <div key={item.id ?? item.eventId ?? `${item.claimedAgentId}-${index}`} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-700">
@@ -648,8 +648,8 @@ function TrustPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
                   <div className="font-bold text-slate-900">{item.claimedAgentId ?? item.agentId ?? '-'}</div>
                   {item.authorizationState ? <StatusBadge status={item.authorizationState} /> : null}
                 </div>
-                <div className="mt-1">Reason：{item.reason ?? '-'}</div>
-                <div className="mt-1">Last：{formatDateTime(item.lastSeenAt ?? item.occurredAt)}</div>
+                <div className="mt-1">Reason:{item.reason ?? '-'}</div>
+                <div className="mt-1">Last:{formatDateTime(item.lastSeenAt ?? item.occurredAt)}</div>
               </div>
             ))}
           </div>
@@ -707,7 +707,7 @@ export function DualPlaneDashboard() {
             <div className="text-sm font-medium text-slate-500">Three-layer Operations Dashboard</div>
             <div className="mt-1 text-xl font-bold text-slate-950">Business Truth + Dispatch Truth + Runtime Diagnostics</div>
             <div className="mt-1 text-xs text-slate-500">
-              Mode：{env.adminBackendMode}；Core：{env.coreApiBaseUrl}；Netty：{env.nettyApiBaseUrl}；WS：{env.nettyRuntimeWsUrl}
+              Mode:{env.adminBackendMode};Core:{env.coreApiBaseUrl};Netty:{env.nettyApiBaseUrl};WS:{env.nettyRuntimeWsUrl}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">

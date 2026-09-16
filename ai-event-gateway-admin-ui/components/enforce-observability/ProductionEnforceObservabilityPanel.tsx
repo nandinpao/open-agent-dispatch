@@ -89,7 +89,7 @@ export function ProductionEnforceObservabilityPanel() {
       <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="text-[11px] font-black uppercase tracking-wide text-indigo-700">Dispatch Monitoring</div>
+            <div className="text-xs font-black uppercase tracking-wide text-indigo-700">Dispatch Monitoring</div>
             <h2 className="mt-2 text-xl font-black text-slate-950">Production dispatch monitoring and post-cutover operations</h2>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">
               Monitor long-running production dispatch operations after cutover. This dashboard tracks allowed, blocked, no-candidate, fallback-denied, quality unavailable, and score-breakdown metrics from the live Core observability API.
@@ -108,7 +108,7 @@ export function ProductionEnforceObservabilityPanel() {
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           <MetricCard label="Mode" value={snapshot.mode} tone="neutral" />
           <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">Source</div>
+            <div className="text-xs font-black uppercase tracking-wide text-slate-500">Source</div>
             <div className="mt-3"><DataSourceBadge source={source} detail={source === 'live' ? 'Core API' : 'Sample data allowed only outside production'} /></div>
           </div>
           <MetricCard label="Window" value={snapshot.window} tone="neutral" />
@@ -139,7 +139,7 @@ export function ProductionEnforceObservabilityPanel() {
             <h3 className="text-sm font-black uppercase tracking-wide text-slate-600">Alert rules</h3>
             <p className="mt-1 text-sm leading-6 text-slate-600">Triggered alerts should create operator incidents and may recommend rollback to WARN.</p>
           </div>
-          <span className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide ${triggeredAlerts.length ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+          <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${triggeredAlerts.length ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
             {triggeredAlerts.length} triggered
           </span>
         </div>
@@ -148,7 +148,7 @@ export function ProductionEnforceObservabilityPanel() {
             <div key={alert.code} className={`rounded-2xl border p-4 ${alert.triggered ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-slate-50'}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-xs font-black text-slate-950">{alert.code}</div>
-                <div className={`rounded-full px-2 py-1 text-[10px] font-black uppercase ${alert.triggered ? 'bg-red-100 text-red-700' : 'bg-slate-200 text-slate-600'}`}>{alert.severity}</div>
+                <div className={`rounded-full px-2 py-1 text-xs font-black uppercase ${alert.triggered ? 'bg-red-100 text-red-700' : 'bg-slate-200 text-slate-600'}`}>{alert.severity}</div>
               </div>
               <div className="mt-2 text-xs font-bold text-slate-600">{alert.metric}: {alert.observed} / threshold {alert.threshold}</div>
               <p className="mt-2 text-xs leading-5 text-slate-600">{alert.action}</p>
@@ -159,7 +159,7 @@ export function ProductionEnforceObservabilityPanel() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <InfoCard title="Dispatch assignment evidence" badge="ASSIGNMENT_EVIDENCE" items={[
-          'Task Detail shows raw requirements, effective capabilities, selected Agent, service scope, runtime reported capabilities, dispatch request status, and issue link.',
+          'Task Detail shows raw requirements, effective capabilities, selected Agent, Dispatch Access, runtime reported capabilities, dispatch request status, and issue link.',
           'Agent Detail recent tasks show compact assignment evidence for each task assigned to that Agent.',
           'Use this panel to trace source event → resolved requirements → eligible candidates → selected Agent without opening raw diagnostics.',
         ]} href="/tasks" hrefLabel="Open Tasks / assignment evidence →" />
@@ -203,7 +203,7 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
   }[tone];
   return (
     <div className={`rounded-3xl border p-4 shadow-sm ${styles}`}>
-      <div className="text-[11px] font-black uppercase tracking-wide opacity-80">{label}</div>
+      <div className="text-xs font-black uppercase tracking-wide opacity-80">{label}</div>
       <div className="mt-2 text-2xl font-black">{value}</div>
     </div>
   );
@@ -212,7 +212,7 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
 function RateCard({ title, value, dangerAt }: { title: string; value: number; dangerAt: number }) {
   return (
     <div className={`rounded-3xl border p-5 shadow-sm ${metricClass(value, dangerAt)}`}>
-      <div className="text-[11px] font-black uppercase tracking-wide opacity-80">{title}</div>
+      <div className="text-xs font-black uppercase tracking-wide opacity-80">{title}</div>
       <div className="mt-2 text-3xl font-black">{formatPercent(value)}</div>
       <div className="mt-2 text-xs font-bold opacity-80">Danger threshold: {formatPercent(dangerAt)}</div>
     </div>
@@ -222,7 +222,7 @@ function RateCard({ title, value, dangerAt }: { title: string; value: number; da
 function InfoCard({ title, badge, items, href, hrefLabel }: { title: string; badge: string; items: readonly string[]; href: string; hrefLabel: string }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-[11px] font-black uppercase tracking-wide text-slate-500">{badge}</div>
+      <div className="text-xs font-black uppercase tracking-wide text-slate-500">{badge}</div>
       <h3 className="mt-2 text-base font-black text-slate-950">{title}</h3>
       <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
         {items.map((item) => <li key={item} className="rounded-2xl bg-slate-50 px-3 py-2 font-bold">{item}</li>)}

@@ -3,15 +3,18 @@
 import { useCallback, useMemo, useState } from 'react';
 import { isNotFoundOrUnsupportedApiError, requireCoreTenantContext } from '@/lib/api/client';
 import { coreAdminApi } from '@/lib/api/coreAdminApi';
+import { taskAdminApi } from '@/lib/api/domains/taskAdminApi';
 import { nettyRuntimeApi } from '@/lib/api/nettyRuntimeApi';
 import { getPublicEnv } from '@/lib/constants/env';
+import { createIdempotencyKey } from '@/lib/utils/uuid';
 import { getMockAgentDetail, getMockCommandResult } from '@/lib/mock/admin';
 import { mergeAgentDashboardRows, summarizeRuntimes } from '@/lib/dashboard/agentMerge';
 import { runtimeToEnrollmentRequest } from '@/lib/agents/enrollmentWorkflow';
 import { appendManualDisconnectNotice } from '@/lib/runtime/rejectedConnectionSemantics';
 import type { CommandResult } from '@/lib/types/admin';
-import type { AgentEnrollmentApprovalRequest, AgentProfileUpdateRequest, AgentSecurityEvent, CoreAgentProfile, CoreAgentRuntimeCapabilityItem, CoreAgentRuntimeCapabilityProfile, CoreAgentRuntimeDescriptor, CoreAgentRuntimeLoadSnapshot, CoreAgentCapabilityAssignment, CoreAgentCapabilityCatalog, CoreAgentCapabilityCommand, CoreAgentCertificationRun, CoreAgentRuntimeFeatureObservation, CoreAgentRuntimeFeatureTrust, CoreAgentRuntimeFeatureCommand, CoreAgentDispatchEligibility, CoreTaskRuntimeView, CoreAgentSecurityEnforcementPolicy, CoreAgentSecurityEnforcementPolicyUpdateRequest, CoreAgentSkillDefinition, CoreRecoveryGovernanceActionRequest, CoreAgentRemediationProposal, CoreAgentRemediationProposalRequest, CoreAgentRemediationWorkflow, CoreAgentRemediationWorkflowCreateRequest, CoreAgentRemediationWorkflowDecisionRequest, CoreAgentSetupReadinessResponse, CoreAgentOperationalView, CoreAgentLatestAuthFailureResponse, CoreAgentConnectionRepairActionsResponse, CoreAgentRuntimeBinding, CoreRuntimeResource, CoreAgentPoolView, CoreDispatchFlowView, CoreAgentQualityMetricsWindow } from '@/lib/types/core';
+import type { AgentEnrollmentApprovalRequest, AgentProfileUpdateRequest, AgentSecurityEvent, CoreAgentProfile, CoreAgentRuntimeCapabilityItem, CoreAgentRuntimeCapabilityProfile, CoreAgentRuntimeDescriptor, CoreAgentRuntimeLoadSnapshot, CoreAgentCapabilityAssignment, CoreAgentCapabilityCatalog, CoreAgentCapabilityCommand, CoreAgentRuntimeFeatureObservation, CoreAgentRuntimeFeatureTrust, CoreAgentRuntimeFeatureCommand, CoreAgentDispatchEligibility, CoreTaskRuntimeView, CoreAgentSecurityEnforcementPolicy, CoreAgentSecurityEnforcementPolicyUpdateRequest, CoreAgentSkillDefinition, CoreRecoveryGovernanceActionRequest, CoreAgentRemediationProposal, CoreAgentRemediationProposalRequest, CoreAgentRemediationWorkflow, CoreAgentRemediationWorkflowCreateRequest, CoreAgentRemediationWorkflowDecisionRequest, CoreAgentSetupReadinessResponse, CoreAgentOperationalView, CoreAgentLatestAuthFailureResponse, CoreAgentConnectionRepairActionsResponse, CoreAgentRuntimeBinding, CoreRuntimeResource, CoreAgentPoolView, CoreDispatchFlowView, CoreAgentQualityMetricsWindow } from '@/lib/types/core';
 import type { AgentDashboardRow } from '@/lib/types/dashboard';
+import type { CoreTaskLineageEvidence } from '@/lib/types/domains/task';
 import type { NettyAgentRuntime } from '@/lib/types/nettyRuntime';
 import { usePollingResource } from '@/hooks/usePollingResource';
 
@@ -27,7 +30,6 @@ export interface AgentDetailBundle {
   agentPools: CoreAgentPoolView[];
   capabilityAssignments: CoreAgentCapabilityAssignment[];
   capabilityCatalog: CoreAgentCapabilityCatalog[];
-  certificationRuns: CoreAgentCertificationRun[];
   agentQualityWindows: CoreAgentQualityMetricsWindow[];
   runtimeFeatureObservations: CoreAgentRuntimeFeatureObservation[];
   runtimeFeatureTrusts: CoreAgentRuntimeFeatureTrust[];
@@ -39,6 +41,7 @@ export interface AgentDetailBundle {
   runtimeBindings: CoreAgentRuntimeBinding[];
   row: AgentDashboardRow;
   tasks: CoreTaskRuntimeView[];
+  taskLineage: CoreTaskLineageEvidence[];
   securityEvents: AgentSecurityEvent[];
   securityPolicy?: CoreAgentSecurityEnforcementPolicy;
   skillDefinitions: CoreAgentSkillDefinition[];
@@ -56,7 +59,7 @@ function mockTenantId(): string {
   }
 }
 
-type AgentCommand = 'PING' | 'DISCONNECT' | 'DISCONNECT_ALL' | 'ENABLE' | 'DISABLE' | 'SUSPEND' | 'REVOKE' | 'CREATE_ENROLLMENT' | 'APPROVE_OBSERVED' | 'UPDATE_PROFILE' | 'ENFORCE_DUPLICATE_SECURITY' | 'RESOLVE_DUPLICATE_SECURITY' | 'UPDATE_SECURITY_POLICY' | 'CLEAR_RUNTIME_BACKOFF' | 'CREATE_REMEDIATION_PROPOSAL' | 'SYNC_APPROVED_SKILLS' | 'CREATE_REMEDIATION_WORKFLOW' | 'APPROVE_REMEDIATION_WORKFLOW' | 'REJECT_REMEDIATION_WORKFLOW' | 'CANCEL_REMEDIATION_WORKFLOW' | 'EXECUTE_REMEDIATION_WORKFLOW' | 'REQUEST_CAPABILITY' | 'REMOVE_CAPABILITY' | 'APPROVE_CAPABILITY' | 'SUSPEND_CAPABILITY' | 'RESUME_CAPABILITY' | 'REVOKE_CAPABILITY' | 'CREATE_RUNTIME_BINDING' | 'ACTIVATE_RUNTIME_BINDING' | 'OBSERVE_RUNTIME_FEATURE' | 'VERIFY_RUNTIME_FEATURE' | 'TRUST_RUNTIME_FEATURE' | 'SUSPEND_RUNTIME_FEATURE' | 'RESUME_RUNTIME_FEATURE' | 'REVOKE_RUNTIME_FEATURE';
+type AgentCommand = 'PING' | 'DISCONNECT' | 'DISCONNECT_ALL' | 'ENABLE' | 'DISABLE' | 'SUSPEND' | 'REVOKE' | 'CREATE_ENROLLMENT' | 'APPROVE_OBSERVED' | 'UPDATE_PROFILE' | 'ENFORCE_DUPLICATE_SECURITY' | 'RESOLVE_DUPLICATE_SECURITY' | 'UPDATE_SECURITY_POLICY' | 'CLEAR_RUNTIME_BACKOFF' | 'CREATE_REMEDIATION_PROPOSAL' | 'CREATE_REMEDIATION_WORKFLOW' | 'APPROVE_REMEDIATION_WORKFLOW' | 'REJECT_REMEDIATION_WORKFLOW' | 'CANCEL_REMEDIATION_WORKFLOW' | 'EXECUTE_REMEDIATION_WORKFLOW' | 'REQUEST_CAPABILITY' | 'REMOVE_CAPABILITY' | 'APPROVE_CAPABILITY' | 'SUSPEND_CAPABILITY' | 'RESUME_CAPABILITY' | 'REVOKE_CAPABILITY' | 'CREATE_RUNTIME_BINDING' | 'ACTIVATE_RUNTIME_BINDING' | 'OBSERVE_RUNTIME_FEATURE' | 'VERIFY_RUNTIME_FEATURE' | 'TRUST_RUNTIME_FEATURE' | 'SUSPEND_RUNTIME_FEATURE' | 'RESUME_RUNTIME_FEATURE' | 'REVOKE_RUNTIME_FEATURE';
 
 function mockBundle(agentId: string): AgentDetailBundle {
   const legacy = getMockAgentDetail(agentId);
@@ -109,7 +112,6 @@ function mockBundle(agentId: string): AgentDetailBundle {
     agentPools: [],
     capabilityAssignments: [],
     capabilityCatalog: [],
-    certificationRuns: [],
     agentQualityWindows: [{
       agentId,
       metricWindow: '24h',
@@ -149,6 +151,7 @@ function mockBundle(agentId: string): AgentDetailBundle {
     },
     row,
     tasks: [],
+    taskLineage: [],
     securityEvents: [],
     latestAuthFailure: undefined,
     runtimeBindings: [],
@@ -191,20 +194,30 @@ function runtimeGatewayNodeIds(bundle: AgentDetailBundle | null | undefined): st
   return Array.from(ids);
 }
 
-export function useAgentDetail(agentId: string) {
+export interface AgentDetailLoadOptions {
+  advanced?: boolean;
+  taskLineage?: boolean;
+  capabilityDiagnostics?: boolean;
+}
+
+export function useAgentDetail(agentId: string, tenantId: string, enabled = true, loadOptions: AgentDetailLoadOptions = {}) {
   const [commandMessage, setCommandMessage] = useState<string | null>(null);
   const [commandRunning, setCommandRunning] = useState<AgentCommand | null>(null);
+  const loadAdvanced = loadOptions.advanced === true;
+  const loadTaskLineage = loadOptions.taskLineage === true;
+  const loadCapabilityDiagnostics = loadOptions.capabilityDiagnostics === true;
 
   const loader = useCallback(async (): Promise<AgentDetailBundle> => {
     const env = getPublicEnv();
     if (env.useMock) return mockBundle(agentId);
 
+    // Tenant authority comes from the authenticated workspace, never from a resource response.
+    // This avoids the circular dependency where GET /admin/agents/{id} needs Tenant context but
+    // the UI attempted to read that Agent first in order to discover its Tenant.
+    const scopedTenantId = requireCoreTenantContext(tenantId);
     const [preloadedProfileResult] = await Promise.allSettled([coreAdminApi.getAgent(agentId)]);
-    const scopedTenantId = preloadedProfileResult.status === 'fulfilled'
-      ? String(preloadedProfileResult.value.tenantId ?? '').trim()
-      : '';
 
-    const [profilesResult, operationalViewResult, setupReadinessResult, latestAuthFailureResult, connectionRepairActionsResult, runtimeBindingsResult, runtimeAgentsResult, tasksResult, securityEventsResult, runtimeCapabilityProfileResult, runtimeDescriptorResult, runtimeCapabilityItemsResult, runtimeLoadResult, capabilityAssignmentsResult, capabilityCatalogResult, certificationRunsResult, runtimeFeatureObservationsResult, runtimeFeatureTrustsResult, securityPolicyResult, skillDefinitionsResult, remediationProposalResult, remediationWorkflowsResult, agentQualityWindowsResult] = await Promise.allSettled([
+    const [profilesResult, operationalViewResult, setupReadinessResult, latestAuthFailureResult, connectionRepairActionsResult, runtimeBindingsResult, runtimeAgentsResult, tasksResult, taskLineageResult, securityEventsResult, runtimeCapabilityProfileResult, runtimeDescriptorResult, runtimeCapabilityItemsResult, runtimeLoadResult, capabilityAssignmentsResult, capabilityCatalogResult, runtimeFeatureObservationsResult, runtimeFeatureTrustsResult, securityPolicyResult, skillDefinitionsResult, remediationProposalResult, remediationWorkflowsResult, agentQualityWindowsResult] = await Promise.allSettled([
       preloadedProfileResult.status === 'fulfilled'
         ? Promise.resolve(preloadedProfileResult.value)
         : Promise.reject(preloadedProfileResult.reason),
@@ -216,33 +229,31 @@ export function useAgentDetail(agentId: string) {
         if (isNotFoundOrUnsupportedApiError(error)) return undefined;
         throw error;
       }),
-      coreAdminApi.getAgentLatestAuthFailure(agentId).catch((error) => {
+      loadAdvanced ? coreAdminApi.getAgentLatestAuthFailure(agentId).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return undefined;
         throw error;
-      }),
-      coreAdminApi.getAgentConnectionRepairActions(agentId).catch((error) => {
+      }) : Promise.resolve(undefined),
+      loadAdvanced ? coreAdminApi.getAgentConnectionRepairActions(agentId).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return undefined;
         throw error;
-      }),
+      }) : Promise.resolve(undefined),
       coreAdminApi.getAgentRuntimeBindings(agentId).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return [];
         throw error;
       }),
       nettyRuntimeApi.getClusterRuntimeAgents().catch(() => nettyRuntimeApi.getRuntimeAgents()),
-      coreAdminApi.getTasksRuntimeView(),
-      coreAdminApi.getSecurityEvents().catch(() => coreAdminApi.getAgentSecurityEvents()),
-      coreAdminApi.getAgentRuntimeCapabilityProfile(agentId).catch((error) => {
-        if (isNotFoundOrUnsupportedApiError(error)) return undefined;
-        throw error;
-      }),
+      taskAdminApi.getTasksRuntimeView(),
+      loadTaskLineage ? taskAdminApi.getAgentTaskLineage(agentId, 500) : Promise.resolve([]),
+      loadAdvanced ? coreAdminApi.getSecurityEvents().catch(() => coreAdminApi.getAgentSecurityEvents()) : Promise.resolve([]),
+      Promise.resolve(undefined),
       coreAdminApi.getAgentRuntimeDescriptor(agentId).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return undefined;
         throw error;
       }),
-      coreAdminApi.getAgentRuntimeCapabilities(agentId).catch((error) => {
+      loadCapabilityDiagnostics ? coreAdminApi.getAgentRuntimeCapabilities(agentId).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return [];
         throw error;
-      }),
+      }) : Promise.resolve([]),
       coreAdminApi.getAgentRuntimeLoad(agentId).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return undefined;
         throw error;
@@ -251,42 +262,20 @@ export function useAgentDetail(agentId: string) {
         if (isNotFoundOrUnsupportedApiError(error)) return [];
         throw error;
       }),
-      scopedTenantId ? coreAdminApi.getCapabilities('ACTIVE', undefined, scopedTenantId).catch((error) => {
+      loadCapabilityDiagnostics && scopedTenantId ? coreAdminApi.getCapabilities('ACTIVE', undefined, scopedTenantId).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return [];
         throw error;
       }) : Promise.resolve([]),
-      coreAdminApi.getAgentCertifications(agentId).catch((error) => {
+      Promise.resolve([]),
+      Promise.resolve([]),
+      Promise.resolve(undefined),
+      Promise.resolve([]),
+      Promise.resolve(undefined),
+      Promise.resolve([]),
+      loadCapabilityDiagnostics ? coreAdminApi.getAgentQualityWindows(agentId, '24h', scopedTenantId, 8).catch((error) => {
         if (isNotFoundOrUnsupportedApiError(error)) return [];
         throw error;
-      }),
-      coreAdminApi.getAgentRuntimeFeatureObservations(agentId).catch((error) => {
-        if (isNotFoundOrUnsupportedApiError(error)) return [];
-        throw error;
-      }),
-      coreAdminApi.getAgentRuntimeFeatureTrusts(agentId).catch((error) => {
-        if (isNotFoundOrUnsupportedApiError(error)) return [];
-        throw error;
-      }),
-      coreAdminApi.getAgentSecurityEnforcementPolicy(agentId).catch((error) => {
-        if (isNotFoundOrUnsupportedApiError(error)) return undefined;
-        throw error;
-      }),
-      coreAdminApi.getAgentSkillDefinitions().catch((error) => {
-        if (isNotFoundOrUnsupportedApiError(error)) return [];
-        throw error;
-      }),
-      coreAdminApi.getAgentRemediationProposal(agentId).catch((error) => {
-        if (isNotFoundOrUnsupportedApiError(error)) return undefined;
-        throw error;
-      }),
-      coreAdminApi.listAgentRemediationWorkflows(agentId).catch((error) => {
-        if (isNotFoundOrUnsupportedApiError(error)) return [];
-        throw error;
-      }),
-      coreAdminApi.getAgentQualityWindows(agentId, '24h', scopedTenantId, 8).catch((error) => {
-        if (isNotFoundOrUnsupportedApiError(error)) return [];
-        throw error;
-      })
+      }) : Promise.resolve([])
     ]);
 
 
@@ -304,6 +293,7 @@ export function useAgentDetail(agentId: string) {
         .filter((task) => task.assignedAgentId === agentId || (typeof task.payload === 'object' && task.payload !== null && (task.payload as Record<string, unknown>).agentId === agentId))
         .sort(byRecentDate)
       : [];
+    const taskLineage = taskLineageResult.status === 'fulfilled' ? taskLineageResult.value : [];
     const securityEvents = securityEventsResult.status === 'fulfilled'
       ? securityEventsResult.value.filter((event) => includesAgent(event, agentId)).sort(byRecentDate)
       : [];
@@ -313,7 +303,6 @@ export function useAgentDetail(agentId: string) {
     const runtimeLoad = runtimeLoadResult.status === 'fulfilled' ? runtimeLoadResult.value : undefined;
     const capabilityAssignments = capabilityAssignmentsResult.status === 'fulfilled' ? capabilityAssignmentsResult.value : [];
     const capabilityCatalog = capabilityCatalogResult.status === 'fulfilled' ? capabilityCatalogResult.value : [];
-    const certificationRuns = certificationRunsResult.status === 'fulfilled' ? certificationRunsResult.value : [];
     const agentQualityWindows = agentQualityWindowsResult.status === 'fulfilled' ? agentQualityWindowsResult.value : [];
     const runtimeFeatureObservations = runtimeFeatureObservationsResult.status === 'fulfilled' ? runtimeFeatureObservationsResult.value : [];
     const runtimeFeatureTrusts = runtimeFeatureTrustsResult.status === 'fulfilled' ? runtimeFeatureTrustsResult.value : [];
@@ -362,7 +351,6 @@ export function useAgentDetail(agentId: string) {
       agentPools,
       capabilityAssignments,
       capabilityCatalog,
-      certificationRuns,
       agentQualityWindows,
       runtimeFeatureObservations,
       runtimeFeatureTrusts,
@@ -374,6 +362,7 @@ export function useAgentDetail(agentId: string) {
       runtimeBindings,
       row,
       tasks,
+      taskLineage,
       securityEvents,
       securityPolicy,
       skillDefinitions,
@@ -384,6 +373,7 @@ export function useAgentDetail(agentId: string) {
         coreOperationalView: settledError(operationalViewResult),
         nettyRuntimeAgents: settledError(runtimeAgentsResult),
         coreTasks: settledError(tasksResult),
+        coreTaskLineage: settledError(taskLineageResult),
         coreSecurityEvents: settledError(securityEventsResult),
         coreSetupReadiness: settledError(setupReadinessResult),
         coreLatestAuthFailure: settledError(latestAuthFailureResult),
@@ -391,15 +381,14 @@ export function useAgentDetail(agentId: string) {
         coreRuntimeBindings: settledError(runtimeBindingsResult),
         coreCapabilityAssignments: settledError(capabilityAssignmentsResult),
         coreCapabilityCatalog: settledError(capabilityCatalogResult),
-        coreAgentCertifications: settledError(certificationRunsResult),
         coreAgentQualityObservation: settledError(agentQualityWindowsResult),
         coreDispatchFlows: settledError(dispatchFlowsResult),
         coreAgentPools: settledError(agentPoolsResult),
       }
     };
-  }, [agentId]);
+  }, [agentId, tenantId, loadAdvanced, loadTaskLineage, loadCapabilityDiagnostics]);
 
-  const resource = usePollingResource<AgentDetailBundle>(loader);
+  const resource = usePollingResource<AgentDetailBundle>(loader, enabled && Boolean(tenantId.trim()));
 
   const data = useMemo(() => resource.data, [resource.data]);
 
@@ -458,7 +447,6 @@ export function useAgentDetail(agentId: string) {
     return runCommand('ENFORCE_DUPLICATE_SECURITY', () => env.useMock
       ? Promise.resolve(getMockCommandResult(`Duplicate runtime security enforcement accepted for ${agentId}`))
       : coreAdminApi.enforceDuplicateRuntimeSecurity(agentId, {
-        operatorId: 'admin-ui',
         reason: revokeCredentials
           ? 'Duplicate runtime sessions detected. Quarantine, revoke active credentials, and disconnect all sessions.'
           : 'Duplicate runtime sessions detected. Quarantine, require credential rotation, and disconnect all sessions.',
@@ -541,11 +529,10 @@ export function useAgentDetail(agentId: string) {
     return runCommand('CLEAR_RUNTIME_BACKOFF', () => env.useMock
       ? Promise.resolve(getMockCommandResult(`Runtime backoff cleared for ${agentId}`))
       : coreAdminApi.clearRuntimeBackoff(agentId, body ?? {
-        operatorId: 'admin-ui',
         reason: 'Manual clear runtime backoff from Agent detail',
         riskAcknowledged: true,
         confirmationPhrase: 'CONFIRM_RECOVERY_ACTION',
-        requestId: `admin-ui-clear-backoff-${Date.now()}`
+        requestId: createIdempotencyKey('agent-clear-backoff')
       }));
   }
 
@@ -556,7 +543,6 @@ export function useAgentDetail(agentId: string) {
     return runCommand('CREATE_REMEDIATION_PROPOSAL', () => env.useMock
       ? Promise.resolve(getMockCommandResult(`Remediation proposal generated for ${agentId}`))
       : coreAdminApi.createAgentRemediationProposal(agentId, body ?? {
-        operatorId: 'admin-ui',
         reason: 'Agent remediation proposal generated from Admin UI.',
         persistEvent: true
       }));
@@ -569,7 +555,6 @@ export function useAgentDetail(agentId: string) {
     return runCommand('CREATE_REMEDIATION_WORKFLOW', () => env.useMock
       ? Promise.resolve(getMockCommandResult(`Remediation workflow created for ${agentId}`))
       : coreAdminApi.createAgentRemediationWorkflow(agentId, body ?? {
-        operatorId: 'admin-ui',
         reason: 'Agent remediation workflow created from Admin UI.',
         riskAcknowledged: false
       }));
@@ -577,7 +562,7 @@ export function useAgentDetail(agentId: string) {
 
   async function decideAgentRemediationWorkflow(command: 'APPROVE_REMEDIATION_WORKFLOW' | 'REJECT_REMEDIATION_WORKFLOW' | 'CANCEL_REMEDIATION_WORKFLOW' | 'EXECUTE_REMEDIATION_WORKFLOW', workflowId: string, body?: CoreAgentRemediationWorkflowDecisionRequest): Promise<CommandResult> {
     const env = getPublicEnv();
-    const request = body ?? { operatorId: 'admin-ui', reason: `${command} from Admin UI.`, dryRun: command === 'EXECUTE_REMEDIATION_WORKFLOW' ? false : undefined };
+    const request = body ?? { reason: `${command} from Admin UI.`, dryRun: command === 'EXECUTE_REMEDIATION_WORKFLOW' ? false : undefined };
     return runCommand(command, () => {
       if (env.useMock) return Promise.resolve(getMockCommandResult(`${command} accepted for ${workflowId}`));
       if (command === 'APPROVE_REMEDIATION_WORKFLOW') return coreAdminApi.approveAgentRemediationWorkflow(agentId, workflowId, request);
@@ -587,19 +572,6 @@ export function useAgentDetail(agentId: string) {
     });
   }
 
-  async function syncApprovedSkillsFromRemediation(skillCodes: string[]): Promise<CommandResult> {
-    const env = getPublicEnv();
-    const normalized = Array.from(new Set((skillCodes ?? []).filter((value) => value && value.trim()).map((value) => value.trim())));
-    return runCommand('SYNC_APPROVED_SKILLS', () => env.useMock
-      ? Promise.resolve(getMockCommandResult(`Approved skill sync accepted for ${agentId}`))
-      : coreAdminApi.syncAgentApprovedSkillsAndCapabilities(agentId, {
-        skillCodes: normalized,
-        enabled: true,
-        syncProfileCapabilities: true,
-        operatorId: 'admin-ui',
-        reason: 'P5 remediation workflow synchronized approved skills and governance capabilities.'
-      }));
-  }
 
 
 
@@ -756,7 +728,6 @@ export function useAgentDetail(agentId: string) {
     revokeAgentRuntimeFeatureTrust,
     createAgentRemediationProposal,
     createAgentRemediationWorkflow,
-    decideAgentRemediationWorkflow,
-    syncApprovedSkillsFromRemediation
+    decideAgentRemediationWorkflow
   };
 }

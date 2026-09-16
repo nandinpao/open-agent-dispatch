@@ -86,7 +86,7 @@ export function RejectedConnectionsTable() {
     setStateFilter(allValue);
   }
 
-  if (loading) return <LoadingBox label="讀取 Netty rejected connections..." />;
+  if (loading) return <LoadingBox label="load Netty rejected connections..." />;
   if (error) return <ErrorBox message={error} />;
   if (!data || data.length === 0) return <EmptyState title={rejectedConnectionsEmptyTitle()} description={rejectedConnectionsEmptyDescription()} />;
 
@@ -101,13 +101,13 @@ export function RejectedConnectionsTable() {
         <p className="mt-1">{rejectedConnectionSemantics().description}</p>
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <div className="font-semibold">會出現在這裡</div>
+            <div className="font-semibold">Details</div>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-xs">
               {rejectedConnectionSemantics().examples.map((item) => <li key={item}>{item}</li>)}
             </ul>
           </div>
           <div>
-            <div className="font-semibold">不會出現在這裡</div>
+            <div className="font-semibold">Details</div>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-xs">
               {rejectedConnectionSemantics().nonExamples.map((item) => <li key={item}>{item}</li>)}
             </ul>
@@ -117,14 +117,14 @@ export function RejectedConnectionsTable() {
 
       <ListFilterBar
         search={search}
-        searchPlaceholder="搜尋 claimed Agent、remote IP、gateway、reason、session..."
+        searchPlaceholder="search claimed Agent,remote IP,gateway,reason,session..."
         onSearchChange={setSearch}
         filters={filters}
         onClear={clearFilters}
       />
 
       {filtered.length === 0 ? (
-        <EmptyState title="沒有符合條件的 rejected connection" description="請調整關鍵字、拒絕原因或授權狀態篩選條件。" />
+        <EmptyState title="No matching rejected connection" description="Adjust the status filter and try again." />
       ) : (
         <>
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

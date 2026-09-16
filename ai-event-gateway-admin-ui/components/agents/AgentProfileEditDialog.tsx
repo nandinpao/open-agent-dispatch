@@ -1,26 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDialogAccessibility } from "@/hooks/useDialogAccessibility";
 import { coreAdminApi } from "@/lib/api/coreAdminApi";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { GovernedSelect, LegacyValueWarning } from "@/components/governance/StrictSelectionControls";
+import { AgentOwnershipAsyncFields } from "@/components/agents/AgentOwnershipAsyncFields";
 import { GOVERNED_AGENT_TYPES, GOVERNED_OWNER_TEAMS } from "@/lib/governance/strictSelection";
-import { parseScopeCsv } from "@/lib/agents/enrollmentWorkflow";
 import type {
   AgentProfileUpdateRequest,
-  CoreAgentAuthorizationScope,
   CoreAgentProfile,
 } from "@/lib/types/core";
-
-function csvScopes(scopes?: CoreAgentAuthorizationScope[] | null): string {
-  return (scopes ?? [])
-    .map((scope) =>
-      [scope.systemCode ?? "*", scope.taskType ?? "*", scope.siteCode]
-        .filter(Boolean)
-        .join("/"),
-    )
-    .join(",");
-}
 
 function profileVersionKey(profile: CoreAgentProfile): string {
   return [
@@ -43,8 +33,9 @@ export function AgentProfileEditDialog({
   triggerLabel = "Edit Profile",
   onSaved,
 }: Readonly<AgentProfileEditDialogProps>) {
-  const { selectedTenantId } = useAuth();
+  const { activeTenantId: selectedTenantId } = useAuth();
   const [open, setOpen] = useState(false);
+  const dialogRef = useDialogAccessibility(open, () => setOpen(false));
   const [saving, setSaving] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,13 +45,16 @@ export function AgentProfileEditDialog({
   );
   const [agentType, setAgentType] = useState(profile.agentType ?? "UNKNOWN");
   const [ownerTeam, setOwnerTeam] = useState(profile.ownerTeam ?? "");
+  const [ownerDepartmentId, setOwnerDepartmentId] = useState(profile.ownerDepartmentId ?? "");
+  const [ownerGroupId, setOwnerGroupId] = useState(profile.ownerGroupId ?? "");
+  const [businessOwnerUserId, setBusinessOwnerUserId] = useState(profile.businessOwnerUserId ?? "");
+  const [technicalStewardUserId, setTechnicalStewardUserId] = useState(profile.technicalStewardUserId ?? "");
+  const [responsibilityRoleId, setResponsibilityRoleId] = useState(profile.responsibilityRoleId ?? "");
+  const [businessOwnerEligible, setBusinessOwnerEligible] = useState(true);
   const [description, setDescription] = useState(profile.description ?? "");
   const [approvalStatus, setApprovalStatus] = useState(profile.approvalStatus ?? "PENDING_REVIEW");
   const [riskStatus, setRiskStatus] = useState(profile.riskStatus ?? "NORMAL");
   const [enabled, setEnabled] = useState(profile.enabled);
-  const [scopes, setScopes] = useState(
-    csvScopes(profile.authorizationScopes) || "*/*",
-  );
 
   const profileKey = useMemo(() => profileVersionKey(profile), [profile]);
   const loadedProfileAgentRef = useRef<string | null>(null);
@@ -70,16 +64,22 @@ export function AgentProfileEditDialog({
     setAgentName(source.agentName ?? source.agentId);
     setAgentType(source.agentType ?? "UNKNOWN");
     setOwnerTeam(source.ownerTeam ?? "");
+    setOwnerDepartmentId(source.ownerDepartmentId ?? "");
+    setOwnerGroupId(source.ownerGroupId ?? "");
+    setBusinessOwnerUserId(source.businessOwnerUserId ?? "");
+    setTechnicalStewardUserId(source.technicalStewardUserId ?? "");
+    setResponsibilityRoleId(source.responsibilityRoleId ?? "");
     setDescription(source.description ?? "");
     setApprovalStatus(source.approvalStatus ?? "PENDING_REVIEW");
     setRiskStatus(source.riskStatus ?? "NORMAL");
     setEnabled(source.enabled);
-    setScopes(csvScopes(source.authorizationScopes) || "*/*");
   }, [selectedTenantId]);
 
   useEffect(() => {
-    if (selectedTenantId) setTenantId(selectedTenantId);
-  }, [selectedTenantId]);
+    if (!selectedTenantId) return;
+    if (open && tenantId && tenantId !== selectedTenantId) setOpen(false);
+    setTenantId(selectedTenantId);
+  }, [open, selectedTenantId, tenantId]);
 
   useEffect(() => {
     if (!open) {
@@ -113,11 +113,15 @@ export function AgentProfileEditDialog({
       agentName,
       agentType,
       ownerTeam,
+      ownerDepartmentId: ownerDepartmentId || undefined,
+      ownerGroupId: ownerGroupId || undefined,
+      businessOwnerUserId: businessOwnerUserId || undefined,
+      technicalStewardUserId: technicalStewardUserId || undefined,
+      responsibilityRoleId: responsibilityRoleId || undefined,
       description,
       approvalStatus,
       riskStatus,
       enabled,
-      scopes: parseScopeCsv(scopes, tenantId),
       reason: "Updated from Admin UI Agent Governance dialog",
     }),
     [
@@ -127,13 +131,25 @@ export function AgentProfileEditDialog({
       enabled,
       approvalStatus,
       ownerTeam,
+      ownerDepartmentId,
+      ownerGroupId,
+      businessOwnerUserId,
+      technicalStewardUserId,
+      responsibilityRoleId,
       riskStatus,
-      scopes,
       tenantId,
     ],
   );
 
   async function save() {
+    if (!ownerDepartmentId || !businessOwnerUserId || !responsibilityRoleId) {
+      setError("Owner Department, Business Owner and Agent Responsibility are required before an Agent can be governed as active.");
+      return;
+    }
+    if (!businessOwnerEligible) {
+      setError("The selected Business Owner is not an active Tenant member and active member of the selected Owner Department.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -163,9 +179,12 @@ export function AgentProfileEditDialog({
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4"
+          ref={dialogRef}
+          tabIndex={-1}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 outline-none"
           role="dialog"
           aria-modal="true"
+          aria-label="Edit Agent profile"
         >
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
@@ -217,6 +236,20 @@ export function AgentProfileEditDialog({
               </label>
               <GovernedSelect label="Agent Type" value={agentType} options={GOVERNED_AGENT_TYPES} onChange={setAgentType} />
               <GovernedSelect label="Owner Team" value={ownerTeam} options={GOVERNED_OWNER_TEAMS} onChange={setOwnerTeam} />
+              <AgentOwnershipAsyncFields
+                tenantId={selectedTenantId || tenantId || profile.tenantId || ""}
+                idPrefix={`agent-edit-${profile.agentId}`}
+                values={{ ownerDepartmentId, ownerGroupId, businessOwnerUserId, technicalStewardUserId, responsibilityRoleId }}
+                onChange={(patch) => {
+                  if (patch.ownerDepartmentId !== undefined) setOwnerDepartmentId(patch.ownerDepartmentId);
+                  if (patch.ownerGroupId !== undefined) setOwnerGroupId(patch.ownerGroupId);
+                  if (patch.businessOwnerUserId !== undefined) setBusinessOwnerUserId(patch.businessOwnerUserId);
+                  if (patch.technicalStewardUserId !== undefined) setTechnicalStewardUserId(patch.technicalStewardUserId);
+                  if (patch.responsibilityRoleId !== undefined) setResponsibilityRoleId(patch.responsibilityRoleId);
+                }}
+                onBusinessOwnerEligibilityChange={setBusinessOwnerEligible}
+                disabled={saving || loadingLatest}
+              />
               <label className="text-sm font-semibold text-slate-700">
                 Approval Status
                 <select
@@ -231,7 +264,7 @@ export function AgentProfileEditDialog({
                   <option value="REVOKED">REVOKED</option>
                 </select>
                 <p className="mt-1 text-xs font-normal text-slate-400">
-                  用於人工審核誤判修正；若改回 APPROVED，仍需有效 credential 才會 Ready。
+                   APPROVED credential  Ready.
                 </p>
               </label>
               <label className="text-sm font-semibold text-slate-700">
@@ -256,21 +289,20 @@ export function AgentProfileEditDialog({
                 />{" "}
                 Enabled
               </label>
+              <div className={`md:col-span-2 rounded-2xl border p-4 text-sm ${profile.ownershipReviewStatus === "CURRENT" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                <div className="font-black">Ownership review · {profile.ownershipReviewStatus ?? "REVIEW_REQUIRED"}</div>
+                <p className="mt-1">{profile.ownershipReviewReason ?? "Assign accountable ownership and save this profile to establish the Phase 12.2 governance contract."}</p>
+                {profile.nextOwnershipReviewAt ? <p className="mt-1 text-xs font-semibold">Next review: {new Date(profile.nextOwnershipReviewAt).toLocaleString()}</p> : null}
+              </div>
               <div className="md:col-span-2 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
                 <div className="font-black text-blue-950">Capabilities are managed from Agent Detail</div>
                 <p className="mt-1 leading-6">This edit dialog only updates the Core Agent profile metadata. Use Agent Detail &gt; Capabilities to request, approve, suspend, resume, or revoke capabilities with audit history.</p>
               </div>
               <div className="md:col-span-2"><LegacyValueWarning label="agent type" values={[agentType]} options={GOVERNED_AGENT_TYPES} /><LegacyValueWarning label="owner team" values={[ownerTeam]} options={GOVERNED_OWNER_TEAMS} /></div>
-              <label className="md:col-span-2 text-sm font-semibold text-slate-700">
-                Authorization Scopes — legacy review only
-                <input
-                  value={scopes}
-                  onChange={(event) => setScopes(event.target.value)}
-                  placeholder="SRC_E2E_7F28/*,FACTORY_IOT_01/*"
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                />
-                <p className="mt-1 text-xs font-normal text-amber-700">P2-J: scopes remain visible for legacy review only. Dispatch-affecting eligibility must move to Task Definition / Capability / Runtime Feature catalogs.</p>
-              </label>
+              <div className="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                <div className="font-black">Dispatch Access is managed separately</div>
+                <p className="mt-1 leading-6">Use Agent Detail &gt; Dispatch Access to grant Source System and Task Type access with canonical selectors. Profile editing never expands workload access.</p>
+              </div>
               <label className="md:col-span-2 text-sm font-semibold text-slate-700">
                 Description
                 <textarea

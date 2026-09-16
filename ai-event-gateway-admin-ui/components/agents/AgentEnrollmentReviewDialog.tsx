@@ -1,20 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDialogAccessibility } from "@/hooks/useDialogAccessibility";
 import { IsoDateTimePicker } from "@/components/common/IsoDateTimePicker";
 import { CredentialTokenInput } from "@/components/agents/CredentialTokenInput";
 import { CapabilityCardSelector } from "@/components/agents/CapabilityCardSelector";
 import { GovernedSelect, LegacyValueWarning } from "@/components/governance/StrictSelectionControls";
 import { GOVERNED_AGENT_TYPES, GOVERNED_OWNER_TEAMS } from "@/lib/governance/strictSelection";
 import { coreAdminApi } from "@/lib/api/coreAdminApi";
-import { requireCoreTenantContext } from "@/lib/api/coreClient";
+import { AgentOwnershipAsyncFields } from "@/components/agents/AgentOwnershipAsyncFields";
+import { getCoreTenantContext, requireCoreTenantContext } from "@/lib/api/coreClient";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { canApproveEnrollmentForRow, isCorrectableEnrollmentStatus, isOpenEnrollmentStatus, isRejectedEnrollmentStatus } from "@/lib/agents/governanceStatus";
 import {
   buildDefaultApprovalRequest,
   isRuntimeObservedEnrollment,
   parseCapabilitiesCsv,
-  parseScopeCsv,
   rowToEnrollmentRequest,
 } from "@/lib/agents/enrollmentWorkflow";
 import type { AgentDashboardRow } from "@/lib/types/dashboard";
@@ -22,6 +23,7 @@ import type {
   AgentEnrollmentApprovalRequest,
   AgentEnrollmentCreateRequest,
   CoreAgentCapabilityCatalog,
+  CoreAgentAuthorizationScope,
 } from "@/lib/types/core";
 
 interface AgentApprovalDraft {
@@ -30,9 +32,14 @@ interface AgentApprovalDraft {
   agentType: string;
   tenantId: string;
   ownerTeam: string;
+  ownerDepartmentId: string;
+  ownerGroupId: string;
+  businessOwnerUserId: string;
+  technicalStewardUserId: string;
+  responsibilityRoleId: string;
   description: string;
   capabilitiesCsv: string;
-  scopesCsv: string;
+  scopes: CoreAgentAuthorizationScope[];
   credentialToken: string;
   credentialExpiresAt: string;
   comment: string;
@@ -48,13 +55,20 @@ interface AgentEnrollmentReviewDialogProps {
 function buildDraft(row: AgentDashboardRow): AgentApprovalDraft {
   const enrollment = row.enrollment;
   const defaults = enrollment ? buildDefaultApprovalRequest(enrollment) : {};
-  const tenantId = requireCoreTenantContext(defaults.tenantId ?? row.profile?.tenantId);
+  // Runtime-observed Agents must render even before a Tenant is selected. Governance mutation
+  // functions below remain fail-closed and require a Tenant at submit time.
+  const tenantId = String(defaults.tenantId ?? row.profile?.tenantId ?? getCoreTenantContext() ?? "").trim();
   return {
     agentId: defaults.agentId ?? row.agentId,
     agentName: defaults.agentName ?? row.profile?.agentName ?? row.agentId,
     agentType: defaults.agentType ?? row.profile?.agentType ?? "UNKNOWN",
     tenantId,
     ownerTeam: defaults.ownerTeam ?? row.profile?.ownerTeam ?? "",
+    ownerDepartmentId: defaults.ownerDepartmentId ?? row.profile?.ownerDepartmentId ?? "",
+    ownerGroupId: defaults.ownerGroupId ?? row.profile?.ownerGroupId ?? "",
+    businessOwnerUserId: defaults.businessOwnerUserId ?? row.profile?.businessOwnerUserId ?? "",
+    technicalStewardUserId: defaults.technicalStewardUserId ?? row.profile?.technicalStewardUserId ?? "",
+    responsibilityRoleId: defaults.responsibilityRoleId ?? row.profile?.responsibilityRoleId ?? "",
     description: defaults.description ?? row.profile?.description ?? "",
     capabilitiesCsv: (
       defaults.capabilities ??
@@ -63,18 +77,7 @@ function buildDraft(row: AgentDashboardRow): AgentApprovalDraft {
       ) ??
       []
     ).join(","),
-    scopesCsv: (
-      defaults.scopes ??
-      row.profile?.authorizationScopes ?? [
-        { systemCode: "*", taskType: "*", tenantId, enabled: true },
-      ]
-    )
-      .map((scope) =>
-        [scope.systemCode ?? "*", scope.taskType ?? "*", scope.siteCode]
-          .filter(Boolean)
-          .join("/"),
-      )
-      .join(","),
+    scopes: [...(defaults.scopes ?? row.profile?.authorizationScopes ?? [])],
     credentialToken: defaults.credentialToken ?? "",
     credentialExpiresAt: defaults.credentialExpiresAt ?? "",
     comment: defaults.comment ?? "",
@@ -92,9 +95,14 @@ function draftToApprovalRequest(
     agentName: draft.agentName.trim() || agentId,
     agentType: draft.agentType.trim() || "UNKNOWN",
     ownerTeam: draft.ownerTeam.trim() || undefined,
+    ownerDepartmentId: draft.ownerDepartmentId || undefined,
+    ownerGroupId: draft.ownerGroupId || undefined,
+    businessOwnerUserId: draft.businessOwnerUserId || undefined,
+    technicalStewardUserId: draft.technicalStewardUserId || undefined,
+    responsibilityRoleId: draft.responsibilityRoleId || undefined,
     description: draft.description.trim() || undefined,
     capabilities: parseCapabilitiesCsv(draft.capabilitiesCsv),
-    scopes: parseScopeCsv(draft.scopesCsv || "*/*", tenantId),
+    scopes: draft.scopes,
     credentialToken: draft.credentialToken.trim() || undefined,
     credentialExpiresAt: draft.credentialExpiresAt.trim() || undefined,
     comment: draft.comment.trim() || undefined,
@@ -112,7 +120,7 @@ function draftToEnrollmentRequest(
     tenantId,
     agentName: draft.agentName.trim() || agentId,
     agentType: draft.agentType.trim() || "UNKNOWN",
-    submittedMetadataJson: {
+    submittedMetadata: {
       source: row.enrollment?.enrollmentId?.startsWith("runtime:")
         ? "NETTY_RUNTIME_OBSERVATION"
         : "ADMIN_DRAFT_EDIT",
@@ -120,8 +128,14 @@ function draftToEnrollmentRequest(
       gatewayNodeId: row.runtime?.gatewayNodeId ?? row.runtime?.nodeId,
       sessionId: row.runtime?.sessionId,
       authorizationState: row.runtime?.authorizationState,
+      ownerDepartmentId: draft.ownerDepartmentId || undefined,
+      ownerGroupId: draft.ownerGroupId || undefined,
+      businessOwnerUserId: draft.businessOwnerUserId || undefined,
+      technicalStewardUserId: draft.technicalStewardUserId || undefined,
+      responsibilityRoleId: draft.responsibilityRoleId || undefined,
+      ownerTeam: draft.ownerTeam.trim() || undefined,
     },
-    evidenceJson: row.runtime?.payload ?? row.runtime ?? {},
+    evidence: row.runtime?.payload ?? row.runtime ?? {},
     fingerprint: row.enrollment?.fingerprint,
     remoteAddress: row.enrollment?.remoteAddress ?? row.runtime?.remoteAddress,
     submittedAt:
@@ -137,14 +151,17 @@ export function AgentEnrollmentReviewDialog({
   intent = "edit",
   onChanged,
 }: Readonly<AgentEnrollmentReviewDialogProps>) {
-  const { selectedTenantId } = useAuth();
+  const { activeTenantId: selectedTenantId } = useAuth();
   const [open, setOpen] = useState(false);
+  const dialogRef = useDialogAccessibility(open, () => setOpen(false));
   const [draft, setDraft] = useState<AgentApprovalDraft>(() => buildDraft(row));
+  const [businessOwnerEligible, setBusinessOwnerEligible] = useState(true);
   const [submitting, setSubmitting] = useState<
     "save" | "approve" | "reject" | null
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [approvalCompleted, setApprovalCompleted] = useState(false);
   const [capabilityCatalog, setCapabilityCatalog] = useState<CoreAgentCapabilityCatalog[]>([]);
   const [loadingCapabilities, setLoadingCapabilities] = useState(false);
   const loadedDraftAgentRef = useRef<string | null>(null);
@@ -165,7 +182,17 @@ export function AgentEnrollmentReviewDialog({
         : "rounded-lg border border-amber-200 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50";
 
   useEffect(() => {
-    if (selectedTenantId) setDraft((current) => ({ ...current, tenantId: selectedTenantId }));
+    if (!selectedTenantId) return;
+    setDraft((current) => current.tenantId === selectedTenantId ? current : ({
+      ...current,
+      tenantId: selectedTenantId,
+      ownerDepartmentId: "",
+      ownerGroupId: "",
+      businessOwnerUserId: "",
+      technicalStewardUserId: "",
+      responsibilityRoleId: "",
+    }));
+    setBusinessOwnerEligible(true);
   }, [selectedTenantId]);
 
   useEffect(() => {
@@ -173,12 +200,24 @@ export function AgentEnrollmentReviewDialog({
       loadedDraftAgentRef.current = null;
       return;
     }
-    if (loadedDraftAgentRef.current === row.agentId) return;
-    loadedDraftAgentRef.current = row.agentId;
-    setDraft(buildDraft(row));
+    const nextDraft = buildDraft(row);
+    const loadKey = `${selectedTenantId || nextDraft.tenantId}:${row.agentId}`;
+    if (loadedDraftAgentRef.current === loadKey) return;
+    loadedDraftAgentRef.current = loadKey;
+    setDraft(selectedTenantId && nextDraft.tenantId !== selectedTenantId ? ({
+      ...nextDraft,
+      tenantId: selectedTenantId,
+      ownerDepartmentId: "",
+      ownerGroupId: "",
+      businessOwnerUserId: "",
+      technicalStewardUserId: "",
+      responsibilityRoleId: "",
+    }) : nextDraft);
+    setBusinessOwnerEligible(true);
     setError(null);
     setSavedMessage(null);
-  }, [open, row]);
+    setApprovalCompleted(false);
+  }, [open, row, selectedTenantId]);
 
   useEffect(() => {
     if (!open) return;
@@ -194,7 +233,9 @@ export function AgentEnrollmentReviewDialog({
       .finally(() => {
         if (!cancelled) setLoadingCapabilities(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [open, selectedTenantId]);
 
   const approvalRequest = useMemo(() => draftToApprovalRequest(draft), [draft]);
@@ -249,9 +290,66 @@ export function AgentEnrollmentReviewDialog({
     }
   }
 
+  async function activateObservedRuntimeBinding(agentId: string, tenantId: string, agentType: string) {
+    const runtime = row.runtime;
+    if (!runtime || runtime.connected === false) return null;
+    const gatewayNodeId = runtime.gatewayNodeId ?? runtime.nodeId ?? "gateway-node-unknown";
+    const runtimeCode = `${agentId}-${gatewayNodeId}-runtime`
+      .trim()
+      .replace(/[^A-Za-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .toUpperCase();
+    const runtimeId = `runtime-${runtimeCode.toLowerCase().replace(/_/g, "-")}`;
+    const capacityLimit = Math.max(1, runtime.activeTaskCount === undefined ? 1 : runtime.activeTaskCount + 1);
+    await coreAdminApi.upsertRuntimeResource(runtimeId, {
+      tenantId,
+      runtimeId,
+      runtimeCode,
+      runtimeName: `${agentId} runtime on ${gatewayNodeId}`,
+      runtimeType: agentType || "AGENT_RUNTIME",
+      connectorType: "GATEWAY_RUNTIME",
+      executionHost: gatewayNodeId,
+      environment: "runtime-observation",
+      trustStatus: "TRUSTED",
+      status: "ACTIVE",
+      capacityLimit,
+      metadata: {
+        source: "Agent Governance approval",
+        gatewayNodeId,
+        agentSessionId: runtime.sessionId,
+        dispatchAuthority: "ACTIVE_RUNTIME_BINDING",
+      },
+    }, tenantId);
+    return coreAdminApi.upsertAgentRuntimeBinding(agentId, {
+      tenantId,
+      agentId,
+      runtimeId,
+      runtimeCode,
+      bindingStatus: "ACTIVE",
+      verifiedBy: "admin-ui",
+      capacityLimit,
+      dataScope: "STANDARD",
+      riskLimit: "MIDDLE",
+      metadata: {
+        source: "Agent Governance approval",
+        gatewayNodeId,
+        agentSessionId: runtime.sessionId,
+        dispatchAuthority: "ACTIVE_RUNTIME_BINDING",
+      },
+    });
+  }
+
   async function approve() {
     if (!canApproveEnrollment) {
       setError("Enrollment approval cannot restore a blocked Core Agent profile. Use Restore Approve with new credential material.");
+      return;
+    }
+    if (!draft.ownerDepartmentId || !draft.businessOwnerUserId || !draft.responsibilityRoleId) {
+      setError("Owner Department, Business Owner and Agent Responsibility are required before approval.");
+      return;
+    }
+    if (!businessOwnerEligible) {
+      setError("The selected Business Owner is not an active Tenant member and active member of the selected Owner Department. Choose an eligible Department member before approval.");
       return;
     }
     if (!draft.credentialToken.trim()) {
@@ -262,8 +360,24 @@ export function AgentEnrollmentReviewDialog({
     setError(null);
     try {
       const enrollmentId = await resolveCoreEnrollmentId();
-      await coreAdminApi.approveAgentEnrollment(enrollmentId, approvalRequest);
+      const approved = await coreAdminApi.approveAgentEnrollment(enrollmentId, approvalRequest);
+      setApprovalCompleted(true);
+      let bindingError: string | null = null;
+      try {
+        await activateObservedRuntimeBinding(
+          approved.agentId ?? draft.agentId,
+          requireCoreTenantContext(approved.tenantId ?? draft.tenantId),
+          approved.agentType ?? draft.agentType,
+        );
+      } catch (bindingErr) {
+        bindingError = bindingErr instanceof Error ? bindingErr.message : String(bindingErr);
+      }
       await onChanged?.();
+      if (bindingError) {
+        setSavedMessage("Agent Governance approval succeeded. The runtime binding still needs attention before dispatch can become active.");
+        setError(`Governance approval succeeded, but runtime binding activation failed: ${bindingError}`);
+        return;
+      }
       setOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -278,7 +392,6 @@ export function AgentEnrollmentReviewDialog({
     try {
       const enrollmentId = await resolveCoreEnrollmentId();
       await coreAdminApi.rejectAgentEnrollment(enrollmentId, {
-        rejectedBy: "admin-ui",
         reason: draft.comment.trim() || "Rejected from Agent Governance Console",
       });
       await onChanged?.();
@@ -307,9 +420,12 @@ export function AgentEnrollmentReviewDialog({
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4"
+          ref={dialogRef}
+          tabIndex={-1}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 outline-none"
           role="dialog"
           aria-modal="true"
+          aria-label="Review Agent enrollment"
         >
           <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
@@ -322,14 +438,14 @@ export function AgentEnrollmentReviewDialog({
                       : "Edit Agent Governance Draft"}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  先確認或修正 Agent draft，再執行 Approve / Reject。
+                   Agent draft, again run Approve / Reject.
                   {isObservedOnly
-                    ? "此筆為 runtime observation fallback；正常情況下 Agent 連線時 Core 應已建立 enrollment。"
+                    ? "this records is runtime observation fallback;Healthy Agent  Core Create enrollment."
                     : openEnrollment
-                      ? "此筆已有 Core enrollment，可直接審核。"
+                      ? "this recordshas Core enrollment"
                       : correctableEnrollment
-                        ? "此筆先前已被 Rejected；若為人工審核誤判，可補 credential 後直接 Approve。"
-                        : "此筆已審核完成；若資料輸入錯誤，可使用 Edit 修正。"}
+                        ? " Rejected credential  Approve."
+                        : "Error, canuse Edit "}
                 </p>
               </div>
               <button
@@ -381,13 +497,21 @@ export function AgentEnrollmentReviewDialog({
                 />
               </label>
               <GovernedSelect label="Owner Team" value={draft.ownerTeam} options={GOVERNED_OWNER_TEAMS} onChange={(value) => setField("ownerTeam", value)} />
+              <AgentOwnershipAsyncFields
+                tenantId={selectedTenantId || draft.tenantId}
+                idPrefix={`enrollment-${row.agentId}`}
+                values={draft}
+                onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
+                onBusinessOwnerEligibilityChange={setBusinessOwnerEligible}
+                disabled={Boolean(submitting)}
+              />
               <CredentialTokenInput
                 className="space-y-1 text-sm font-semibold text-slate-700 xl:col-span-2"
                 inputClassName={inputClass}
                 value={draft.credentialToken}
                 onChange={(value) => setField("credentialToken", value)}
                 placeholder="required before Approve / Approve Again"
-                helperText="Generate Token 會使用瀏覽器 Web Crypto 產生 256-bit token；請同步更新實際 Agent 的 AGENT_ONBOARDING_TOKEN 或對應 credential 設定。"
+                helperText="Generate Token  Web Crypto  256-bit tokenReview the configuration and try again. Agent  AGENT_ONBOARDING_TOKEN  credential configuration."
                 onGenerateError={setError}
               />
               <IsoDateTimePicker
@@ -408,17 +532,10 @@ export function AgentEnrollmentReviewDialog({
                   description="Select only governed ACTIVE capabilities from the catalog. Free-form CSV is no longer a trusted dispatch input."
                 />
               </div>
-              <label className="text-sm font-semibold text-slate-700">
-                Scopes CSV
-                <input
-                  value={draft.scopesCsv}
-                  onChange={(event) =>
-                    setField("scopesCsv", event.target.value)
-                  }
-                  placeholder="SRC_E2E_7F28/*,FACTORY_IOT_01/*"
-                  className={inputClass}
-                />
-              </label>
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+                <div className="font-black">Dispatch Access is configured after approval</div>
+                <p className="mt-1 leading-6">Enrollment review establishes identity, ownership, credential and Capability approval. Use Agent Detail &gt; Dispatch Access afterward to grant canonical Source System + Task Type access. Existing access is preserved during re-approval.</p>
+              </div>
               <label className="text-sm font-semibold text-slate-700 xl:col-span-2">
                 Description
                 <textarea
@@ -467,8 +584,8 @@ export function AgentEnrollmentReviewDialog({
               <button
                 type="button"
                 onClick={() => void approve()}
-                disabled={Boolean(submitting) || !canApproveEnrollment || !draft.agentId.trim() || !draft.credentialToken.trim()}
-                title={!canApproveEnrollment ? "Enrollment approval cannot restore a blocked Core Agent profile. Use Restore Approve with new credential material." : !draft.credentialToken.trim() ? "Credential Token is required before Approve" : undefined}
+                disabled={Boolean(submitting) || approvalCompleted || !canApproveEnrollment || !draft.agentId.trim() || !draft.ownerDepartmentId || !draft.businessOwnerUserId || !businessOwnerEligible || !draft.responsibilityRoleId || !draft.credentialToken.trim()}
+                title={!canApproveEnrollment ? "Enrollment approval cannot restore a blocked Core Agent profile. Use Restore Approve with new credential material." : !businessOwnerEligible ? "Business Owner must be an active member of the selected Owner Department" : !draft.credentialToken.trim() ? "Credential Token is required before Approve" : undefined}
                 className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 {submitting === "approve" ? "Approving..." : isRejectedEnrollmentStatus(enrollment?.status) ? "Approve Again" : "Approve"}

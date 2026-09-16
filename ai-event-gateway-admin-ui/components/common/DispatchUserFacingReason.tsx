@@ -8,9 +8,9 @@ import { DispatchOperatorActions } from '@/components/common/DispatchOperatorAct
 export function DispatchUserFacingReason({
   value,
   error,
-  fallback = '目前沒有明確阻擋原因。',
-  technicalLabel = '工程診斷細節',
-  codeClassName = 'inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white',
+  fallback = 'No explicit blocking reason is currently available.',
+  technicalLabel = 'Engineering diagnostics',
+  codeClassName = 'inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-white',
   detailsClassName = 'rounded-xl border border-white/70 bg-white/60 px-3 py-2 text-xs font-semibold opacity-80',
   technicalClassName = 'mt-2 break-words whitespace-pre-wrap font-mono leading-5',
   showOperatorActions = false,
@@ -41,10 +41,10 @@ export function DispatchUserFacingReason({
     <div className="space-y-2">
       {parsed.code ? <span className={codeClassName}>{parsed.code}</span> : null}
       <div>{parsed.message || fallback}</div>
-      {parsed.nextAction ? <div><span className="font-black opacity-70">下一步：</span>{parsed.nextAction}</div> : null}
+      {parsed.nextAction ? <div><span className="font-black opacity-70">Next step: </span>{parsed.nextAction}</div> : null}
       {actions.length > 0 ? (
         <div className="rounded-xl border border-slate-100 bg-white/60 p-2">
-          <div className="mb-2 text-[11px] font-black uppercase tracking-wide opacity-60">Operator actions</div>
+          <div className="mb-2 text-xs font-black uppercase tracking-wide opacity-60">Operator actions</div>
           <DispatchOperatorActions actions={actions} compact={actionCompact} onCommand={onOperatorCommand} />
         </div>
       ) : null}

@@ -1,0 +1,10 @@
+import { coreApiGet, coreApiPost } from '@/lib/api/coreClient';
+import type { IssueProjectionStateView, ProjectionIntentPreviewView, ProjectionLifecycleStatus, ProjectionPurpose } from '@/lib/issueProjectionContract';
+import { createIdempotencyKey } from '@/lib/utils/uuid';
+export interface ProjectionIntentInput { taskId:string; taskType?:string; sourceSystem?:string; connectionId:string; projectMappingId:string; projectionPurpose:ProjectionPurpose; mappingVersion:number; mappingSchemaHash:string; summary:string; description:string; issueType:string; priority?:string; labels:string[]; components:string[]; approvedContext:Record<string,unknown>; sourceEvidence:Record<string,string>; domainEventId:string; operationSequence:number; expectedProjectionVersion:number; }
+function key(prefix:string){return createIdempotencyKey(prefix);}
+export function previewProjectionIntent(input:ProjectionIntentInput):Promise<ProjectionIntentPreviewView>{return coreApiPost('/api/issue-projections/intent-preview',{...input,comments:[],links:[]});}
+export function createProjectionIntent(input:ProjectionIntentInput):Promise<IssueProjectionStateView>{return coreApiPost('/api/issue-projections/intents',{taskId:input.taskId,connectionId:input.connectionId,projectMappingId:input.projectMappingId,mappingVersion:input.mappingVersion,mappingSchemaHash:input.mappingSchemaHash,projectionPurpose:input.projectionPurpose},{headers:{'Idempotency-Key':input.domainEventId||key('projection-intent')}});}
+export function listProjectionStates(state?:ProjectionLifecycleStatus):Promise<IssueProjectionStateView[]>{return coreApiGet('/api/issue-projections',{state,limit:100});}
+export function getProjectionState(id:string):Promise<IssueProjectionStateView>{return coreApiGet(`/api/issue-projections/${encodeURIComponent(id)}`);}
+export function supersedeProjection(id:string,replacementProjectionId:string,reason:string):Promise<IssueProjectionStateView>{return coreApiPost(`/api/issue-projections/${encodeURIComponent(id)}/supersede`,{replacementProjectionId,reason});}

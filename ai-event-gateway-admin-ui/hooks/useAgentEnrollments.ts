@@ -53,8 +53,8 @@ export function useAgentEnrollments() {
       tenantId: enrollment.tenantId,
       agentName: enrollment.agentName,
       agentType: enrollment.agentType,
-      submittedMetadataJson: enrollment.submittedMetadataJson,
-      evidenceJson: enrollment.evidenceJson,
+      submittedMetadata: enrollment.submittedMetadata ?? enrollment.submittedMetadataJson,
+      evidence: enrollment.evidence ?? enrollment.evidenceJson,
       fingerprint: enrollment.fingerprint,
       remoteAddress: enrollment.remoteAddress,
       submittedAt: enrollment.submittedAt
@@ -66,7 +66,7 @@ export function useAgentEnrollments() {
     const result = isRuntimeObservedEnrollment(enrollment)
       ? await materializeRuntimeObservedEnrollment(enrollment)
       : enrollment;
-    setCommandMessage(`Agent ${result.claimedAgentId ?? result.enrollmentId} 已建立 Core enrollment ${result.enrollmentId}。`);
+    setCommandMessage(`Agent ${result.claimedAgentId ?? result.enrollmentId} created Core enrollment ${result.enrollmentId}.`);
     await resource.refresh();
     return result;
   }
@@ -76,7 +76,7 @@ export function useAgentEnrollments() {
       ? await materializeRuntimeObservedEnrollment(enrollment)
       : enrollment;
     const result = await coreAdminApi.approveAgentEnrollment(coreEnrollment.enrollmentId, body);
-    setCommandMessage(`Agent enrollment ${coreEnrollment.enrollmentId} 已核准，Agent profile ${result.agentId} 已建立/更新。`);
+    setCommandMessage(`Agent enrollment ${coreEnrollment.enrollmentId} approved,Agent profile ${result.agentId} created/update.`);
     await resource.refresh();
     return result;
   }
@@ -86,7 +86,7 @@ export function useAgentEnrollments() {
       ? await materializeRuntimeObservedEnrollment(enrollment)
       : enrollment;
     const result = await coreAdminApi.rejectAgentEnrollment(coreEnrollment.enrollmentId, { reason: reviewComment || 'Rejected from Admin UI' });
-    setCommandMessage(`Agent enrollment ${coreEnrollment.enrollmentId} 已拒絕。`);
+    setCommandMessage(`Agent enrollment ${coreEnrollment.enrollmentId} reject.`);
     await resource.refresh();
     return result;
   }

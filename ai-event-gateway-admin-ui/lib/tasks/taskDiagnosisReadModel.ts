@@ -13,6 +13,7 @@ import type {
   CoreTaskRuntimeView,
 } from '@/lib/types/core';
 import type { TaskDispatchDiagnosis } from '@/lib/tasks/dispatchLifecycle';
+import { taskDiagnosisCatalogEntry } from '@/lib/tasks/taskDiagnosisCatalog';
 
 export type TaskDiagnosisBlockerCategory =
   | 'NONE'
@@ -68,6 +69,7 @@ export interface TaskDiagnosisPrimaryBlocker {
   userTitle: string;
   userDescription: string;
   technicalCode: string;
+  evidencePointer?: string;
   severity: TaskDiagnosisSeverity;
   retryable: boolean;
   recommendedActions: TaskDiagnosisActionLink[];
@@ -251,8 +253,8 @@ function actionLinks(task: CoreTaskRuntimeView, diagnosis: TaskDispatchDiagnosis
   if (category === 'DELIVERY_BLOCKED') {
     actions.push({
       type: 'VIEW_GATEWAY_RUNTIME',
-      label: '查看 Gateway Runtime',
-      description: '確認 Netty delivery 與 Agent transport 是否可用。',
+      label: 'view Gateway Runtime',
+      description: 'confirm Netty delivery and Agent transport ',
       href: '/cluster',
       enabled: true,
     });
@@ -260,8 +262,8 @@ function actionLinks(task: CoreTaskRuntimeView, diagnosis: TaskDispatchDiagnosis
   if (category === 'EXECUTION_BLOCKED') {
     actions.push({
       type: 'WAIT_FOR_CALLBACK',
-      label: '查看 Callback Inbox',
-      description: '確認 ACK / RESULT / ERROR callback 是否已進入 Core。',
+      label: 'view Callback Inbox',
+      description: 'confirm ACK / RESULT / ERROR callback  Core.',
       href: `/tasks/${encodeURIComponent(task.taskId)}`,
       enabled: true,
     });
@@ -269,15 +271,15 @@ function actionLinks(task: CoreTaskRuntimeView, diagnosis: TaskDispatchDiagnosis
   if (category !== 'NONE') {
     actions.push({
       type: 'RETRY_ALLOWED',
-      label: '查看可執行人工處置',
-      description: 'Task command model 會在下方只顯示目前狀態合法的 remediation command。',
+      label: 'View details',
+      description: 'Task command model Current status remediation command.',
       enabled: false,
     });
   }
   if (!actions.length) {
     actions.push({
       type: 'REVIEW_ONLY',
-      label: diagnosis.code === 'COMPLETED' ? '查看結果與時間線' : '查看派工證據',
+      label: diagnosis.code === 'COMPLETED' ? 'viewResult' : 'View dispatch evidence',
       description: diagnosis.nextAction,
       href: `/tasks/${encodeURIComponent(task.taskId)}`,
       enabled: true,
@@ -287,15 +289,16 @@ function actionLinks(task: CoreTaskRuntimeView, diagnosis: TaskDispatchDiagnosis
 }
 
 function buildPrimaryBlocker(task: CoreTaskRuntimeView, diagnosis: TaskDispatchDiagnosis): TaskDiagnosisPrimaryBlocker {
-  const category = blockerCategory(diagnosis.code);
-  const owner = ownerPlane(category, diagnosis.code);
+  const catalog = taskDiagnosisCatalogEntry(diagnosis.code);
+  const category = catalog.category as TaskDiagnosisBlockerCategory;
   return {
     category,
-    ownerPlane: owner,
+    ownerPlane: catalog.ownerPlane as TaskDiagnosisOwnerPlane,
     code: diagnosis.code,
-    userTitle: diagnosis.title,
-    userDescription: diagnosis.reason,
+    userTitle: catalog.title,
+    userDescription: diagnosis.reason || catalog.explanation,
     technicalCode: diagnosis.code,
+    evidencePointer: catalog.evidencePointer,
     severity: diagnosis.tone,
     retryable: ['DELIVERY_BLOCKED', 'EXECUTION_BLOCKED', 'RUNTIME_BLOCKED'].includes(category),
     recommendedActions: actionLinks(task, diagnosis, category),
@@ -429,10 +432,10 @@ function buildIssueDedupSummary(input: BuildTaskDiagnosisReadModelInput, primary
     dedupRule: 'taskId + issueType + issueScope + activeStatus',
     repeatedOccurrenceBehavior: 'Update occurrenceCount and lastOccurredAt; do not create duplicate active Issue.',
     summary: activeStatus === 'NOT_REQUIRED'
-      ? '目前沒有 active issue 需要建立。'
+      ? 'No active issue requirescreate.'
       : activeStatus === 'AUTO_RESOLVED'
-        ? '此 Task 已完成；可恢復型 Issue 應自動解決，治理型 Issue 仍需人工 review。'
-        : '相同 blocker 重複發生時更新 occurrence count，不重複建立 active Issue。',
+        ? 'this Task Completed Issue  Issue  review.'
+        : ' blocker  occurrence countCreate active Issue.',
   };
   return { ...derived, ...input.externalIssueDedup } as TaskIssueDedupSummary;
 }
@@ -489,7 +492,7 @@ function fromCoreTimeline(event: CoreDispatchTimelineEvent): TaskDiagnosisTimeli
   };
 }
 
-function buildTimeline(input: BuildTaskDiagnosisReadModelInput, pool: TaskPoolEligibilitySummary, issueDedup: TaskIssueDedupSummary): TaskDiagnosisTimelineLink[] {
+function buildTimeline(input: BuildTaskDiagnosisReadModelInput, issueDedup: TaskIssueDedupSummary): TaskDiagnosisTimelineLink[] {
   const latest = latestLedger(input.dispatchLedger);
   const coreEvents = input.timeline?.events?.map(fromCoreTimeline).filter(Boolean) as TaskDiagnosisTimelineLink[] | undefined;
   const remediationEvents: TaskDiagnosisTimelineLink[] = (input.remediationCommandAudits ?? []).map((audit) => ({
@@ -505,17 +508,17 @@ function buildTimeline(input: BuildTaskDiagnosisReadModelInput, pool: TaskPoolEl
     },
   }));
   const base: TaskDiagnosisTimelineLink[] = [
-    { stage: 'EVENT', label: 'Event', status: timelineStatus('EVENT', input), detail: input.task.sourceEventId ? `Event ${input.task.sourceEventId}` : 'Core 已建立或接收 Task 來源。', occurredAt: input.task.createdAt, source: 'TASK' },
+    { stage: 'EVENT', label: 'Event', status: timelineStatus('EVENT', input), detail: input.task.sourceEventId ? `Event ${input.task.sourceEventId}` : 'Core Create Task source.', occurredAt: input.task.createdAt, source: 'TASK' },
     { stage: 'TASK', label: 'Task', status: timelineStatus('TASK', input), detail: `Task ${input.task.taskId}`, occurredAt: input.task.createdAt, source: 'TASK' },
-    { stage: 'ROUTING', label: 'Routing', status: timelineStatus('ROUTING', input), detail: input.task.matchedFlowId ? `Flow ${input.task.matchedFlowId}${input.task.matchedRuleId ? ` · Rule ${input.task.matchedRuleId}` : ' · Default Pool'}` : '尚未命中 Source Flow。', source: 'ROUTING_EVIDENCE' },
-    { stage: 'ASSIGNMENT', label: 'Assignment', status: timelineStatus('ASSIGNMENT', input), detail: input.task.assignedAgentId ? `Agent ${input.task.assignedAgentId}` : '尚未選出 Agent。', source: 'ROUTING_EVIDENCE' },
-    { stage: 'DELIVERY', label: 'Delivery', status: timelineStatus('DELIVERY', input), detail: latest?.deliveryState ?? input.task.dispatchDeliveryStatus ?? input.task.dispatchStatus ?? '尚未建立或送達 Delivery。', occurredAt: latest?.dispatchedAt, source: 'DISPATCH_LEDGER' },
-    { stage: 'ACK', label: 'ACK', status: timelineStatus('ACK', input), detail: input.callbackInboxSummary?.latestCallbackType === 'ACK' ? '已收到 ACK callback。' : '等待 ACK callback。', occurredAt: latest?.ackReceivedAt, source: 'CALLBACK_INBOX' },
-    { stage: 'RESULT', label: 'Result', status: timelineStatus('RESULT', input), detail: input.callbackInboxSummary?.terminalCallbackReceived ? '已收到 RESULT / ERROR 終態 callback。' : input.task.callbackStatus ?? '等待 RESULT callback。', occurredAt: latest?.resultReceivedAt ?? latest?.terminalAt, source: 'CALLBACK_INBOX' },
-    { stage: 'RETRY', label: 'Retry', status: timelineStatus('RETRY', input), detail: input.task.dispatchAttemptCount && input.task.dispatchAttemptCount > 1 ? `dispatchAttemptCount=${input.task.dispatchAttemptCount}` : '尚未發生 retry。', occurredAt: input.task.nextDispatchAttemptAt, source: 'DISPATCH_LEDGER' },
+    { stage: 'ROUTING', label: 'Routing', status: timelineStatus('ROUTING', input), detail: input.task.matchedFlowId ? `Flow ${input.task.matchedFlowId}${input.task.matchedRuleId ? ` · Rule ${input.task.matchedRuleId}` : ' · Default Pool'}` : 'Not matched Source Flow.', source: 'ROUTING_EVIDENCE' },
+    { stage: 'ASSIGNMENT', label: 'Assignment', status: timelineStatus('ASSIGNMENT', input), detail: input.task.assignedAgentId ? `Agent ${input.task.assignedAgentId}` : ' Agent.', source: 'ROUTING_EVIDENCE' },
+    { stage: 'DELIVERY', label: 'Delivery', status: timelineStatus('DELIVERY', input), detail: latest?.deliveryState ?? input.task.dispatchDeliveryStatus ?? input.task.dispatchStatus ?? 'Not created yet Delivery.', occurredAt: latest?.dispatchedAt, source: 'DISPATCH_LEDGER' },
+    { stage: 'ACK', label: 'ACK', status: timelineStatus('ACK', input), detail: input.callbackInboxSummary?.latestCallbackType === 'ACK' ? ' ACK callback.' : 'waiting ACK callback.', occurredAt: latest?.ackReceivedAt, source: 'CALLBACK_INBOX' },
+    { stage: 'RESULT', label: 'Result', status: timelineStatus('RESULT', input), detail: input.callbackInboxSummary?.terminalCallbackReceived ? ' RESULT / ERROR  callback.' : input.task.callbackStatus ?? 'waiting RESULT callback.', occurredAt: latest?.resultReceivedAt ?? latest?.terminalAt, source: 'CALLBACK_INBOX' },
+    { stage: 'RETRY', label: 'Retry', status: timelineStatus('RETRY', input), detail: input.task.dispatchAttemptCount && input.task.dispatchAttemptCount > 1 ? `dispatchAttemptCount=${input.task.dispatchAttemptCount}` : ' retry.', occurredAt: input.task.nextDispatchAttemptAt, source: 'DISPATCH_LEDGER' },
     ...remediationEvents,
     { stage: 'ISSUE', label: 'Issue', status: issueDedup.activeStatus === 'ACTIVE' || issueDedup.activeStatus === 'REVIEW_REQUIRED' ? 'current' : issueDedup.activeStatus === 'AUTO_RESOLVED' ? 'done' : 'waiting', detail: `${issueDedup.issueType} · ${issueDedup.summary}`, occurredAt: issueDedup.lastOccurredAt, source: 'ISSUE_DEDUP', references: { activeIssueKey: issueDedup.activeIssueKey } },
-    { stage: 'COMPLETION', label: 'Completion', status: timelineStatus('COMPLETION', input), detail: input.diagnosis.code === 'COMPLETED' ? 'Task 已完成。' : '尚未完成。', occurredAt: input.task.updatedAt, source: 'TASK' },
+    { stage: 'COMPLETION', label: 'Completion', status: timelineStatus('COMPLETION', input), detail: input.diagnosis.code === 'COMPLETED' ? 'Task Completed.' : 'Not completed.', occurredAt: input.task.updatedAt, source: 'TASK' },
   ];
   return [...(coreEvents ?? []), ...base].sort((left, right) => String(left.occurredAt ?? '').localeCompare(String(right.occurredAt ?? '')) || 0);
 }
@@ -566,28 +569,28 @@ export function buildTaskDiagnosisReadModel(input: BuildTaskDiagnosisReadModelIn
       resultKnown: Boolean(input.task.callbackStatus || input.callbackInboxSummary?.terminalCallbackReceived || latest?.resultReceivedAt || latest?.terminalAt),
     },
     issueDedup,
-    timeline: buildTimeline(input, poolEligibility, issueDedup),
+    timeline: buildTimeline(input, issueDedup),
     generatedAt: new Date().toISOString(),
   };
 }
 
 export function taskDiagnosisCategoryLabel(category: TaskDiagnosisBlockerCategory): string {
   switch (category) {
-    case 'CONFIGURATION_BLOCKED': return '設定問題';
-    case 'RUNTIME_BLOCKED': return 'Runtime 問題';
-    case 'DELIVERY_BLOCKED': return 'Delivery 問題';
-    case 'EXECUTION_BLOCKED': return '執行／Callback 問題';
-    case 'MANUAL_ACTION_REQUIRED': return '需要人工處置';
-    default: return '沒有阻擋';
+    case 'CONFIGURATION_BLOCKED': return 'Configuration blocker';
+    case 'RUNTIME_BLOCKED': return 'Runtime blocker';
+    case 'DELIVERY_BLOCKED': return 'Delivery blocker';
+    case 'EXECUTION_BLOCKED': return 'Execution / callback blocker';
+    case 'MANUAL_ACTION_REQUIRED': return 'Operator action required';
+    default: return 'No active blocker';
   }
 }
 
 export function taskDiagnosisOwnerPlaneLabel(ownerPlane: TaskDiagnosisOwnerPlane): string {
   switch (ownerPlane) {
-    case 'CORE_CONFIGURATION': return 'Core 設定';
+    case 'CORE_CONFIGURATION': return 'Core configuration';
     case 'CORE_ROUTING': return 'Core Routing';
     case 'NETTY_RUNTIME': return 'Netty Runtime';
     case 'AGENT_RUNTIME': return 'Agent Runtime';
-    default: return '操作員';
+    default: return 'Operator';
   }
 }

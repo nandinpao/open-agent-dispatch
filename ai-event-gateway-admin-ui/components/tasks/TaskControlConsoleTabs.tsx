@@ -11,7 +11,7 @@ export interface TaskControlConsoleTab {
   content: ReactNode;
 }
 
-export function TaskControlConsoleTabs({ tabs }: Readonly<{ tabs: TaskControlConsoleTab[] }>) {
+export function TaskControlConsoleTabs({ tabs, onTabChange }: Readonly<{ tabs: TaskControlConsoleTab[]; onTabChange?: (tabId: string) => void }>) {
   const firstTab = tabs[0]?.id ?? '';
   const [activeTab, setActiveTab] = useState(firstTab);
   const selected = useMemo(() => tabs.find((tab) => tab.id === activeTab) ?? tabs[0], [activeTab, tabs]);
@@ -25,14 +25,14 @@ export function TaskControlConsoleTabs({ tabs }: Readonly<{ tabs: TaskControlCon
           <div className="text-xs font-black uppercase tracking-wide text-blue-500">Task diagnosis center</div>
           <h2 className="mt-1 text-lg font-black text-slate-950">Task Control Console</h2>
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            依操作目的切換 Overview、Dispatch Lifecycle、Agent Selection、Issue/Result、Troubleshooting 與 Debug；避免把派工判斷、修復與 raw diagnostics 全部攤在同一頁。
+            Use Overview, Dispatch Evidence, Agent Selection, Result & Issues, Technical Evidence, and Support Debug to inspect authoritative Task evidence.
           </p>
         </div>
       </div>
       <AdminTabLayout
         className="mt-4"
         activeTab={selected.id}
-        onTabChange={setActiveTab}
+        onTabChange={(tabId) => { setActiveTab(tabId); onTabChange?.(tabId); }}
         tabs={tabs.map((tab) => ({ id: tab.id, label: tab.label, badge: tab.badge }))}
       >
         {selected.description ? <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">{selected.description}</div> : null}

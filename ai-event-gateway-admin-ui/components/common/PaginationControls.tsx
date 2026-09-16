@@ -26,12 +26,12 @@ export function PaginationControls({
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div>
-        顯示 <span className="font-semibold text-slate-900">{startItem}</span> - <span className="font-semibold text-slate-900">{endItem}</span> 筆，
-        共 <span className="font-semibold text-slate-900">{totalItems}</span> 筆
+        display <span className="font-semibold text-slate-900">{startItem}</span> - <span className="font-semibold text-slate-900">{endItem}</span> records,
+        total <span className="font-semibold text-slate-900">{totalItems}</span> records
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2 text-xs font-medium text-slate-500">
-          每頁
+          per page
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}

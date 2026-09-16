@@ -4,6 +4,8 @@ export interface GatewayHealth {
   status: GatewayStatus;
   nodeId: string;
   version: string;
+  releaseLabel?: string;
+  artifactRevision?: string;
   uptimeSeconds: number;
   activeConnections: number;
   connectedAgents: number;
@@ -420,24 +422,31 @@ export interface CommandResult {
   timestamp: string;
 }
 
-export type AdminRole = 'ADMIN' | 'OPERATOR' | 'VIEWER' | 'RECOVERY_APPROVER' | 'SUPPORT' | 'DEVELOPER';
+export type AdminRole = string;
 
 export interface AdminUser {
+  /** @deprecated R2 UI must not branch on the credential provider. */
   authenticationType?: string;
   userId: string;
   username?: string;
   displayName: string;
   roles: AdminRole[];
   permissions?: string[];
+  permissionScopes?: Record<string, string[]>;
   allowedTenantIds?: string[];
   selectedTenantId?: string;
   authenticatedAt?: string;
   expiresAt?: string;
+  tenantChoices?: import('@/lib/iam/types').TenantChoice[];
+  requiredActions?: string[];
+  credentialVersion?: number;
+  authenticationMethods?: string[];
 }
 
 export interface LoginRequest {
   username: string;
   password: string;
+  requestedTenantId?: string;
 }
 
 export interface AdminSessionResponse {
@@ -472,6 +481,10 @@ export interface AdminPermissionsResponse {
 export interface AdminTenantOption {
   tenantId: string;
   selected: boolean;
+  tenantCode?: string;
+  tenantName?: string;
+  membershipStatus?: string;
+  roleSummary?: string[];
 }
 
 export interface AdminTenantsResponse {

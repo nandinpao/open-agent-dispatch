@@ -1,0 +1,3 @@
+'use client';
+import { InterceptedRouteModal } from '@/components/ui-capability/InterceptedRouteModal';
+export default function InterceptedTaskError({ reset }: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) { return <InterceptedRouteModal><section role="alert" className="rounded-2xl bg-white p-6"><h1 className="text-xl font-black">This protected view is temporarily unavailable</h1><p className="mt-2 text-sm text-slate-600">No protected task content was rendered.</p><button type="button" onClick={reset} className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Retry securely</button></section></InterceptedRouteModal>; }

@@ -38,7 +38,7 @@ export function SharedUiFixtureClient() {
     <AdminDetailPage
       eyebrow="UX-8 Preview"
       title="Shared UI Fixture"
-      description="用來快速檢查 button tone、empty state、table density、tooltip、drawer、dialog、badge 與 debug collapse。此頁只作前端 QA fixture，不連後端 API。"
+      description=" button tone,empty state,table density,tooltip,drawer,dialog,badge and debug collapse.This page is a frontend QA fixture and does not call backend APIs."
       actions={(
         <div className="flex flex-wrap gap-2">
           <Button tone="primary" onClick={() => setDrawerOpen(true)}>Open Drawer</Button>
@@ -64,7 +64,7 @@ export function SharedUiFixtureClient() {
       <RightDrawer
         open={drawerOpen}
         title="Create / Edit Drawer"
-        description="Create / Edit 不應再塞進 List 或 Detail 主頁。"
+        description="Create / Edit  List or Detail "
         onClose={() => setDrawerOpen(false)}
         footer={<div className="flex justify-end gap-2"><Button tone="secondary" onClick={() => setDrawerOpen(false)}>Cancel</Button><Button tone="primary" onClick={() => setDrawerOpen(false)}>Save</Button></div>}
       >
@@ -134,7 +134,7 @@ function TablePreview() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-black text-slate-950">Table density</h2>
-          <p className="mt-1 text-sm text-slate-500">重構頁的表格應使用相近欄距、header、row action pattern。</p>
+          <p className="mt-1 text-sm text-slate-500">header,row action pattern.</p>
         </div>
         <Button tone="primary">Create</Button>
       </div>

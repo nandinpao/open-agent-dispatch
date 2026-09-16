@@ -85,7 +85,7 @@ export function EnforceReleaseCutoverPanel() {
       <section className="rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="text-[11px] font-black uppercase tracking-wide text-blue-700">P3-M RELEASE_CUTOVER_RUNBOOK</div>
+            <div className="text-xs font-black uppercase tracking-wide text-blue-700">P3-M RELEASE_CUTOVER_RUNBOOK</div>
             <h2 className="mt-2 text-xl font-black text-slate-950">ENFORCE runtime acceptance and release cutover</h2>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">
               P3-O hardens the release profile: production defaults to WARN, controlled ENFORCE uses the enforce profile, live P3-N artifacts are required for release, and legacy profile fallback is disabled in ENFORCE.
@@ -110,13 +110,13 @@ export function EnforceReleaseCutoverPanel() {
       <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="text-[11px] font-black uppercase tracking-wide text-emerald-700">P3-O OPERATOR_CUTOVER_DASHBOARD</div>
+            <div className="text-xs font-black uppercase tracking-wide text-emerald-700">P3-O OPERATOR_CUTOVER_DASHBOARD</div>
             <h3 className="mt-2 text-lg font-black text-slate-950">ENFORCE default hardening status</h3>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">
               Use this dashboard as the operator entry point before release cutover. It shows the intended mode defaults, mandatory live artifact gate, archive contract, legacy fallback removal, and rollback rehearsal path.
             </p>
           </div>
-          <div className="rounded-full bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide text-emerald-700">{p3oEnforceDefaultHardeningFixture.id}</div>
+          <div className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-700">{p3oEnforceDefaultHardeningFixture.id}</div>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           <MetricCard label="Dev / Local" value={p3oEnforceDefaultHardeningFixture.releaseProfile.devDefault} />
@@ -134,7 +134,7 @@ export function EnforceReleaseCutoverPanel() {
       <section className="grid gap-4 lg:grid-cols-4">
         {cutoverSteps.map((step) => (
           <div key={step.mode} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-slate-700">{step.mode}</div>
+            <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-slate-700">{step.mode}</div>
             <h3 className="mt-3 text-sm font-black text-slate-950">{step.title}</h3>
             <p className="mt-2 text-xs leading-5 text-slate-600">{step.detail}</p>
           </div>
@@ -162,7 +162,7 @@ export function EnforceReleaseCutoverPanel() {
               P3-N automates seed → acceptance → readiness → rollback → teardown, so ENFORCE acceptance no longer depends on manually prepared fixture data.
             </p>
           </div>
-          <div className="rounded-full bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide text-indigo-700">{p3nFullEnforceAutomationFixture.id}</div>
+          <div className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-indigo-700">{p3nFullEnforceAutomationFixture.id}</div>
         </div>
         <pre className="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs font-bold leading-6 text-slate-100"><code>{p3nAutomationCommand}</code></pre>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -203,7 +203,7 @@ npm run ${p3oEnforceDefaultHardeningFixture.mandatoryLiveGate.npmScript}`}</code
 function MetricCard({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="rounded-2xl border border-emerald-200 bg-white p-4">
-      <div className="text-[11px] font-black uppercase tracking-wide text-emerald-600">{label}</div>
+      <div className="text-xs font-black uppercase tracking-wide text-emerald-600">{label}</div>
       <div className="mt-2 text-lg font-black text-slate-950">{value}</div>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { coreAdminApi } from '@/lib/api/coreAdminApi';
+import { taskAdminApi } from '@/lib/api/domains/taskAdminApi';
 import { nettyRuntimeApi } from '@/lib/api/nettyRuntimeApi';
 import { getPublicEnv } from '@/lib/constants/env';
 import { createTaskDispatchRuntimeBundle, type TaskDispatchDashboardRow, type TaskDispatchRuntimeBundle } from '@/lib/dashboard/taskDispatchMerge';
@@ -43,7 +43,7 @@ export function useTasks() {
       return createTaskDispatchRuntimeBundle({ tasks: mockCoreTasks() });
     }
 
-    const tasks = await coreAdminApi.getTasksRuntimeView();
+    const tasks = await taskAdminApi.getTasksRuntimeView();
     const [delivery, callbackRelay] = await Promise.all([
       safeRuntime(() => nettyRuntimeApi.getDeliveryRuntime()),
       safeRuntime(() => nettyRuntimeApi.getCallbackRelayRuntime())
@@ -65,8 +65,8 @@ export function useTasks() {
     const result = env.useMock
       ? mockCommandResult
       : row.task.dispatchRequestId
-        ? await coreAdminApi.retryDispatchRequest(row.task.dispatchRequestId)
-        : await coreAdminApi.retryTask(row.task.taskId);
+        ? await taskAdminApi.retryDispatchRequest(row.task.dispatchRequestId)
+        : await taskAdminApi.retryTask(row.task.taskId);
     setCommandMessage(result.message);
     await resource.refresh();
     return result;
@@ -74,7 +74,7 @@ export function useTasks() {
 
   async function cancelTask(row: TaskDispatchDashboardRow): Promise<CommandResult> {
     const env = getPublicEnv();
-    const result = env.useMock ? mockCommandResult : await coreAdminApi.cancelTask(row.task.taskId);
+    const result = env.useMock ? mockCommandResult : await taskAdminApi.cancelTask(row.task.taskId);
     setCommandMessage(result.message);
     await resource.refresh();
     return result;

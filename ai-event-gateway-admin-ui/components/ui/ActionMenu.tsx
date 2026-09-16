@@ -67,7 +67,7 @@ export function ActionMenu({ items, label = 'More', align = 'right', trigger, cl
         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-100"
       >
         {trigger ?? label}
-        <span aria-hidden="true" className="text-[10px] text-slate-400">▾</span>
+        <span aria-hidden="true" className="text-xs text-slate-400">▾</span>
       </button>
 
       {open ? (

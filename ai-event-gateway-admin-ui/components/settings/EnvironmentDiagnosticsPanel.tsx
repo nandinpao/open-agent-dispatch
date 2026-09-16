@@ -29,7 +29,7 @@ function ProbeTable({ probes }: Readonly<{ probes: EnvironmentProbeResult[] }>) 
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 px-5 py-4">
         <div className="text-sm font-bold text-slate-950">Backend / runtime probes</div>
-        <div className="mt-1 text-xs text-slate-500">Core、Netty、runtime stream 與設定檢查結果。Core 代表權威資料面，Netty 代表即時 runtime 面。</div>
+        <div className="mt-1 text-xs text-slate-500">Core,Netty,runtime stream andConfiguration checkResult.Core Netty  runtime </div>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -130,7 +130,7 @@ export function EnvironmentDiagnosticsPanel() {
               <StatusBadge status={overallStatus} />
             </div>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
-              Core 是 Agent / Task / Dispatch 權威資料來源；Netty 是 Agent session / delivery / callback relay runtime 資料來源。此頁用來確認雙後端 proxy、health probe、runtime stream 與 auth/token 設定是否一致。
+              Core is Agent / Task / Dispatch authoritativedata source;Netty is Agent session / delivery / callback relay runtime  proxy,health probe,runtime stream and auth/token Configuration
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

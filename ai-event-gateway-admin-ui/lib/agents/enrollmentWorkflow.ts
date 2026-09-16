@@ -24,15 +24,18 @@ export function isRuntimeObservedEnrollment(enrollment: AgentEnrollmentRequest):
   return enrollment.status === 'RUNTIME_OBSERVED' || enrollment.enrollmentId.startsWith('runtime:');
 }
 
-export function runtimeToEnrollmentRequest(runtime: NettyAgentRuntime): AgentEnrollmentCreateRequest {
+function runtimeObservationFields(runtime: NettyAgentRuntime) {
   const payload = isRecord(runtime.payload) ? runtime.payload : {};
   const metadata = isRecord(payload.metadata) ? payload.metadata : {};
   return {
     claimedAgentId: runtime.agentId,
-    tenantId: requireCoreTenantContext(stringValue(metadata.tenantId)),
+    // Runtime observation is intentionally Tenant-neutral. A connected Agent must be visible
+    // before an administrator assigns a Tenant / Department / Group and approves governance.
+    // Tenant becomes mandatory only when a Core enrollment command is submitted.
+    tenantId: stringValue(metadata.tenantId),
     agentName: stringValue(metadata.agentName) ?? runtime.agentId,
     agentType: stringValue(payload.agentType) ?? stringValue(metadata.agentType) ?? 'UNKNOWN',
-    submittedMetadataJson: {
+    submittedMetadata: {
       source: 'NETTY_RUNTIME_OBSERVATION',
       gatewayNodeId: runtime.gatewayNodeId ?? runtime.nodeId,
       authorizationState: runtime.authorizationState,
@@ -43,10 +46,18 @@ export function runtimeToEnrollmentRequest(runtime: NettyAgentRuntime): AgentEnr
       lastHeartbeatAt: runtime.lastHeartbeatAt,
       metadata
     },
-    evidenceJson: runtime.payload ?? runtime,
+    evidence: runtime.payload ?? runtime,
     fingerprint: stringValue(metadata.fingerprint),
     remoteAddress: runtime.remoteAddress,
     submittedAt: runtime.connectedAt ?? runtime.lastSeenAt ?? runtime.lastHeartbeatAt
+  };
+}
+
+export function runtimeToEnrollmentRequest(runtime: NettyAgentRuntime): AgentEnrollmentCreateRequest {
+  const observation = runtimeObservationFields(runtime);
+  return {
+    ...observation,
+    tenantId: requireCoreTenantContext(observation.tenantId)
   };
 }
 
@@ -54,7 +65,7 @@ export function runtimeToEnrollmentCandidate(runtime: NettyAgentRuntime): AgentE
   return {
     enrollmentId: runtimeEnrollmentId(runtime),
     status: 'RUNTIME_OBSERVED',
-    ...runtimeToEnrollmentRequest(runtime)
+    ...runtimeObservationFields(runtime)
   };
 }
 
@@ -89,15 +100,25 @@ export function parseScopeCsv(value: string, tenantId?: string): CoreAgentAuthor
 }
 
 export function buildDefaultApprovalRequest(enrollment: AgentEnrollmentRequest, comment?: string): AgentEnrollmentApprovalRequest {
-  const metadata = isRecord(enrollment.submittedMetadataJson) ? enrollment.submittedMetadataJson : {};
-  const tenantId = requireCoreTenantContext(enrollment.tenantId ?? stringValue(metadata.tenantId));
+  const metadataSource = enrollment.submittedMetadata ?? enrollment.submittedMetadataJson;
+  const metadata = isRecord(metadataSource) ? metadataSource : {};
+  // Building an approval draft must not require Tenant context. Runtime-observed Agents are
+  // deliberately visible before governance. draftToApprovalRequest() is the mutation boundary
+  // that requires the administrator's active Tenant.
+  const tenantId = enrollment.tenantId ?? stringValue(metadata.tenantId);
   return {
     agentId: enrollment.claimedAgentId,
     tenantId,
     agentName: enrollment.agentName ?? enrollment.claimedAgentId,
     agentType: enrollment.agentType ?? 'UNKNOWN',
+    ownerTeam: stringValue(metadata.ownerTeam),
+    ownerDepartmentId: stringValue(metadata.ownerDepartmentId),
+    ownerGroupId: stringValue(metadata.ownerGroupId),
+    businessOwnerUserId: stringValue(metadata.businessOwnerUserId),
+    technicalStewardUserId: stringValue(metadata.technicalStewardUserId),
+    responsibilityRoleId: stringValue(metadata.responsibilityRoleId),
     comment,
     capabilities: [],
-    scopes: [{ tenantId, systemCode: '*', taskType: '*', enabled: true }]
+    scopes: []
   };
 }

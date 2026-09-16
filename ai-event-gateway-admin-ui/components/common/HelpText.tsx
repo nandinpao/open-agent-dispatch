@@ -45,7 +45,7 @@ function helpContent({ term, action, status, description }: Readonly<HelpTextPro
   }
   return {
     title: status ?? 'Help',
-    body: '目前沒有集中說明。請確認 help dictionary 是否需要新增此名詞或狀態。',
+    body: 'No centralized explanation is available. Add this term or status to the help dictionary if needed.',
   };
 }
 
@@ -54,7 +54,7 @@ function TooltipBody({ title, body, extra }: Readonly<{ title: ReactNode; body: 
     <span className="block">
       <span className="block font-black text-white">{title}</span>
       <span className="mt-1 block leading-5 text-slate-100">{body}</span>
-      {extra ? <span className="mt-2 block rounded-lg bg-white/10 px-2 py-1 text-[11px] leading-4 text-slate-100">{extra}</span> : null}
+      {extra ? <span className="mt-2 block rounded-lg bg-white/10 px-2 py-1 text-xs leading-4 text-slate-100">{extra}</span> : null}
     </span>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog, type ConfirmDialogTone } from '@/components/ui/ConfirmDialog';
+import { EntityPicker, FormField, TextAreaField, TextField, type SelectOption } from '@/components/forms';
 
 export interface TaskActionDialogValues {
   reason: string;
@@ -19,10 +20,10 @@ export function validateTaskActionDialogInput(input: Readonly<{
   confirmationPhrase: string;
 }>): string | null {
   if (input.reasonRequired && input.reason.trim().length < input.minimumReasonLength) {
-    return `操作原因至少需要 ${input.minimumReasonLength} 個字元。`;
+    return `Actions ${input.minimumReasonLength} `;
   }
   if (input.requiredPhrase && input.confirmationPhrase.trim() !== input.requiredPhrase) {
-    return `請輸入確認字串：${input.requiredPhrase}`;
+    return `Enter ${input.requiredPhrase}`;
   }
   return null;
 }
@@ -40,6 +41,9 @@ interface TaskActionDialogProps {
   requiredPhrase?: string;
   allowTargetAgent?: boolean;
   allowTargetPool?: boolean;
+  targetAgentOptions?: SelectOption[];
+  targetPoolOptions?: SelectOption[];
+  targetOptionsLoading?: boolean;
   onConfirm: (values: TaskActionDialogValues) => void | Promise<void>;
   onCancel: () => void;
 }
@@ -57,6 +61,9 @@ export function TaskActionDialog({
   requiredPhrase,
   allowTargetAgent = false,
   allowTargetPool = false,
+  targetAgentOptions = [],
+  targetPoolOptions = [],
+  targetOptionsLoading = false,
   onConfirm,
   onCancel,
 }: Readonly<TaskActionDialogProps>) {
@@ -74,13 +81,13 @@ export function TaskActionDialog({
     }
   }, [open]);
 
-  const validationMessage = useMemo(() => validateTaskActionDialogInput({
-    reason,
-    reasonRequired,
-    minimumReasonLength,
-    requiredPhrase,
-    confirmationPhrase,
-  }), [confirmationPhrase, minimumReasonLength, reason, reasonRequired, requiredPhrase]);
+  const validationMessage = useMemo(() => {
+    const base = validateTaskActionDialogInput({ reason, reasonRequired, minimumReasonLength, requiredPhrase, confirmationPhrase });
+    if (base) return base;
+    if (allowTargetPool && !targetPoolId.trim()) return targetPoolOptions.length ? 'Select a governed Agent Pool.' : 'No governed Agent Pool is available for this Task context.';
+    if (allowTargetAgent && !targetAgentId.trim()) return targetAgentOptions.length ? 'Select a governed Agent.' : 'No governed Agent is available for this Task context.';
+    return null;
+  }, [allowTargetAgent, allowTargetPool, confirmationPhrase, minimumReasonLength, reason, reasonRequired, requiredPhrase, targetAgentId, targetAgentOptions.length, targetPoolId, targetPoolOptions.length]);
 
   return (
     <ConfirmDialog
@@ -88,7 +95,7 @@ export function TaskActionDialog({
       title={title}
       description={description}
       confirmLabel={confirmLabel}
-      cancelLabel="取消"
+      cancelLabel="Cancel"
       tone={tone}
       isRunning={isRunning}
       onCancel={onCancel}
@@ -104,58 +111,30 @@ export function TaskActionDialog({
     >
       <div className="space-y-4">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">操作對象</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Actions</div>
           <div className="mt-1 break-all font-semibold text-slate-900">{target}</div>
         </div>
 
         {allowTargetAgent ? (
-          <label className="block text-sm font-semibold text-slate-700">
-            指定 Agent（選填）
-            <input
-              value={targetAgentId}
-              onChange={(event) => setTargetAgentId(event.target.value)}
-              placeholder="留空時由目前 Dispatch Flow 重新選擇"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-            />
-          </label>
+          <FormField id="task-action-agent" label="Assign Agent" help="Choose from Core-governed Agent options instead of typing an Agent ID.">
+            <EntityPicker id="task-action-agent" value={targetAgentId} onChange={setTargetAgentId} options={targetAgentOptions} disabled={targetOptionsLoading || !targetAgentOptions.length} placeholder={targetOptionsLoading ? 'Loading governed Agents…' : targetAgentOptions.length ? 'Select an Agent' : 'No governed Agent choice is available'} />
+          </FormField>
         ) : null}
 
         {allowTargetPool ? (
-          <label className="block text-sm font-semibold text-slate-700">
-            目標工作池 Pool ID（必填）
-            <input
-              value={targetPoolId}
-              onChange={(event) => setTargetPoolId(event.target.value)}
-              placeholder="例如 default-processing-pool"
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-            />
-          </label>
+          <FormField id="task-action-pool" label="Target Agent Pool" help="Choose a governed Agent Pool. Manual Pool IDs are not accepted in the standard workflow." required>
+            <EntityPicker id="task-action-pool" value={targetPoolId} onChange={setTargetPoolId} options={targetPoolOptions} disabled={targetOptionsLoading || !targetPoolOptions.length} placeholder={targetOptionsLoading ? 'Loading Agent Pools…' : targetPoolOptions.length ? 'Select an Agent Pool' : 'No governed Agent Pool is available'} required />
+          </FormField>
         ) : null}
 
-        <label className="block text-sm font-semibold text-slate-700">
-          操作原因{reasonRequired ? '（必填）' : '（選填）'}
-          <textarea
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            rows={4}
-            placeholder="請說明處理原因、已確認的阻擋條件與預期結果"
-            className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-          />
-          {reasonRequired ? (
-            <span className="mt-1 block text-xs text-slate-500">至少 {minimumReasonLength} 個字元，會寫入 Core Task timeline。</span>
-          ) : null}
-        </label>
+        <FormField id="task-action-reason" label={`Action reason${reasonRequired ? '' : ' (optional)'}`} help={reasonRequired ? `At least ${minimumReasonLength} characters. Core records this reason in the Task timeline.` : 'Core records this reason in the Task timeline.'} required={reasonRequired}>
+          <TextAreaField id="task-action-reason" value={reason} onChange={setReason} rows={4} placeholder="Describe why this governed action is needed." />
+        </FormField>
 
         {requiredPhrase ? (
-          <label className="block text-sm font-semibold text-slate-700">
-            確認字串
-            <input
-              value={confirmationPhrase}
-              onChange={(event) => setConfirmationPhrase(event.target.value)}
-              placeholder={requiredPhrase}
-              className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-            />
-          </label>
+          <FormField id="task-action-confirmation" label="Confirmation phrase" help={`Enter exactly ${requiredPhrase} to confirm this higher-risk action.`} required>
+            <TextField id="task-action-confirmation" value={confirmationPhrase} onChange={setConfirmationPhrase} placeholder={requiredPhrase} />
+          </FormField>
         ) : null}
 
         {validationMessage ? (

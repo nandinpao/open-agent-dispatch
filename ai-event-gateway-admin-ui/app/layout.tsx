@@ -4,13 +4,13 @@ import './globals.css';
 import { AppShell } from '@/components/layout/AppShell';
 
 export const metadata: Metadata = {
-  title: 'OpenDispatch 管理中心',
-  description: '管理來源系統、派工流程、Agent、Task 與執行狀態'
+  title: 'OpenDispatch Admin Console',
+  description: 'Manage Source Systems, dispatch configuration, Agents, Tasks and runtime evidence'
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="zh-Hant">
+    <html lang="en-US">
       <body>
         <AppShell>{children}</AppShell>
       </body>

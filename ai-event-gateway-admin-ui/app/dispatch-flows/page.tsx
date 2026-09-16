@@ -1,3 +1,4 @@
+import { EntitlementPageGuard } from '@/components/auth/EntitlementPageGuard';
 import { DispatchWorkspace } from '@/components/dispatch-workspace/DispatchWorkspace';
 
 type PageProps = {
@@ -7,8 +8,10 @@ type PageProps = {
 export default async function DispatchFlowsPage({ searchParams }: Readonly<PageProps>) {
   const resolvedSearchParams = await searchParams;
   return (
-    <main className="space-y-8">
+    <EntitlementPageGuard featureId="dispatch">
+      <main className="space-y-8">
       <DispatchWorkspace initialQuery={resolvedSearchParams} />
-    </main>
+      </main>
+    </EntitlementPageGuard>
   );
 }

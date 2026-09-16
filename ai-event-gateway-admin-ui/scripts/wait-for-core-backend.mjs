@@ -47,7 +47,7 @@ while (Date.now() < deadline) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), attemptTimeoutMs);
     try {
-      const response = await fetch(`${origin}/api/auth/csrf`, {
+      const response = await fetch(`${origin}/api/session/csrf`, {
         headers: { Accept: 'application/json', 'x-admin-ui-startup-probe': 'true' },
         cache: 'no-store',
         redirect: 'manual',
@@ -69,5 +69,5 @@ while (Date.now() < deadline) {
 
 console.error('[admin-ui-runtime][ERROR] Core authentication remained unreachable.');
 console.error(`[admin-ui-runtime][ERROR] Attempts: ${lastAttempts.join(' | ')}`);
-console.error('[admin-ui-runtime][ERROR] Verify CORE_BACKEND_ORIGIN, CORE_BACKEND_FALLBACK_ORIGINS, Docker network membership, and /api/auth/csrf.');
+console.error('[admin-ui-runtime][ERROR] Verify CORE_BACKEND_ORIGIN, CORE_BACKEND_FALLBACK_ORIGINS, Docker network membership, and /api/session/csrf.');
 process.exit(1);

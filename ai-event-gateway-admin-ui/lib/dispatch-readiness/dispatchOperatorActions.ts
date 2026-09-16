@@ -145,7 +145,7 @@ export function buildDispatchOperatorActions(
         {
           id: "open-runtime-resources",
           label: "Open Runtime Resources",
-          href: "/settings/runtime-resources",
+          href: "/agents/runtime",
           tone: "secondary",
           description: "Review runtime resources and binding status for this gateway runtime.",
         },
@@ -161,7 +161,7 @@ export function buildDispatchOperatorActions(
             : "/agents",
           tone: "primary",
           description:
-            "Verify Admin UI/Core capability approval. Runtime capability observations are diagnostic only.",
+            "Verify that this Agent has an approved Canonical Capability matching the Task requirement.",
         },
         {
           id: "open-agent-connection",
@@ -179,11 +179,11 @@ export function buildDispatchOperatorActions(
       actions.push(
         {
           id: "open-dispatch-flows",
-          label: "開啟派工設定",
+          label: "Open Dispatch Setup",
           href: "/dispatch-flows",
           tone: "primary",
           description:
-            "建立或啟用符合事件條件的 Source Flow，並確認預設或規則目標 Agent Pool。",
+            "Create or activate the Source Flow, then confirm its default or rule-target Agent Pool.",
         },
         {
           id: "open-flow-agents",
@@ -191,7 +191,7 @@ export function buildDispatchOperatorActions(
           href: "/dispatch-flows?panel=agents",
           tone: "secondary",
           description:
-            "確認 Agent 已在 matched Dispatch Flow 內被指派與核准。",
+            "Confirm that the matched Flow targets a Pool containing an approved and eligible Agent.",
         },
       );
       break;
@@ -224,7 +224,7 @@ export function buildDispatchOperatorActions(
           href: "/dispatch-flows",
           tone: "primary",
           description:
-            "用 Flow Rule 的 Required Capability 取代舊 capability fallback。",
+            " Flow Rule  Required Capability  capability fallback.",
         },
         {
           id: "open-dispatch-readiness",
@@ -232,7 +232,7 @@ export function buildDispatchOperatorActions(
           href: "/dispatch-flows?panel=dry-run",
           tone: "secondary",
           description:
-            "使用 Flow Rule dry-run 檢查 Required Capability、Flow Agent assignment 與 Capability assignment。",
+            "use Flow Rule dry-run  Required Capability,Flow Agent assignment and Capability assignment.",
         },
       );
       break;
@@ -260,17 +260,17 @@ export function buildDispatchOperatorActions(
       actions.push(
         {
           id: "open-dispatch-flows",
-          label: "開啟派工設定",
+          label: "openDispatch",
           href: "/dispatch-flows",
           tone: "primary",
-          description: "建立或修復 Source Flow，並確認預設或規則目標 Agent Pool。",
+          description: "Create Source Flow, and confirmdefault or ruleTarget Agent Pool.",
         },
         {
           id: "open-task-detail",
           label: "Open Flow Repair Center",
           href: taskLink(context.taskId),
           tone: "secondary",
-          description: "回到 Task Detail 的 Flow 修復中心查看第一個 blocking gate。",
+          description: "return to Task Detail  Flow View details blocking gate.",
         },
       );
       break;
@@ -281,7 +281,7 @@ export function buildDispatchOperatorActions(
           label: "Review Current Dispatch Setup",
           href: "/dispatch-flows?panel=capabilities",
           tone: "primary",
-          description: "此為舊 Capability blocker；Current 派工請確認 Source Flow、目標 Agent Pool、Pool Member Agent 與 Runtime Eligibility。",
+          description: " Capability blocker;Current dispatchVerify Source Flow,Target Agent Pool,Pool Member Agent and Runtime Eligibility.",
         },
       );
       break;
@@ -292,7 +292,7 @@ export function buildDispatchOperatorActions(
           label: "Configure Agent Pool Members",
           href: "/dispatch-flows?panel=agents",
           tone: "primary",
-          description: "在 matched Source Flow 的目標 Agent Pool 加入至少一個啟用中的 Agent。",
+          description: "in matched Source Flow Target Agent Pool Enable Agent.",
         },
       );
       break;
@@ -303,14 +303,14 @@ export function buildDispatchOperatorActions(
           label: "Review Agent Pool Members",
           href: "/dispatch-flows?panel=pools",
           tone: "primary",
-          description: "此為舊 Capability blocker；請確認目標 Agent Pool 有啟用中的成員。",
+          description: " Capability blocker; VerifyTarget Agent Pool hasEnableMembers.",
         },
         {
           id: "open-agent",
           label: context.agentId ? "Open Agent" : "Open Agents",
           href: agentLink(context.agentId),
           tone: "secondary",
-          description: "檢查 Agent 管理狀態、所屬工作池與 Runtime Eligibility。",
+          description: "Review Agent governance status, Agent Pool membership, and runtime eligibility.",
         },
       );
       break;
@@ -321,14 +321,14 @@ export function buildDispatchOperatorActions(
           label: "Open Dispatch Flows",
           href: "/dispatch-flows",
           tone: "primary",
-          description: "正式派工以 Source Flow、Rule override／Default Agent Pool 與 Pool Member Agent 為準。",
+          description: "Dispatch information Source Flow,Rule override/Default Agent Pool and Pool Member Agent ",
         },
         {
           id: "open-flow-dry-run",
           label: "Run Flow Dry-run",
           href: "/dispatch-flows?panel=dry-run",
           tone: "secondary",
-          description: "直接檢查 Flow Rule 是否可派工。",
+          description: " Flow Rule Dispatch information",
         },
       );
       break;
@@ -342,14 +342,14 @@ export function buildDispatchOperatorActions(
           href: "/dispatch-flows",
           tone: "primary",
           description:
-            "Capability 只作參考；請確認 Source Flow、Agent Pool、Pool Member Agent 與 Runtime Eligibility。",
+            "Capability Review the configuration and try again. Source Flow,Agent Pool,Pool Member Agent and Runtime Eligibility.",
         },
         {
           id: "open-agent-capabilities",
           label: context.agentId ? "Open Agent Detail" : "Open Agents",
           href: agentLink(context.agentId),
           tone: "secondary",
-          description: "檢查 Agent 管理狀態、工作池 membership 與 Runtime。",
+          description: " Agent managementStatus,Agent Pool membership and Runtime.",
         },
       );
       break;
@@ -362,7 +362,7 @@ export function buildDispatchOperatorActions(
           label: "Open Runtime Features",
           href: "/settings/runtime-features",
           tone: "primary",
-          description: "確認必要 Runtime Feature 已定義並可用於 dispatch。",
+          description: " Runtime Feature  dispatch.",
         },
         {
           id: "open-agent-runtime-trust",
@@ -370,7 +370,7 @@ export function buildDispatchOperatorActions(
           href: agentLink(context.agentId),
           tone: "secondary",
           description:
-            "將 observation 驗證並提升為 TRUSTED，或處理被 revoke/suspend 的 feature。",
+            " observation  TRUSTED revoke/suspend  feature.",
         },
       );
       break;
@@ -382,14 +382,14 @@ export function buildDispatchOperatorActions(
           href: agentLink(context.agentId),
           tone: "primary",
           description:
-            "檢查 Agent 是否存在、已核准、enabled，且 Credential 與 Runtime 狀態正常。",
+            " Agent enabled, and Credential and Runtime StatusHealthy.",
         },
         {
           id: "open-dispatch-flows",
           label: "Open Dispatch Flows",
           href: "/dispatch-flows?panel=agents",
           tone: "secondary",
-          description: "確認 Agent 是否已加入 matched Source Flow 的目標 Agent Pool。",
+          description: "confirm Agent  matched Source Flow Target Agent Pool.",
         },
       );
       break;
@@ -401,7 +401,7 @@ export function buildDispatchOperatorActions(
           href: "/agents/runtime",
           tone: "primary",
           description:
-            "檢查 currentTaskCount、reservedTaskCount、maxConcurrentTasks 與 runtime load。",
+            " currentTaskCount,reservedTaskCount,maxConcurrentTasks and runtime load.",
         },
         {
           id: "open-agent-detail",
@@ -410,7 +410,7 @@ export function buildDispatchOperatorActions(
             : "Open Agent Operations",
           href: agentLink(context.agentId),
           tone: "secondary",
-          description: "調整 capacity 或確認是否需要啟動更多 Agent。",
+          description: " capacity  Agent.",
         },
       );
       break;
@@ -422,7 +422,7 @@ export function buildDispatchOperatorActions(
           href: "/agents/runtime",
           tone: "primary",
           description:
-            "檢查 offline、draining、backoff、credential、enabled 狀態。",
+            " offline,draining,backoff,credential,enabled Status.",
         },
         {
           id: "open-agent-governance",
@@ -431,7 +431,7 @@ export function buildDispatchOperatorActions(
             : "Open Agent Operations",
           href: agentLink(context.agentId),
           tone: "secondary",
-          description: "確認 Agent 是否被治理規則或安全規則封鎖。",
+          description: "confirm Agent ",
         },
       );
       break;
@@ -441,7 +441,7 @@ export function buildDispatchOperatorActions(
         label: "Open Failure Queue",
         href: "/tasks/failure-queue",
         tone: "primary",
-        description: "查看同類 delayed dispatch / recovery wait 任務。",
+        description: "View details delayed dispatch / recovery wait Task.",
       });
       if (
         context.includeTaskCommands &&
@@ -453,7 +453,7 @@ export function buildDispatchOperatorActions(
           command: "triggerRecoveryNow",
           tone: "safe",
           requiresReason: true,
-          description: "在修正 Flow Agent / Capability assignment / capacity 後立即觸發 recovery。",
+          description: " Flow Agent / Capability assignment / capacity  recovery.",
         });
       } else if (
         context.includeTaskCommands &&
@@ -465,7 +465,7 @@ export function buildDispatchOperatorActions(
           command: "manualRetry",
           tone: "safe",
           requiresReason: true,
-          description: "在 Failure Queue 直接要求 Core 重新嘗試派工。",
+          description: "in Failure Queue  Core Dispatch information",
         });
       }
       break;
@@ -475,7 +475,7 @@ export function buildDispatchOperatorActions(
         label: "Open Task Timeline",
         href: taskLink(context.taskId),
         tone: "primary",
-        description: "檢查已耗盡的 retry history 與 routing decision。",
+        description: " retry history and routing decision.",
       });
       if (context.includeTaskCommands && (context.canEscalate ?? true)) {
         actions.push({
@@ -484,7 +484,7 @@ export function buildDispatchOperatorActions(
           command: "escalate",
           tone: "warning",
           requiresReason: true,
-          description: "轉交人工處理，避免任務停在無人負責狀態。",
+          description: "Task detailsStatus.",
         });
       }
       if (context.includeTaskCommands && (context.canDeadLetter ?? true)) {
@@ -494,7 +494,7 @@ export function buildDispatchOperatorActions(
           command: "deadLetter",
           tone: "danger",
           requiresReason: true,
-          description: "確認無法自動恢復後移入 dead-letter。",
+          description: " dead-letter.",
         });
       }
       break;
@@ -505,14 +505,14 @@ export function buildDispatchOperatorActions(
           label: "Open Routing Explainability",
           href: taskLink(context.taskId),
           tone: "primary",
-          description: "查看 candidate score breakdown、門檻與扣分原因。",
+          description: "view candidate score breakdown",
         },
         {
           id: "open-dispatch-readiness",
           label: "Review Dispatch Flow",
           href: "/dispatch-flows",
           tone: "secondary",
-          description: "用測試工具重現派工條件與候選 Agent 評分。",
+          description: "Dispatch information Agent ",
         },
       );
       break;
@@ -523,14 +523,14 @@ export function buildDispatchOperatorActions(
           label: "Open Agent Runtime",
           href: "/agents/runtime",
           tone: "primary",
-          description: "確認是否有 Agent online 且可被 Core 看到。",
+          description: " Agent online  Core ",
         },
         {
           id: "open-agent-enrollments",
           label: "Open Agent Enrollments",
           href: "/agent-enrollments",
           tone: "secondary",
-          description: "確認是否需要核准或重新註冊 Agent。",
+          description: " Agent.",
         },
       );
       break;
@@ -541,14 +541,14 @@ export function buildDispatchOperatorActions(
           label: "Open Cluster Diagnostics",
           href: "/cluster/diagnostics",
           tone: "primary",
-          description: "確認 Core recovery scanner 與叢集狀態。",
+          description: "confirm Core recovery scanner Status.",
         },
         {
           id: "open-failure-queue",
           label: "Open Failure Queue",
           href: "/tasks/failure-queue",
           tone: "secondary",
-          description: "查看是否有大量 recovery 異常堆積。",
+          description: "View details recovery ",
         },
       );
       break;
@@ -558,7 +558,7 @@ export function buildDispatchOperatorActions(
         label: "Open Task",
         href: taskLink(context.taskId),
         tone: "secondary",
-        description: "查看 Task detail 與 dispatch diagnostics。",
+        description: "view Task detail and dispatch diagnostics.",
       });
       break;
   }
@@ -569,7 +569,7 @@ export function buildDispatchOperatorActions(
       label: `Runbook: ${runbookRef}`,
       tone: "secondary",
       description:
-        "此版本先顯示 runbook reference；若日後新增 Runbook page，可改為內部連結。",
+        "thisVersion runbook reference Runbook page",
     });
   }
 

@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 EXPECTED_GROUP_ID="com.opensocket"
 EXPECTED_ARTIFACT_ID="ai-event-gateway-core-parent"
-EXPECTED_VERSION="1.0.0-p25.7.4-p5-callback-transition-governance-fix"
+EXPECTED_VERSION="0.8.2-SNAPSHOT"
 
 fail() {
   echo "[ERROR] $*" >&2

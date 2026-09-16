@@ -29,15 +29,15 @@ function joinCsv(values?: string[]): string {
 function modeDescription(mode?: string): string {
   switch (mode) {
     case 'ALERT_ONLY':
-      return '只記錄 security event 與通知，不自動變更 Agent 狀態。適合開發或低風險 Agent。';
+      return ' security event  Agent Status Agent.';
     case 'QUARANTINE':
-      return '自動 riskStatus=QUARANTINED、enabled=false，要求 credential rotation，但不主動中斷 runtime sessions。';
+      return ' riskStatus=QUARANTINED,enabled=false credential rotation runtime sessions.';
     case 'QUARANTINE_AND_DISCONNECT':
-      return '自動 quarantine 並對 observed gateway nodes 執行 disconnect-all。';
+      return ' quarantine  observed gateway nodes run disconnect-all.';
     case 'QUARANTINE_REVOKE_AND_DISCONNECT':
-      return '最嚴格模式：quarantine、revoke active credentials、disconnect-all。適合高權限 Agent。';
+      return 'quarantine,revoke active credentials,disconnect-all Agent.';
     default:
-      return '尚未設定模式，Core 會使用 default policy 或 ALERT_ONLY。';
+      return 'Not configuredCore  default policy or ALERT_ONLY.';
   }
 }
 
@@ -85,7 +85,7 @@ export function AgentSecurityEnforcementPolicyPanel({ policy, commandRunning, on
         <div>
           <h2 className="text-base font-bold text-slate-900">Per-Agent Security Enforcement Policy</h2>
           <p className="mt-1 text-sm text-slate-500">
-            針對 duplicate runtime 自動偵測事件，設定此 Agent 的處置策略與通知 hook。Core 會優先使用本 Agent policy；沒有設定時才使用 default policy。
+             duplicate runtime Configuration Agent  hook.Core  Agent policyNo data is currently available. default policy.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -147,7 +147,7 @@ export function AgentSecurityEnforcementPolicyPanel({ policy, commandRunning, on
       </div>
 
       <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        P8 目前提供 notification / audit hook：Core 會寫入 SECURITY_NOTIFICATION_QUEUED security event。實際 Email / Slack / SIEM publisher 可在後續 P9 接 outbox worker 或企業既有通知服務。
+        P8  notification / audit hook:Core  SECURITY_NOTIFICATION_QUEUED security event Email / Slack / SIEM publisher  P9  outbox worker 
       </div>
 
       <div className="mt-4 flex justify-end">

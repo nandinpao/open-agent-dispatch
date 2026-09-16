@@ -1,4 +1,4 @@
-import type { AgentEnrollmentRequest, CoreAgentCertificationRun, CoreAgentDispatchEligibility, CoreAgentProfile, CoreAgentQualification, CoreTaskRuntimeView, CoreDispatchFlowView } from '@/lib/types/core';
+import type { AgentEnrollmentRequest, CoreAgentDispatchEligibility, CoreAgentProfile, CoreAgentQualification, CoreTaskRuntimeView, CoreDispatchFlowView } from '@/lib/types/core';
 import type { NettyAgentRuntime, NettyDeliveryRuntime, NettyRuntimeSnapshot } from '@/lib/types/nettyRuntime';
 
 export interface AgentRuntimeSummary {
@@ -18,7 +18,6 @@ export interface AgentDashboardRow {
   enrollment?: AgentEnrollmentRequest;
   qualifications?: CoreAgentQualification[];
   dispatchEligibility?: CoreAgentDispatchEligibility;
-  certificationRuns?: CoreAgentCertificationRun[];
   dispatchFlows?: CoreDispatchFlowView[];
   approvalStatus?: string;
   enabled?: boolean;

@@ -12,9 +12,9 @@ import { useTraceDetail } from '@/hooks/useTraceDetail';
 export function TraceDetailView({ traceId }: Readonly<{ traceId: string }>) {
   const { data, loading, refreshing, error, lastUpdatedAt, refresh } = useTraceDetail(traceId);
 
-  if (loading) return <LoadingBox label={`讀取 ${traceId} Trace...`} />;
+  if (loading) return <LoadingBox label={`load ${traceId} Trace...`} />;
   if (error) return <ErrorBox message={error} />;
-  if (!data) return <EmptyState title="找不到 Trace" description="後端沒有回傳此 Trace detail。" />;
+  if (!data) return <EmptyState title=" Trace" description="No data is currently available. Trace detail." />;
 
   return (
     <div className="space-y-5">

@@ -14,17 +14,27 @@ export interface PollingResourceState<T> {
 
 type PollingLoader<T> = (signal?: AbortSignal) => Promise<T>;
 
-export function usePollingResource<T>(loader: PollingLoader<T>, enabled = true): PollingResourceState<T> {
+export function usePollingResource<T>(
+  loader: PollingLoader<T>,
+  enabled = true,
+  shouldPoll?: (current: T | null) => boolean,
+): PollingResourceState<T> {
   const env = getPublicEnv();
   const mountedRef = useRef(false);
   const hasLoadedRef = useRef(false);
   const inFlightRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const dataRef = useRef<T | null>(null);
+  const shouldPollRef = useRef(shouldPoll);
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    shouldPollRef.current = shouldPoll;
+  }, [shouldPoll]);
 
   const refresh = useCallback(async () => {
     if (!enabled || inFlightRef.current) return;
@@ -41,6 +51,7 @@ export function usePollingResource<T>(loader: PollingLoader<T>, enabled = true):
       const result = await loader(controller.signal);
       if (!mountedRef.current || controller.signal.aborted) return;
       setData(result);
+      dataRef.current = result;
       hasLoadedRef.current = true;
       setLastUpdatedAt(new Date().toISOString());
     } catch (err) {
@@ -63,11 +74,13 @@ export function usePollingResource<T>(loader: PollingLoader<T>, enabled = true):
 
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'hidden') return;
+      if (shouldPollRef.current && !shouldPollRef.current(dataRef.current)) return;
       void refresh();
     }, env.refreshIntervalMs);
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void refresh();
+      const predicate = shouldPollRef.current;
+      if (document.visibilityState === 'visible' && (!predicate || predicate(dataRef.current))) void refresh();
     };
     document.addEventListener('visibilitychange', onVisible);
 

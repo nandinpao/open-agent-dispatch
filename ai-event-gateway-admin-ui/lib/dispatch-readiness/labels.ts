@@ -9,74 +9,74 @@ export interface BeginnerLabel {
 
 export const capabilityBeginnerLabels: Record<string, BeginnerLabel> = {
   TASK_EXECUTION: {
-    label: '任務執行能力',
-    description: 'Agent 可接收並執行已通過治理與派單規則的任務。'
+    label: 'Task execution capability',
+    description: 'Capability required by a Task before an Agent can be considered eligible.'
   },
   GENERAL_AGENT: {
-    label: '一般 Agent 能力',
-    description: 'Agent 的基本平台能力標籤；實際候選範圍由 Agent Pool membership 決定，可接單狀態由 Runtime Eligibility 決定。'
+    label: 'General Agent capability',
+    description: 'A general capability approved for an Agent. Agent Pool membership alone does not satisfy a Task capability requirement.'
   }
 };
 
 export const statusBeginnerLabels: Record<string, BeginnerLabel> = {
-  APPROVED: { label: '已核准', description: 'Core Governance 已允許此 Agent 或派工請求。' },
-  REJECTED: { label: '已拒絕', description: 'Core Governance 明確拒絕，需重新審核。' },
-  REVOKED: { label: '已撤銷', description: 'Credential 或治理狀態已撤銷，不能派工。' },
-  SUSPENDED: { label: '已暫停', description: 'Agent 暫時不可被派工。' },
-  NORMAL: { label: '風險正常', description: '目前沒有 quarantine、revoked 或 compromised 風險。' },
-  CONNECTED: { label: '已連線', description: 'Runtime Agent 目前與 Gateway 有 active session。' },
-  OFFLINE: { label: '離線', description: 'Runtime Agent 目前沒有可用連線。' },
-  IDLE: { label: '空閒', description: 'Runtime 未回報正在執行任務；不代表它沒有收到 Gateway 派送。' },
-  RUNNING: { label: '執行中', description: 'Agent 或 Task 已進入執行狀態。' },
-  ASSIGNED: { label: '已選中 Agent', description: 'Core routing 已選出要處理此 Task 的 Agent。' },
-  DISPATCH_REQUESTED: { label: '已建立派工請求', description: 'Core 已建立 Dispatch Request，等待送到 Gateway。' },
-  DISPATCHED: { label: '已送出派工', description: 'Gateway delivery 已觀測到任務送出。' },
-  ACKED: { label: 'Agent 已確認', description: 'Agent 已回應 ACK，等待進一步結果。' },
-  COMPLETED: { label: '已完成', description: 'Task 已成功完成。' },
-  FAILED: { label: '失敗', description: 'Task 或派工流程失敗，需要查看原因與重試。' },
-  CANCELLED: { label: '已取消', description: 'Task 已被取消。' },
-  PENDING: { label: '等待中', description: '流程尚未開始或等待下一步。' },
-  QUEUED: { label: '已排隊', description: '等待 worker 或 Gateway 處理。' },
-  DELIVERED_TO_GATEWAY: { label: '已送達 Gateway', description: 'Netty Gateway 已接到派工；下一步通常是等待 Agent callback。' },
-  WAIT_FOR_AGENT_ACK: { label: '等待 Agent 確認', description: 'Gateway 已接收派工，Core 正等待 Agent ACK / callback。' },
-  WAIT_FOR_AGENT_RESULT: { label: '等待 Agent 結果', description: 'Agent 已回應，Core 等待 RESULT 或 ERROR callback。' },
-  WAITING_AGENT: { label: '等待可用 Agent', description: 'Core 還沒有找到可派工 Agent 或尚未完成指派。' },
-  WAIT_GATEWAY_ACK: { label: '等待 Gateway 確認', description: '派工請求正在等待 Gateway 接收或確認。' },
-  NETTY_ACK: { label: 'Gateway 已接受', description: 'Netty 已接受派工，仍需等待 Agent callback。' },
-  CALLBACK_RELAY: { label: 'Callback Relay', description: 'Gateway 正將 Agent callback relay 回 Core。' }
+  APPROVED: { label: 'Approved', description: 'Core governance has approved this configuration or capability.' },
+  REJECTED: { label: 'Rejected', description: 'Core governance rejected this configuration or capability.' },
+  REVOKED: { label: 'Revoked', description: 'The previous authorization has been revoked and cannot be used for dispatch.' },
+  SUSPENDED: { label: 'Suspended', description: 'The Agent is temporarily excluded from dispatch.' },
+  NORMAL: { label: 'Healthy', description: 'No quarantine, revocation, or compromised-risk condition is active.' },
+  CONNECTED: { label: 'Connected', description: 'The Agent currently has an active runtime session through the Gateway.' },
+  OFFLINE: { label: 'Offline', description: 'No active runtime connection is available for this Agent.' },
+  IDLE: { label: 'Idle', description: 'The Agent is connected and currently has no active workload.' },
+  RUNNING: { label: 'Running', description: 'The Agent or Task is actively processing work.' },
+  ASSIGNED: { label: 'Assigned', description: 'Core selected an eligible Agent for this Task.' },
+  DISPATCH_REQUESTED: { label: 'Dispatch requested', description: 'Core created a Dispatch Request and is waiting for Gateway delivery.' },
+  DISPATCHED: { label: 'Dispatched', description: 'The Gateway delivered the Task to the selected Agent.' },
+  ACKED: { label: 'Agent acknowledged', description: 'The Agent acknowledged the Task; Core is waiting for the execution result.' },
+  COMPLETED: { label: 'Completed', description: 'The Task completed successfully.' },
+  FAILED: { label: 'Failed', description: 'The Task or operation failed. Review the blocking reason and evidence.' },
+  CANCELLED: { label: 'Cancelled', description: 'The Task was cancelled.' },
+  PENDING: { label: 'Pending', description: 'The workflow is waiting for its next state transition.' },
+  QUEUED: { label: 'Queued', description: 'The request is waiting for a worker or Gateway processing.' },
+  DELIVERED_TO_GATEWAY: { label: 'Delivered to Gateway', description: 'Core handed the Dispatch Request to Netty Gateway and is waiting for Agent transport evidence.' },
+  WAIT_FOR_AGENT_ACK: { label: 'Waiting for Agent acknowledgement', description: 'Gateway delivered the Task and Core is waiting for Agent ACK or callback.' },
+  WAIT_FOR_AGENT_RESULT: { label: 'Waiting for Agent result', description: 'Core is waiting for RESULT or ERROR callback from the Agent.' },
+  WAITING_AGENT: { label: 'Waiting for eligible Agent', description: 'No currently eligible Agent is available. Review capability, runtime, capacity, and backoff evidence.' },
+  WAIT_GATEWAY_ACK: { label: 'Waiting for Gateway acknowledgement', description: 'Core is waiting for Gateway delivery acknowledgement.' },
+  NETTY_ACK: { label: 'Gateway acknowledged', description: 'Netty accepted the dispatch and Core is waiting for Agent-side evidence.' },
+  CALLBACK_RELAY: { label: 'Callback relay', description: 'Gateway is relaying the Agent callback to Core.' }
 };
 
 export const policyBeginnerLabels: Record<string, BeginnerLabel> = {
-  READ_ONLY: { label: '只能讀取', description: 'Agent 只能讀取資料，不可直接修改系統。' },
-  PROPOSE_ONLY: { label: '只能提出建議', description: 'Agent 可提出建議，但不可自動執行高風險動作。' },
-  SAFE_COMMAND_ALLOWED: { label: '允許安全命令', description: 'Agent 可執行已被允許的低風險命令。' },
-  ANALYZE: { label: '分析', description: 'Agent 可分析事件、資料與上下文。' },
-  PROPOSE: { label: '提出建議', description: 'Agent 可回報建議修復或處置方式。' },
-  READ: { label: '讀取', description: 'Agent 可讀取必要資料。' }
+  READ_ONLY: { label: 'Read only', description: 'The operation can read data but cannot mutate provider state.' },
+  PROPOSE_ONLY: { label: 'Propose only', description: 'The Agent may propose an action but cannot execute it automatically.' },
+  SAFE_COMMAND_ALLOWED: { label: 'Safe command allowed', description: 'Approved low-risk commands may be executed within the governed scope.' },
+  ANALYZE: { label: 'Analyze', description: 'The Agent may analyze the event or Task evidence.' },
+  PROPOSE: { label: 'Propose', description: 'The Agent may propose a next action for review.' },
+  READ: { label: 'Read', description: 'The Agent may read the governed resource.' }
 };
 
 export const readinessCheckLabels: Record<string, string> = {
-  TASK_REQUIRES_CAPABILITY: 'Task Capability Metadata（參考）',
-  CAPABILITY_DEFINED: 'Capability Catalog（參考）',
-  DISPATCH_CONTRACT_RESOLVED: 'Source Flow／Agent Pool 已解析',
-  GOVERNANCE_PROFILE: 'Agent 管理狀態已核准',
-  GOVERNANCE_APPROVED_CAPABILITY: 'Capability 核准資訊（參考）',
-  RUNTIME_AGENT_ONLINE: 'Agent Runtime 在線',
-  RUNTIME_REPORTED_CAPABILITY: 'Runtime Capability 觀測（參考）',
-  AGENT_CAPACITY_AVAILABLE: 'Agent 容量可用',
-  CAPABILITY_CONTRACT_ELIGIBLE: 'Runtime Eligibility 總檢查通過'
+  TASK_REQUIRES_CAPABILITY: 'Task Required Capability',
+  CAPABILITY_DEFINED: 'Canonical Capability Definition',
+  DISPATCH_CONTRACT_RESOLVED: 'Source Flow / Agent Pool',
+  GOVERNANCE_PROFILE: 'Agent governance status',
+  GOVERNANCE_APPROVED_CAPABILITY: 'Approved Agent Capability',
+  RUNTIME_AGENT_ONLINE: 'Agent runtime connection',
+  RUNTIME_REPORTED_CAPABILITY: 'Runtime capability evidence',
+  AGENT_CAPACITY_AVAILABLE: 'Agent capacity',
+  CAPABILITY_CONTRACT_ELIGIBLE: 'Capability eligibility'
 };
 
 export const readinessCheckBeginnerHints: Record<string, string> = {
-  TASK_REQUIRES_CAPABILITY: 'requiredCapabilities 僅作歷史與查詢參考；Current 派工仍以 Source Flow、Agent Pool 與 Pool Member Agent 為準。',
-  CAPABILITY_DEFINED: 'Capability 是 Agent 描述、搜尋與治理資訊；沒有 Capability 設定不應隱性阻擋 Agent Pool 派工。',
-  DISPATCH_CONTRACT_RESOLVED: '確認事件的 sourceSystem 可解析到啟用中的 Source Flow，且 Flow 已指定 Default Agent Pool。',
-  GOVERNANCE_PROFILE: 'Agent 必須存在、已核准、enabled，且未被 suspended、disabled 或 revoked。',
-  GOVERNANCE_APPROVED_CAPABILITY: 'Capability 核准只作參考；請改查 Agent 是否已加入目標 Agent Pool。',
-  RUNTIME_AGENT_ONLINE: 'Pool Member Agent 必須實際連上 Gateway，否則 Core 無法投遞。',
-  RUNTIME_REPORTED_CAPABILITY: 'Runtime capability observation 只作診斷；TASK_ACK、TASK_RESULT 等 transport feature 仍需正常。',
-  AGENT_CAPACITY_AVAILABLE: 'Agent slots 用完、draining 或 Backoff 時，暫時不應再接新任務。',
-  CAPABILITY_CONTRACT_ELIGIBLE: '請依序檢查 Source Flow、Agent Pool、Pool Member Agent、Runtime、Credential、Capacity 與 Backoff。'
+  TASK_REQUIRES_CAPABILITY: 'A normal Dispatch Task must declare at least one Required Capability. It is a blocking Agent-eligibility contract.',
+  CAPABILITY_DEFINED: 'Every Required Capability must resolve to an active Canonical Capability Definition.',
+  DISPATCH_CONTRACT_RESOLVED: 'The Source Flow selects the Agent Pool. The Pool defines where Core searches; it does not prove capability qualification.',
+  GOVERNANCE_PROFILE: 'The Agent must be enabled, approved, and not suspended or revoked.',
+  GOVERNANCE_APPROVED_CAPABILITY: 'A Pool member must have the Task-required Canonical Capability approved by Core governance.',
+  RUNTIME_AGENT_ONLINE: 'At least one capability-qualified Pool member must have a healthy Gateway runtime connection.',
+  RUNTIME_REPORTED_CAPABILITY: 'Runtime capability evidence must be compatible with the governed Agent capability contract when the protocol reports it.',
+  AGENT_CAPACITY_AVAILABLE: 'The eligible Agent must have an available slot and must not be draining or under backoff.',
+  CAPABILITY_CONTRACT_ELIGIBLE: 'Core evaluates Source Flow, Agent Pool, Required Capability, runtime eligibility, capacity/backoff, and then routing score.'
 };
 
 export function normalizeCode(value?: string): string {
@@ -96,7 +96,7 @@ export function beginnerCapabilityLabel(capabilityCode?: string): string {
 
 export function beginnerCapabilityDescription(capabilityCode?: string): string {
   const normalized = normalizeCode(capabilityCode);
-  return capabilityBeginnerLabels[normalized]?.description ?? '尚未設定友善說明；此 Capability 僅作查詢與治理參考。';
+  return capabilityBeginnerLabels[normalized]?.description ?? 'Canonical capability code used by Task and Agent eligibility contracts.';
 }
 
 export function beginnerStatusLabel(status?: string): string {
@@ -106,7 +106,7 @@ export function beginnerStatusLabel(status?: string): string {
 
 export function beginnerStatusDescription(status?: string): string {
   const normalized = normalizeCode(status);
-  return statusBeginnerLabels[normalized]?.description ?? policyBeginnerLabels[normalized]?.description ?? '保留原始狀態碼供工程師追蹤。';
+  return statusBeginnerLabels[normalized]?.description ?? policyBeginnerLabels[normalized]?.description ?? 'Current workflow status.';
 }
 
 export function beginnerCheckLabel(check?: CoreDispatchReadinessCheck): string {
@@ -133,16 +133,15 @@ export function humanizedCodeLabel(code?: string, type?: 'skill' | 'capability' 
 
 export function humanizedCodeDescription(code?: string, type?: 'skill' | 'capability' | 'status' | 'policy' | 'operation' | 'taskType' | 'generic'): string {
   const normalized = normalizeCode(code);
-  if (!normalized) return '沒有可顯示的 code。';
+  if (!normalized) return 'No code is available.';
   if (type === 'skill' || type === 'capability') return beginnerCapabilityDescription(normalized);
   if (type === 'status') return beginnerStatusDescription(normalized);
-  if (type === 'policy' || type === 'operation') return policyBeginnerLabels[normalized]?.description ?? '保留原始 policy / operation code。';
+  if (type === 'policy' || type === 'operation') return policyBeginnerLabels[normalized]?.description ?? 'Governed policy or operation code.';
   return capabilityBeginnerLabels[normalized]?.description
     ?? statusBeginnerLabels[normalized]?.description
     ?? policyBeginnerLabels[normalized]?.description
-    ?? '保留原始 code 供工程師追蹤。';
+    ?? 'System code used by the current workflow.';
 }
-
 
 export const beginnerSkillLabel = beginnerCapabilityLabel;
 export const beginnerSkillDescription = beginnerCapabilityDescription;

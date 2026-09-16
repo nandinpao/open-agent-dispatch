@@ -5,7 +5,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ ev
   const { eventId } = await params;
   return (
     <main className="space-y-5">
-      <LegacyRuntimePlaneNotice compact description="此事件明細仍是 Netty runtime event/trace 視角，不代表 Core 的 Agent governance、Task 或 Dispatch 權威狀態。" />
+      <LegacyRuntimePlaneNotice compact description="This legacy view shows Netty runtime event and trace evidence. Core remains authoritative for Agent governance, Tasks, and Dispatch." />
       <EventDetailView eventId={decodeURIComponent(eventId)} />
     </main>
   );

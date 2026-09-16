@@ -11,7 +11,7 @@ export interface ParsedDispatchUserFacingError {
 }
 
 const technicalMarker = "Technical details:";
-const emptyReason = "目前沒有明確阻擋原因。";
+const emptyReason = "No explicit blocking reason is currently available.";
 
 const OPERATOR_REASON_BY_CODE: Record<
   string,
@@ -67,9 +67,9 @@ const OPERATOR_REASON_BY_CODE: Record<
   },
   RUNTIME_CAPABILITY_MISSING: {
     message:
-      "This is a legacy capability blocker. Capability is reference-only in Current routing.",
+      "No eligible Agent in the resolved Pool currently satisfies the Task-required Capability contract.",
     nextAction:
-      "Review the matched Source Flow, target Agent Pool, Pool membership, runtime connection, capacity, credential, and backoff. Capability data remains diagnostic only.",
+      "Approve the required Canonical Capability for at least one Pool member, then confirm that the same Agent also passes connection, credential, capacity, and backoff checks.",
     runbookRef: "runbooks/dispatch/admin-managed-capability-missing",
   },
   DISPATCH_RULE_MISSING: {
@@ -95,9 +95,9 @@ const OPERATOR_REASON_BY_CODE: Record<
   },
   EFFECTIVE_CAPABILITY_NOT_RESOLVED: {
     message:
-      "The task could not be resolved to the Current Source Flow and Agent Pool model.",
+      "The Task could not resolve its canonical Required Capability and Dispatch context.",
     nextAction:
-      "Fix sourceSystem, Source Flow, rule/default Pool configuration, then retry routing.",
+      "Review Source System, matched Source Flow, Required Capability, rule/default Pool, and approved Agent Capability assignments before retrying routing.",
     runbookRef: "runbooks/dispatch/effective-capability-contract",
   },
 };
@@ -144,11 +144,11 @@ function splitNextAction(value: string): {
   message: string;
   nextAction?: string;
 } {
-  const marker = value.indexOf("下一步：");
+  const marker = value.indexOf("Next step: ");
   if (marker < 0) return { message: value.trim() || emptyReason };
   const message = value.slice(0, marker).trim();
-  let rest = value.slice(marker + "下一步：".length).trim();
-  const extraMarkers = [" 原因：", " 下次重試：", " Next retry:", " Reason:"];
+  let rest = value.slice(marker + "Next step: ".length).trim();
+  const extraMarkers = [" reason:", " ", " Next retry:", " Reason:"];
   const extraIndex = extraMarkers
     .map((item) => rest.indexOf(item))
     .filter((index) => index >= 0)

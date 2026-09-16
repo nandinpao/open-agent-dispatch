@@ -130,7 +130,7 @@ export function GovernanceActionDialog({
             className="mt-1 h-4 w-4 rounded border-amber-300"
             disabled={isRunning}
           />
-          <span>我已檢查 impact / runbook / rollback 條件，了解此操作會寫入治理歷史，且不會用 delete 取代 revoke。</span>
+          <span> impact / runbook / rollback Actions delete  revoke.</span>
         </label>
 
         {validationError ? <div className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{validationError}</div> : null}

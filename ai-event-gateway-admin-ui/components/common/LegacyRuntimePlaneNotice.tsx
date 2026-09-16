@@ -8,7 +8,7 @@ interface LegacyRuntimePlaneNoticeProps {
 
 export function LegacyRuntimePlaneNotice({
   title = 'Legacy Netty runtime view',
-  description = '此頁仍保留 Netty runtime / local diagnostic 語意，適合觀察 Gateway、Cluster、Event、Trace 等 transport runtime；它不是 Agent / Task / Dispatch 的 Core 權威資料來源。',
+  description = ' Netty runtime / local diagnostic  Gateway,Cluster,Event,Trace etc. transport runtime Agent / Task / Dispatch  Core authoritativedata source.',
   compact = false
 }: Readonly<LegacyRuntimePlaneNoticeProps>) {
   return (

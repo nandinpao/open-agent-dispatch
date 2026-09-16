@@ -22,9 +22,9 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
   const { nodeMetricsById, lastMetricsAt } = useAdminRealtime();
   const [showRaw, setShowRaw] = useState(false);
 
-  if (detail.loading) return <LoadingBox label="讀取 Cluster Node 詳細資料..." />;
+  if (detail.loading) return <LoadingBox label="Loading cluster node details..." />;
   if (detail.error) return <ErrorBox message={detail.error} />;
-  if (!detail.data) return <EmptyState title="找不到 Cluster Node" description="請確認 nodeId 是否存在於目前 Cluster。" />;
+  if (!detail.data) return <EmptyState title="Cluster node not found" description="Verify nodeId  Cluster." />;
 
   const restNode = detail.data;
   const node = {
@@ -36,12 +36,12 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
   const visibleTasks = tasks.data ?? node.recentTasks;
 
   async function handleDrain() {
-    const confirmed = window.confirm('Drain Node 會停止接收新任務，既有任務會繼續完成。確定要執行嗎？');
+    const confirmed = window.confirm('Draining the node stops new assignments while existing work continues. Proceed?');
     if (confirmed) await drainNode();
   }
 
   async function handleResume() {
-    const confirmed = window.confirm('Resume Node 會讓節點重新接收新任務。確定要執行嗎？');
+    const confirmed = window.confirm('Resuming the node allows new assignments. Proceed?');
     if (confirmed) await resumeNode();
   }
 
@@ -66,9 +66,9 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
       <CommandMessage message={commandMessage} />
 
       <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard title="Agents" value={node.agentCount} subtitle="owner node 為此節點" />
+        <MetricCard title="Agents" value={node.agentCount} subtitle="owner node is this node" />
         <MetricCard title="Runtime Active" value={node.metrics.activeTaskCount} subtitle="Node-local live workload observation" />
-        <MetricCard title="Queue Size" value={node.metrics.queueSize} subtitle="等待被派發或處理" />
+        <MetricCard title="Queue Size" value={node.metrics.queueSize} subtitle="Waiting for the next state transition." />
         <MetricCard title="Avg Latency" value={node.metrics.averageLatencyMs ? `${node.metrics.averageLatencyMs} ms` : '-'} subtitle="peer / admin heartbeat" />
       </div>
 
@@ -77,7 +77,7 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Node Runtime Diagnostics</h2>
-              <p className="mt-1 text-sm text-slate-500">Netty worker、port、heartbeat、discovery 與啟動時間。此頁是 runtime diagnostics；Task / callback truth 以 Core Dispatch Ledger / Callback Inbox 為準。</p>
+              <p className="mt-1 text-sm text-slate-500">Netty worker,port,heartbeat,discovery  runtime diagnostics;Task / callback truth  Core Dispatch Ledger / Callback Inbox </p>
             </div>
             <button
               type="button"
@@ -102,8 +102,8 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">維運操作</h2>
-          <p className="mt-1 text-sm text-slate-500">Drain 用於維護前停止接新任務；Resume 用於恢復服務。</p>
+          <h2 className="text-lg font-bold text-slate-900">Operational actions</h2>
+          <p className="mt-1 text-sm text-slate-500">Drain Task detailsResume </p>
           <div className="mt-5 space-y-3">
             <button
               type="button"
@@ -123,14 +123,14 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
             </button>
           </div>
           <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-            <div>Accepts new tasks：<strong>{node.acceptsNewTasks ? 'YES' : 'NO'}</strong></div>
-            <div className="mt-1">Drain status：<strong>{node.drainStatus}</strong></div>
+            <div>Accepts new tasks:<strong>{node.acceptsNewTasks ? 'YES' : 'NO'}</strong></div>
+            <div className="mt-1">Drain status:<strong>{node.drainStatus}</strong></div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard title="CPU" value={formatPercent(node.metrics.cpuUsagePercent)} subtitle={lastMetricsAt ? `WebSocket realtime · ${formatDateTime(lastMetricsAt)}` : '節點 CPU 使用率'} />
+        <MetricCard title="CPU" value={formatPercent(node.metrics.cpuUsagePercent)} subtitle={lastMetricsAt ? `WebSocket realtime · ${formatDateTime(lastMetricsAt)}` : ' CPU '} />
         <MetricCard title="Memory" value={formatMemory(node.metrics.memoryUsedMb, node.metrics.memoryMaxMb)} subtitle={`${formatPercent(memoryPercent)} used`} />
         <MetricCard title="Event Loop / Worker" value={`${node.metrics.nettyEventLoopThreads}/${node.metrics.workerThreads}`} subtitle="Netty event loop / worker threads" />
       </section>
@@ -142,9 +142,9 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <TableCard title="Peer Relation / Heartbeat" description="Cluster peer relation、state sync 與 heartbeat 狀態。Heartbeat 來源為後端 cluster state pull 的最近成功時間。">
+        <TableCard title="Peer Relation / Heartbeat" description="Cluster peer relation,state sync and heartbeat Status.Heartbeat  cluster state pull ">
           {node.peers.length === 0 ? (
-            <div className="p-4 text-sm text-slate-500">目前 API 尚未回傳此節點的 peer relation / heartbeat payload。</div>
+            <div className="p-4 text-sm text-slate-500">The API has not returned peer-relation or heartbeat data for this node.</div>
           ) : (
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -177,9 +177,9 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
           )}
         </TableCard>
 
-        <TableCard title="Agents on Node" description="優先使用 /api/cluster/agents by-node 聚合資料；此清單代表 owner node 為本節點的 Agent，不代表共享分散式 AgentRegistry。">
-          {agents.loading ? <LoadingBox label="讀取 Agent..." /> : agents.error ? <ErrorBox message={agents.error} /> : visibleAgents.length === 0 ? (
-            <div className="p-4 text-sm text-slate-500">目前沒有回傳此節點的 Agent 明細。若 overview 只有 summary，請確認 /api/cluster/agents 或 /api/cluster/agents/by-node 是否已啟用。</div>
+        <TableCard title="Agents on Node" description=" /api/cluster/agents by-node  owner node  Agent AgentRegistry.">
+          {agents.loading ? <LoadingBox label="Loading Agents..." /> : agents.error ? <ErrorBox message={agents.error} /> : visibleAgents.length === 0 ? (
+            <div className="p-4 text-sm text-slate-500">No data is currently available. Agent  overview onlyhas summary, Verify /api/cluster/agents or /api/cluster/agents/by-node Enabled.</div>
           ) : (
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -202,8 +202,8 @@ export function ClusterNodeDetailView({ nodeId }: Readonly<{ nodeId: string }>) 
       </section>
 
       <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
-        <h2 className="text-base font-bold">Gateway diagnostics 不是 Task truth，但應能看到 delivery history</h2>
-        <p className="mt-1 leading-6">如果 Dashboard 的 Recent Core Tasks 有資料，但下方 Recent Gateway Relay Diagnostics 沒資料，代表 Netty 目前沒有回報本 node 的 command delivery history。請確認 Core dispatch 是透過 Netty internal delivery API 投遞，且 Agent worker 不是 observe / idle。</p>
+        <h2 className="text-base font-bold">Gateway diagnostics not is Task truth delivery history</h2>
+        <p className="mt-1 leading-6">if Dashboard  Recent Core Tasks  Recent Gateway Relay Diagnostics  Netty No data is currently available. node  command delivery history.Verify Core dispatch is through Netty internal delivery API  Agent worker not is observe / idle.</p>
         <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-950 p-3 text-xs text-slate-100">{`CORE_BOOTSTRAP_AGENTS=true \
 AGENT_WORKER_MODE=process-result \
 AGENT_WORKER_PROCESSING_MS=8000 \
@@ -211,11 +211,11 @@ AGENT_MAX_CONCURRENT_TASKS=3 \
 ./scripts/cluster-run-many-agents.sh restart`}</pre>
       </section>
 
-      <TableCard title="Recent Gateway Relay Diagnostics" description="只顯示 Netty command delivery tracker / runtime delivery history 回報的 delivery diagnostics；不混入 Core recent tasks。Task 與 callback 權威狀態請到 Task Detail / Dispatch Ledger / Callback Inbox 查看。">
+      <TableCard title="Recent Gateway Relay Diagnostics" description="Shows Netty command-delivery and runtime-delivery diagnostics for recent Core Tasks. Review authoritative Task and callback status in Task Details, the Dispatch Ledger, or the Callback Inbox.">
         {taskCorrelation ? (
           <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-slate-800">資料來源：</span>
+              <span className="font-semibold text-slate-800">data source:</span>
               <StatusBadge status={taskCorrelation.source === 'NETTY_NODE' ? 'OK' : 'WARNING'} label={nodeTaskCorrelationLabel(taskCorrelation.source)} />
               {taskCorrelation.telemetryMissing ? <StatusBadge status="WARNING" label="Runtime telemetry missing" /> : null}
             </div>
@@ -223,8 +223,8 @@ AGENT_MAX_CONCURRENT_TASKS=3 \
             {taskCorrelation.coreRecentTasksCount > 0 ? <p className="mt-1 text-xs text-slate-500">Core recent tasks detected: {taskCorrelation.coreRecentTasksCount}. These are intentionally not rendered as node relay diagnostics.</p> : null}
           </div>
         ) : null}
-        {tasks.loading ? <LoadingBox label="讀取 Task..." /> : tasks.error ? <ErrorBox message={tasks.error} /> : visibleTasks.length === 0 ? (
-          <div className="space-y-2 p-4 text-sm text-slate-500"><div className="font-semibold text-slate-700">No gateway delivery / callback relay telemetry for this node.</div><div>{gatewayTelemetryMissingEmptyText(taskCorrelation ?? undefined)}</div><div>這不代表 Core 沒有 Task；代表此 Gateway node 沒有可用的 runtime relay diagnostics。請到 Tasks / Task Detail 查看權威狀態。</div></div>
+        {tasks.loading ? <LoadingBox label="Loading Tasks..." /> : tasks.error ? <ErrorBox message={tasks.error} /> : visibleTasks.length === 0 ? (
+          <div className="space-y-2 p-4 text-sm text-slate-500"><div className="font-semibold text-slate-700">No gateway delivery / callback relay telemetry for this node.</div><div>{gatewayTelemetryMissingEmptyText(taskCorrelation ?? undefined)}</div><div>Core has no Task evidence for this gateway node, and no runtime relay diagnostics are available. Open Tasks or Task Details to review authoritative status.</div></div>
         ) : (
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">

@@ -10,9 +10,9 @@ export function RuntimeEventSummaryPanel({ summary }: Readonly<{ summary: Runtim
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-bold text-slate-950">Runtime Event Summary</div>
-          <p className="mt-1 text-xs text-slate-500">Netty runtime stream 事件摘要。這裡呈現 runtime-plane 變化，仍需與 Core snapshot 定期 reconcile。</p>
+          <p className="mt-1 text-xs text-slate-500">Netty runtime stream Event details runtime-plane  Core snapshot  reconcile.</p>
         </div>
-        <div className="text-xs text-slate-500">Latest：{summary.latestAt ? formatDateTime(summary.latestAt) : '-'}</div>
+        <div className="text-xs text-slate-500">Latest:{summary.latestAt ? formatDateTime(summary.latestAt) : '-'}</div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
@@ -36,7 +36,7 @@ export function RuntimeEventSummaryPanel({ summary }: Readonly<{ summary: Runtim
               </div>
               {category.errorCount > 0 ? <StatusBadge status="ERROR" /> : category.warningCount > 0 ? <StatusBadge status="WARNING" /> : <StatusBadge status="OK" />}
             </div>
-            <div className="mt-2 text-xs text-slate-500">Latest：{category.latestAt ? formatDateTime(category.latestAt) : '-'}</div>
+            <div className="mt-2 text-xs text-slate-500">Latest:{category.latestAt ? formatDateTime(category.latestAt) : '-'}</div>
           </div>
         ))}
       </div>

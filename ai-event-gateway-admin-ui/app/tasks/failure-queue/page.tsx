@@ -5,7 +5,7 @@ import { TaskFailureQueuePanel } from '@/components/tasks/TaskFailureQueuePanel'
 export default function TaskFailureQueuePage() {
   return (
     <main className="space-y-6">
-      <PageHeader title="Task Failure Queue" description="集中檢視 retry wait、failed、escalated、dead-letter、orphaned 與 reconciling 任務，並提供 manual retry / escalation / DLQ 操作。" />
+      <PageHeader title="Task Failure Queue" description="Review retrying, failed, escalated, dead-lettered, orphaned, and reconciling Tasks, with controlled retry, escalation, and dead-letter actions." />
       <InformationArchitectureGuide activeLayer="dispatch" compact />
       <TaskFailureQueuePanel />
     </main>

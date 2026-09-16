@@ -24,7 +24,7 @@ export function DispatchOperatorActions({
   return (
     <div className={compact ? 'flex flex-wrap gap-2' : 'space-y-2'}>
       {actions.map((action) => {
-        const className = `${compact ? 'rounded-lg px-2.5 py-1 text-[11px]' : 'rounded-xl px-3 py-2 text-xs'} inline-flex items-center border font-black shadow-sm ${toneClass[action.tone ?? 'secondary']}`;
+        const className = `${compact ? 'rounded-lg px-2.5 py-1 text-xs' : 'rounded-xl px-3 py-2 text-xs'} inline-flex items-center border font-black shadow-sm ${toneClass[action.tone ?? 'secondary']}`;
         if (action.href) {
           return <Link key={`${action.id}-${action.href}`} href={action.href} className={className}>{action.label}</Link>;
         }

@@ -11,9 +11,13 @@ import { LoadingBox } from "@/components/common/LoadingBox";
 import { PaginationControls } from "@/components/common/PaginationControls";
 import { RefreshButton } from "@/components/common/RefreshButton";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { AgentBlockingCard } from "@/components/phase7d/AgentBlockingCard";
+import { AgentGovernanceWorkflowActions } from "@/components/agents/AgentGovernanceWorkflowActions";
+import { BeginnerGuideButton } from "@/components/resource-scope/EnterpriseAccessUi";
 import { useAgentGovernanceList } from "@/hooks/useAgentGovernanceList";
 import { getAgentConnectionStatus, getAgentWorkloadStatus, getHeartbeatAgeMs, getHeartbeatStatus } from "@/lib/agents/agentRuntimeDisplay";
 import { credentialStatusLabel as governanceCredentialStatusLabel, deriveAgentGovernanceState } from "@/lib/agents/governanceStatus";
+import { deriveAgentBlockingExperience, type AgentBlockingExperience } from "@/lib/phase7d/issueAgentUx";
 import type { AgentDashboardRow } from "@/lib/types/dashboard";
 import { formatDateTime, formatDurationMs } from "@/lib/utils/format";
 import { paginateItems, recordIncludesQuery, uniqueSortedValues } from "@/lib/utils/list";
@@ -33,8 +37,25 @@ function rowCredentialStatus(row: AgentDashboardRow): string {
 function rowDispatchStatus(row: AgentDashboardRow): DispatchTone {
   if (!row.profile || !row.runtime?.connected) return "BLOCKED";
   if (rowCredentialStatus(row) !== "CREDENTIAL_ACTIVE") return "LIMITED";
+  if (!(row.profile.authorizationScopes ?? []).some((scope) => scope.enabled !== false)) return "BLOCKED";
   if (activeDispatchFlowCount(row) > 0) return "ELIGIBLE";
   return "LIMITED";
+}
+
+function rowBlockingExperience(row: AgentDashboardRow): AgentBlockingExperience {
+  return deriveAgentBlockingExperience({
+    hasProfile: Boolean(row.profile),
+    approvalStatus: row.profile?.approvalStatus,
+    enabled: row.profile?.enabled,
+    riskStatus: row.profile?.riskStatus,
+    credentialStatus: row.profile?.credential?.credentialStatus,
+    credentialExpiresAt: row.profile?.credential?.expiresAt,
+    runtimeConnected: Boolean(row.runtime?.connected),
+    dispatchAccessRuleCount: (row.profile?.authorizationScopes ?? []).filter((scope) => scope.enabled !== false).length,
+    activeDispatchFlowCount: activeDispatchFlowCount(row),
+    availableSlots: row.runtime?.availableSlots,
+    draining: row.runtime?.draining,
+  });
 }
 
 
@@ -56,11 +77,7 @@ function dispatchUsageLabel(row: AgentDashboardRow): string {
 }
 
 function primaryBlockedReason(row: AgentDashboardRow): string {
-  if (!row.profile) return "Missing Core Agent profile.";
-  if (rowCredentialStatus(row) !== "CREDENTIAL_ACTIVE") return "Credential is not active.";
-  if (!row.runtime?.connected) return "Runtime is offline.";
-  if (activeDispatchFlowCount(row) === 0) return "Agent connection is usable. Add this Agent to an active Dispatch Flow to make it a candidate.";
-  return "Agent is selected by an active Dispatch Flow. Check Task evidence for runtime-specific blockers.";
+  return rowBlockingExperience(row).explanation;
 }
 
 function nextActionTone(row: AgentDashboardRow): "profile" | "credential" | "runtime" | "eligibility" | "monitor" {
@@ -73,12 +90,7 @@ function nextActionTone(row: AgentDashboardRow): "profile" | "credential" | "run
 }
 
 function nextAction(row: AgentDashboardRow): string {
-  const governance = deriveAgentGovernanceState(row);
-  if (!row.profile) return row.runtime ? "Review runtime enrollment" : "Create Agent profile";
-  if (governance.credentialStatus !== "CREDENTIAL_ACTIVE") return "Rotate or issue credential";
-  if (!row.runtime?.connected) return "Start or reconnect Agent";
-  if (rowDispatchStatus(row) !== "ELIGIBLE") return "Add to / review Dispatch Flow";
-  return "Monitor";
+  return rowBlockingExperience(row).safestNextAction;
 }
 
 function matchesRow(row: AgentDashboardRow, query: string, connectionStatus: string, dispatchStatus: string, credentialStatus: string, agentType: string): boolean {
@@ -133,6 +145,7 @@ export function AgentTable() {
   const [dispatchFilter, setDispatchFilter] = useState(allValue);
   const [credentialFilter, setCredentialFilter] = useState(allValue);
   const [typeFilter, setTypeFilter] = useState(allValue);
+  const [blockingFilter, setBlockingFilter] = useState(allValue);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -141,17 +154,19 @@ export function AgentTable() {
   const liveDataUnavailable = Boolean(
     data
     && rows.length === 0
-    && (data.sourceErrors.coreAgents || data.sourceErrors.coreEnrollments)
-    && data.sourceErrors.nettyAgents
-    && data.sourceErrors.nettyClusterAgents
+    && (
+      (data.sourceErrors.nettyAgents && data.sourceErrors.nettyClusterAgents)
+      || ((data.sourceErrors.coreAgents || data.sourceErrors.coreEnrollments)
+        && (data.sourceErrors.nettyAgents || data.sourceErrors.nettyClusterAgents))
+    )
   );
   const dataSource = dataSourceKindFromFlags({
     hasLiveData: Boolean(data && (data.profiles.length > 0 || data.runtimes.length > 0 || data.enrollments.length > 0 || rows.length > 0)),
     hasSourceErrors,
   });
   const filteredRows = useMemo(
-    () => rows.filter((row) => matchesRow(row, search, connectionFilter, dispatchFilter, credentialFilter, typeFilter)),
-    [connectionFilter, credentialFilter, dispatchFilter, rows, search, typeFilter],
+    () => rows.filter((row) => (blockingFilter === allValue || rowBlockingExperience(row).reason === blockingFilter) && matchesRow(row, search, connectionFilter, dispatchFilter, credentialFilter, typeFilter)),
+    [blockingFilter, connectionFilter, credentialFilter, dispatchFilter, rows, search, typeFilter],
   );
   const pagination = useMemo(() => paginateItems(filteredRows, { page, pageSize }), [filteredRows, page, pageSize]);
 
@@ -166,20 +181,22 @@ export function AgentTable() {
 
   useEffect(() => {
     setPage(1);
-  }, [connectionFilter, credentialFilter, dispatchFilter, pageSize, search, typeFilter]);
+  }, [blockingFilter, connectionFilter, credentialFilter, dispatchFilter, pageSize, search, typeFilter]);
 
   const filters = useMemo<SelectFilterConfig[]>(() => {
     const connectionStatuses = uniqueSortedValues(rows.map(rowConnectionStatus));
     const dispatchStatuses = uniqueSortedValues(rows.map(rowDispatchStatus));
     const credentialStatuses = uniqueSortedValues(rows.map(rowCredentialStatus));
     const agentTypes = uniqueSortedValues(rows.map(rowAgentType));
+    const blockingReasons = uniqueSortedValues(rows.map((row) => rowBlockingExperience(row).reason));
     return [
       { id: "connection", label: "Online", value: connectionFilter, onChange: setConnectionFilter, options: [{ value: allValue, label: "All Online" }, ...connectionStatuses.map((status) => ({ value: status, label: status }))] },
       { id: "dispatch", label: "Dispatch", value: dispatchFilter, onChange: setDispatchFilter, options: [{ value: allValue, label: "All Dispatch" }, ...dispatchStatuses.map((status) => ({ value: status, label: status }))] },
       { id: "credential", label: "Credential", value: credentialFilter, onChange: setCredentialFilter, options: [{ value: allValue, label: "All Credentials" }, ...credentialStatuses.map((status) => ({ value: status, label: status }))] },
       { id: "type", label: "Type", value: typeFilter, onChange: setTypeFilter, options: [{ value: allValue, label: "All Types" }, ...agentTypes.map((status) => ({ value: status, label: status }))] },
+      { id: "blocking", label: "Blocking", value: blockingFilter, onChange: setBlockingFilter, options: [{ value: allValue, label: "All Blocking States" }, ...blockingReasons.map((status) => ({ value: status, label: status }))] },
     ];
-  }, [connectionFilter, credentialFilter, dispatchFilter, rows, typeFilter]);
+  }, [blockingFilter, connectionFilter, credentialFilter, dispatchFilter, rows, typeFilter]);
 
   const clearFilters = () => {
     setSearch("");
@@ -187,6 +204,7 @@ export function AgentTable() {
     setDispatchFilter(allValue);
     setCredentialFilter(allValue);
     setTypeFilter(allValue);
+    setBlockingFilter(allValue);
   };
 
   if (loading && !data) return <LoadingBox label="Loading agents..." />;
@@ -195,7 +213,7 @@ export function AgentTable() {
     return (
       <LiveDataUnavailable
         title="Agent live data is unavailable"
-        description="The Agents page cannot verify whether the database is empty because Core and Gateway runtime APIs are unavailable. It will not display an empty-state setup prompt as if no agents exist."
+        description="The Agents page cannot verify whether no Agents exist because one or more authoritative Core/Gateway runtime sources are unavailable. Runtime-observed Agents are never treated as absent merely because Tenant governance is incomplete."
         details={Object.entries(data?.sourceErrors ?? {}).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(" | ")}
         action={(
           <button type="button" onClick={() => void refresh()} className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-700 hover:bg-rose-100">
@@ -249,13 +267,17 @@ export function AgentTable() {
             </div>
           )}
         </div>
-        <RefreshButton refreshing={refreshing} lastUpdatedAt={lastUpdatedAt} onRefresh={refresh} />
+        <div className="flex flex-wrap items-center gap-2">
+          <BeginnerGuideButton title="Manage Agents from this page" description="Use the list for day-to-day Agent work. Open a detail only for credentials, runtime controls, capabilities, or deeper evidence." steps={[{title:'Find the Agent',description:'Use the status filters instead of typing an internal Agent ID.'},{title:'Check the next action',description:'The list explains whether the Agent needs a credential, runtime connection, Dispatch Flow, or eligibility repair.'},{title:'Open details only when needed',description:'Ownership, credentials and runtime controls remain one click away without adding more menu pages.'}]} />
+          <Link href="/agents/setup" className="rounded-xl bg-blue-700 px-3 py-2 text-xs font-black text-white hover:bg-blue-800">Create Agent</Link>
+          <RefreshButton refreshing={refreshing} lastUpdatedAt={lastUpdatedAt} onRefresh={refresh} />
+        </div>
       </div>
 
       <ListFilterBar search={search} searchPlaceholder="Search agent, type, credential, dispatch status, or next action..." onSearchChange={setSearch} filters={filters} onClear={clearFilters} />
 
       {filteredRows.length === 0 ? (
-        <EmptyState title="No matching agents" description="Adjust the search keyword or the Online, Dispatch, Credential, or Type filters." />
+        <EmptyState title="No matching agents" description="Adjust the search keyword or the Online, Dispatch, Credential, Type, or Blocking filters." />
       ) : (
         <>
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -269,7 +291,6 @@ export function AgentTable() {
                     <th className="whitespace-nowrap px-4 py-3">Dispatch</th>
                     <th className="whitespace-nowrap px-4 py-3">Dispatch Usage</th>
                     <th className="whitespace-nowrap px-4 py-3">Next Action</th>
-                    <th className="whitespace-nowrap px-4 py-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -281,9 +302,10 @@ export function AgentTable() {
                     return (
                       <tr key={row.agentId} className="align-top hover:bg-slate-50">
                         <td className="px-4 py-3">
-                          <Link href={`/agents/${encodeURIComponent(row.agentId)}`} className="font-semibold text-blue-700 hover:underline">{row.agentId}</Link>
-                          <div className="mt-1 text-xs text-slate-500">{row.profile?.agentName ?? row.enrollment?.agentName ?? rowAgentType(row)}</div>
-                          <div className="text-xs text-slate-400">tenant: {row.profile?.tenantId ?? row.enrollment?.tenantId ?? "-"}</div>
+                          <Link href={`/agents/${encodeURIComponent(row.agentId)}`} className="font-semibold text-blue-700 hover:underline">{row.profile?.agentName ?? row.enrollment?.agentName ?? rowAgentType(row)}</Link>
+                          <div className="mt-1 text-xs text-slate-500">{rowAgentType(row)}</div>
+                          <div className="mt-1 text-xs font-semibold text-slate-400">{row.profile?.ownerDepartmentId && row.profile?.ownerGroupId ? "Department + Group scoped" : row.profile?.ownerDepartmentId ? "Department scoped" : row.profile?.ownerGroupId ? "Group scoped" : "Workspace scoped"}</div>
+                          <details className="mt-1 text-xs text-slate-400"><summary className="cursor-pointer">Technical ID</summary><span className="font-mono">{row.agentId}</span></details>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <div className="space-y-1.5">
@@ -304,6 +326,7 @@ export function AgentTable() {
                           <div className="mt-2 max-w-xs text-xs leading-5 text-slate-500">
                             {dispatch === "ELIGIBLE" ? "Selected by an active Dispatch Flow and ready for direct dispatch." : primaryBlockedReason(row)}
                           </div>
+                          <div className="mt-3"><AgentBlockingCard experience={rowBlockingExperience(row)} agentId={row.agentId} compact /></div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="text-xs text-slate-500">standard authority</div>
@@ -320,7 +343,10 @@ export function AgentTable() {
                             {nextActionTone(row) === "credential" ? "Issue or rotate the token/JWT credential." : null}
                             {nextActionTone(row) === "runtime" ? "Start the local simulator or reconnect this Agent runtime." : null}
                             {nextActionTone(row) === "eligibility" ? "Review Dispatch Flow, Agent connection, optional capability, and Task evidence." : null}
-                            {nextActionTone(row) === "monitor" ? "No immediate action required." : null}
+                            {nextActionTone(row) === "monitor" ? "Continue monitoring runtime health and Task delivery evidence." : null}
+                          </div>
+                          <div className="mt-3">
+                            <AgentGovernanceWorkflowActions row={row} onChanged={refresh} />
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2">
                             <Link href={`/agents/${encodeURIComponent(row.agentId)}`} className="inline-block rounded-lg border border-blue-200 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50">Open Agent Detail</Link>
@@ -328,9 +354,6 @@ export function AgentTable() {
                               <Link href={`/agents/${encodeURIComponent(row.agentId)}#dispatch-summary`} className="inline-block rounded-lg border border-amber-200 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50">Fix blocking issue</Link>
                             ) : null}
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Link href={`/agents/${encodeURIComponent(row.agentId)}`} className="inline-block rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Detail</Link>
                         </td>
                       </tr>
                     );

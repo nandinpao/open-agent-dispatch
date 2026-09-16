@@ -3,9 +3,12 @@ import {
   coreApiGet,
   coreApiPost,
   coreApiPut,
+  coreTenantApiGet,
   requireCoreTenantContext,
 } from "@/lib/api/coreClient";
-import { ApiError, isNotFoundOrUnsupportedApiError } from "@/lib/api/client";
+import { taskAdminApi } from "@/lib/api/domains/taskAdminApi";
+import { sourceSystemsAdminApi } from "@/lib/api/domains/sourceSystemsAdminApi";
+import { normalizeCoreAgentRuntimeViewPayload } from "@/lib/api/domains/agentRuntimeNormalizer";
 import { coreAdminEndpoints } from "@/lib/api/endpoints";
 import type {
   AgentCredentialIssueRequest,
@@ -20,22 +23,6 @@ import type {
   CoreAgentRuntimeCapabilityItem,
   CoreAgentRuntimeCapabilityProfile,
   CoreAgentRuntimeDescriptor,
-  CoreDispatchTaskDefinition,
-  CoreDispatchTaskDefinitionImpactPreview,
-  CoreDispatchTaskDefinitionReviewCommand,
-  CoreDispatchContractBootstrapRequest,
-  CoreDispatchContractBootstrapResponse,
-  CoreDispatchContractChainInspectionRequest,
-  CoreDispatchContractChainInspectionResponse,
-  CoreDispatchContractReadinessRequest,
-  CoreDispatchContractReadinessResponse,
-  CoreDispatchContractTraceRequest,
-  CoreDispatchContractTraceResponse,
-  CoreDispatchContractTestTaskRequest,
-  CoreDispatchContractTestTaskResponse,
-  CoreDispatchSourceSystemOption,
-  CoreSourceSystem,
-  CoreSourceSystemCommand,
   CoreAgentPoolView,
   CoreDispatchFlowAgentOptionView,
   CoreDispatchFlowAgentView,
@@ -44,10 +31,14 @@ import type {
   CoreDispatchSimulationRequest,
   CoreDispatchSimulationResponse,
   CoreDispatchFlowRuleView,
+  CoreDispatchFlowRuleConflictView,
+  CoreFlowDirectAgentCompatibilityBinding,
+  CoreFlowCapabilityBridgeRefresh,
+  CoreFlowCapabilityLegacyEquivalenceEvidence,
+  CoreFlowCapabilityEquivalenceReadiness,
   CoreDispatchFlowRequiredSkillView,
   CoreDispatchFlowView,
   CoreDispatchFlowTraceChainView,
-  CoreDispatchEventStage,
   CoreEventIntakeEnvelope,
   CoreEventIntakeDecisionResponse,
   CoreDispatchPolicy,
@@ -63,6 +54,100 @@ import type {
   CoreAssignmentProfilePolicyBinding,
   CoreAssignmentProfileCapabilityBinding,
   CoreAgentCapabilityCatalog,
+  CoreCanonicalCapabilityDefinition,
+  CoreCapabilityRequirement,
+  CoreCapabilityProvider,
+  CoreCapabilityBinding,
+  CoreCapabilityBindingTrustEvent,
+  CoreDelegationPolicy,
+  CoreDelegationPolicyAuditEvent,
+  CoreDelegationPolicyVersion,
+  CoreDelegationAuthorizationRequest,
+  CoreDelegationAuthorizationDecision,
+  CoreRoutingProfile,
+  CoreRoutingProfileVersion,
+  CoreProviderEligibilityObservation,
+  CoreProviderRoutingPreviewRequest,
+  CoreProviderRoutingDecision,
+  CoreRoutingAuthorityShadowRequest,
+  CoreRoutingAuthorityShadowResult,
+  CoreRebindingAdmissionRequest,
+  CoreExecutionSafetyActivationRequest,
+  CoreExecutionSafetyPrepareRequest,
+  CoreExecutionSafetyPrepareResult,
+  CoreRuntimeAcceptanceSummary,
+  CoreProductionFoundationSummary,
+  CoreRebindingAdmissionDecision,
+  CoreFlowRoutingMigrationState,
+  CoreExecutionAdapterRegistration,
+  CoreExecutionAdapterVersion,
+  CoreExecutionAdapterResolutionRequest,
+  CoreExecutionAdapterResolution,
+  CoreTriagePolicy,
+  CoreTriagePolicyVersion,
+  CoreTriagePreviewRequest,
+  CoreTriageRequest,
+  CoreTriageProposal,
+  CoreTriageDecision,
+  CoreExecutionPlanPolicy,
+  CorePlanAdmissionPolicy,
+  CorePlanAdmissionDecision,
+  CoreBindingAuthorizationEnvelope,
+  CorePlanAdmissionBindingEvaluation,
+  CorePlanAdmissionResult,
+  CoreExecutionPlanPolicyVersion,
+  CoreExecutionPlanPreviewRequest,
+  CoreExecutionPlanRequest,
+  CoreExecutionPlanProposal,
+  CoreExecutionPlanAmendmentRequest,
+  CoreExecutionPlan,
+  CoreExecutionPlanRevision,
+  CoreExecutionPlanDecision,
+  CorePlanExecutionPolicy,
+  CorePlanExecutionPolicyVersion,
+  CorePlanExecutionStartRequest,
+  CorePlanExecutionRun,
+  CoreGovernedPlanExecutionStep,
+  CorePlanStepAuthorityRequest,
+  CorePlanStepSubmitRequest,
+  CorePlanStepCompletionRequest,
+  CorePlanExecutionAttempt,
+  CorePlanExecutionArtifact,
+  CorePlanExecutionEvent,
+  CoreAggregationDefinition,
+  CoreAggregationDefinitionVersion,
+  CoreAggregationPreparationRequest,
+  CoreAggregationPreparationDecision,
+  CoreCaseConvergenceRequest,
+  CoreEnterpriseCaseRecord,
+  CoreCaseArtifactLink,
+  CoreCaseReviewRequest,
+  CoreCaseIssueProjectionRequest,
+  CoreCaseIssueProjection,
+  CoreCaseEvent,
+  CoreLearningPolicy,
+  CoreLearningPolicyVersion,
+  CoreExecutionOutcomeEvidence,
+  CoreRoutingPatternCandidate,
+  CoreRoutingPattern,
+  CoreRoutingPatternVersion,
+  CorePatternPromotionRequest,
+  CorePatternPromotionDecision,
+  CorePatternQualitySnapshot,
+  CoreDriftObservation,
+  CoreFastPathResolutionRequest,
+  CoreFastPathResolutionDecision,
+  CoreFastPathRuntimePolicy,
+  CoreFastPathRuntimePolicyVersion,
+  CoreFastPathShadowComparisonRequest,
+  CoreFastPathShadowComparison,
+  CoreFastPathCertificationRequest,
+  CoreFastPathRuntimeCertification,
+  CoreFastPathRuntimeDecision,
+  CoreRuntimeStepAuthorityPolicy,
+  CoreRuntimeStepAuthorityPolicyVersion,
+  CoreRuntimeStepAuthorityDecision,
+  CoreRuntimeStepAuthorityAutomationResult,
   CoreAgentCapabilityAssignment,
   CoreAgentCapabilityCommand,
   CoreAgentAdvisoryRecommendation,
@@ -83,19 +168,8 @@ import type {
   CoreAgentQualification,
   CoreAgentQualificationCommand,
   CoreAgentDispatchEligibility,
-  CoreAgentCertificationProfile,
-  CoreAgentCertificationRun,
-  CoreAgentCertificationRunCommand,
-  CoreAgentCertificationDecisionCommand,
   CoreAgentEnterpriseGovernanceSummary,
-  CoreTaskDispatchRequirements,
-  CoreTaskDispatchEvidenceView,
-  CoreTaskRuntimeVerificationView,
-  CoreTaskDispatchContractRepairRequest,
-  CoreTaskEligibleAgentsResponse,
-  CoreDispatchEligibilityV2Response,
   CoreAgentRuntimeLoadSnapshot,
-  CoreAgentRuntimeView,
   CoreAgentSetupRequest,
   CoreAgentSetupReadinessResponse,
   CoreAgentOperationalView,
@@ -105,32 +179,11 @@ import type {
   CoreAgentConnectionRepairActionsResponse,
   CoreAgentSetupResponse,
   CoreDashboardSnapshot,
-  CoreCallbackInboxEntry,
-  CoreCallbackInboxSummary,
-  CoreDispatchAttemptHistoryRecord,
-  CoreDispatchAttemptLedger,
-  CoreRoutingDecisionRecord,
-  CoreDispatchUserFacingError,
-  CoreDispatchRequest,
   CoreRecoveryOperationMetricsSnapshot,
-  CoreDispatchTimelineResponse,
-  CoreAdminFailureQueueResponse,
-  CoreAdminFailureQueueItem,
   CoreRecoveryApprovalRequest,
   CoreRecoveryGovernanceActionRequest,
   CoreRecoveryGovernanceActionResult,
   CoreRecoveryOperatorRunbook,
-  CoreTaskRecord,
-  CoreTaskA2AClassificationFlowContract,
-  CoreTaskClassificationRequest,
-  CoreTaskClassificationResult,
-  CoreTaskIssueTracking,
-  CoreTaskIssueDedupSummary,
-  CoreTaskRemediationCommandRequest,
-  CoreTaskRemediationCommandResult,
-  CoreTaskRuntimeSnapshot,
-  CoreTaskRuntimeView,
-  CoreTaskCaseTimelineView,
   CoreAdapterAction,
   CoreAdapterActionMetadata,
   CoreRuntimeDisconnectResult,
@@ -145,19 +198,9 @@ import type {
   CoreAgentSkillDefinition,
   CoreAgentSkillEvaluationRequest,
   CoreAgentSkillEvaluationResult,
-  CoreDispatchReadinessEvaluationRequest,
-  CoreDispatchReadinessEvaluationResult,
-  CoreDispatchReadinessTemplates,
-  CoreDispatchRecipe,
-  CoreDispatchRecipeEvaluationRequest,
-  CoreDispatchRecipeEvaluationResult,
-  CoreTaskCapabilityResolveRequest,
-  CoreTaskCapabilityResolveResult,
   CoreAgentApprovedSkill,
   CoreAgentApprovedSkillSyncCommand,
   CoreAgentApprovedSkillSyncResult,
-  CoreTaskDispatchContractResolveRequest,
-  CoreTaskDispatchContractResolveResult,
   CoreAgentSkillRegistryMetadata,
   CoreAgentSkillVersion,
   CoreAgentSkillAuditEntry,
@@ -185,11 +228,6 @@ import type {
   CoreAgentRemediationWorkflowCreateRequest,
   CoreAgentRemediationWorkflowDecisionRequest,
   CoreAdapterExecutorAuditRecord,
-  CoreIssueTrackingRedmineCollectionResult,
-  CoreIssueTrackingRedmineConnectionResult,
-  CoreIssueTrackingRedmineDiagnostics,
-  CoreIssueTrackingRedmineTestIssueRequest,
-  CoreIssueTrackingRedmineTestIssueResult,
   CoreEnforceObservabilitySnapshot,
   CoreEnforceRoutingAuditRecord,
   CoreEnforceOperatorIncidentRequest,
@@ -197,8 +235,8 @@ import type {
   CoreEnforceLegacyFinalReportItem,
   CoreEnforceArtifactRetentionRecord,
 } from "@/lib/types/core";
-import type { CommandResult } from "@/lib/types/admin";
-
+export { normalizeCoreAgentRuntimeViewPayload } from "@/lib/api/domains/agentRuntimeNormalizer";
+export { normalizeCoreTaskRecord, normalizeCoreTaskRuntimeViewPayload } from "@/lib/api/domains/taskRuntimeNormalizer";
 type PageLike<T> =
   | T[]
   | {
@@ -208,11 +246,6 @@ type PageLike<T> =
       rows?: T[];
       data?: T[];
     };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function toList<T>(value: PageLike<T>): T[] {
   if (Array.isArray(value)) return value;
   return (
@@ -240,608 +273,17 @@ function optimisticLockHeaders(version?: number | null): Record<string, string> 
     : undefined;
 }
 
-
-function pickString(
-  record: Record<string, unknown>,
-  keys: string[],
-): string | undefined {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim()) return value;
-    if (typeof value === "number" && Number.isFinite(value))
-      return String(value);
-  }
-  return undefined;
-}
-
-function pickDispatchEventStage(
-  record: Record<string, unknown>,
-  keys: string[],
-  fallback?: string,
-): CoreDispatchEventStage | undefined {
-  const raw = fallback ?? pickString(record, keys);
-  const normalized = String(raw ?? '').trim().toUpperCase();
-  if (['EXTERNAL', 'A2A', 'RESULT', 'ISSUE', 'CALLBACK'].includes(normalized)) {
-    return normalized as CoreDispatchEventStage;
-  }
-  return undefined;
-}
-
-function firstDispatchForTask(
-  taskId: string,
-  dispatchRequests: CoreDispatchRequest[],
-): CoreDispatchRequest | undefined {
-  return dispatchRequests
-    .filter((dispatch) => dispatch.taskId === taskId)
-    .sort(
-      (left, right) =>
-        Date.parse(right.updatedAt ?? right.createdAt ?? "") -
-        Date.parse(left.updatedAt ?? left.createdAt ?? ""),
-    )[0];
-}
-
-export function normalizeCoreAgentRuntimeViewPayload(
-  value: unknown,
-): CoreAgentProfile[] {
-  const list = toList<unknown>(value as PageLike<unknown>);
-  return list
-    .map((item) => {
-      if (!isRecord(item)) return undefined;
-      const maybeRuntimeView = item as Partial<CoreAgentRuntimeView> &
-        Record<string, unknown>;
-      const profile = maybeRuntimeView.profile;
-      if (isRecord(profile)) return profile as CoreAgentProfile;
-      return item as unknown as CoreAgentProfile;
-    })
-    .filter((profile): profile is CoreAgentProfile =>
-      Boolean(profile?.agentId),
-    );
-}
-
-function normalizeIssueTracking(
-  value: unknown,
-): CoreTaskIssueTracking | undefined {
-  return isRecord(value) ? (value as CoreTaskIssueTracking) : undefined;
-}
-
-function issueTrackingTaskId(value: CoreTaskIssueTracking): string | undefined {
-  return pickString(value as Record<string, unknown>, ["taskId", "task_id"]);
-}
-
-function issueTrackingMap(value: unknown): Map<string, CoreTaskIssueTracking> {
-  const map = new Map<string, CoreTaskIssueTracking>();
-  if (Array.isArray(value)) {
-    value.forEach((item) => {
-      const link = normalizeIssueTracking(item);
-      const taskId = link ? issueTrackingTaskId(link) : undefined;
-      if (link && taskId) map.set(taskId, link);
-    });
-    return map;
-  }
-  if (isRecord(value)) {
-    Object.entries(value).forEach(([taskId, item]) => {
-      const link = normalizeIssueTracking(item);
-      if (link && taskId)
-        map.set(taskId, { ...link, taskId: link.taskId ?? taskId });
-    });
-  }
-  return map;
-}
-
-function normalizeRoutingDecisionRecord(
-  value: unknown,
-  fallbackTaskId?: string,
-): CoreRoutingDecisionRecord | undefined {
-  if (!isRecord(value)) return undefined;
-  const taskId = pickString(value, ["taskId", "task_id"]) ?? fallbackTaskId;
-  if (!taskId) return undefined;
-  const decisionId =
-    pickString(value, ["decisionId", "decision_id", "id"]) ??
-    `${taskId}:latest-routing-decision`;
-  const partial = value as Partial<CoreRoutingDecisionRecord>;
-  return {
-    ...partial,
-    decisionId,
-    taskId,
-  };
-}
-
-function routingDecisionMap(
-  value: unknown,
-): Map<string, CoreRoutingDecisionRecord> {
-  const map = new Map<string, CoreRoutingDecisionRecord>();
-  if (!value) return map;
-  if (Array.isArray(value)) {
-    value.forEach((decision) => {
-      const record = normalizeRoutingDecisionRecord(decision);
-      if (record) map.set(record.taskId, record);
-    });
-    return map;
-  }
-  if (isRecord(value)) {
-    Object.entries(value).forEach(([taskId, decision]) => {
-      const record = normalizeRoutingDecisionRecord(decision, taskId);
-      if (record) map.set(record.taskId, record);
-    });
-  }
-  return map;
-}
-
-function withIssueTrackingPayload(
-  task: CoreTaskRuntimeView,
-): CoreTaskRuntimeView {
-  if (!task.issueTracking) return task;
-  const payload = isRecord(task.payload) ? task.payload : {};
-  return {
-    ...task,
-    payload: {
-      ...payload,
-      issueTracking: task.issueTracking,
-    },
-  };
-}
-
-export function normalizeCoreTaskRuntimeViewPayload(
-  value: unknown,
-): CoreTaskRuntimeView[] {
-  if (Array.isArray(value))
-    return value.map((task) =>
-      withIssueTrackingPayload(task as CoreTaskRuntimeView),
-    );
-
-  if (!isRecord(value)) return [];
-
-  if (isRecord(value.task)) {
-    const detail = value as {
-      task: CoreTaskRecord;
-      dispatchRequests?: CoreDispatchRequest[];
-      latestRoutingDecision?: CoreRoutingDecisionRecord;
-      issueTracking?: CoreTaskIssueTracking;
-    };
-    const dispatchRequests = Array.isArray(detail.dispatchRequests)
-      ? detail.dispatchRequests
-      : [];
-    return [
-      normalizeCoreTaskRecord(
-        detail.task,
-        firstDispatchForTask(detail.task.taskId, dispatchRequests),
-        normalizeIssueTracking(detail.issueTracking),
-        detail.latestRoutingDecision,
-      ),
-    ].filter((task): task is CoreTaskRuntimeView => Boolean(task.taskId));
-  }
-
-  const snapshot = value as Partial<CoreTaskRuntimeSnapshot> &
-    Record<string, unknown>;
-  if (Array.isArray(snapshot.tasks)) {
-    const tasks = snapshot.tasks as CoreTaskRecord[];
-    const dispatchRequests = Array.isArray(snapshot.dispatchRequests)
-      ? (snapshot.dispatchRequests as CoreDispatchRequest[])
-      : [];
-    const issueLinks = issueTrackingMap(
-      snapshot.taskIssueLinks ?? snapshot.issueTrackingByTask,
-    );
-    const latestRoutingDecisions = routingDecisionMap(
-      snapshot.latestRoutingDecisions ?? snapshot.routingDecisionsByTask,
-    );
-
-    return tasks
-      .map((task) =>
-        normalizeCoreTaskRecord(
-          task,
-          firstDispatchForTask(task.taskId, dispatchRequests),
-          issueLinks.get(task.taskId),
-          latestRoutingDecisions.get(task.taskId),
-        ),
-      )
-      .filter((task): task is CoreTaskRuntimeView => Boolean(task.taskId));
-  }
-
-  return toList<CoreTaskRuntimeView>(
-    value as PageLike<CoreTaskRuntimeView>,
-  ).map(withIssueTrackingPayload);
-}
-
-const terminalFailureTaskStatuses = new Set([
-  "FAILED",
-  "TIMED_OUT",
-  "TIMEOUT",
-  "DEAD_LETTER",
-  "CANCELLED",
-]);
-const terminalFailureDispatchStatuses = new Set([
-  "DELIVERY_FAILED",
-  "FAILED",
-  "TIMED_OUT",
-  "TIMEOUT",
-  "DEAD_LETTER",
-  "CANCELLED",
-]);
-
-function normalizedStatus(value: unknown): string {
-  return typeof value === "string" ? value.trim().toUpperCase() : "";
-}
-
-function dispatchReason(dispatch?: CoreDispatchRequest): string {
-  return String(dispatch?.reason ?? dispatch?.lastError ?? "").trim();
-}
-
-function deriveBlockedReason(
-  dispatch?: CoreDispatchRequest,
-): string | undefined {
-  const reason = dispatchReason(dispatch).toLowerCase();
-  const status = normalizedStatus(dispatch?.status);
-  if (reason.includes("client is disabled")) return "DISPATCH_CLIENT_DISABLED";
-  if (reason.includes("paused")) return "DISPATCH_EXECUTION_PAUSED";
-  if (reason.includes("explicit operator execution"))
-    return "MANUAL_EXECUTION_HOLD";
-  if (
-    ["FAILED", "TIMED_OUT", "TIMEOUT", "DEAD_LETTER", "CANCELLED"].includes(
-      status,
-    )
-  )
-    return status;
-  return undefined;
-}
-
-function deriveDispatchExecutionStatus(
-  dispatch?: CoreDispatchRequest,
-): string | undefined {
-  const status = normalizedStatus(dispatch?.status);
-  const blocked = deriveBlockedReason(dispatch);
-  if (!dispatch) return undefined;
-  if (
-    blocked === "DISPATCH_CLIENT_DISABLED" ||
-    blocked === "DISPATCH_EXECUTION_PAUSED" ||
-    blocked === "MANUAL_EXECUTION_HOLD"
-  )
-    return "BLOCKED";
-  if (status === "PENDING_REVIEW") return "WAITING_REVIEW";
-  if (status === "APPROVED") return "QUEUED";
-  if (status === "DISPATCHING") return "EXECUTING";
-  if (status === "DISPATCHED") return "DELIVERED";
-  if (status === "ACKED") return "ACKED";
-  if (status === "RUNNING") return "RUNNING";
-  if (status === "COMPLETED") return "COMPLETED";
-  if (status === "RETRY_WAITING") return "RETRY_WAIT";
-  if (terminalFailureDispatchStatuses.has(status)) return "FAILED";
-  return status || undefined;
-}
-
-function deriveDispatchDeliveryStatus(
-  dispatch?: CoreDispatchRequest,
-): string | undefined {
-  const status = normalizedStatus(dispatch?.status);
-  if (!dispatch) return undefined;
-  if (status === "APPROVED") return "NOT_DELIVERED";
-  if (status === "DISPATCHING") return "DELIVERING";
-  if (["DISPATCHED", "ACKED", "RUNNING", "COMPLETED"].includes(status))
-    return "DELIVERED_TO_GATEWAY";
-  if (
-    ["FAILED", "TIMED_OUT", "TIMEOUT", "DEAD_LETTER", "CANCELLED"].includes(
-      status,
-    )
-  )
-    return "DELIVERY_FAILED";
-  if (status === "RETRY_WAITING") return "RETRY_WAIT";
-  return status || undefined;
-}
-
-function deriveNextAction(dispatch?: CoreDispatchRequest): string | undefined {
-  if (!dispatch) return undefined;
-  const executionStatus = deriveDispatchExecutionStatus(dispatch);
-  const blocked = deriveBlockedReason(dispatch);
-  if (blocked === "DISPATCH_CLIENT_DISABLED") return "ENABLE_DISPATCH_CLIENT";
-  if (blocked === "DISPATCH_EXECUTION_PAUSED")
-    return "RESUME_DISPATCH_EXECUTION";
-  if (blocked === "MANUAL_EXECUTION_HOLD") return "EXECUTE_OR_RELEASE_HOLD";
-  if (executionStatus === "QUEUED") return "WAIT_FOR_AUTO_DISPATCH_WORKER";
-  if (executionStatus === "EXECUTING") return "WAIT_FOR_GATEWAY_DELIVERY";
-  if (executionStatus === "DELIVERED") return "WAIT_FOR_AGENT_ACK";
-  if (executionStatus === "ACKED" || executionStatus === "RUNNING")
-    return "WAIT_FOR_AGENT_RESULT";
-  if (executionStatus === "RETRY_WAIT")
-    return "WAIT_FOR_RETRY_OR_TRIGGER_RECOVERY";
-  if (executionStatus === "FAILED") return "RETRY_OR_MOVE_TO_DEAD_LETTER";
-  if (executionStatus === "COMPLETED") return "NONE";
-  return undefined;
-}
-
-function taskFailureReason(
-  task: CoreTaskRecord,
-  dispatch?: CoreDispatchRequest,
-): string | undefined {
-  const taskStatus = normalizedStatus(task.status);
-  const dispatchStatus = normalizedStatus(dispatch?.status);
-
-  if (terminalFailureTaskStatuses.has(taskStatus))
-    return task.lifecycleReason ?? dispatch?.lastError ?? dispatch?.reason;
-  if (terminalFailureDispatchStatuses.has(dispatchStatus))
-    return dispatch?.lastError ?? dispatch?.reason;
-  return undefined;
-}
-
-function taskDispatchWaitReason(
-  task: CoreTaskRecord,
-  dispatch?: CoreDispatchRequest,
-  userFacingDispatchError?: CoreDispatchUserFacingError,
-): string | undefined {
-  const taskStatus = normalizedStatus(task.status);
-  const dispatchStatus = normalizedStatus(dispatch?.status);
-  if (
-    taskStatus === "RETRY_WAIT" ||
-    dispatchStatus === "RETRY_WAIT" ||
-    dispatchStatus === "RETRY_WAITING" ||
-    Boolean(task.nextDispatchAttemptAt) ||
-    Boolean(task.dispatchRetryReason)
-  ) {
-    return (
-      task.dispatchRetryReason ??
-      userFacingDispatchError?.message ??
-      task.lifecycleReason ??
-      dispatch?.reason
-    );
-  }
-  return undefined;
-}
-
-function taskBlockedReason(
-  task: CoreTaskRecord,
-  dispatch: CoreDispatchRequest | undefined,
-  userFacingDispatchError?: CoreDispatchUserFacingError,
-): string | undefined {
-  const explicitBlocked = deriveBlockedReason(dispatch);
-  if (explicitBlocked) return explicitBlocked;
-
-  const taskStatus = normalizedStatus(task.status);
-  if (
-    taskStatus === "RETRY_WAIT" ||
-    terminalFailureTaskStatuses.has(taskStatus) ||
-    task.nextDispatchAttemptAt ||
-    task.dispatchRetryReason
-  ) {
-    return undefined;
-  }
-
-  if (userFacingDispatchError?.code?.startsWith("DISPATCH_")) {
-    return userFacingDispatchError.code;
-  }
-  return undefined;
-}
-
-function taskReasonCategory(
-  task: CoreTaskRecord,
-  dispatch: CoreDispatchRequest | undefined,
-  blockedReason?: string,
-  failureReason?: string,
-  dispatchWaitReason?: string,
-): string | undefined {
-  const taskStatus = normalizedStatus(task.status);
-  const dispatchStatus = normalizedStatus(dispatch?.status);
-  if (dispatchWaitReason || taskStatus === "RETRY_WAIT" || dispatchStatus === "RETRY_WAIT" || dispatchStatus === "RETRY_WAITING")
-    return "WAITING_RETRY";
-  if (taskStatus === "DEAD_LETTER") return "DEAD_LETTER";
-  if (taskStatus === "ESCALATED") return "ESCALATED";
-  if (["ORPHANED", "RECONCILING"].includes(taskStatus))
-    return "NEEDS_OPERATOR_RECONCILIATION";
-  if (failureReason || terminalFailureTaskStatuses.has(taskStatus))
-    return "TERMINAL_FAILURE";
-  if (blockedReason) return "DISPATCH_BLOCKED";
-  return undefined;
-}
-
-function normalizeFailureQueueItem(
-  item: CoreAdminFailureQueueItem,
-): CoreAdminFailureQueueItem {
-  const userFacingDispatchError =
-    item.userFacingDispatchError ?? item.latestRoutingDecision?.userFacingError;
-  const fallbackTask = {
-    status: item.status,
-    lifecycleReason: item.lifecycleReason,
-    dispatchRetryReason: item.dispatchRetryReason,
-    nextDispatchAttemptAt: item.nextDispatchAttemptAt,
-    errorCode: item.errorCode,
-  } as CoreTaskRecord;
-  const dispatchWaitReason =
-    item.dispatchWaitReason ??
-    taskDispatchWaitReason(fallbackTask, undefined, userFacingDispatchError);
-  const failureReason = item.failureReason ?? taskFailureReason(fallbackTask);
-  const blockedReason =
-    item.blockedReason ??
-    taskBlockedReason(fallbackTask, undefined, userFacingDispatchError);
-  const reasonCategory =
-    item.reasonCategory ??
-    taskReasonCategory(
-      fallbackTask,
-      undefined,
-      blockedReason,
-      failureReason,
-      dispatchWaitReason,
-    );
-  return {
-    ...item,
-    reasonCategory,
-    blockedReason,
-    failureReason,
-    dispatchWaitReason,
-    userFacingDispatchError,
-  };
-}
-
-function normalizeFailureQueueResponse(
-  response: CoreAdminFailureQueueResponse,
-): CoreAdminFailureQueueResponse {
-  const items = (response.items ?? []).map(normalizeFailureQueueItem);
-  const reasonCategoryCounts =
-    response.reasonCategoryCounts ??
-    countBy<CoreAdminFailureQueueItem>(items, (item) => item.reasonCategory ?? "UNKNOWN");
-  const dispatchErrorCounts =
-    response.dispatchErrorCounts ??
-    countBy<CoreAdminFailureQueueItem>(items, (item) => item.userFacingDispatchError?.code);
-  return {
-    ...response,
-    items,
-    reasonCategoryCounts,
-    dispatchErrorCounts,
-  };
-}
-
-function countBy<T>(items: T[], selector: (item: T) => string | undefined): Record<string, number> {
-  return items.reduce<Record<string, number>>((acc, item) => {
-    const key = selector(item);
-    if (!key) return acc;
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
-}
-
-export function normalizeCoreTaskRecord(
-  task: CoreTaskRecord,
-  dispatch?: CoreDispatchRequest,
-  authoritativeIssueTracking?: CoreTaskIssueTracking,
-  latestRoutingDecision?: CoreRoutingDecisionRecord,
-): CoreTaskRuntimeView {
-  const taskRecord = task as CoreTaskRecord & Record<string, unknown>;
-  const embeddedLatestRoutingDecision = normalizeRoutingDecisionRecord(
-    taskRecord.latestRoutingDecision,
-    pickString(taskRecord, ["taskId", "task_id"]),
+function legacySkillMutationRetired<T>(operation: string): Promise<T> {
+  return Promise.reject(
+    new Error(
+      `LEGACY_SKILL_AUTHORITY_RETIRED: ${operation} is historical/read-only. Use Canonical Capability definitions and Agent Capability Assignment.`,
+    ),
   );
-  const effectiveLatestRoutingDecision =
-    latestRoutingDecision ?? embeddedLatestRoutingDecision;
-  const embeddedUserFacingDispatchError = isRecord(
-    taskRecord.userFacingDispatchError,
-  )
-    ? (taskRecord.userFacingDispatchError as CoreDispatchUserFacingError)
-    : undefined;
-  const userFacingDispatchError =
-    embeddedUserFacingDispatchError ??
-    effectiveLatestRoutingDecision?.userFacingError;
-  const issueTracking =
-    authoritativeIssueTracking ??
-    normalizeIssueTracking(taskRecord.issueTracking);
-  const blockedReason = taskBlockedReason(task, dispatch, userFacingDispatchError);
-  const failureReason = taskFailureReason(task, dispatch);
-  const dispatchWaitReason = taskDispatchWaitReason(
-    task,
-    dispatch,
-    userFacingDispatchError,
-  );
-  const reasonCategory = taskReasonCategory(
-    task,
-    dispatch,
-    blockedReason,
-    failureReason,
-    dispatchWaitReason,
-  );
-  return {
-    taskId: task.taskId ?? pickString(taskRecord, ["id", "task_id"]) ?? "",
-    traceId: task.traceId ?? pickString(taskRecord, ["trace_id"]),
-    incidentId: task.incidentId,
-    sourceEventId:
-      task.sourceEventId ??
-      pickString(taskRecord, ["sourceEventId", "source_event_id"]),
-    taskType: task.taskType,
-    taskTypeCode:
-      task.taskTypeCode ?? pickString(taskRecord, ["taskTypeCode", "task_type_code"]),
-    effectiveTaskTypeCode:
-      task.effectiveTaskTypeCode ??
-      pickString(taskRecord, ["effectiveTaskTypeCode", "effective_task_type_code"]) ??
-      task.taskTypeCode ??
-      pickString(taskRecord, ["taskTypeCode", "task_type_code"]) ??
-      task.taskType,
-    status: task.status,
-    priority: task.priority,
-    tenantId:
-      task.tenantId ?? pickString(taskRecord, ["tenantId", "tenant_id"]),
-    sourceSystem: pickString(taskRecord, [
-      "sourceSystem",
-      "source_system",
-      "systemCode",
-      "system_code",
-      "source",
-    ]),
-    siteId: task.siteId ?? pickString(taskRecord, ["siteId", "site_id"]),
-    plantId: task.plantId ?? pickString(taskRecord, ["plantId", "plant_id"]),
-    objectType:
-      task.objectType ?? pickString(taskRecord, ["objectType", "object_type"]),
-    objectId:
-      task.objectId ?? pickString(taskRecord, ["objectId", "object_id"]),
-    eventType:
-      task.eventType ?? pickString(taskRecord, ["eventType", "event_type"]),
-    errorCode:
-      task.errorCode ?? pickString(taskRecord, ["errorCode", "error_code"]),
-    eventStage: pickDispatchEventStage(taskRecord, ["eventStage", "event_stage"], task.eventStage),
-    originSourceSystem:
-      task.originSourceSystem ??
-      pickString(taskRecord, ["originSourceSystem", "origin_source_system"]),
-    targetSystem:
-      task.targetSystem ?? pickString(taskRecord, ["targetSystem", "target_system"]),
-    requestedSkill:
-      task.requestedSkill ?? pickString(taskRecord, ["requestedSkill", "requested_skill"]),
-    handoffMode:
-      task.handoffMode ?? pickString(taskRecord, ["handoffMode", "handoff_mode"]),
-    correlationId:
-      task.correlationId ?? pickString(taskRecord, ["correlationId", "correlation_id"]),
-    parentTaskId:
-      task.parentTaskId ?? pickString(taskRecord, ["parentTaskId", "parent_task_id"]),
-    matchedFlowId:
-      task.matchedFlowId ?? pickString(taskRecord, ["matchedFlowId", "matched_flow_id"]),
-    matchedRuleId:
-      task.matchedRuleId ?? pickString(taskRecord, ["matchedRuleId", "matched_rule_id"]),
-    assignedPoolId:
-      task.assignedPoolId ?? pickString(taskRecord, ["assignedPoolId", "assigned_pool_id"]),
-    targetPoolId:
-      task.targetPoolId ?? pickString(taskRecord, ["targetPoolId", "target_pool_id"]),
-    classificationStatus:
-      task.classificationStatus ?? pickString(taskRecord, ["classificationStatus", "classification_status"]),
-    classificationResultJson:
-      task.classificationResultJson ?? taskRecord?.["classification_result_json"],
-    routingPath:
-      task.routingPath ?? pickString(taskRecord, ["routingPath", "routing_path"]),
-    routingPolicy:
-      task.routingPolicy ??
-      pickString(taskRecord, ["routingPolicy", "routing_policy"]),
-    createdReason:
-      task.createdReason ??
-      pickString(taskRecord, ["createdReason", "created_reason"]),
-    occurrenceCountAtCreation: task.occurrenceCountAtCreation,
-    assignedAgentId: task.assignedAgentId ?? dispatch?.agentId,
-    requiredCapabilities: task.requiredCapabilities ?? [],
-    createdAt: task.createdAt,
-    updatedAt:
-      task.updatedAt ?? task.terminalAt ?? task.timeoutAt ?? task.createdAt,
-    dispatchRequestId: dispatch?.dispatchRequestId,
-    dispatchStatus: dispatch?.status,
-    dispatchExecutionStatus: deriveDispatchExecutionStatus(dispatch),
-    dispatchDeliveryStatus: deriveDispatchDeliveryStatus(dispatch),
-    blockedReason,
-    nextAction: deriveNextAction(dispatch),
-    callbackStatus: dispatch?.lastCallbackId ? "CALLBACK_RECEIVED" : undefined,
-    lifecycleReason: task.lifecycleReason,
-    failureReason,
-    dispatchWaitReason,
-    reasonCategory,
-    nextDispatchAttemptAt: task.nextDispatchAttemptAt,
-    dispatchAttemptCount: task.dispatchAttemptCount,
-    dispatchRetryReason: task.dispatchRetryReason,
-    dispatchRecoveryClaimedBy: task.dispatchRecoveryClaimedBy,
-    dispatchRecoveryClaimUntil: task.dispatchRecoveryClaimUntil,
-    latestRoutingDecision: effectiveLatestRoutingDecision,
-    userFacingDispatchError,
-    issueTracking,
-    payload: {
-      task,
-      dispatch,
-      ...(effectiveLatestRoutingDecision
-        ? { latestRoutingDecision: effectiveLatestRoutingDecision }
-        : {}),
-      ...(userFacingDispatchError ? { userFacingDispatchError } : {}),
-      ...(issueTracking ? { issueTracking } : {}),
-    },
-  };
 }
 
 export const coreAdminApi = {
+  ...taskAdminApi,
+  ...sourceSystemsAdminApi,
 
   getEnforceObservabilitySnapshot(): Promise<CoreEnforceObservabilitySnapshot> {
     return coreApiGet<CoreEnforceObservabilitySnapshot>(
@@ -879,21 +321,15 @@ export const coreAdminApi = {
     );
   },
 
-  getTaskCaseTimeline(taskId: string): Promise<CoreTaskCaseTimelineView> {
-    return coreApiGet<CoreTaskCaseTimelineView>(
-      coreAdminEndpoints.taskCaseTimeline(taskId),
-    );
-  },
-
   getDashboardSnapshot(): Promise<CoreDashboardSnapshot> {
     return coreApiGet<CoreDashboardSnapshot>(
-      coreAdminEndpoints.dashboardSnapshot,
+      coreAdminEndpoints.dashboardSnapshot(requireCoreTenantContext()),
     );
   },
 
   getAgentGovernanceSummary(): Promise<Record<string, unknown>> {
     return coreApiGet<Record<string, unknown>>(
-      coreAdminEndpoints.agentGovernanceSummary,
+      coreAdminEndpoints.agentGovernanceSummary(requireCoreTenantContext()),
     );
   },
 
@@ -971,7 +407,7 @@ export const coreAdminApi = {
 
   async getAgentsRuntimeView(): Promise<CoreAgentProfile[]> {
     return normalizeCoreAgentRuntimeViewPayload(
-      await coreApiGet<unknown>(coreAdminEndpoints.agentsRuntimeView),
+      await coreApiGet<unknown>(coreAdminEndpoints.agentsRuntimeView(requireCoreTenantContext())),
     );
   },
 
@@ -988,6 +424,16 @@ export const coreAdminApi = {
     return coreApiPut<CoreAgentProfile>(
       coreAdminEndpoints.agentUpdate(agentId),
       body,
+    );
+  },
+
+  updateAgentDispatchAccess(
+    agentId: string,
+    body: Pick<AgentProfileUpdateRequest, "tenantId" | "scopes" | "reason">,
+  ): Promise<CoreAgentProfile> {
+    return coreApiPut<CoreAgentProfile>(
+      coreAdminEndpoints.agentUpdate(agentId),
+      { ...body, reason: body.reason ?? "Updated Dispatch Access from the Agent workspace" },
     );
   },
 
@@ -1039,8 +485,6 @@ export const coreAdminApi = {
     );
   },
 
-
-
   getDispatchPoliciesV2(status?: string | null, tenantId = ""): Promise<CoreDispatchPolicy[]> {
     const scopedTenantId = requireTenantId(tenantId, "dispatch policy lookup");
     const query = new URLSearchParams();
@@ -1074,66 +518,6 @@ export const coreAdminApi = {
 
   addDispatchPolicyScoringRule(policyCode: string, body: CoreDispatchPolicyScoringRule): Promise<CoreDispatchPolicyScoringRule> {
     return coreApiPost<CoreDispatchPolicyScoringRule>(coreAdminEndpoints.dispatchPolicyScoringRules(policyCode), body);
-  },
-
-  getDispatchTaskDefinitions(
-    status?: string | null,
-    tenantId = "",
-  ): Promise<CoreDispatchTaskDefinition[]> {
-    const query = new URLSearchParams();
-    if (tenantId) query.set("tenantId", tenantId);
-    if (status) query.set("status", status);
-    const params = query.toString() ? `?${query.toString()}` : "";
-    return coreGetList<CoreDispatchTaskDefinition>(
-      `${coreAdminEndpoints.dispatchTaskDefinitions}${params}`,
-    );
-  },
-
-
-
-
-  getSourceSystems(tenantId = ""): Promise<CoreSourceSystem[]> {
-    const scopedTenantId = requireTenantId(tenantId, "source-system lookup");
-    const query = new URLSearchParams();
-    query.set("tenantId", scopedTenantId);
-    return coreGetList<CoreSourceSystem>(`${coreAdminEndpoints.sourceSystems}?${query.toString()}`);
-  },
-
-  createSourceSystem(tenantId = "", body: CoreSourceSystemCommand): Promise<CoreSourceSystem> {
-    const scopedTenantId = requireTenantId(tenantId, "source-system create");
-    const query = new URLSearchParams();
-    query.set("tenantId", scopedTenantId);
-    return coreApiPost<CoreSourceSystem>(`${coreAdminEndpoints.sourceSystems}?${query.toString()}`, { ...body, tenantId: scopedTenantId });
-  },
-
-  updateSourceSystem(tenantId = "", sourceSystemId: string, body: CoreSourceSystemCommand): Promise<CoreSourceSystem> {
-    const scopedTenantId = requireTenantId(tenantId, "source-system update");
-    const query = new URLSearchParams();
-    query.set("tenantId", scopedTenantId);
-    return coreApiPut<CoreSourceSystem>(`${coreAdminEndpoints.sourceSystem(sourceSystemId)}?${query.toString()}`, { ...body, tenantId: scopedTenantId, sourceSystemId });
-  },
-
-  retireSourceSystem(tenantId = "", sourceSystemId: string): Promise<{ sourceSystemId: string; status: string }> {
-    const scopedTenantId = requireTenantId(tenantId, "source-system retire");
-    const query = new URLSearchParams();
-    query.set("tenantId", scopedTenantId);
-    return coreApiDelete<{ sourceSystemId: string; status: string }>(`${coreAdminEndpoints.sourceSystem(sourceSystemId)}?${query.toString()}`);
-  },
-
-  getDispatchFlows(tenantId = "", sourceSystem?: string | null): Promise<CoreDispatchFlowView[]> {
-    const scopedTenantId = requireTenantId(tenantId, "dispatch flow lookup");
-    const query = new URLSearchParams();
-    query.set("tenantId", scopedTenantId);
-    if (sourceSystem) query.set("sourceSystem", sourceSystem);
-    const params = query.toString() ? `?${query.toString()}` : "";
-    return coreGetList<CoreDispatchFlowView>(`${coreAdminEndpoints.dispatchFlows}${params}`);
-  },
-
-  getDispatchFlowsForAgent(tenantId: string, agentId: string): Promise<CoreDispatchFlowView[]> {
-    const scopedTenantId = requireTenantId(tenantId, "Dispatch Flow by-Agent lookup");
-    const query = new URLSearchParams();
-    query.set("tenantId", scopedTenantId);
-    return coreGetList<CoreDispatchFlowView>(`${coreAdminEndpoints.dispatchFlowsByAgent(agentId)}?${query.toString()}`);
   },
 
   getDispatchFlowAgentOptions(tenantId = ""): Promise<CoreDispatchFlowAgentOptionView[]> {
@@ -1198,7 +582,7 @@ export const coreAdminApi = {
 
   createDispatchFlowRealTestEvent(
     flowId: string,
-    body: { message?: string; severity?: string; eventType?: string; objectType?: string; errorCode?: string; objectId?: string; correlationId?: string; siteId?: string; plantId?: string; attributes?: Record<string, unknown> } = {},
+    body: { message?: string; severity?: string; eventType?: string; objectType?: string; errorCode?: string; objectId?: string; correlationId?: string; siteId?: string; plantId?: string; expectedIssueSyncPolicy?: 'NONE' | 'OPTIONAL' | 'REQUIRED' | 'MANUAL' | string; expectExternalIssueOnSuccess?: boolean; attributes?: Record<string, unknown> } = {},
     tenantId = "",
   ): Promise<CoreEventIntakeDecisionResponse> {
     const scopedTenantId = requireTenantId(tenantId, "real Dispatch Flow test event");
@@ -1209,7 +593,6 @@ export const coreAdminApi = {
       body,
     );
   },
-
 
   simulateDispatch(body: CoreDispatchSimulationRequest, tenantId = ""): Promise<CoreDispatchSimulationResponse> {
     const scopedTenantId = requireTenantId(tenantId, "dispatch simulation");
@@ -1240,6 +623,38 @@ export const coreAdminApi = {
     query.set("tenantId", scopedTenantId);
     const params = query.toString() ? `?${query.toString()}` : "";
     return coreGetList<CoreDispatchFlowRuleView>(`${coreAdminEndpoints.dispatchFlowRules(flowId)}${params}`);
+  },
+
+  getDispatchFlowRuleConflicts(flowId: string, tenantId = ""): Promise<CoreDispatchFlowRuleConflictView[]> {
+    const scopedTenantId = requireTenantId(tenantId, "dispatch flow rule conflict lookup");
+    const query = new URLSearchParams();
+    query.set("tenantId", scopedTenantId);
+    return coreGetList<CoreDispatchFlowRuleConflictView>(`${coreAdminEndpoints.dispatchFlowRuleConflicts(flowId)}?${query.toString()}`);
+  },
+
+  getDispatchFlowCapabilityBridge(flowId: string, tenantId = ""): Promise<CoreFlowDirectAgentCompatibilityBinding[]> {
+    const scopedTenantId = requireTenantId(tenantId, "dispatch flow capability bridge lookup");
+    return coreGetList<CoreFlowDirectAgentCompatibilityBinding>(`${coreAdminEndpoints.dispatchFlowCapabilityBridge(flowId)}?tenantId=${encodeURIComponent(scopedTenantId)}`);
+  },
+
+  refreshDispatchFlowCapabilityBridge(flowId: string, tenantId = ""): Promise<CoreFlowCapabilityBridgeRefresh> {
+    const scopedTenantId = requireTenantId(tenantId, "dispatch flow capability bridge refresh");
+    return coreApiPost<CoreFlowCapabilityBridgeRefresh>(`${coreAdminEndpoints.dispatchFlowCapabilityBridgeRefresh(flowId)}?tenantId=${encodeURIComponent(scopedTenantId)}`, {});
+  },
+
+  getDispatchFlowLegacyEquivalence(flowId: string, tenantId = "", limit = 100): Promise<CoreFlowCapabilityLegacyEquivalenceEvidence[]> {
+    const scopedTenantId = requireTenantId(tenantId, "dispatch flow legacy equivalence lookup");
+    return coreGetList<CoreFlowCapabilityLegacyEquivalenceEvidence>(`${coreAdminEndpoints.dispatchFlowLegacyEquivalence(flowId)}?tenantId=${encodeURIComponent(scopedTenantId)}&limit=${Math.max(1, Math.min(limit, 1000))}`);
+  },
+
+  getDispatchFlowLegacyEquivalenceReadiness(flowId: string, tenantId = ""): Promise<CoreFlowCapabilityEquivalenceReadiness> {
+    const scopedTenantId = requireTenantId(tenantId, "dispatch flow legacy equivalence readiness");
+    return coreApiGet<CoreFlowCapabilityEquivalenceReadiness>(`${coreAdminEndpoints.dispatchFlowLegacyEquivalenceReadiness(flowId)}?tenantId=${encodeURIComponent(scopedTenantId)}`);
+  },
+
+  backfillDispatchFlowLegacyEquivalence(flowId: string, tenantId = "", limit = 100): Promise<Record<string, unknown>> {
+    const scopedTenantId = requireTenantId(tenantId, "dispatch flow legacy equivalence backfill");
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.dispatchFlowLegacyEquivalenceBackfill(flowId)}?tenantId=${encodeURIComponent(scopedTenantId)}&limit=${Math.max(1, Math.min(limit, 5000))}`, {});
   },
 
   getDispatchFlowSkills(flowId: string, tenantId = ""): Promise<CoreDispatchFlowRequiredSkillView[]> {
@@ -1306,106 +721,6 @@ export const coreAdminApi = {
     const params = query.toString() ? `?${query.toString()}` : "";
     return coreApiPost<CoreDispatchFlowTraceChainView>(`${coreAdminEndpoints.dispatchFlowTestChain(flowId)}${params}`, body);
   },
-
-  getDispatchContractSourceSystems(tenantId = "", limit = 500): Promise<CoreDispatchSourceSystemOption[]> {
-    const scopedTenantId = requireTenantId(tenantId, "dispatch source-system lookup");
-    const query = new URLSearchParams();
-    query.set("tenantId", scopedTenantId);
-    query.set("limit", String(limit));
-    return coreGetList<CoreDispatchSourceSystemOption>(`${coreAdminEndpoints.dispatchContractSourceSystems}?${query.toString()}`);
-  },
-
-  bootstrapDispatchContract(body: CoreDispatchContractBootstrapRequest): Promise<CoreDispatchContractBootstrapResponse> {
-    return coreApiPost<CoreDispatchContractBootstrapResponse>(coreAdminEndpoints.dispatchContractBootstrap, body);
-  },
-
-  checkDispatchContractReadiness(body: CoreDispatchContractReadinessRequest): Promise<CoreDispatchContractReadinessResponse> {
-    return coreApiPost<CoreDispatchContractReadinessResponse>(coreAdminEndpoints.dispatchContractReadiness, body);
-  },
-
-  inspectDispatchContract(body: CoreDispatchContractChainInspectionRequest): Promise<CoreDispatchContractChainInspectionResponse> {
-    return coreApiPost<CoreDispatchContractChainInspectionResponse>(coreAdminEndpoints.dispatchContractInspect, body);
-  },
-
-  traceDispatchContract(body: CoreDispatchContractTraceRequest): Promise<CoreDispatchContractTraceResponse> {
-    return coreApiPost<CoreDispatchContractTraceResponse>(coreAdminEndpoints.dispatchContractTrace, body);
-  },
-
-  createDispatchContractTestTask(body: CoreDispatchContractTestTaskRequest): Promise<CoreDispatchContractTestTaskResponse> {
-    return coreApiPost<CoreDispatchContractTestTaskResponse>(coreAdminEndpoints.dispatchContractTestTask, body);
-  },
-
-  getDispatchTaskDefinitionImpactPreview(
-    definitionId: string,
-    action?: string | null,
-    tenantId = "",
-  ): Promise<CoreDispatchTaskDefinitionImpactPreview> {
-    const query = new URLSearchParams();
-    if (tenantId) query.set("tenantId", tenantId);
-    if (action) query.set("action", action);
-    const params = query.toString() ? `?${query.toString()}` : "";
-    return coreApiGet<CoreDispatchTaskDefinitionImpactPreview>(
-      `${coreAdminEndpoints.dispatchTaskDefinitionImpactPreview(definitionId)}${params}`,
-    );
-  },
-
-  activateDispatchTaskDefinition(
-    definitionId: string,
-    body: CoreDispatchTaskDefinitionReviewCommand,
-    tenantId = "",
-  ): Promise<CoreDispatchTaskDefinition> {
-    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
-    return coreApiPost<CoreDispatchTaskDefinition>(
-      `${coreAdminEndpoints.dispatchTaskDefinitionActivate(definitionId)}${suffix}`,
-      body,
-    );
-  },
-
-  retireDispatchTaskDefinition(
-    definitionId: string,
-    body: CoreDispatchTaskDefinitionReviewCommand,
-    tenantId = "",
-  ): Promise<CoreDispatchTaskDefinition> {
-    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
-    return coreApiPost<CoreDispatchTaskDefinition>(
-      `${coreAdminEndpoints.dispatchTaskDefinitionRetire(definitionId)}${suffix}`,
-      body,
-    );
-  },
-
-  mergeDispatchTaskDefinition(
-    definitionId: string,
-    body: CoreDispatchTaskDefinitionReviewCommand,
-    tenantId = "",
-  ): Promise<CoreDispatchTaskDefinition> {
-    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
-    return coreApiPost<CoreDispatchTaskDefinition>(
-      `${coreAdminEndpoints.dispatchTaskDefinitionMerge(definitionId)}${suffix}`,
-      body,
-    );
-  },
-
-
-  upsertDispatchTaskDefinition(
-    definitionId: string,
-    body: CoreDispatchTaskDefinition,
-    tenantId = "",
-  ): Promise<CoreDispatchTaskDefinition> {
-    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
-    return coreApiPut<CoreDispatchTaskDefinition>(
-      `${coreAdminEndpoints.dispatchTaskDefinition(definitionId)}${suffix}`,
-      body,
-    );
-  },
-
-
-
-
-
-
-
-
-
 
   getAdvancedSelectionStrategyContracts(): Promise<CoreAdvancedSelectionStrategyContract[]> {
     return coreGetList<CoreAdvancedSelectionStrategyContract>(coreAdminEndpoints.advancedSelectionStrategyContracts);
@@ -1551,7 +866,6 @@ export const coreAdminApi = {
     return coreApiPut<CoreSupplyProfile>(`${coreAdminEndpoints.supplyProfile(profileCode)}${suffix}`, body);
   },
 
-
   getRuntimeResources(status?: string, trustStatus?: string, tenantId = ""): Promise<CoreRuntimeResource[]> {
     const query = new URLSearchParams();
     if (tenantId) query.set("tenantId", tenantId);
@@ -1606,8 +920,381 @@ export const coreAdminApi = {
     return coreApiPut<CoreRuntimeFeatureCatalog>(`${coreAdminEndpoints.runtimeFeature(featureCode)}${suffix}`, body);
   },
 
-  // Phase 4-4: Capability catalog APIs are reference-only / diagnostic-only for Current setup.
-  // Use Source Flow -> Agent Pool APIs when changing real dispatch routing.
+  // Phase 1: canonical semantic WHAT catalog. Provider discovery/routing is intentionally not part of these APIs.
+  getCanonicalCapabilities(
+    status?: string,
+    search?: string,
+    serviceCode?: string,
+    tenantId = "",
+    limit = 200,
+  ): Promise<CoreCanonicalCapabilityDefinition[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (status) query.set("status", status);
+    if (search) query.set("search", search);
+    if (serviceCode) query.set("serviceCode", serviceCode);
+    query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreCanonicalCapabilityDefinition>(`${coreAdminEndpoints.canonicalCapabilities}${suffix}`);
+  },
+
+  getCanonicalCapability(capabilityCode: string, tenantId = ""): Promise<CoreCanonicalCapabilityDefinition> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiGet<CoreCanonicalCapabilityDefinition>(`${coreAdminEndpoints.canonicalCapability(capabilityCode)}${suffix}`);
+  },
+
+  upsertCanonicalCapability(
+    capabilityCode: string,
+    body: CoreCanonicalCapabilityDefinition,
+    tenantId = "",
+  ): Promise<CoreCanonicalCapabilityDefinition> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreCanonicalCapabilityDefinition>(`${coreAdminEndpoints.canonicalCapability(capabilityCode)}${suffix}`, body);
+  },
+
+  getCapabilityRequirementsByServiceCode(serviceCode: string, tenantId = ""): Promise<CoreCapabilityRequirement[]> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreGetList<CoreCapabilityRequirement>(`${coreAdminEndpoints.capabilityRequirementsByServiceCode(serviceCode)}${suffix}`);
+  },
+
+  // Phase 2: WHO CAN registry. These APIs do not authorize, score, select or execute providers.
+  getCapabilityProviders(providerType?: string, catalogStatus?: string, search?: string, tenantId = "", afterProviderId?: string, limit = 100): Promise<CoreCapabilityProvider[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (providerType) query.set("providerType", providerType);
+    if (catalogStatus) query.set("catalogStatus", catalogStatus);
+    if (search) query.set("search", search);
+    if (afterProviderId) query.set("afterProviderId", afterProviderId);
+    query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreCapabilityProvider>(`${coreAdminEndpoints.capabilityProviders}${suffix}`);
+  },
+
+  upsertCapabilityProvider(providerId: string, body: CoreCapabilityProvider, tenantId = ""): Promise<CoreCapabilityProvider> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreCapabilityProvider>(`${coreAdminEndpoints.capabilityProvider(providerId)}${suffix}`, body);
+  },
+
+  getCapabilityBindings(capabilityCode?: string, providerId?: string, trustStatus?: string, tenantId = "", afterBindingId?: string, limit = 100): Promise<CoreCapabilityBinding[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (capabilityCode) query.set("capabilityCode", capabilityCode);
+    if (providerId) query.set("providerId", providerId);
+    if (trustStatus) query.set("trustStatus", trustStatus);
+    if (afterBindingId) query.set("afterBindingId", afterBindingId);
+    query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreCapabilityBinding>(`${coreAdminEndpoints.capabilityBindings}${suffix}`);
+  },
+
+  upsertCapabilityBinding(bindingId: string, body: CoreCapabilityBinding, tenantId = "", changeReason?: string): Promise<CoreCapabilityBinding> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreCapabilityBinding>(`${coreAdminEndpoints.capabilityBinding(bindingId)}${suffix}`, body, changeReason ? { headers: { "X-Change-Reason": changeReason } } : undefined);
+  },
+
+  getCapabilityBindingTrustEvents(bindingId: string, tenantId = ""): Promise<CoreCapabilityBindingTrustEvent[]> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreGetList<CoreCapabilityBindingTrustEvent>(`${coreAdminEndpoints.capabilityBindingTrustEvents(bindingId)}${suffix}`);
+  },
+
+  // Phase 3: WHO MAY governance. Authorization is a hard gate and never ranks/selects providers.
+  getDelegationPolicies(status?: string, effect?: string, capabilityCode?: string, search?: string, tenantId = "", afterPolicyId?: string, limit = 100): Promise<CoreDelegationPolicy[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (status) query.set("status", status);
+    if (effect) query.set("effect", effect);
+    if (capabilityCode) query.set("capabilityCode", capabilityCode);
+    if (search) query.set("search", search);
+    if (afterPolicyId) query.set("afterPolicyId", afterPolicyId);
+    query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreDelegationPolicy>(`${coreAdminEndpoints.delegationPolicies}${suffix}`);
+  },
+
+  upsertDelegationPolicy(policyId: string, body: CoreDelegationPolicy, tenantId = "", changeReason?: string): Promise<CoreDelegationPolicy> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreDelegationPolicy>(`${coreAdminEndpoints.delegationPolicy(policyId)}${suffix}`, body, changeReason ? { headers: { "X-Change-Reason": changeReason } } : undefined);
+  },
+
+  getDelegationPolicyVersions(policyId: string, tenantId = ""): Promise<CoreDelegationPolicyVersion[]> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreGetList<CoreDelegationPolicyVersion>(`${coreAdminEndpoints.delegationPolicyVersions(policyId)}${suffix}`);
+  },
+
+  getDelegationPolicyAuditEvents(policyId: string, tenantId = ""): Promise<CoreDelegationPolicyAuditEvent[]> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreGetList<CoreDelegationPolicyAuditEvent>(`${coreAdminEndpoints.delegationPolicyAuditEvents(policyId)}${suffix}`);
+  },
+
+  evaluateDelegationAuthorizationPreview(body: CoreDelegationAuthorizationRequest, tenantId = ""): Promise<CoreDelegationAuthorizationDecision> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPost<CoreDelegationAuthorizationDecision>(`${coreAdminEndpoints.delegationAuthorizationPreview}${suffix}`, body);
+  },
+
+  // Phase 4: WHO SHOULD preview. Only persisted Phase 3 PASS evidence may enter ranking; no transport is selected.
+  getProviderRoutingProfiles(status?: string, search?: string, tenantId = "", afterProfileId?: string, limit = 100): Promise<CoreRoutingProfile[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (status) query.set("status", status);
+    if (search) query.set("search", search);
+    if (afterProfileId) query.set("afterProfileId", afterProfileId);
+    query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreRoutingProfile>(`${coreAdminEndpoints.providerRoutingProfiles}${suffix}`);
+  },
+
+  upsertProviderRoutingProfile(profileId: string, body: CoreRoutingProfile, tenantId = "", changeReason?: string): Promise<CoreRoutingProfile> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreRoutingProfile>(`${coreAdminEndpoints.providerRoutingProfile(profileId)}${suffix}`, body, changeReason ? { headers: { "X-Change-Reason": changeReason } } : undefined);
+  },
+
+  getProviderRoutingProfileVersions(profileId: string, tenantId = ""): Promise<CoreRoutingProfileVersion[]> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreGetList<CoreRoutingProfileVersion>(`${coreAdminEndpoints.providerRoutingProfileVersions(profileId)}${suffix}`);
+  },
+
+  recordProviderEligibilityObservation(body: CoreProviderEligibilityObservation, tenantId = ""): Promise<CoreProviderEligibilityObservation> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPost<CoreProviderEligibilityObservation>(`${coreAdminEndpoints.providerRoutingEligibilityObservations}${suffix}`, body);
+  },
+
+  getProviderEligibilityObservations(bindingId?: string, tenantId = "", limit = 100): Promise<CoreProviderEligibilityObservation[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (bindingId) query.set("bindingId", bindingId);
+    query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreProviderEligibilityObservation>(`${coreAdminEndpoints.providerRoutingEligibilityObservations}${suffix}`);
+  },
+
+  evaluateProviderRoutingPreview(body: CoreProviderRoutingPreviewRequest, tenantId = ""): Promise<CoreProviderRoutingDecision> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPost<CoreProviderRoutingDecision>(`${coreAdminEndpoints.providerRoutingPreview}${suffix}`, body);
+  },
+
+  getProviderRoutingDecisions(capabilityCode?: string, tenantId = "", limit = 100): Promise<CoreProviderRoutingDecision[]> {
+    const query = new URLSearchParams();
+    if (tenantId) query.set("tenantId", tenantId);
+    if (capabilityCode) query.set("capabilityCode", capabilityCode);
+    query.set("limit", String(limit));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return coreGetList<CoreProviderRoutingDecision>(`${coreAdminEndpoints.providerRoutingDecisions}${suffix}`);
+  },
+
+  // MRS A0-R6: shadow-only RoutingDecision -> ExecutionAssignment cutover evidence.
+  evaluateRoutingAuthorityShadow(planId: string, body: CoreRoutingAuthorityShadowRequest, tenantId = ""): Promise<CoreRoutingAuthorityShadowResult> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPost<CoreRoutingAuthorityShadowResult>(`${coreAdminEndpoints.routingAuthorityShadowEvaluate(planId)}${suffix}`, body);
+  },
+  evaluateRebindingAdmission(planId: string, body: CoreRebindingAdmissionRequest, tenantId = ""): Promise<CoreRebindingAdmissionDecision> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPost<CoreRebindingAdmissionDecision>(`${coreAdminEndpoints.routingAuthorityRebindingAdmission(planId)}${suffix}`, body);
+  },
+  getRoutingAuthorityTrace(planId: string, tenantId = "", limit = 100): Promise<Record<string, unknown>[]> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); query.set("limit", String(limit));
+    return coreGetList<Record<string, unknown>>(`${coreAdminEndpoints.routingAuthorityTrace(planId)}?${query.toString()}`);
+  },
+  getFlowRoutingMigrationStates(tenantId = "", limit = 200): Promise<CoreFlowRoutingMigrationState[]> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); query.set("limit", String(limit));
+    return coreGetList<CoreFlowRoutingMigrationState>(`${coreAdminEndpoints.routingAuthorityFlowMigrationStates}?${query.toString()}`);
+  },
+  setFlowRoutingMigrationState(flowId: string, state: 'LEGACY_AUTHORITATIVE' | 'SHADOW', tenantId = "", changeReason?: string): Promise<CoreFlowRoutingMigrationState> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); query.set("state", state);
+    return coreApiPut<CoreFlowRoutingMigrationState>(`${coreAdminEndpoints.routingAuthorityFlowMigrationState(flowId)}?${query.toString()}`, {}, changeReason ? { headers: { "X-Change-Reason": changeReason } } : undefined);
+  },
+
+  // MRS A0-R7: per-Flow controlled execution safety. No global cutover endpoint exists.
+  setExecutionSafetyFlowAuthority(flowId: string, body: CoreExecutionSafetyActivationRequest, tenantId = ""): Promise<CoreFlowRoutingMigrationState> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreFlowRoutingMigrationState>(`${coreAdminEndpoints.executionSafetyFlowAuthority(flowId)}${suffix}`, body);
+  },
+  prepareExecutionSafety(planId: string, body: CoreExecutionSafetyPrepareRequest, tenantId = ""): Promise<CoreExecutionSafetyPrepareResult> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPost<CoreExecutionSafetyPrepareResult>(`${coreAdminEndpoints.executionSafetyPrepare(planId)}${suffix}`, body);
+  },
+  handoffNextExecutionSafetyIntent(tenantId = "", workerId = "a0-r7-admin-worker"): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); query.set("workerId", workerId);
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.executionSafetyHandoffNext}?${query.toString()}`, {});
+  },
+  getExecutionSafetyRecentIntents(tenantId = "", limit = 100): Promise<Record<string, unknown>[]> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); query.set("limit", String(limit));
+    return coreGetList<Record<string, unknown>>(`${coreAdminEndpoints.executionSafetyRecentIntents}?${query.toString()}`);
+  },
+  getExecutionSafetyTrace(planId: string, tenantId = "", limit = 100): Promise<Record<string, unknown>[]> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); query.set("limit", String(limit));
+    return coreGetList<Record<string, unknown>>(`${coreAdminEndpoints.executionSafetyTrace(planId)}?${query.toString()}`);
+  },
+
+  // MRS A0-R8: evidence/isolation/runtime acceptance. This surface cannot expand execution authority.
+  getRuntimeAcceptanceSummary(tenantId: string): Promise<CoreRuntimeAcceptanceSummary> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiGet<CoreRuntimeAcceptanceSummary>(`${coreAdminEndpoints.runtimeAcceptanceSummary}?${query.toString()}`);
+  },
+  recordRuntimeAcceptanceRun(tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.runtimeAcceptanceRuns}?${query.toString()}`, body);
+  },
+
+  // Stage 10: A0 Release / Production Foundation. No global cutover API exists.
+  getProductionFoundationSummary(tenantId: string): Promise<CoreProductionFoundationSummary> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiGet<CoreProductionFoundationSummary>(`${coreAdminEndpoints.productionFoundationSummary}?${query.toString()}`);
+  },
+  recordProductionFoundationCutoverRun(tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCutoverRuns}?${query.toString()}`, body);
+  },
+  createProductionReleaseCandidate(tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCandidates}?${query.toString()}`, body);
+  },
+  certifyProductionReleaseCandidate(candidateId: string, tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCandidateCertify(candidateId)}?${query.toString()}`, body);
+  },
+  activateProductionReleaseCandidate(candidateId: string, tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCandidateActivate(candidateId)}?${query.toString()}`, body);
+  },
+  revokeProductionReleaseCandidate(candidateId: string, tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCandidateRevoke(candidateId)}?${query.toString()}`, body);
+  },
+  setProductionFoundationFlowAuthority(flowId: string, tenantId: string, body: CoreExecutionSafetyActivationRequest): Promise<CoreFlowRoutingMigrationState> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPut<CoreFlowRoutingMigrationState>(`${coreAdminEndpoints.productionFoundationFlowAuthority(flowId)}?${query.toString()}`, body);
+  },
+
+  // Phase 5: HOW resolution. It consumes a persisted Phase 4 selection and never re-ranks or re-authorizes providers.
+  getExecutionAdapters(providerId?: string, status?: string, search?: string, tenantId = "", afterAdapterId?: string, limit = 100): Promise<CoreExecutionAdapterRegistration[]> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (providerId) query.set("providerId", providerId); if (status) query.set("status", status); if (search) query.set("search", search); if (afterAdapterId) query.set("afterAdapterId", afterAdapterId); query.set("limit", String(limit));
+    return coreGetList<CoreExecutionAdapterRegistration>(`${coreAdminEndpoints.executionAdapters}?${query.toString()}`);
+  },
+  upsertExecutionAdapter(adapterId: string, body: CoreExecutionAdapterRegistration, tenantId = "", changeReason?: string): Promise<CoreExecutionAdapterRegistration> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreExecutionAdapterRegistration>(`${coreAdminEndpoints.executionAdapter(adapterId)}${suffix}`, body, changeReason ? { headers: { "X-Change-Reason": changeReason } } : undefined);
+  },
+  getExecutionAdapterVersions(adapterId: string, tenantId = ""): Promise<CoreExecutionAdapterVersion[]> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreGetList<CoreExecutionAdapterVersion>(`${coreAdminEndpoints.executionAdapterVersions(adapterId)}${suffix}`); },
+  resolveExecutionAdapterPreview(body: CoreExecutionAdapterResolutionRequest, tenantId = ""): Promise<CoreExecutionAdapterResolution> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreApiPost<CoreExecutionAdapterResolution>(`${coreAdminEndpoints.executionAdapterResolvePreview}${suffix}`, body); },
+  getExecutionAdapterResolutions(routingDecisionId?: string, tenantId = "", limit = 100): Promise<CoreExecutionAdapterResolution[]> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (routingDecisionId) query.set("routingDecisionId", routingDecisionId); query.set("limit", String(limit));
+    return coreGetList<CoreExecutionAdapterResolution>(`${coreAdminEndpoints.executionAdapterResolutions}?${query.toString()}`);
+  },
+
+  // Phase 6: UNKNOWN problem / Semantic Triage. Proposes WHAT only; no provider selection or execution.
+  getSemanticTriagePolicies(status?: string, tenantId = "", limit = 100): Promise<CoreTriagePolicy[]> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (status) query.set("status", status); query.set("limit", String(limit));
+    return coreGetList<CoreTriagePolicy>(`${coreAdminEndpoints.semanticTriagePolicies}?${query.toString()}`);
+  },
+  upsertSemanticTriagePolicy(policyId: string, body: CoreTriagePolicy, tenantId = "", changeReason?: string): Promise<CoreTriagePolicy> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreTriagePolicy>(`${coreAdminEndpoints.semanticTriagePolicy(policyId)}${suffix}`, body, changeReason ? { headers: { "X-Change-Reason": changeReason } } : undefined);
+  },
+  getSemanticTriagePolicyVersions(policyId: string, tenantId = ""): Promise<CoreTriagePolicyVersion[]> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreGetList<CoreTriagePolicyVersion>(`${coreAdminEndpoints.semanticTriagePolicyVersions(policyId)}${suffix}`); },
+  resolveSemanticTriagePreview(body: CoreTriagePreviewRequest, tenantId = ""): Promise<CoreTriageDecision> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreApiPost<CoreTriageDecision>(`${coreAdminEndpoints.semanticTriageResolvePreview}${suffix}`, body); },
+  submitSemanticTriageProposal(requestId: string, body: CoreTriageProposal, tenantId = ""): Promise<CoreTriageDecision> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreApiPost<CoreTriageDecision>(`${coreAdminEndpoints.semanticTriageProposal(requestId)}${suffix}`, body); },
+  getSemanticTriageRequests(status?: string, tenantId = "", limit = 100): Promise<CoreTriageRequest[]> { const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (status) query.set("status", status); query.set("limit", String(limit)); return coreGetList<CoreTriageRequest>(`${coreAdminEndpoints.semanticTriageRequests}?${query.toString()}`); },
+  getSemanticTriageProposals(requestId?: string, tenantId = "", limit = 100): Promise<CoreTriageProposal[]> { const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (requestId) query.set("requestId", requestId); query.set("limit", String(limit)); return coreGetList<CoreTriageProposal>(`${coreAdminEndpoints.semanticTriageProposals}?${query.toString()}`); },
+  getSemanticTriageDecisions(requestId?: string, tenantId = "", limit = 100): Promise<CoreTriageDecision[]> { const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (requestId) query.set("requestId", requestId); query.set("limit", String(limit)); return coreGetList<CoreTriageDecision>(`${coreAdminEndpoints.semanticTriageDecisions}?${query.toString()}`); },
+
+  // Phase 7: semantic Execution Plan. Planner proposes Canonical WHAT + dependencies only; no Provider selection or execution.
+  getExecutionPlanPolicies(status?: string, tenantId = "", limit = 100): Promise<CoreExecutionPlanPolicy[]> {
+    const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (status) query.set("status", status); query.set("limit", String(limit));
+    return coreGetList<CoreExecutionPlanPolicy>(`${coreAdminEndpoints.executionPlanPolicies}?${query.toString()}`);
+  },
+  upsertExecutionPlanPolicy(policyId: string, body: CoreExecutionPlanPolicy, tenantId = "", changeReason?: string): Promise<CoreExecutionPlanPolicy> {
+    const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : "";
+    return coreApiPut<CoreExecutionPlanPolicy>(`${coreAdminEndpoints.executionPlanPolicy(policyId)}${suffix}`, body, changeReason ? { headers: { "X-Change-Reason": changeReason } } : undefined);
+  },
+  getExecutionPlanPolicyVersions(policyId: string, tenantId = ""): Promise<CoreExecutionPlanPolicyVersion[]> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreGetList<CoreExecutionPlanPolicyVersion>(`${coreAdminEndpoints.executionPlanPolicyVersions(policyId)}${suffix}`); },
+  resolveExecutionPlanPreview(body: CoreExecutionPlanPreviewRequest, tenantId = ""): Promise<CoreExecutionPlanDecision> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreApiPost<CoreExecutionPlanDecision>(`${coreAdminEndpoints.executionPlanResolvePreview}${suffix}`, body); },
+  submitExecutionPlanProposal(requestId: string, body: CoreExecutionPlanProposal, tenantId = ""): Promise<CoreExecutionPlanDecision> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreApiPost<CoreExecutionPlanDecision>(`${coreAdminEndpoints.executionPlanProposal(requestId)}${suffix}`, body); },
+  amendExecutionPlan(planId: string, body: CoreExecutionPlanAmendmentRequest, tenantId = ""): Promise<CoreExecutionPlanDecision> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreApiPost<CoreExecutionPlanDecision>(`${coreAdminEndpoints.executionPlanAmendment(planId)}${suffix}`, body); },
+  getExecutionPlans(status?: string, tenantId = "", afterPlanId?: string, limit = 100): Promise<CoreExecutionPlan[]> { const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (status) query.set("status", status); if (afterPlanId) query.set("afterPlanId", afterPlanId); query.set("limit", String(limit)); return coreGetList<CoreExecutionPlan>(`${coreAdminEndpoints.executionPlans}?${query.toString()}`); },
+  getExecutionPlan(planId: string, tenantId = ""): Promise<CoreExecutionPlan> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreApiGet<CoreExecutionPlan>(`${coreAdminEndpoints.executionPlan(planId)}${suffix}`); },
+  getExecutionPlanRevisions(planId: string, tenantId = ""): Promise<CoreExecutionPlanRevision[]> { const suffix = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""; return coreGetList<CoreExecutionPlanRevision>(`${coreAdminEndpoints.executionPlanRevisions(planId)}${suffix}`); },
+  getExecutionPlanRequests(status?: string, tenantId = "", limit = 100): Promise<CoreExecutionPlanRequest[]> { const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (status) query.set("status", status); query.set("limit", String(limit)); return coreGetList<CoreExecutionPlanRequest>(`${coreAdminEndpoints.executionPlanRequests}?${query.toString()}`); },
+  getExecutionPlanProposals(requestId?: string, tenantId = "", limit = 100): Promise<CoreExecutionPlanProposal[]> { const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (requestId) query.set("requestId", requestId); query.set("limit", String(limit)); return coreGetList<CoreExecutionPlanProposal>(`${coreAdminEndpoints.executionPlanProposals}?${query.toString()}`); },
+  getExecutionPlanDecisions(requestId?: string, tenantId = "", limit = 100): Promise<CoreExecutionPlanDecision[]> { const query = new URLSearchParams(); if (tenantId) query.set("tenantId", tenantId); if (requestId) query.set("requestId", requestId); query.set("limit", String(limit)); return coreGetList<CoreExecutionPlanDecision>(`${coreAdminEndpoints.executionPlanDecisions}?${query.toString()}`); },
+
+  // MRS A0-R5: formal Plan Admission. It authorizes only the Router candidate boundary.
+  getPlanAdmissionPolicies(status?: string, tenantId = "", limit = 100): Promise<CorePlanAdmissionPolicy[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); q.set("limit",String(limit)); return coreGetList<CorePlanAdmissionPolicy>(`/admin/plan-admission/policies?${q.toString()}`); },
+  upsertPlanAdmissionPolicy(policyId: string, body: CorePlanAdmissionPolicy, tenantId = "", changeReason?: string): Promise<CorePlanAdmissionPolicy> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPut<CorePlanAdmissionPolicy>(`/admin/plan-admission/policies/${encodeURIComponent(policyId)}${suffix}`,body,changeReason?{headers:{"X-Change-Reason":changeReason}}:undefined); },
+  admitExecutionPlan(planId: string, revision?: number, tenantId = ""): Promise<CorePlanAdmissionResult> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(revision!=null)q.set("revision",String(revision)); const suffix=q.toString()?`?${q.toString()}`:""; return coreApiPost<CorePlanAdmissionResult>(`/admin/plan-admission/plans/${encodeURIComponent(planId)}/admit${suffix}`,{}); },
+  getPlanAdmissionDecisions(planId: string, tenantId = "", limit = 100): Promise<CorePlanAdmissionDecision[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); q.set("limit",String(limit)); return coreGetList<CorePlanAdmissionDecision>(`/admin/plan-admission/plans/${encodeURIComponent(planId)}/decisions?${q.toString()}`); },
+  getBindingAuthorizationEnvelopes(planId: string, revision?: number, tenantId = ""): Promise<CoreBindingAuthorizationEnvelope[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(revision!=null)q.set("revision",String(revision)); const suffix=q.toString()?`?${q.toString()}`:""; return coreGetList<CoreBindingAuthorizationEnvelope>(`/admin/plan-admission/plans/${encodeURIComponent(planId)}/envelopes${suffix}`); },
+  getPlanAdmissionBindingEvaluations(decisionId: string, stepId?: string, tenantId = "", limit = 200): Promise<CorePlanAdmissionBindingEvaluation[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(stepId)q.set("stepId",stepId); q.set("limit",String(limit)); return coreGetList<CorePlanAdmissionBindingEvaluation>(`/admin/plan-admission/decisions/${encodeURIComponent(decisionId)}/evaluations?${q.toString()}`); },
+  revokeBindingAuthorizationEnvelope(envelopeId: string, reason: string, tenantId = ""): Promise<CoreBindingAuthorizationEnvelope> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); const suffix=q.toString()?`?${q.toString()}`:""; return coreApiPost<CoreBindingAuthorizationEnvelope>(`/admin/plan-admission/envelopes/${encodeURIComponent(envelopeId)}/revoke${suffix}`,{}, { headers: { "X-Change-Reason": reason } }); },
+
+  // Phase 8: execute one frozen Plan revision. READY is dependency readiness only; each attempt still requires WHO MAY -> WHO SHOULD -> HOW.
+  getPlanExecutionPolicies(status?: string, tenantId = "", limit = 100): Promise<CorePlanExecutionPolicy[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); q.set("limit",String(limit)); return coreGetList<CorePlanExecutionPolicy>(`${coreAdminEndpoints.planExecutionPolicies}?${q.toString()}`); },
+  upsertPlanExecutionPolicy(policyId: string, body: CorePlanExecutionPolicy, tenantId = "", changeReason?: string): Promise<CorePlanExecutionPolicy> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPut<CorePlanExecutionPolicy>(`${coreAdminEndpoints.planExecutionPolicy(policyId)}${suffix}`,body,changeReason?{headers:{"X-Change-Reason":changeReason}}:undefined); },
+  getPlanExecutionPolicyVersions(policyId: string, tenantId = ""): Promise<CorePlanExecutionPolicyVersion[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CorePlanExecutionPolicyVersion>(`${coreAdminEndpoints.planExecutionPolicyVersions(policyId)}${suffix}`); },
+  startPlanExecution(body: CorePlanExecutionStartRequest, tenantId = ""): Promise<CorePlanExecutionRun> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CorePlanExecutionRun>(`${coreAdminEndpoints.planExecutionRuns}${suffix}`,body); },
+  getPlanExecutionRuns(status?: string, tenantId = "", afterRunId?: string, limit = 100): Promise<CorePlanExecutionRun[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); if(afterRunId)q.set("afterRunId",afterRunId); q.set("limit",String(limit)); return coreGetList<CorePlanExecutionRun>(`${coreAdminEndpoints.planExecutionRuns}?${q.toString()}`); },
+  getPlanExecutionSteps(runId: string, tenantId = ""): Promise<CoreGovernedPlanExecutionStep[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CoreGovernedPlanExecutionStep>(`${coreAdminEndpoints.planExecutionSteps(runId)}${suffix}`); },
+  attachPlanStepAuthority(runId: string, stepId: string, body: CorePlanStepAuthorityRequest, tenantId = ""): Promise<CoreGovernedPlanExecutionStep> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreGovernedPlanExecutionStep>(`${coreAdminEndpoints.planExecutionStepAuthority(runId,stepId)}${suffix}`,body); },
+  submitPlanStep(runId: string, stepId: string, body: CorePlanStepSubmitRequest, tenantId = ""): Promise<CorePlanExecutionAttempt> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CorePlanExecutionAttempt>(`${coreAdminEndpoints.planExecutionStepSubmit(runId,stepId)}${suffix}`,body); },
+  completePlanStep(runId: string, stepId: string, body: CorePlanStepCompletionRequest, tenantId = ""): Promise<CoreGovernedPlanExecutionStep> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreGovernedPlanExecutionStep>(`${coreAdminEndpoints.planExecutionStepComplete(runId,stepId)}${suffix}`,body); },
+  retryPlanStep(runId: string, stepId: string, reason = "Operator retry", tenantId = ""): Promise<CoreGovernedPlanExecutionStep> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreGovernedPlanExecutionStep>(`${coreAdminEndpoints.planExecutionStepRetry(runId,stepId)}${suffix}`,{reason}); },
+  cancelPlanExecution(runId: string, reason = "Operator cancellation", tenantId = ""): Promise<CorePlanExecutionRun> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CorePlanExecutionRun>(`${coreAdminEndpoints.planExecutionCancel(runId)}${suffix}`,{reason}); },
+  getPlanExecutionAttempts(runId: string, stepId?: string, tenantId = "", limit = 100): Promise<CorePlanExecutionAttempt[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(stepId)q.set("stepId",stepId); q.set("limit",String(limit)); return coreGetList<CorePlanExecutionAttempt>(`${coreAdminEndpoints.planExecutionAttempts(runId)}?${q.toString()}`); },
+  getPlanExecutionArtifacts(runId: string, stepId?: string, tenantId = "", limit = 100): Promise<CorePlanExecutionArtifact[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(stepId)q.set("stepId",stepId); q.set("limit",String(limit)); return coreGetList<CorePlanExecutionArtifact>(`${coreAdminEndpoints.planExecutionArtifacts(runId)}?${q.toString()}`); },
+  getPlanExecutionEvents(runId: string, tenantId = "", limit = 200): Promise<CorePlanExecutionEvent[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); q.set("limit",String(limit)); return coreGetList<CorePlanExecutionEvent>(`${coreAdminEndpoints.planExecutionEvents(runId)}?${q.toString()}`); },
+  sweepPlanExecutionTimeouts(tenantId = ""): Promise<number> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<number>(`${coreAdminEndpoints.planExecutionSweepTimeouts}${suffix}`,{}); },
+
+  // Phase 9: aggregate normalized Artifacts into a canonical enterprise Case. External issue projection is intent-only here.
+  getAggregationDefinitions(status?: string, tenantId = "", limit = 100): Promise<CoreAggregationDefinition[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); q.set("limit",String(limit)); return coreGetList<CoreAggregationDefinition>(`${coreAdminEndpoints.caseConvergenceAggregationDefinitions}?${q.toString()}`); },
+  upsertAggregationDefinition(aggregationId: string, body: CoreAggregationDefinition, tenantId = "", changeReason?: string): Promise<CoreAggregationDefinition> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPut<CoreAggregationDefinition>(`${coreAdminEndpoints.caseConvergenceAggregationDefinition(aggregationId)}${suffix}`,body,changeReason?{headers:{"X-Change-Reason":changeReason}}:undefined); },
+  getAggregationDefinitionVersions(aggregationId: string, tenantId = ""): Promise<CoreAggregationDefinitionVersion[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CoreAggregationDefinitionVersion>(`${coreAdminEndpoints.caseConvergenceAggregationDefinitionVersions(aggregationId)}${suffix}`); },
+  prepareAggregation(body: CoreAggregationPreparationRequest, tenantId = ""): Promise<CoreAggregationPreparationDecision> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreAggregationPreparationDecision>(`${coreAdminEndpoints.caseConvergenceAggregationPrepare}${suffix}`,body); },
+  getAggregationPreparationDecisions(runId?: string, tenantId = "", limit = 100): Promise<CoreAggregationPreparationDecision[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(runId)q.set("runId",runId); q.set("limit",String(limit)); return coreGetList<CoreAggregationPreparationDecision>(`${coreAdminEndpoints.caseConvergenceAggregationDecisions}?${q.toString()}`); },
+  convergeEnterpriseCase(body: CoreCaseConvergenceRequest, tenantId = ""): Promise<CoreEnterpriseCaseRecord> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreEnterpriseCaseRecord>(`${coreAdminEndpoints.caseConvergenceCases}${suffix}`,body); },
+  getEnterpriseCases(status?: string, tenantId = "", afterCaseId?: string, limit = 100): Promise<CoreEnterpriseCaseRecord[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); if(afterCaseId)q.set("afterCaseId",afterCaseId); q.set("limit",String(limit)); return coreGetList<CoreEnterpriseCaseRecord>(`${coreAdminEndpoints.caseConvergenceCases}?${q.toString()}`); },
+  getEnterpriseCase(caseId: string, tenantId = ""): Promise<CoreEnterpriseCaseRecord> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiGet<CoreEnterpriseCaseRecord>(`${coreAdminEndpoints.caseConvergenceCase(caseId)}${suffix}`); },
+  reviewEnterpriseCase(caseId: string, body: CoreCaseReviewRequest, tenantId = ""): Promise<CoreEnterpriseCaseRecord> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreEnterpriseCaseRecord>(`${coreAdminEndpoints.caseConvergenceCaseReview(caseId)}${suffix}`,body); },
+  getEnterpriseCaseArtifacts(caseId: string, tenantId = ""): Promise<CoreCaseArtifactLink[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CoreCaseArtifactLink>(`${coreAdminEndpoints.caseConvergenceCaseArtifacts(caseId)}${suffix}`); },
+  recordCaseIssueProjection(caseId: string, body: CoreCaseIssueProjectionRequest, tenantId = ""): Promise<CoreCaseIssueProjection> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreCaseIssueProjection>(`${coreAdminEndpoints.caseConvergenceCaseProjections(caseId)}${suffix}`,body); },
+  getCaseIssueProjections(caseId: string, tenantId = ""): Promise<CoreCaseIssueProjection[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CoreCaseIssueProjection>(`${coreAdminEndpoints.caseConvergenceCaseProjections(caseId)}${suffix}`); },
+  getEnterpriseCaseEvents(caseId: string, tenantId = "", limit = 200): Promise<CoreCaseEvent[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); q.set("limit",String(limit)); return coreGetList<CoreCaseEvent>(`${coreAdminEndpoints.caseConvergenceCaseEvents(caseId)}?${q.toString()}`); },
+
+  // Phase 10: accepted Case outcomes may propose semantic Fast Path patterns. Promotion is human-governed and never bypasses WHO MAY/SHOULD/HOW.
+  getLearningPolicies(status?: string, tenantId = "", limit = 100): Promise<CoreLearningPolicy[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); q.set("limit",String(limit)); return coreGetList<CoreLearningPolicy>(`${coreAdminEndpoints.learningFastPathPolicies}?${q.toString()}`); },
+  upsertLearningPolicy(policyId: string, body: CoreLearningPolicy, tenantId = "", changeReason?: string): Promise<CoreLearningPolicy> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPut<CoreLearningPolicy>(`${coreAdminEndpoints.learningFastPathPolicy(policyId)}${suffix}`,body,changeReason?{headers:{"X-Change-Reason":changeReason}}:undefined); },
+  getLearningPolicyVersions(policyId: string, tenantId = ""): Promise<CoreLearningPolicyVersion[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CoreLearningPolicyVersion>(`${coreAdminEndpoints.learningFastPathPolicyVersions(policyId)}${suffix}`); },
+  recordLearningOutcome(caseId: string, tenantId = ""): Promise<CoreExecutionOutcomeEvidence> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreExecutionOutcomeEvidence>(`${coreAdminEndpoints.learningFastPathOutcomeFromCase(caseId)}${suffix}`,{}); },
+  getLearningOutcomes(problemSignature?: string, tenantId = "", limit = 100): Promise<CoreExecutionOutcomeEvidence[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(problemSignature)q.set("problemSignature",problemSignature); q.set("limit",String(limit)); return coreGetList<CoreExecutionOutcomeEvidence>(`${coreAdminEndpoints.learningFastPathOutcomes}?${q.toString()}`); },
+  getRoutingPatternCandidates(status?: string, tenantId = "", limit = 100): Promise<CoreRoutingPatternCandidate[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); q.set("limit",String(limit)); return coreGetList<CoreRoutingPatternCandidate>(`${coreAdminEndpoints.learningFastPathCandidates}?${q.toString()}`); },
+  promoteRoutingCandidateToShadow(candidateId: string, reason: string, tenantId = ""): Promise<CorePatternPromotionDecision> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CorePatternPromotionDecision>(`${coreAdminEndpoints.learningFastPathCandidateShadow(candidateId)}${suffix}`,{reason}); },
+  getRoutingPatterns(status?: string, tenantId = "", limit = 100): Promise<CoreRoutingPattern[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); q.set("limit",String(limit)); return coreGetList<CoreRoutingPattern>(`${coreAdminEndpoints.learningFastPathPatterns}?${q.toString()}`); },
+  getRoutingPatternVersions(patternId: string, tenantId = ""): Promise<CoreRoutingPatternVersion[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CoreRoutingPatternVersion>(`${coreAdminEndpoints.learningFastPathPatternVersions(patternId)}${suffix}`); },
+  transitionRoutingPattern(patternId: string, body: CorePatternPromotionRequest, tenantId = ""): Promise<CorePatternPromotionDecision> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CorePatternPromotionDecision>(`${coreAdminEndpoints.learningFastPathPatternTransition(patternId)}${suffix}`,body); },
+  refreshRoutingPatternQuality(patternId: string, tenantId = ""): Promise<CorePatternQualitySnapshot> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CorePatternQualitySnapshot>(`${coreAdminEndpoints.learningFastPathPatternQualityRefresh(patternId)}${suffix}`,{}); },
+  getRoutingPatternQuality(patternId: string, tenantId = "", limit = 100): Promise<CorePatternQualitySnapshot[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); q.set("limit",String(limit)); return coreGetList<CorePatternQualitySnapshot>(`${coreAdminEndpoints.learningFastPathPatternQuality(patternId)}?${q.toString()}`); },
+  evaluateRoutingPatternDrift(patternId: string, tenantId = ""): Promise<CoreDriftObservation> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreDriftObservation>(`${coreAdminEndpoints.learningFastPathPatternDriftEvaluate(patternId)}${suffix}`,{}); },
+  getRoutingPatternDrift(patternId: string, tenantId = "", limit = 100): Promise<CoreDriftObservation[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); q.set("limit",String(limit)); return coreGetList<CoreDriftObservation>(`${coreAdminEndpoints.learningFastPathPatternDrift(patternId)}?${q.toString()}`); },
+  resolveLearningFastPath(body: CoreFastPathResolutionRequest, tenantId = ""): Promise<CoreFastPathResolutionDecision> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreFastPathResolutionDecision>(`${coreAdminEndpoints.learningFastPathResolvePreview}${suffix}`,body); },
+  getPatternPromotionDecisions(tenantId = "", limit = 100): Promise<CorePatternPromotionDecision[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); q.set("limit",String(limit)); return coreGetList<CorePatternPromotionDecision>(`${coreAdminEndpoints.learningFastPathPromotionDecisions}?${q.toString()}`); },
+
+  // Phase 11: runtime enablement is separately certified; SHADOW evidence never affects the real Task.
+  getFastPathRuntimePolicies(status?: string, tenantId = "", limit = 100): Promise<CoreFastPathRuntimePolicy[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); q.set("limit",String(limit)); return coreGetList<CoreFastPathRuntimePolicy>(`${coreAdminEndpoints.fastPathRuntimePolicies}?${q.toString()}`); },
+  upsertFastPathRuntimePolicy(policyId: string, body: CoreFastPathRuntimePolicy, tenantId = "", changeReason?: string): Promise<CoreFastPathRuntimePolicy> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPut<CoreFastPathRuntimePolicy>(`${coreAdminEndpoints.fastPathRuntimePolicy(policyId)}${suffix}`,body,changeReason?{headers:{"X-Change-Reason":changeReason}}:undefined); },
+  getFastPathRuntimePolicyVersions(policyId: string, tenantId = ""): Promise<CoreFastPathRuntimePolicyVersion[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CoreFastPathRuntimePolicyVersion>(`${coreAdminEndpoints.fastPathRuntimePolicyVersions(policyId)}${suffix}`); },
+  compareFastPathShadow(body: CoreFastPathShadowComparisonRequest, tenantId = ""): Promise<CoreFastPathShadowComparison> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreFastPathShadowComparison>(`${coreAdminEndpoints.fastPathRuntimeShadowComparisons}${suffix}`,body); },
+  getFastPathShadowComparisons(patternId?: string, tenantId = "", limit = 100): Promise<CoreFastPathShadowComparison[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(patternId)q.set("patternId",patternId); q.set("limit",String(limit)); return coreGetList<CoreFastPathShadowComparison>(`${coreAdminEndpoints.fastPathRuntimeShadowComparisons}?${q.toString()}`); },
+  certifyFastPathRuntime(patternId: string, body: CoreFastPathCertificationRequest, tenantId = ""): Promise<CoreFastPathRuntimeCertification> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreFastPathRuntimeCertification>(`${coreAdminEndpoints.fastPathRuntimePatternCertifications(patternId)}${suffix}`,body); },
+  getFastPathRuntimeCertifications(patternId?: string, tenantId = "", limit = 100): Promise<CoreFastPathRuntimeCertification[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(patternId)q.set("patternId",patternId); q.set("limit",String(limit)); return coreGetList<CoreFastPathRuntimeCertification>(`${coreAdminEndpoints.fastPathRuntimeCertifications}?${q.toString()}`); },
+  getFastPathRuntimeDecisions(taskRef?: string, tenantId = "", limit = 100): Promise<CoreFastPathRuntimeDecision[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(taskRef)q.set("taskRef",taskRef); q.set("limit",String(limit)); return coreGetList<CoreFastPathRuntimeDecision>(`${coreAdminEndpoints.fastPathRuntimeDecisions}?${q.toString()}`); },
+
+  // Phase 12: operational policy/evidence only; Provider/Agent/Pool/transport are resolved server-side.
+  getRuntimeStepAuthorityPolicies(status?: string, tenantId = "", limit = 100): Promise<CoreRuntimeStepAuthorityPolicy[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(status)q.set("status",status); q.set("limit",String(limit)); return coreGetList<CoreRuntimeStepAuthorityPolicy>(`${coreAdminEndpoints.runtimeStepAuthorityPolicies}?${q.toString()}`); },
+  upsertRuntimeStepAuthorityPolicy(policyId: string, body: CoreRuntimeStepAuthorityPolicy, tenantId = "", changeReason?: string): Promise<CoreRuntimeStepAuthorityPolicy> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPut<CoreRuntimeStepAuthorityPolicy>(`${coreAdminEndpoints.runtimeStepAuthorityPolicy(policyId)}${suffix}`,body,changeReason?{headers:{"X-Change-Reason":changeReason}}:undefined); },
+  getRuntimeStepAuthorityPolicyVersions(policyId: string, tenantId = ""): Promise<CoreRuntimeStepAuthorityPolicyVersion[]> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreGetList<CoreRuntimeStepAuthorityPolicyVersion>(`${coreAdminEndpoints.runtimeStepAuthorityPolicyVersions(policyId)}${suffix}`); },
+  getRuntimeStepAuthorityDecisions(runId?: string, stepId?: string, tenantId = "", limit = 200): Promise<CoreRuntimeStepAuthorityDecision[]> { const q=new URLSearchParams(); if(tenantId)q.set("tenantId",tenantId); if(runId)q.set("runId",runId); if(stepId)q.set("stepId",stepId); q.set("limit",String(limit)); return coreGetList<CoreRuntimeStepAuthorityDecision>(`${coreAdminEndpoints.runtimeStepAuthorityDecisions}?${q.toString()}`); },
+  automatePlanExecutionStepAuthority(runId: string, stepId: string, tenantId = ""): Promise<CoreRuntimeStepAuthorityAutomationResult> { const suffix=tenantId?`?tenantId=${encodeURIComponent(tenantId)}`:""; return coreApiPost<CoreRuntimeStepAuthorityAutomationResult>(`${coreAdminEndpoints.planExecutionStepAutomateAuthority(runId,stepId)}${suffix}`,{}); },
+
+  // Capability catalog APIs manage the canonical capability vocabulary.
+  // Catalog entries alone do not grant eligibility: routing qualification requires a Task Required Capability and a Core APPROVED Agent Capability assignment inside the selected Agent Pool.
   getCapabilities(
     status?: string,
     taskDefinitionId?: string,
@@ -1623,7 +1310,7 @@ export const coreAdminApi = {
     );
   },
 
-  // Phase 4-4: Upserting a capability changes reference metadata only; it must not be treated as a Current routing gate.
+  // Upserting a catalog entry defines capability vocabulary; it does not add Pool membership or approve an Agent capability assignment by itself.
   upsertCapability(
     capabilityCode: string,
     body: CoreAgentCapabilityCatalog,
@@ -1663,8 +1350,6 @@ export const coreAdminApi = {
     );
   },
 
-
-
   deleteAssignmentProfile(
     profileCode: string,
     tenantId = "",
@@ -1698,8 +1383,6 @@ export const coreAdminApi = {
       `${coreAdminEndpoints.assignmentProfileImpactPreview(profileCode)}${suffix}`,
     );
   },
-
-
 
   getAssignmentProfileCapabilities(
     profileCode: string,
@@ -1769,68 +1452,11 @@ export const coreAdminApi = {
     );
   },
 
-  getCertificationProfiles(
-    profileCode?: string,
-  ): Promise<CoreAgentCertificationProfile[]> {
-    const params = profileCode
-      ? `?profileCode=${encodeURIComponent(profileCode)}&active=true`
-      : "?active=true";
-    return coreGetList<CoreAgentCertificationProfile>(
-      `${coreAdminEndpoints.certificationProfiles}${params}`,
-    );
-  },
+  // Agent certification runs are not a live Core API in v24. Certification evidence is
+  // carried by capability assignment/catalog evidenceRef metadata until a first-class
+  // certification domain is implemented with its own Controller and generated R3 policy.
 
-  getAgentCertifications(
-    agentId: string,
-    limit = 50,
-  ): Promise<CoreAgentCertificationRun[]> {
-    return coreGetList<CoreAgentCertificationRun>(
-      `${coreAdminEndpoints.agentCertifications(agentId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-  runAgentCertification(
-    agentId: string,
-    body: CoreAgentCertificationRunCommand,
-  ): Promise<CoreAgentCertificationRun> {
-    return coreApiPost<CoreAgentCertificationRun>(
-      coreAdminEndpoints.runAgentCertification(agentId),
-      body,
-    );
-  },
-
-  passAgentCertification(
-    agentId: string,
-    runId: string,
-    body?: CoreAgentCertificationDecisionCommand,
-  ): Promise<CoreAgentCertificationRun> {
-    return coreApiPost<CoreAgentCertificationRun>(
-      coreAdminEndpoints.passAgentCertification(agentId, runId),
-      body ?? {},
-    );
-  },
-
-  failAgentCertification(
-    agentId: string,
-    runId: string,
-    body?: CoreAgentCertificationDecisionCommand,
-  ): Promise<CoreAgentCertificationRun> {
-    return coreApiPost<CoreAgentCertificationRun>(
-      coreAdminEndpoints.failAgentCertification(agentId, runId),
-      body ?? {},
-    );
-  },
-
-  scanCertificationTimeouts(limit = 100): Promise<CoreAgentCertificationRun[]> {
-    return coreApiPost<CoreAgentCertificationRun[]>(
-      `${coreAdminEndpoints.certificationTimeoutScan}?limit=${encodeURIComponent(String(limit))}`,
-      {},
-    );
-  },
-
-
-
-  // Phase 4-4: Agent capability assignments are reference-only labels and diagnostic evidence in the Current model.
+  // Core APPROVED Agent capability assignments are the canonical blocking qualification authority for Task Required Capabilities.
   getAgentCapabilities(agentId: string): Promise<CoreAgentCapabilityAssignment[]> {
     return coreGetList<CoreAgentCapabilityAssignment>(
       coreAdminEndpoints.agentCapabilities(agentId),
@@ -1902,8 +1528,6 @@ export const coreAdminApi = {
       body ?? {},
     );
   },
-
-
 
   getAgentRuntimeFeatureObservations(agentId: string): Promise<CoreAgentRuntimeFeatureObservation[]> {
     return coreGetList<CoreAgentRuntimeFeatureObservation>(coreAdminEndpoints.agentRuntimeFeatureObservations(agentId));
@@ -2028,33 +1652,10 @@ export const coreAdminApi = {
   },
 
   // Phase 4-4: Legacy dispatch requirements diagnostic. Do not use as the Current setup API.
-  getTaskDispatchRequirements(
-    taskId: string,
-  ): Promise<CoreTaskDispatchRequirements> {
-    return coreApiGet<CoreTaskDispatchRequirements>(
-      coreAdminEndpoints.taskDispatchRequirements(taskId),
-    );
-  },
 
   // Phase 4-4: Legacy eligible-agent diagnostic. Current routing evidence should come from Source Flow / Agent Pool decisions.
-  getTaskEligibleAgents(
-    taskId: string,
-    limit = 500,
-  ): Promise<CoreTaskEligibleAgentsResponse> {
-    return coreApiGet<CoreTaskEligibleAgentsResponse>(
-      `${coreAdminEndpoints.taskEligibleAgents(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
 
-  // Phase 4-4: Governance eligibility diagnostic-only surface; not the Current dispatch configuration path.
-  getTaskEligibleAgentsV2(
-    taskId: string,
-    limit = 500,
-  ): Promise<CoreDispatchEligibilityV2Response> {
-    return coreApiGet<CoreDispatchEligibilityV2Response>(
-      `${coreAdminEndpoints.taskEligibleAgentsV2(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
+  // Compatibility governance eligibility surface. Current operator evidence should be read from the canonical Dispatch decision/simulation projection.
 
   disconnectAgent(
     agentId: string,
@@ -2161,18 +1762,16 @@ export const coreAdminApi = {
     skillCode: string,
     body: CoreAgentSkillDefinition,
   ): Promise<CoreAgentSkillDefinition> {
-    return coreApiPut<CoreAgentSkillDefinition>(
-      coreAdminEndpoints.agentSkill(skillCode),
-      body,
-    );
+    void skillCode;
+    void body;
+    return legacySkillMutationRetired("upsertAgentSkillDefinition");
   },
 
   deleteAgentSkillDefinition(
     skillCode: string,
   ): Promise<{ skillCode: string; deleted: boolean }> {
-    return coreApiDelete<{ skillCode: string; deleted: boolean }>(
-      coreAdminEndpoints.agentSkill(skillCode),
-    );
+    void skillCode;
+    return legacySkillMutationRetired("deleteAgentSkillDefinition");
   },
 
   getAgentSkillVersions(skillCode: string): Promise<CoreAgentSkillVersion[]> {
@@ -2185,10 +1784,9 @@ export const coreAdminApi = {
     skillCode: string,
     body: CoreAgentSkillWorkflowCommand,
   ): Promise<CoreAgentSkillWorkflowResult> {
-    return coreApiPost<CoreAgentSkillWorkflowResult>(
-      coreAdminEndpoints.agentSkillDraftVersion(skillCode),
-      body,
-    );
+    void skillCode;
+    void body;
+    return legacySkillMutationRetired("createAgentSkillDraftVersion");
   },
 
   submitAgentSkillVersion(
@@ -2196,10 +1794,10 @@ export const coreAdminApi = {
     version: number,
     body: CoreAgentSkillWorkflowCommand,
   ): Promise<CoreAgentSkillWorkflowResult> {
-    return coreApiPost<CoreAgentSkillWorkflowResult>(
-      coreAdminEndpoints.agentSkillVersionAction(skillCode, version, "submit"),
-      body,
-    );
+    void skillCode;
+    void version;
+    void body;
+    return legacySkillMutationRetired("submitAgentSkillVersion");
   },
 
   approveAgentSkillVersion(
@@ -2207,10 +1805,10 @@ export const coreAdminApi = {
     version: number,
     body: CoreAgentSkillWorkflowCommand,
   ): Promise<CoreAgentSkillWorkflowResult> {
-    return coreApiPost<CoreAgentSkillWorkflowResult>(
-      coreAdminEndpoints.agentSkillVersionAction(skillCode, version, "approve"),
-      body,
-    );
+    void skillCode;
+    void version;
+    void body;
+    return legacySkillMutationRetired("approveAgentSkillVersion");
   },
 
   rejectAgentSkillVersion(
@@ -2218,10 +1816,10 @@ export const coreAdminApi = {
     version: number,
     body: CoreAgentSkillWorkflowCommand,
   ): Promise<CoreAgentSkillWorkflowResult> {
-    return coreApiPost<CoreAgentSkillWorkflowResult>(
-      coreAdminEndpoints.agentSkillVersionAction(skillCode, version, "reject"),
-      body,
-    );
+    void skillCode;
+    void version;
+    void body;
+    return legacySkillMutationRetired("rejectAgentSkillVersion");
   },
 
   publishAgentSkillVersion(
@@ -2229,10 +1827,10 @@ export const coreAdminApi = {
     version: number,
     body: CoreAgentSkillWorkflowCommand,
   ): Promise<CoreAgentSkillWorkflowResult> {
-    return coreApiPost<CoreAgentSkillWorkflowResult>(
-      coreAdminEndpoints.agentSkillVersionAction(skillCode, version, "publish"),
-      body,
-    );
+    void skillCode;
+    void version;
+    void body;
+    return legacySkillMutationRetired("publishAgentSkillVersion");
   },
 
   rollbackAgentSkillVersion(
@@ -2240,14 +1838,10 @@ export const coreAdminApi = {
     version: number,
     body: CoreAgentSkillWorkflowCommand,
   ): Promise<CoreAgentSkillWorkflowResult> {
-    return coreApiPost<CoreAgentSkillWorkflowResult>(
-      coreAdminEndpoints.agentSkillVersionAction(
-        skillCode,
-        version,
-        "rollback",
-      ),
-      body,
-    );
+    void skillCode;
+    void version;
+    void body;
+    return legacySkillMutationRetired("rollbackAgentSkillVersion");
   },
 
   getAgentSkillAuditEntries(
@@ -2294,13 +1888,10 @@ export const coreAdminApi = {
     body: CoreAgentSkillApprovalPolicy,
     operatorId?: string,
   ): Promise<CoreAgentSkillApprovalPolicy> {
-    const query = operatorId
-      ? `?operatorId=${encodeURIComponent(operatorId)}`
-      : "";
-    return coreApiPut<CoreAgentSkillApprovalPolicy>(
-      `${coreAdminEndpoints.agentSkillApprovalPolicy(skillCode)}${query}`,
-      body,
-    );
+    void skillCode;
+    void body;
+    void operatorId;
+    return legacySkillMutationRetired("updateAgentSkillApprovalPolicy");
   },
 
   getFleetSkillDrift(limit = 500): Promise<CoreAgentCapabilityDriftReport> {
@@ -2318,10 +1909,8 @@ export const coreAdminApi = {
   evaluateSkillDriftPolicy(
     body: CoreSkillDriftPolicyEvaluationRequest,
   ): Promise<CoreSkillDriftPolicyEvaluationResponse> {
-    return coreApiPost<CoreSkillDriftPolicyEvaluationResponse>(
-      coreAdminEndpoints.agentSkillsDriftPolicyEvaluate,
-      body,
-    );
+    void body;
+    return legacySkillMutationRetired("evaluateSkillDriftPolicy");
   },
 
   getAgentSkillDeprecationPlan(
@@ -2336,20 +1925,18 @@ export const coreAdminApi = {
     skillCode: string,
     body: CoreAgentSkillDeprecationCommand,
   ): Promise<CoreAgentSkillDeprecationPlan> {
-    return coreApiPut<CoreAgentSkillDeprecationPlan>(
-      coreAdminEndpoints.agentSkillDeprecationPlan(skillCode),
-      body,
-    );
+    void skillCode;
+    void body;
+    return legacySkillMutationRetired("updateAgentSkillDeprecationPlan");
   },
 
   analyzeAgentSkillDeprecationMigration(
     skillCode: string,
     limit = 500,
   ): Promise<CoreAgentSkillDeprecationMigrationPlan> {
-    return coreApiPost<CoreAgentSkillDeprecationMigrationPlan>(
-      `${coreAdminEndpoints.agentSkillDeprecationAnalyze(skillCode)}?limit=${encodeURIComponent(String(limit))}`,
-      {},
-    );
+    void skillCode;
+    void limit;
+    return legacySkillMutationRetired("analyzeAgentSkillDeprecationMigration");
   },
 
   getAgentSkillDependencyGraph(
@@ -2365,28 +1952,23 @@ export const coreAdminApi = {
     skillCode: string,
     body: CoreAgentSkillDependencyCommand,
   ): Promise<CoreAgentSkillDependencyEdge[]> {
-    return coreApiPut<CoreAgentSkillDependencyEdge[]>(
-      coreAdminEndpoints.agentSkillDependencies(skillCode),
-      body,
-    );
+    void skillCode;
+    void body;
+    return legacySkillMutationRetired("replaceAgentSkillDependencies");
   },
 
   proposeFleetSkillRemediation(
     limit = 500,
   ): Promise<CoreAgentSkillRemediationProposal> {
-    return coreApiPost<CoreAgentSkillRemediationProposal>(
-      `${coreAdminEndpoints.agentSkillFleetRemediationProposal}?limit=${encodeURIComponent(String(limit))}`,
-      {},
-    );
+    void limit;
+    return legacySkillMutationRetired("proposeFleetSkillRemediation");
   },
 
   proposeAgentSkillRemediation(
     agentId: string,
   ): Promise<CoreAgentSkillRemediationProposal> {
-    return coreApiPost<CoreAgentSkillRemediationProposal>(
-      coreAdminEndpoints.agentSkillRemediationProposal(agentId),
-      {},
-    );
+    void agentId;
+    return legacySkillMutationRetired("proposeAgentSkillRemediation");
   },
 
   getAgentRemediationProposal(
@@ -2487,11 +2069,10 @@ export const coreAdminApi = {
 
   recoverStaleAgentRemediationWorkflowLeases(
     limit = 100,
-    operatorId = "admin-ui",
     reason = "Manual P11 stale workflow execution lease recovery from Admin UI.",
   ): Promise<CoreAgentRemediationStaleLeaseRecoveryRun> {
     return coreApiPost<CoreAgentRemediationStaleLeaseRecoveryRun>(
-      `${coreAdminEndpoints.agentRemediationWorkflowRecoverStaleLeases}?limit=${encodeURIComponent(String(limit))}&operatorId=${encodeURIComponent(operatorId)}&reason=${encodeURIComponent(reason)}`,
+      `${coreAdminEndpoints.agentRemediationWorkflowRecoverStaleLeases}?limit=${encodeURIComponent(String(limit))}&reason=${encodeURIComponent(reason)}`,
       {},
     );
   },
@@ -2500,84 +2081,14 @@ export const coreAdminApi = {
     agentId: string,
     body: CoreAgentSkillEvaluationRequest,
   ): Promise<CoreAgentSkillEvaluationResult> {
-    return coreApiPost<CoreAgentSkillEvaluationResult>(
-      coreAdminEndpoints.agentSkillEvaluation(agentId),
-      body,
-    );
+    void agentId;
+    void body;
+    return legacySkillMutationRetired("evaluateAgentSkillContract");
   },
 
   // Phase 4-4: Legacy dispatch-contract resolver. Prefer Source Flow / Agent Pool dry-run for Current setup.
-  resolveDispatchContract(
-    body: CoreTaskDispatchContractResolveRequest,
-  ): Promise<CoreTaskDispatchContractResolveResult> {
-    return coreApiPost<CoreTaskDispatchContractResolveResult>(
-      coreAdminEndpoints.dispatchContractResolve,
-      body,
-    );
-  },
 
-  listDispatchRecipes(
-    domain?: string,
-    enabledOnly = true,
-  ): Promise<CoreDispatchRecipe[]> {
-    const params = new URLSearchParams();
-    if (domain) params.set("domain", domain);
-    params.set("enabledOnly", String(enabledOnly));
-    const suffix = params.toString() ? `?${params.toString()}` : "";
-    return coreGetList<CoreDispatchRecipe>(
-      `${coreAdminEndpoints.dispatchRecipes}${suffix}`,
-    );
-  },
-
-  getDispatchRecipeTemplates(): Promise<CoreDispatchReadinessTemplates> {
-    return coreApiGet<CoreDispatchReadinessTemplates>(
-      coreAdminEndpoints.dispatchRecipeTemplates,
-    );
-  },
-
-  evaluateDispatchRecipe(
-    recipeCode: string,
-    body: CoreDispatchRecipeEvaluationRequest,
-  ): Promise<CoreDispatchRecipeEvaluationResult> {
-    return coreApiPost<CoreDispatchRecipeEvaluationResult>(
-      coreAdminEndpoints.dispatchRecipeEvaluate(recipeCode),
-      body,
-    );
-  },
-
-  // Phase 4-4: Capability resolver is diagnostic/reference-only in the Current Source Flow / Agent Pool model.
-  resolveTaskCapabilities(
-    body: CoreTaskCapabilityResolveRequest,
-  ): Promise<CoreTaskCapabilityResolveResult> {
-    return coreApiPost<CoreTaskCapabilityResolveResult>(
-      coreAdminEndpoints.taskCapabilityResolve,
-      body,
-    );
-  },
-
-  evaluateDispatchReadiness(
-    body: CoreDispatchReadinessEvaluationRequest,
-  ): Promise<CoreDispatchReadinessEvaluationResult> {
-    return coreApiPost<CoreDispatchReadinessEvaluationResult>(
-      coreAdminEndpoints.dispatchReadinessEvaluate,
-      body,
-    );
-  },
-
-  getDispatchReadinessTemplates(): Promise<CoreDispatchReadinessTemplates> {
-    return coreApiGet<CoreDispatchReadinessTemplates>(
-      coreAdminEndpoints.dispatchReadinessTemplates,
-    );
-  },
-
-  createDispatchReadinessTestEvent(
-    body: CoreEventIntakeEnvelope,
-  ): Promise<CoreEventIntakeDecisionResponse> {
-    return coreApiPost<CoreEventIntakeDecisionResponse>(
-      coreAdminEndpoints.eventIntake,
-      body,
-    );
-  },
+  // Compatibility capability resolver. Current qualification authority is Required Capability plus Core APPROVED Agent Capability inside the selected Agent Pool.
 
   getAgentApprovedSkills(
     agentId: string,
@@ -2592,26 +2103,24 @@ export const coreAdminApi = {
     agentId: string,
     body: CoreAgentApprovedSkillSyncCommand,
   ): Promise<CoreAgentApprovedSkillSyncResult> {
-    return coreApiPut<CoreAgentApprovedSkillSyncResult>(
-      coreAdminEndpoints.agentApprovedSkills(agentId),
-      body,
-    );
+    void agentId;
+    void body;
+    return legacySkillMutationRetired("replaceAgentApprovedSkills");
   },
 
   syncAgentApprovedSkillsAndCapabilities(
     agentId: string,
     body: CoreAgentApprovedSkillSyncCommand,
   ): Promise<CoreAgentApprovedSkillSyncResult> {
-    return coreApiPost<CoreAgentApprovedSkillSyncResult>(
-      coreAdminEndpoints.agentSkillSyncApprovedCapabilities(agentId),
-      body,
-    );
+    void agentId;
+    void body;
+    return legacySkillMutationRetired("syncAgentApprovedSkillsAndCapabilities");
   },
 
   getAgentRuntimeCapabilityProfile(
     agentId: string,
   ): Promise<CoreAgentRuntimeCapabilityProfile> {
-    return coreApiGet<CoreAgentRuntimeCapabilityProfile>(
+    return coreTenantApiGet<CoreAgentRuntimeCapabilityProfile>(
       coreAdminEndpoints.agentRuntimeCapabilityProfile(agentId),
     );
   },
@@ -2619,150 +2128,28 @@ export const coreAdminApi = {
   getAgentRuntimeDescriptor(
     agentId: string,
   ): Promise<CoreAgentRuntimeDescriptor> {
-    return coreApiGet<CoreAgentRuntimeDescriptor>(
+    return coreTenantApiGet<CoreAgentRuntimeDescriptor>(
       coreAdminEndpoints.agentRuntimeDescriptor(agentId),
     );
   },
 
-  getAgentRuntimeCapabilities(
+  async getAgentRuntimeCapabilities(
     agentId: string,
   ): Promise<CoreAgentRuntimeCapabilityItem[]> {
-    return coreGetList<CoreAgentRuntimeCapabilityItem>(
+    return toList(await coreTenantApiGet<PageLike<CoreAgentRuntimeCapabilityItem>>(
       coreAdminEndpoints.agentRuntimeCapabilities(agentId),
-    );
+    ));
   },
 
   getAgentRuntimeLoad(agentId: string): Promise<CoreAgentRuntimeLoadSnapshot> {
-    return coreApiGet<CoreAgentRuntimeLoadSnapshot>(
+    return coreTenantApiGet<CoreAgentRuntimeLoadSnapshot>(
       coreAdminEndpoints.agentRuntimeLoad(agentId),
     );
   },
 
-  async getTasksRuntimeView(): Promise<CoreTaskRuntimeView[]> {
-    return normalizeCoreTaskRuntimeViewPayload(
-      await coreApiGet<unknown>(coreAdminEndpoints.tasksRuntimeView),
-    );
-  },
-
-  getTaskDispatchRequests(
-    taskId: string,
-    limit = 100,
-  ): Promise<CoreDispatchRequest[]> {
-    return coreGetList<CoreDispatchRequest>(
-      `${coreAdminEndpoints.taskDispatchRequests(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-  getTaskDispatchAttemptHistory(
-    taskId: string,
-    limit = 100,
-  ): Promise<CoreDispatchAttemptHistoryRecord[]> {
-    return coreGetList<CoreDispatchAttemptHistoryRecord>(
-      `${coreAdminEndpoints.taskDispatchAttemptHistory(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-  getTaskDispatchLedger(
-    taskId: string,
-    limit = 100,
-  ): Promise<CoreDispatchAttemptLedger[]> {
-    return coreGetList<CoreDispatchAttemptLedger>(
-      `${coreAdminEndpoints.taskDispatchLedger(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-  getTaskCallbackInbox(
-    taskId: string,
-    limit = 100,
-  ): Promise<CoreCallbackInboxEntry[]> {
-    return coreGetList<CoreCallbackInboxEntry>(
-      `${coreAdminEndpoints.taskCallbackInbox(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-  getTaskCallbackInboxSummary(
-    taskId: string,
-    limit = 100,
-  ): Promise<CoreCallbackInboxSummary> {
-    return coreApiGet<CoreCallbackInboxSummary>(
-      `${coreAdminEndpoints.taskCallbackInboxSummary(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-  getTaskRoutingDecisions(
-    taskId: string,
-    limit = 20,
-  ): Promise<CoreRoutingDecisionRecord[]> {
-    return coreGetList<CoreRoutingDecisionRecord>(
-      `${coreAdminEndpoints.taskRoutingDecisions(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-  getTaskTimeline(
-    taskId: string,
-    limit = 200,
-  ): Promise<CoreDispatchTimelineResponse> {
-    return coreApiGet<CoreDispatchTimelineResponse>(
-      `${coreAdminEndpoints.taskTimeline(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-
-  getTaskIssueDedup(taskId: string): Promise<CoreTaskIssueDedupSummary> {
-    return coreApiGet<CoreTaskIssueDedupSummary>(
-      coreAdminEndpoints.taskIssueDedup(taskId),
-    );
-  },
-
-  getTaskDispatchEvidence(
-    taskId: string,
-    limit = 200,
-  ): Promise<CoreTaskDispatchEvidenceView> {
-    return coreApiGet<CoreTaskDispatchEvidenceView>(
-      `${coreAdminEndpoints.taskDispatchEvidence(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
-  getTaskRuntimeVerification(
-    taskId: string,
-    timeoutSeconds = 90,
-    limit = 200,
-  ): Promise<CoreTaskRuntimeVerificationView> {
-    return coreApiGet<CoreTaskRuntimeVerificationView>(
-      `${coreAdminEndpoints.taskRuntimeVerification(taskId)}?timeoutSeconds=${encodeURIComponent(String(timeoutSeconds))}&limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
-
   // Phase 4-4: Legacy dispatch-contract readiness repair surface. Keep for diagnostics; Current setup is Source Flow / Agent Pool.
-  runTaskDispatchContractReadiness(
-    taskId: string,
-    body?: CoreTaskDispatchContractRepairRequest,
-  ): Promise<CoreDispatchContractReadinessResponse> {
-    return coreApiPost<CoreDispatchContractReadinessResponse>(
-      coreAdminEndpoints.taskDispatchContractReadiness(taskId),
-      body ?? {},
-    );
-  },
 
   // Phase 4-4: Legacy dispatch-contract repair surface. Do not use as the primary Current setup flow.
-  repairTaskDispatchContract(
-    taskId: string,
-    body?: CoreTaskDispatchContractRepairRequest,
-  ): Promise<CoreDispatchContractBootstrapResponse> {
-    return coreApiPost<CoreDispatchContractBootstrapResponse>(
-      coreAdminEndpoints.taskRepairDispatchContract(taskId),
-      body ?? {},
-    );
-  },
-
-  getTaskAdapterActions(
-    taskId: string,
-    limit = 100,
-  ): Promise<CoreAdapterAction[]> {
-    return coreGetList<CoreAdapterAction>(
-      `${coreAdminEndpoints.adapterActionsByTask(taskId)}?limit=${encodeURIComponent(String(limit))}`,
-    );
-  },
 
   getAdapterActions(limit = 100): Promise<CoreAdapterAction[]> {
     return coreGetList<CoreAdapterAction>(
@@ -2814,40 +2201,6 @@ export const coreAdminApi = {
     );
   },
 
-  getRedmineIssueTrackingDiagnostics(): Promise<CoreIssueTrackingRedmineDiagnostics> {
-    return coreApiGet<CoreIssueTrackingRedmineDiagnostics>(
-      coreAdminEndpoints.issueTrackingRedmineDiagnostics,
-    );
-  },
-
-  testRedmineIssueTrackingConnection(): Promise<CoreIssueTrackingRedmineConnectionResult> {
-    return coreApiPost<CoreIssueTrackingRedmineConnectionResult>(
-      coreAdminEndpoints.issueTrackingRedmineTestConnection,
-      {},
-    );
-  },
-
-  getRedmineProjects(): Promise<CoreIssueTrackingRedmineCollectionResult> {
-    return coreApiGet<CoreIssueTrackingRedmineCollectionResult>(
-      coreAdminEndpoints.issueTrackingRedmineProjects,
-    );
-  },
-
-  getRedmineTrackers(): Promise<CoreIssueTrackingRedmineCollectionResult> {
-    return coreApiGet<CoreIssueTrackingRedmineCollectionResult>(
-      coreAdminEndpoints.issueTrackingRedmineTrackers,
-    );
-  },
-
-  createRedmineTestIssue(
-    body: CoreIssueTrackingRedmineTestIssueRequest,
-  ): Promise<CoreIssueTrackingRedmineTestIssueResult> {
-    return coreApiPost<CoreIssueTrackingRedmineTestIssueResult>(
-      coreAdminEndpoints.issueTrackingRedmineTestIssue,
-      body,
-    );
-  },
-
   retryAdapterAction(
     actionId: string,
     reason = "Retry issue tracking sync from Admin UI",
@@ -2858,130 +2211,8 @@ export const coreAdminApi = {
     );
   },
 
-  async getTaskFailureQueue(limit = 100): Promise<CoreAdminFailureQueueResponse> {
-    return normalizeFailureQueueResponse(
-      await coreApiGet<CoreAdminFailureQueueResponse>(
-        `${coreAdminEndpoints.taskFailureQueue}?limit=${encodeURIComponent(String(limit))}`,
-      ),
-    );
-  },
-
-  manualRetryTask(taskId: string, body?: unknown): Promise<CommandResult> {
-    return coreApiPost<CommandResult>(
-      coreAdminEndpoints.taskManualRetry(taskId),
-      body ?? {},
-    );
-  },
-
-  deadLetterTask(taskId: string, body?: unknown): Promise<CommandResult> {
-    return coreApiPost<CommandResult>(
-      coreAdminEndpoints.taskDeadLetter(taskId),
-      body ?? {},
-    );
-  },
-
-  escalateTask(taskId: string, body?: unknown): Promise<CommandResult> {
-    return coreApiPost<CommandResult>(
-      coreAdminEndpoints.taskEscalate(taskId),
-      body ?? {},
-    );
-  },
-
-  async getTaskRuntimeView(taskId: string): Promise<CoreTaskRuntimeView> {
-    try {
-      const runtimeDetail = await coreApiGet<unknown>(
-        coreAdminEndpoints.taskRuntimeView(taskId),
-      );
-      const normalized = normalizeCoreTaskRuntimeViewPayload(runtimeDetail)[0];
-      if (normalized) return normalized;
-      throw new ApiError(
-        `Core task ${taskId} runtime-view response is empty`,
-        200,
-        undefined,
-        "CORE_TASK_RUNTIME_VIEW_EMPTY",
-      );
-    } catch (error) {
-      if (!isNotFoundOrUnsupportedApiError(error)) {
-        throw error;
-      }
-    }
-
-    try {
-      const detail = await coreApiGet<CoreTaskRecord>(
-        coreAdminEndpoints.taskDetail(taskId),
-      );
-      const dispatches = await this.getTaskDispatchRequests(taskId, 100);
-      return normalizeCoreTaskRecord(
-        detail,
-        firstDispatchForTask(taskId, dispatches),
-      );
-    } catch (error) {
-      if (!isNotFoundOrUnsupportedApiError(error)) {
-        throw error;
-      }
-
-      const tasks = await this.getTasksRuntimeView();
-      const task = tasks.find((candidate) => candidate.taskId === taskId);
-      if (!task) {
-        throw new ApiError(`Core task ${taskId} not found`, 200, undefined, 'CORE_TASK_NOT_FOUND');
-      }
-      return task;
-    }
-  },
-
-
-  getTaskA2AClassificationContract(): Promise<CoreTaskA2AClassificationFlowContract> {
-    return coreApiGet<CoreTaskA2AClassificationFlowContract>(coreAdminEndpoints.taskA2AClassificationContract);
-  },
-
-  submitTaskClassificationResult(
-    taskId: string,
-    body: CoreTaskClassificationRequest,
-  ): Promise<CoreTaskClassificationResult> {
-    return coreApiPost<CoreTaskClassificationResult>(
-      coreAdminEndpoints.taskClassificationResult(taskId),
-      body,
-    );
-  },
-
-
-  runTaskRemediationCommand(
-    taskId: string,
-    body: CoreTaskRemediationCommandRequest,
-  ): Promise<CoreTaskRemediationCommandResult> {
-    return coreApiPost<CoreTaskRemediationCommandResult>(
-      coreAdminEndpoints.taskCommands(taskId),
-      body,
-    );
-  },
-
-  retryTask(taskId: string): Promise<CommandResult> {
-    return coreApiPost<CommandResult>(coreAdminEndpoints.taskRetry(taskId), {});
-  },
-
-  retryDispatchRequest(dispatchRequestId: string): Promise<CommandResult> {
-    return coreApiPost<CommandResult>(
-      coreAdminEndpoints.dispatchRequestRetry(dispatchRequestId),
-      {},
-    );
-  },
-
-  cancelTask(taskId: string, body?: unknown): Promise<CommandResult> {
-    return coreApiPost<CommandResult>(
-      coreAdminEndpoints.taskCancel(taskId),
-      body ?? {},
-    );
-  },
-
-  reassignTask(taskId: string, body?: unknown): Promise<CommandResult> {
-    return coreApiPost<CommandResult>(
-      coreAdminEndpoints.taskReassign(taskId),
-      body ?? {},
-    );
-  },
-
   getSecurityEvents(): Promise<AgentSecurityEvent[]> {
-    return coreGetList<AgentSecurityEvent>(coreAdminEndpoints.securityEvents);
+    return coreGetList<AgentSecurityEvent>(coreAdminEndpoints.securityEvents(requireCoreTenantContext()));
   },
 
   getAgentSecurityEvents(): Promise<AgentSecurityEvent[]> {
@@ -3079,53 +2310,4 @@ export const coreAdminApi = {
     );
   },
 
-  triggerTaskRecoveryNow(
-    taskId: string,
-    body?: CoreRecoveryGovernanceActionRequest,
-  ): Promise<CoreRecoveryGovernanceActionResult> {
-    return coreApiPost<CoreRecoveryGovernanceActionResult>(
-      coreAdminEndpoints.recoveryTriggerTaskNow(taskId),
-      body ?? {},
-    );
-  },
-
-  moveTaskToDeadLetter(
-    taskId: string,
-    body?: CoreRecoveryGovernanceActionRequest,
-  ): Promise<CoreRecoveryGovernanceActionResult> {
-    return coreApiPost<CoreRecoveryGovernanceActionResult>(
-      coreAdminEndpoints.recoveryTaskDeadLetter(taskId),
-      body ?? {},
-    );
-  },
-
-  restoreTaskFromDeadLetter(
-    taskId: string,
-    body?: CoreRecoveryGovernanceActionRequest,
-  ): Promise<CoreRecoveryGovernanceActionResult> {
-    return coreApiPost<CoreRecoveryGovernanceActionResult>(
-      coreAdminEndpoints.recoveryTaskRestoreDeadLetter(taskId),
-      body ?? {},
-    );
-  },
-
-  moveDispatchToDeadLetter(
-    dispatchRequestId: string,
-    body?: CoreRecoveryGovernanceActionRequest,
-  ): Promise<CoreRecoveryGovernanceActionResult> {
-    return coreApiPost<CoreRecoveryGovernanceActionResult>(
-      coreAdminEndpoints.recoveryDispatchDeadLetter(dispatchRequestId),
-      body ?? {},
-    );
-  },
-
-  restoreDispatchFromDeadLetter(
-    dispatchRequestId: string,
-    body?: CoreRecoveryGovernanceActionRequest,
-  ): Promise<CoreRecoveryGovernanceActionResult> {
-    return coreApiPost<CoreRecoveryGovernanceActionResult>(
-      coreAdminEndpoints.recoveryDispatchRestoreDeadLetter(dispatchRequestId),
-      body ?? {},
-    );
-  },
 } as const;

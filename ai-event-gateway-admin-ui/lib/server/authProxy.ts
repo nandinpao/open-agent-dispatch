@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BackendConnectionError, backendOrigins, fetchBackend } from '@/lib/server/backendOrigins';
+import { buildAuthBackendPath, type AuthBackendNamespace } from '@/lib/server/authProxyPath';
 
 const HOP_BY_HOP_HEADERS = new Set(['connection','keep-alive','proxy-authenticate','proxy-authorization','te','trailer','transfer-encoding','upgrade','host','content-length','content-encoding']);
 
-function forwardHeaders(request: NextRequest): Headers {
+function forwardHeaders(request: NextRequest, forwardedPrefix: string): Headers {
   const headers = new Headers();
   request.headers.forEach((value,key) => { const n=key.toLowerCase(); if (!HOP_BY_HOP_HEADERS.has(n) && n !== 'origin') headers.set(key,value); });
   headers.set('x-forwarded-host', request.headers.get('host') ?? '');
   headers.set('x-forwarded-proto', request.nextUrl.protocol.replace(':',''));
-  headers.set('x-forwarded-prefix','/api/auth');
+  headers.set('x-forwarded-prefix', forwardedPrefix);
   headers.set('x-admin-ui-proxy-plane', 'core-auth');
   return headers;
 }
@@ -31,22 +32,24 @@ function proxyFailure(error: unknown): NextResponse {
     details: {
       configuredOrigins: backendOrigins('core'),
       attempts,
-      nextAction: 'Check the Admin UI container CORE_BACKEND_ORIGIN, Docker network membership, and the Core /api/auth/csrf endpoint.'
+      nextAction: 'Check the Admin UI container CORE_BACKEND_ORIGIN, Docker network membership, and the Core /api/session/csrf endpoint.'
     }
   }, { status: 503 });
 }
 
-export async function proxyAdminAuth(request: NextRequest, path: string[]): Promise<NextResponse> {
-  const pathname = `/api/auth/${path.map(encodeURIComponent).join('/')}`;
-  const query = request.nextUrl.searchParams.toString();
-  const pathAndQuery = query ? `${pathname}?${query}` : pathname;
+async function proxyAuthNamespace(
+  request: NextRequest,
+  path: string[],
+  namespace: AuthBackendNamespace
+): Promise<NextResponse> {
+  const pathAndQuery = buildAuthBackendPath(namespace, path, request.nextUrl.searchParams.toString());
   const method=request.method.toUpperCase();
   const hasBody=!['GET','HEAD'].includes(method);
   const body = hasBody ? new Uint8Array(await request.arrayBuffer()) : undefined;
   try {
     const { response: backend, origin, attempts } = await fetchBackend('core', pathAndQuery, {
       method,
-      headers: forwardHeaders(request),
+      headers: forwardHeaders(request, namespace),
       body
     });
     if (attempts.length > 0) {
@@ -56,4 +59,8 @@ export async function proxyAdminAuth(request: NextRequest, path: string[]): Prom
   } catch (error) {
     return proxyFailure(error);
   }
+}
+
+export function proxyCanonicalSession(request: NextRequest, path: string[]): Promise<NextResponse> {
+  return proxyAuthNamespace(request, path, '/api/session');
 }

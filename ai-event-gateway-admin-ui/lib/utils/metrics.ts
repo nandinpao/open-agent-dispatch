@@ -27,7 +27,7 @@ export function normalizePercentValue(value: unknown): number {
   const numberValue = toFiniteNumber(value as number | string | null | undefined);
   if (numberValue === undefined) return 0;
 
-  // 後端可能回 0.35，也可能回 35 或 '35%'; 統一轉成百分比數字。
+  //  0.35 35 or '35%'; 
   if (numberValue >= 0 && numberValue <= 1) return numberValue * 100;
   return numberValue;
 }
@@ -42,7 +42,7 @@ function normalizeMemoryMb(value: unknown): number {
   const numberValue = toFiniteNumber(value as number | string | null | undefined);
   if (numberValue === undefined) return 0;
 
-  // 若後端回 byte 值，轉成 MB。低於 1,000,000 視為已是 MB。
+  //  byte  MB 1,000,000  MB.
   if (numberValue > 1_000_000) return Math.round((numberValue / 1024 / 1024) * 10) / 10;
   return numberValue;
 }

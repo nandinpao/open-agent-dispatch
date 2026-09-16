@@ -15,11 +15,11 @@ export function WebSocketConnectionPanel() {
         <div>
           <div className="text-sm font-medium text-slate-500">Admin WebSocket</div>
           <div className="mt-1 flex items-center gap-3">
-            <div className="text-lg font-bold text-slate-950">即時事件流</div>
+            <div className="text-lg font-bold text-slate-950">Event details</div>
             <StatusBadge status={connection.status} />
           </div>
-          <div className="mt-2 max-w-3xl break-all text-xs text-slate-500">{env.useMock ? '目前使用 Mock 事件流。' : env.nettyRuntimeWsUrl}</div>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-500">此連線代表 Admin UI 到 Netty runtime stream；它是 runtime-plane 即時事件，不是 Core control-plane 權威狀態。Agent online、delivery event、callback relay event 都需要與 Core snapshot 定期 reconcile。</p>
+          <div className="mt-2 max-w-3xl break-all text-xs text-slate-500">{env.useMock ? 'currentuse Mock Event details' : env.nettyRuntimeWsUrl}</div>
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-500">The Admin UI connects to the Netty runtime event stream while Core remains the authoritative control plane. Agent online, delivery, and callback events are reconciled with the Core snapshot.</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -79,14 +79,14 @@ export function WebSocketConnectionPanel() {
 
       {connection.lastUnsupportedMessageReason ? (
         <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-          <summary className="cursor-pointer font-semibold">最近一筆未支援 WebSocket 訊息，已忽略但不影響連線</summary>
+          <summary className="cursor-pointer font-semibold"> WebSocket </summary>
           <div className="mt-2 text-xs text-slate-500">{connection.lastUnsupportedMessageReason}</div>
           <pre className="mt-2 overflow-auto rounded-lg bg-white p-3 text-xs text-slate-700">{connection.lastUnsupportedMessageSample}</pre>
         </details>
       ) : null}
 
       {connection.lastError ? <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-medium text-rose-700">{connection.lastError}</div> : null}
-      {connection.paused ? <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-700">事件畫面已暫停，WebSocket 仍維持連線。</div> : null}
+      {connection.paused ? <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-700">Event detailsWebSocket </div> : null}
     </div>
   );
 }

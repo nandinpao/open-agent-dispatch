@@ -188,7 +188,7 @@ export function normalizeOperatorDispatchFailureReason(
         },
         {
           label: "Open runtime resources",
-          href: "/settings/runtime-resources",
+          href: "/agents/runtime",
           description: "Review runtime resources and Agent runtime bindings.",
         },
       ],

@@ -65,7 +65,7 @@ export function RuntimeFeatureCatalogConsole() {
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
               Runtime features are protocol/tool facts reported by Agent runtime. Heartbeat creates observations only; routing should later use TRUSTED feature records.
             </p>
-            <div className="mt-3"><HelpText term="runtimeEligibility" label="Runtime feature trust 說明" /></div>
+            <div className="mt-3"><HelpText term="runtimeEligibility" label="Runtime feature trust Description" /></div>
           </div>
           <Button tone="secondary" onClick={() => void refresh()} disabled={loading}>{loading ? 'Refreshing...' : 'Refresh'}</Button>
         </div>

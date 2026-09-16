@@ -86,26 +86,26 @@ export function DecisionHeader({
           {subtitle ? <p className="mt-2 max-w-5xl text-sm leading-6 opacity-85">{subtitle}</p> : null}
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border border-white/70 bg-white/70 px-4 py-3">
-              <div className="text-xs font-bold uppercase tracking-wide opacity-60">目前狀態</div>
+              <div className="text-xs font-bold uppercase tracking-wide opacity-60">Current status</div>
               <div className="mt-2 flex flex-wrap gap-2">
                 <StatusBadge status={statusCode ?? statusLabel ?? 'INFO'} label={statusLabel} />
                 {statusCode ? <HumanizedCode code={statusCode} type="status" compact /> : null}
               </div>
             </div>
             <div className="rounded-2xl border border-white/70 bg-white/70 px-4 py-3 md:col-span-1 xl:col-span-2">
-              <div className="text-xs font-bold uppercase tracking-wide opacity-60">卡住原因 / 判斷</div>
+              <div className="text-xs font-bold uppercase tracking-wide opacity-60">Blocking reason / decision</div>
               <div className="mt-2 text-sm font-semibold leading-6"><DispatchUserFacingReason value={blockingReason} error={userFacingError} showOperatorActions={showOperatorActions} actionContext={operatorActionContext} onOperatorCommand={onOperatorCommand} /></div>
             </div>
             <div className="rounded-2xl border border-white/70 bg-white/70 px-4 py-3">
-              <div className="text-xs font-bold uppercase tracking-wide opacity-60">下一步</div>
-              <div className="mt-2 text-sm font-semibold leading-6">{displayNextAction || '等待下一個系統事件或刷新狀態。'}</div>
+              <div className="text-xs font-bold uppercase tracking-wide opacity-60">Next step</div>
+              <div className="mt-2 text-sm font-semibold leading-6">{displayNextAction || 'Wait for the next system event or refresh the status.'}</div>
             </div>
           </div>
           {facts.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               {facts.map((fact) => (
                 <span key={fact.label} className="rounded-full border border-white/70 bg-white/70 px-3 py-1 font-semibold">
-                  <span className="opacity-60">{fact.label}：</span>{fact.value}
+                  <span className="opacity-60">{fact.label}:</span>{fact.value}
                 </span>
               ))}
             </div>

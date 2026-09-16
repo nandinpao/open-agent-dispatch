@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const { response, origin, attempts } = await fetchBackend('core', '/api/auth/csrf', {
+    const { response, origin, attempts } = await fetchBackend('core', '/api/session/csrf', {
       method: 'GET',
       headers: { Accept: 'application/json', 'x-admin-ui-health-probe': 'true' }
     });

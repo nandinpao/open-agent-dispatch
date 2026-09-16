@@ -40,11 +40,11 @@ export function TaskLifecycleOperatorPanel({ row }: Readonly<{ row: TaskDispatch
       <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
         <div className="grid gap-3 md:grid-cols-3">
           <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">目前卡在哪</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Operator guidance</div>
             <div className="mt-1 text-sm font-black text-slate-900">{decision.currentStage}</div>
           </div>
           <div className="md:col-span-2">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">下一步</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">Next step</div>
             <div className="mt-1 text-sm font-semibold text-slate-700">{decision.nextAction}</div>
           </div>
         </div>
@@ -64,7 +64,7 @@ export function TaskLifecycleOperatorPanel({ row }: Readonly<{ row: TaskDispatch
                 </div>
                 <p className="mt-3 text-xs leading-5 text-slate-600">{stage.operatorHint}</p>
                 {stage.summary && stage.summary !== stage.operatorHint ? <p className="mt-2 text-xs leading-5 text-slate-500">{stage.summary}</p> : null}
-                <div className="mt-auto pt-3 text-[11px] text-slate-400">
+                <div className="mt-auto pt-3 text-xs text-slate-400">
                   {stage.timestamp ? <div>{stage.timestamp}</div> : null}
                   {stage.references?.length ? (
                     <div className="mt-1 flex flex-wrap gap-1">
@@ -80,7 +80,7 @@ export function TaskLifecycleOperatorPanel({ row }: Readonly<{ row: TaskDispatch
       </div>
 
       <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs leading-5 text-slate-500">
-        上方是一般操作人員看的流程定位；完整 event、payload、correlation id 與 attempt history 請看下方「Timeline Event Log」。
+        Operator actions use the authoritative event, payload, correlation ID, and attempt history. Review the Timeline and Event Log before acting.
       </div>
     </section>
   );

@@ -122,12 +122,12 @@ export function RoutingExplainabilityPanel({ decisions, error }: Readonly<{ deci
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-base font-bold text-slate-900">Routing Explainability</h2>
-          <p className="mt-1 text-sm text-slate-500">顯示 Core routing decision 的選擇原因、score breakdown、domain policy、poison exclusion 與 skill version mismatch。</p>
+          <p className="mt-1 text-sm text-slate-500">Inspect the Core routing decision, score breakdown, domain policy, reservation exclusions, and capability-version mismatches for the eligible candidate set.</p>
         </div>
         <StatusBadge status={error ? 'ROUTING_EXPLAIN_UNAVAILABLE' : latest ? latest.status ?? 'ROUTING_READY' : 'NO_ROUTING_DECISION'} />
       </div>
       {error ? <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-700">{error}</p> : null}
-      {!error && !latest ? <EmptyState title="尚無 routing decision" description="此 Task 可能尚未進入 assignment/routing，或 routing decision store 尚未啟用。" /> : null}
+      {!error && !latest ? <EmptyState title="No routing decision" description="No routing decision exists yet. The Task may still be waiting for eligibility evaluation, or routing-decision persistence may be unavailable." /> : null}
       {!error && latest ? (
         <>
           <div className="mt-4 grid gap-3 md:grid-cols-4">
@@ -161,7 +161,7 @@ export function RoutingExplainabilityPanel({ decisions, error }: Readonly<{ deci
                 error={latest.userFacingError}
                 showOperatorActions
                 actionContext={{ taskId: latest.taskId, agentId: latest.selectedAgentId, includeRunbook: false }}
-                codeClassName="mb-2 inline-flex rounded-full bg-blue-900 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white"
+                codeClassName="mb-2 inline-flex rounded-full bg-blue-900 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-white"
                 detailsClassName="mt-3 rounded-lg bg-white/70 px-3 py-2 text-xs"
                 technicalClassName="mt-2 break-words whitespace-pre-wrap font-mono leading-5 text-blue-900"
               />
@@ -227,7 +227,7 @@ export function RoutingExplainabilityPanel({ decisions, error }: Readonly<{ deci
                         error={decision.userFacingError}
                         showOperatorActions
                         actionContext={{ taskId: decision.taskId, agentId: decision.selectedAgentId, includeRunbook: false }}
-                        codeClassName="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white"
+                        codeClassName="inline-flex rounded-full bg-slate-800 px-2 py-0.5 text-xs font-black uppercase tracking-wide text-white"
                         detailsClassName="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs"
                         technicalClassName="mt-2 break-words whitespace-pre-wrap font-mono leading-5 text-slate-600"
                       />

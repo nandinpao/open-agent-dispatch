@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { adminApi } from '@/lib/api/adminApi';
 import { nettyRuntimeApi } from '@/lib/api/nettyRuntimeApi';
-import { coreAdminApi } from '@/lib/api/coreAdminApi';
+import { taskAdminApi } from '@/lib/api/domains/taskAdminApi';
 import { getPublicEnv } from '@/lib/constants/env';
 import { getMockClusterNodeAgents, getMockClusterNodeDetail, getMockClusterNodeTasks, getMockCommandResult } from '@/lib/mock/admin';
 import { correlateGatewayNodeTasks, gatewayTasksFromDeliveryRuntime, type NodeTaskCorrelationResult } from '@/lib/cluster/nodeTaskCorrelation';
@@ -39,7 +39,7 @@ export function useClusterNodeDetail(nodeId: string) {
 
     const [runtimeDeliveryResult, coreTasksResult, nodesResult, agentsResult] = await Promise.allSettled([
       nettyRuntimeApi.getDeliveryRuntime(),
-      coreAdminApi.getTasksRuntimeView(),
+      taskAdminApi.getTasksRuntimeView(),
       adminApi.getClusterNodes(),
       adminApi.getClusterNodeAgents(nodeId)
     ]);

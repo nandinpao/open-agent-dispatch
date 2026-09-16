@@ -72,43 +72,43 @@ function readPayloadNodeId(raw: unknown): string | undefined {
 
 function toastFromEvent(event: AdminWebSocketEvent): AdminToastMessage | null {
   if (event.eventType === 'NODE_HEARTBEAT_TIMEOUT') {
-    return makeToast('warning', 'Cluster 節點心跳逾時', event.message ?? event.nodeId);
+    return makeToast('warning', 'Cluster ', event.message ?? event.nodeId);
   }
   if (event.eventType === 'NODE_LEFT') {
-    return makeToast('warning', 'Cluster 節點離線', event.message ?? event.nodeId);
+    return makeToast('warning', 'Cluster ', event.message ?? event.nodeId);
   }
   if (event.eventType === 'AGENT_DISCONNECTED') {
-    return makeToast('warning', 'Agent 已斷線', event.message ?? event.agentId);
+    return makeToast('warning', 'Agent ', event.message ?? event.agentId);
   }
   if (event.eventType === 'TASK_FAILED') {
-    return makeToast('error', '任務處理失敗', event.message ?? event.taskId);
+    return makeToast('error', 'Task processing failed', event.message ?? event.taskId);
   }
   if (event.eventType === 'DELIVERY_FAILED') {
-    return makeToast('error', 'Command delivery 失敗', event.message ?? event.taskId);
+    return makeToast('error', 'Command delivery failed', event.message ?? event.taskId);
   }
   if (event.eventType === 'CALLBACK_RELAY_FAILED') {
-    return makeToast('error', 'Callback relay 失敗', event.message ?? event.taskId);
+    return makeToast('error', 'Callback relay failed', event.message ?? event.taskId);
   }
   if (event.eventType === 'SECURITY_CONNECTION_REJECTED') {
-    return makeToast('warning', '未授權 Agent 連線已拒絕', event.message ?? event.agentId);
+    return makeToast('warning', ' Agent connectionreject', event.message ?? event.agentId);
   }
   if (event.eventType === 'SECURITY_CREDENTIAL_REVOKED_ATTEMPT') {
-    return makeToast('error', '撤銷憑證嘗試重連', event.message ?? event.agentId);
+    return makeToast('error', 'Details', event.message ?? event.agentId);
   }
   if (event.eventType === 'TASK_CANCELLED') {
-    return makeToast('warning', '任務已取消', event.message ?? event.taskId);
+    return makeToast('warning', 'Task cancelled', event.message ?? event.taskId);
   }
   if (event.eventType === 'NODE_JOINED') {
-    return makeToast('success', 'Cluster 節點上線', event.nodeId);
+    return makeToast('success', 'Cluster ', event.nodeId);
   }
   if (event.eventType === 'AGENT_CONNECTED') {
-    return makeToast('success', 'Agent 已連線', event.agentId);
+    return makeToast('success', 'Agent connected', event.agentId);
   }
   if (event.eventType === 'AGENT_AUTHORIZED') {
-    return makeToast('success', 'Agent 已通過 Core 授權', event.agentId);
+    return makeToast('success', 'Agent  Core ', event.agentId);
   }
   if (event.eventType === 'AGENT_AUTHORIZATION_DENIED') {
-    return makeToast('warning', 'Agent Core 授權拒絕', event.message ?? event.agentId);
+    return makeToast('warning', 'Agent Core ', event.message ?? event.agentId);
   }
   return null;
 }

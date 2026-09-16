@@ -1,6 +1,5 @@
 "use client";
 
-import { LegacyValueWarning } from "@/components/governance/StrictSelectionControls";
 import type { CoreAgentCapabilityCatalog } from "@/lib/types/core";
 
 interface CapabilityCardSelectorProps {
@@ -23,8 +22,8 @@ export function CapabilityCardSelector({
   onChange,
   loading = false,
   disabled = false,
-  title = "Capability Catalog（Reference-only）",
-  description = "Capability labels are reference-only metadata for search, diagnostics and future governance. Current dispatch setup is Source Flow -> Agent Pool; capability selection must not be treated as the first-version routing gate.",
+  title = "Capabilities",
+  description = "Choose the Canonical Capabilities this Agent is approved to provide. Pool membership, Dispatch Access, credentials, and runtime health are governed separately.",
 }: Readonly<CapabilityCardSelectorProps>) {
   const selected = new Set(selectedCodes.map(normalize));
 
@@ -38,7 +37,6 @@ export function CapabilityCardSelector({
   }
 
   const activeCapabilities = capabilities.filter((capability) => (capability.status ?? "ACTIVE") === "ACTIVE");
-  const capabilityOptions = activeCapabilities.map((capability) => ({ value: capability.capabilityCode, label: capability.capabilityName ?? capability.capabilityCode }));
 
   return (
     <div className="space-y-3">
@@ -51,18 +49,17 @@ export function CapabilityCardSelector({
           {selected.size} selected
         </span>
       </div>
-      <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-900">
-        <div className="font-black uppercase tracking-wide">Reference-only capability catalog</div>
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-900">
+        <div className="font-black uppercase tracking-wide">Canonical WHAT contracts</div>
         <p className="mt-1 font-semibold">
-          Capability values remain useful for Agent description, search, audit and diagnostic evidence. They do not replace the {"Current setup path: Source Flow -> Agent Pool -> Pool Member Agent"}.
+          A Dispatch Flow may require these Capabilities. Selecting them does not bypass Pool membership, Dispatch Access, credential, or runtime eligibility checks.
         </p>
       </div>
-      <LegacyValueWarning label="capability" values={selectedCodes} options={capabilityOptions} message="Selected capability values are not ACTIVE catalog entries. Treat them as reference-only metadata; Current dispatch eligibility is managed through Source Flow and Agent Pool configuration." />
       {loading ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Loading capability catalog...</div>
       ) : activeCapabilities.length === 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          No ACTIVE capability catalog entries are available. Create or activate capabilities only when you need reference-only Agent labels or diagnostic metadata; Current dispatch setup still starts from Source Flow and Agent Pool.
+          No ACTIVE Canonical Capabilities are available. Create one in the Capability Catalog, then return here to assign it.
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
@@ -86,7 +83,7 @@ export function CapabilityCardSelector({
                     <div className="text-sm font-extrabold text-slate-900">{capability.capabilityName || code}</div>
                     <div className="mt-1 font-mono text-xs text-slate-500">{code}</div>
                   </div>
-                  <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${checked ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${checked ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>
                     {checked ? "Selected" : "Select"}
                   </span>
                 </div>

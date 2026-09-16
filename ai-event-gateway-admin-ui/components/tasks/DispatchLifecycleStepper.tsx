@@ -29,7 +29,7 @@ function CompactStep({ step }: Readonly<{ step: DispatchLifecycleStep }>) {
       <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${stepTone(step)}`}>{stepIcon(step)}</span>
       <div className="min-w-0">
         <div className="truncate text-xs font-bold text-slate-700">{step.title}</div>
-        <div className="mt-0.5 truncate text-[11px] text-slate-500">{step.badge ?? step.status}</div>
+        <div className="mt-0.5 truncate text-xs text-slate-500">{step.badge ?? step.status}</div>
       </div>
     </div>
   );
@@ -96,7 +96,7 @@ export function DispatchLifecycleStepper({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-base font-bold text-slate-900">Dispatch Lifecycle Detail</h2>
-          <p className="mt-1 text-sm text-slate-500">工程師詳細視圖：Event / Incident → Task → Assignment → Dispatch request → Gateway delivery → Agent callback。</p>
+          <p className="mt-1 text-sm text-slate-500">Event / Incident → Task → Assignment → Dispatch request → Gateway delivery → Agent callback.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <StatusBadge status={summary.overallStatus} />
@@ -105,8 +105,8 @@ export function DispatchLifecycleStepper({
       </div>
       <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
         <div className="text-sm font-bold text-slate-900">{summary.headline}</div>
-        {summary.blockedReason ? <p className="mt-1 text-sm font-semibold text-amber-800">阻擋原因：{summary.blockedReason}</p> : null}
-        {summary.nextAction && summary.nextAction !== 'NONE' ? <p className="mt-1 text-sm text-slate-600">下一步：{summary.nextAction}</p> : null}
+        {summary.blockedReason ? <p className="mt-1 text-sm font-semibold text-amber-800">{summary.blockedReason}</p> : null}
+        {summary.nextAction && summary.nextAction !== 'NONE' ? <p className="mt-1 text-sm text-slate-600">Next step: {summary.nextAction}</p> : null}
       </div>
       <div className="mt-5">
         {summary.steps.map((step, index) => <FullStep key={step.id} step={step} isLast={index === summary.steps.length - 1} />)}

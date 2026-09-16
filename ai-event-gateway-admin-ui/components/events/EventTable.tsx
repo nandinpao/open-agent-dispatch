@@ -92,9 +92,9 @@ export function EventTable() {
     setTypeFilter(allValue);
   }
 
-  if (loading) return <LoadingBox label="讀取 Gateway Events..." />;
+  if (loading) return <LoadingBox label="load Gateway Events..." />;
   if (error) return <ErrorBox message={error} />;
-  if (!data || data.length === 0) return <EmptyState title="目前沒有事件資料" description="請確認 /api/admin/events 是否有回傳資料。" />;
+  if (!data || data.length === 0) return <EmptyState title="No event data is available" description="Verify /api/admin/events " />;
 
   return (
     <div className="space-y-4">
@@ -106,14 +106,14 @@ export function EventTable() {
 
       <ListFilterBar
         search={search}
-        searchPlaceholder="搜尋 Event ID、Trace ID、來源系統、事件類型、訊息..."
+        searchPlaceholder="Search by Event ID, Trace ID, Source System, or event type…"
         onSearchChange={setSearch}
         filters={filters}
         onClear={clearFilters}
       />
 
       {filteredEvents.length === 0 ? (
-        <EmptyState title="沒有符合條件的事件" description="請調整關鍵字、狀態、來源系統或事件類型篩選條件。" />
+        <EmptyState title="No events match the filters" description="Adjust the status, Source System, or event type filters and try again." />
       ) : (
         <>
           <div className="space-y-3">
@@ -123,7 +123,7 @@ export function EventTable() {
                   <div>
                     <div className="text-sm font-bold text-slate-950">{event.eventType}</div>
                     <div className="mt-1 break-all text-xs text-slate-500">
-                      {event.eventId} / Trace：
+                      {event.eventId} / Trace:
                       {event.traceId ? (
                         <Link href={`/traces/${encodeURIComponent(event.traceId)}`} className="font-semibold text-blue-600 hover:text-blue-700">{event.traceId}</Link>
                       ) : '-'}
@@ -140,10 +140,10 @@ export function EventTable() {
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-slate-600 md:grid-cols-4">
-                  <div>Source：{event.sourceSystem}</div>
-                  <div>Received：{formatDateTime(event.receivedAt)}</div>
-                  <div>Routed：{event.routedAt ? formatDateTime(event.routedAt) : '-'}</div>
-                  <div>Failed：{event.failedAt ? formatDateTime(event.failedAt) : '-'}</div>
+                  <div>Source:{event.sourceSystem}</div>
+                  <div>Received:{formatDateTime(event.receivedAt)}</div>
+                  <div>Routed:{event.routedAt ? formatDateTime(event.routedAt) : '-'}</div>
+                  <div>Failed:{event.failedAt ? formatDateTime(event.failedAt) : '-'}</div>
                 </div>
                 {event.message ? <p className="mt-3 text-sm text-slate-700">{event.message}</p> : null}
                 {event.payload ? <div className="mt-4"><JsonViewer value={event.payload} /></div> : null}

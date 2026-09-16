@@ -14,16 +14,16 @@ import { getMemoryUsedPercent } from '@/lib/utils/runtimeMetrics';
 export function ClusterNodeTable() {
   const { data, loading, refreshing, error, lastUpdatedAt, refresh } = useClusterNodes();
 
-  if (loading) return <LoadingBox label="讀取 Cluster 節點..." />;
+  if (loading) return <LoadingBox label="Loading cluster nodes..." />;
   if (error) return <ErrorBox message={error} />;
-  if (!data || data.length === 0) return <EmptyState title="目前沒有 Cluster 節點" description="請確認 ai-event-gateway-netty Admin API 是否已啟動。" />;
+  if (!data || data.length === 0) return <EmptyState title="No cluster nodes are available" description="Verify that the ai-event-gateway-netty Admin API is running." />;
 
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Node List</h2>
-          <p className="mt-1 text-sm text-slate-500">SELF 是目前處理 Admin API request 的入口節點；REMOTE 是由 SELF 透過 cluster aggregation 彙整回來的其它節點。</p>
+          <p className="mt-1 text-sm text-slate-500">SELF is currentprocess Admin API request REMOTE is by SELF through cluster aggregation </p>
         </div>
         <RefreshButton refreshing={refreshing} lastUpdatedAt={lastUpdatedAt} onRefresh={refresh} />
       </div>

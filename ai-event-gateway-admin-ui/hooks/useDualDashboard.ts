@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { coreAdminApi } from '@/lib/api/coreAdminApi';
+import { taskAdminApi } from '@/lib/api/domains/taskAdminApi';
 import { nettyRuntimeApi } from '@/lib/api/nettyRuntimeApi';
 import { mergeAgentDashboardRows } from '@/lib/dashboard/agentMerge';
 import { buildDashboardSummaries, type DashboardSummaries } from '@/lib/dashboard/summary';
@@ -80,7 +81,7 @@ export function useDualDashboard() {
     ] = await Promise.all([
       safeLoad(() => coreAdminApi.getDashboardSnapshot()),
       safeLoad(() => coreAdminApi.getAgentsRuntimeView().catch(() => coreAdminApi.getAgents())),
-      safeLoad(() => coreAdminApi.getTasksRuntimeView()),
+      safeLoad(() => taskAdminApi.getTasksRuntimeView()),
       safeLoad(() => coreAdminApi.getSecurityEvents().catch(() => coreAdminApi.getAgentSecurityEvents())),
       safeLoad(() => nettyRuntimeApi.getRuntimeSnapshot()),
       safeLoad(() => nettyRuntimeApi.getClusterRuntimeAgents().catch(() => nettyRuntimeApi.getRuntimeAgents())),

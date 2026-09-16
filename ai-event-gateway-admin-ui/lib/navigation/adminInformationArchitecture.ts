@@ -9,10 +9,18 @@ export const adminInformationArchitecturePrinciples = [
 ] as const;
 
 export interface AdminNavigationItem {
+  navigationId?: string;
   href: string;
   label: string;
   purpose: string;
   requiredMode?: AdminUiMode;
+  requiredPermission?: string;
+  iamOnly?: boolean;
+  rootOnly?: boolean;
+  tenantOnly?: boolean;
+  resourceAccessOnly?: boolean;
+  workspaceUniversal?: boolean;
+  accountManagementOnly?: boolean;
 }
 
 export interface AdminInformationLayer {
@@ -29,22 +37,28 @@ export interface AdminInformationLayer {
 }
 
 /**
- * Current setup navigation.
+ * Phase 0I product navigation.
  *
- * Normal administrators use one fixed product navigation. Historical catalogs, migration tools, raw runtime pages, simulators, and parallel dispatch models are absent from the sidebar. Normal administrators configure dispatch through the Current setup path: Source System -> Dispatch Setup -> Source Flow -> Agent Pool -> Pool Member Agent.
+ * Normal operators use a single English navigation model. Historical catalogs,
+ * migration tools, raw runtime pages, simulators, and compatibility dispatch
+ * models remain outside primary navigation.
  */
 export const adminPrimaryNavigation: AdminNavigationItem[] = [
-  { href: '/dashboard', label: '總覽', purpose: '查看派工健康度、系統狀態與新手下一步。' },
-  { href: '/source-systems', label: '來源系統', purpose: '先建立事件來源主檔，供 Source Flow 使用。' },
-  { href: '/dispatch-flows', label: '派工設定', purpose: 'Current 唯一設定入口：Source Flow、預設 Agent Pool、Rule override 與 Pool Member Agent。' },
-  { href: '/agents', label: 'Agent', purpose: '建立、核准及查看 Agent 連線；加入 Pool 請回到派工設定。' },
-  { href: '/tasks', label: 'Task', purpose: '依 Source Flow -> Agent Pool -> Pool Member Agent 標準鏈追蹤失敗原因與人工處置。' },
-  { href: '/issues-events', label: '問題與事件', purpose: '查看問題追蹤、失敗事件、安全事件與事件紀錄。' },
-  { href: '/settings', label: '系統設定', purpose: '設定環境、整合、安全與權限。' },
+  // Documentation/onboarding links only. Runtime Menu/Page/Action authorization is
+  // supplied by Core /api/session/entitlements and must not be inferred from this list.
+  { href: '/dashboard', label: t('nav.dashboard'), purpose: t('nav.dashboard.purpose') },
+  { href: '/source-systems', label: t('nav.sourceSystems'), purpose: t('nav.sourceSystems.purpose') },
+  { href: '/dispatch-flows', label: t('nav.dispatch'), purpose: t('nav.dispatch.purpose') },
+  { href: '/agents', label: t('nav.agents'), purpose: t('nav.agents.purpose') },
+  { href: '/tasks', label: t('nav.tasks'), purpose: t('nav.tasks.purpose') },
+  { href: '/operations/observability', label: 'Observability', purpose: 'Trace execution decisions, review economics, and inspect executor-level memory.' },
+  { href: '/a2a-operations', label: 'Delegations', purpose: 'Review governed delegated work, blockers and results.' },
+  { href: '/issues-events', label: t('nav.incidents'), purpose: t('nav.incidents.purpose') },
+  { href: '/settings/integrations', label: t('nav.integrations'), purpose: t('nav.integrations.purpose') },
+  { href: '/settings', label: t('nav.configurationGovernance'), purpose: t('nav.configurationGovernance.purpose') },
+  { href: '/admin/tenants', label: 'People & Access', purpose: 'Manage people, organization, responsibilities, sign-in security and audit from one workspace.' },
 ];
 
-// Kept as exported empty arrays for compatibility with existing imports.
-// Stage 4 no longer renders these as normal operator navigation.
 export const adminAdvancedNavigation: AdminNavigationItem[] = [];
 export const adminDeveloperNavigation: AdminNavigationItem[] = [];
 
@@ -52,36 +66,35 @@ export const adminInformationLayers: AdminInformationLayer[] = [
   {
     id: 'operations',
     badge: 'OPERATIONS',
-    title: '日常操作',
-    shortTitle: '操作',
+    title: t('nav.group.daily'),
+    shortTitle: 'Operations',
     requiredMode: 'basic',
     sourceOfTruth: 'Core Agent, Dispatch Flow, Task, and Issue state',
-    description: '一般管理員只需要來源系統、派工設定、Agent、Task 與問題事件。',
-    operatorQuestion: '我要建立來源、設定派工或處理失敗 Task，應從哪裡開始？',
-    warning: '派工設定是唯一 Current setup 入口：Source Flow -> Agent Pool -> Pool Member Agent。',
-    primaryLinks: adminPrimaryNavigation.filter((link) => link.href !== '/settings'),
+    description: 'Operate Tasks, Agents, delegated work and incidents from one canonical workflow; configuration stays separate.',
+    operatorQuestion: 'Where should I monitor work, inspect delegated execution, or resolve a blocked Task?',
+    warning: 'Dispatch is the only current setup entry: Source Flow → Agent Pool → Pool Member Agent.',
+    primaryLinks: adminPrimaryNavigation.filter((link) => !['/settings', '/settings/integrations'].includes(link.href)),
   },
   {
     id: 'system',
-    badge: 'SYSTEM',
-    title: '系統設定',
-    shortTitle: '設定',
+    badge: 'ADMINISTRATION',
+    title: t('nav.group.configuration'),
+    shortTitle: 'Admin',
     requiredMode: 'basic',
     sourceOfTruth: 'Authentication, environment, integrations, and permissions',
-    description: '初始化環境、整合與安全設定。日常派工一律從派工流程設定。',
-    operatorQuestion: '我要設定環境、外部整合或權限，應從哪裡開始？',
-    warning: '系統設定不建立第二套派工模型；Current setup 仍回到派工設定。',
+    description: 'Manage integrations, identity, environment, security, and governance settings.',
+    operatorQuestion: 'Where should I manage Provider connections, security, or platform settings?',
+    warning: 'Administration does not create a second dispatch model; dispatch configuration remains under Dispatch.',
     primaryLinks: [
-      { href: '/settings', label: t('nav.environmentSettings'), purpose: t('nav.environmentSettings.purpose') },
-      { href: '/settings/issue-tracking', label: t('nav.issueTrackingIntegrations'), purpose: t('nav.issueTrackingIntegrations.purpose') },
+      { href: '/settings/integrations', label: t('nav.integrations'), purpose: t('nav.integrations.purpose') },
+      { href: '/settings', label: t('nav.configurationGovernance'), purpose: t('nav.configurationGovernance.purpose') },
       { href: '/security-events', label: t('nav.securityEvents'), purpose: t('nav.securityEvents.purpose') },
+      { href: '/admin/tenants', label: 'People & Access', purpose: 'Manage people, organization, access, sign-in security and audit from one workspace.', iamOnly: true, workspaceUniversal: true, accountManagementOnly: true },
       { href: '/agent-enrollments', label: t('nav.agentEnrollmentReview'), purpose: t('nav.agentEnrollmentReview.purpose') },
     ],
   },
 ];
 
 export function getAdminInformationLayer(layerId: AdminInformationLayerId): AdminInformationLayer {
-  const resolvedLayerId = layerId === 'system' ? 'system' : 'operations';
-  return adminInformationLayers.find((layer) => layer.id === resolvedLayerId) ?? adminInformationLayers[0];
+  return adminInformationLayers.find((layer) => layer.id === layerId) ?? adminInformationLayers[0];
 }
-

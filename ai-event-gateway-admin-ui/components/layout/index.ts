@@ -4,3 +4,5 @@ export * from './AdminListPage';
 export * from './AdminPageHeader';
 export * from './AdminSummaryCards';
 export * from './AdminTabLayout';
+export * from './AdminMasterDetailLayout';
+export * from './VirtualizedResourceList';

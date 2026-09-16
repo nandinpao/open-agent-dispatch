@@ -6,24 +6,26 @@ import { PageHeader } from '@/components/common/PageHeader';
 
 export default function AgentsPage() {
   return (
+    
     <main className="space-y-6">
       <PageHeader
-        title="Agent"
-        description="建立與核准 Agent、查看 Runtime 連線、維護選填特殊能力，並確認它是否已被派工流程選用。"
+        title="Agents"
+        description="Create and approve Agents, review runtime readiness, and diagnose dispatch eligibility."
       />
       <HubQuickLinks
-        title="Agent 標準操作捷徑"
-        description="一般管理員只需要 Agent、來源系統、派工流程與 Task。底層 Scope、Profile、Governance 與 Readiness 工具已退出標準流程。"
+        title="Agent Actions"
+        description="Most administrators only need Agents, Source Systems, Dispatch Flows, and Tasks. Low-level scope, profile, governance, and readiness tools are available under advanced administration."
         links={[
-          { href: '/agents/setup', label: '建立第一個 Agent', description: '為空資料庫或新 runtime 建立 Agent。' },
-          { href: '/source-systems', label: '查看來源系統', description: '確認企業自行定義的事件來源。' },
-          { href: '/dispatch-flows', label: '開啟派工流程', description: '唯一的派工設定入口；在 Flow 內選擇處理 Agent。' },
-          { href: '/tasks', label: '查看 Task', description: '追蹤派工結果、失敗原因與人工處置。' },
+          { href: '/agents/setup', label: 'Create the First Agent', description: 'Create an Agent enrollment and prepare its runtime connection.' },
+          { href: '/source-systems', label: 'View Source Systems', description: 'Manage systems that send events to OpenDispatch.' },
+          { href: '/dispatch-flows', label: 'Open Dispatch', description: 'Configure Source Flows, Agent Pools, and dispatch rules.' },
+          { href: '/tasks', label: 'View Tasks', description: 'Review Tasks, dispatch results, and operational failures.' },
         ]}
       />
       <Suspense fallback={<LoadingBox label="Loading agents..." />}>
         <AgentGovernanceConsole />
       </Suspense>
     </main>
+    
   );
 }

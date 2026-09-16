@@ -18,14 +18,14 @@ export function toFiniteNumber(value: NumericLike): number | undefined {
 export function formatNumber(value: NumericLike, emptyText = '-'): string {
   const numberValue = toFiniteNumber(value);
   if (numberValue === undefined) return emptyText;
-  return new Intl.NumberFormat('zh-Hant-TW').format(numberValue);
+  return new Intl.NumberFormat('en-US').format(numberValue);
 }
 
 export function formatDateTime(value?: string | null): string {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('zh-Hant-TW', {
+  return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'short',
     timeStyle: 'medium',
     hour12: false

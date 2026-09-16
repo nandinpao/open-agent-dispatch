@@ -66,7 +66,7 @@ export function LegacyValueWarning({
       <div className="font-black">Legacy {label} detected</div>
       <div>{message ?? 'This value is not in the governed catalog. Keep it only for review; it should not become a new dispatch-affecting input.'}</div>
       <div className="mt-2 flex flex-wrap gap-1">
-        {legacyValues.map((value) => <span key={value} className="rounded-full bg-white px-2 py-1 font-mono text-[11px] font-bold text-amber-800">{value}</span>)}
+        {legacyValues.map((value) => <span key={value} className="rounded-full bg-white px-2 py-1 font-mono text-xs font-bold text-amber-800">{value}</span>)}
       </div>
     </div>
   );
@@ -114,7 +114,7 @@ export function GovernedCheckboxCards({
               className={`rounded-2xl border p-3 text-left text-sm transition ${checked ? 'border-blue-300 bg-blue-50 text-blue-950' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'} disabled:opacity-60`}
             >
               <div className="flex items-start gap-2">
-                <span className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] ${checked ? 'border-blue-500 bg-blue-600 text-white' : 'border-slate-300 bg-white text-transparent'}`}>✓</span>
+                <span className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border text-xs ${checked ? 'border-blue-500 bg-blue-600 text-white' : 'border-slate-300 bg-white text-transparent'}`}>✓</span>
                 <span><span className="font-black">{option.label}</span>{option.description ? <span className="mt-1 block text-xs text-slate-500">{option.description}</span> : null}</span>
               </div>
             </button>

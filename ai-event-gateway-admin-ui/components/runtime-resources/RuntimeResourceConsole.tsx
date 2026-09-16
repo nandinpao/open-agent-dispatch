@@ -92,7 +92,7 @@ export function RuntimeResourceConsole() {
     <div className="space-y-5">
       <PageHeader
         title="Runtime Resources"
-        description="P3-C Supply Model：正式管理 runtime / connector / execution host。Agent 必須透過 Agent Runtime Binding 綁定此資源後，才形成可派工供給。"
+        description="Register gateway, connector, and execution resources used by Agent runtime bindings. Runtime resources describe supply; Agent approval, binding, capability, capacity, and Core authorization still determine dispatch eligibility."
       />
 
       {message ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{message}</div> : null}

@@ -17,9 +17,9 @@ export function ClusterTopologyPanel() {
   const { data, loading, refreshing, error, lastUpdatedAt, refresh } = useClusterTopology();
   const { nodeMetricsById, lastMetricsAt } = useAdminRealtime();
 
-  if (loading) return <LoadingBox label="讀取 Cluster Topology..." />;
+  if (loading) return <LoadingBox label="load Cluster Topology..." />;
   if (error) return <ErrorBox message={error} />;
-  if (!data) return <EmptyState title="沒有 Cluster Topology" description="請確認後端是否提供 /api/admin/cluster/topology。" />;
+  if (!data) return <EmptyState title="No data is currently available. Cluster Topology" description="Review the configuration and try again. /api/admin/cluster/topology." />;
 
   const summary = data.summary ?? { totalNodes: 0, onlineNodes: 0, drainingNodes: 0, totalAgents: 0, queueSize: 0, activeTasks: 0 };
   const nodes = (data.nodes ?? []).map((node) => ({
@@ -31,8 +31,8 @@ export function ClusterTopologyPanel() {
   return (
     <section className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
-        <MetricCard title="Online Nodes" value={`${formatNumber(summary.onlineNodes)}/${formatNumber(summary.totalNodes)}`} subtitle="目前可服務節點" />
-        <MetricCard title="Draining Nodes" value={formatNumber(summary.drainingNodes)} subtitle="維護 / Drain 中節點" />
+        <MetricCard title="Online Nodes" value={`${formatNumber(summary.onlineNodes)}/${formatNumber(summary.totalNodes)}`} subtitle="Details" />
+        <MetricCard title="Draining Nodes" value={formatNumber(summary.drainingNodes)} subtitle=" / Drain " />
         <MetricCard title="Total Agents" value={formatNumber(summary.totalAgents)} subtitle="Cluster aggregated agents" />
         <MetricCard title="Queue / Active" value={`${formatNumber(summary.queueSize)}/${formatNumber(summary.activeTasks)}`} subtitle="Aggregated queue / active" />
       </div>
@@ -40,7 +40,7 @@ export function ClusterTopologyPanel() {
       <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Cluster Topology</h2>
-          <p className="mt-1 text-sm text-slate-500">節點角色、Drain 狀態、Agent / Task 聚合統計與 peer relation / heartbeat 狀態。SELF 是目前處理 Admin API request 的入口節點；REMOTE 是由 SELF 節點透過 cluster sync 聚合回來的其它節點。</p>
+          <p className="mt-1 text-sm text-slate-500">Drain Status,Agent / Task  peer relation / heartbeat Status.SELF is currentprocess Admin API request REMOTE is by SELF  cluster sync </p>
         </div>
         <RefreshButton refreshing={refreshing} lastUpdatedAt={lastMetricsAt ?? lastUpdatedAt ?? data.generatedAt} onRefresh={refresh} />
       </div>
@@ -81,7 +81,7 @@ export function ClusterTopologyPanel() {
             </div>
 
             <div className="mt-4 text-xs text-slate-500">
-              Last heartbeat：{formatDateTime(node.lastHeartbeatAt)}
+              Last heartbeat:{formatDateTime(node.lastHeartbeatAt)}
             </div>
             <div className="mt-2"><MetricTimestampBadge timestamp={node.metrics.timestamp} label="Metrics" /></div>
           </Link>

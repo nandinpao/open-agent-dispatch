@@ -39,7 +39,7 @@ function DiagnosticTable({ title, description, probes }: Readonly<{ title: strin
         <p className="mt-1 text-sm text-slate-500">{description}</p>
       </div>
       {probes.length === 0 ? (
-        <div className="p-5"><EmptyState title="No probes" description="此分類沒有設定檢查項目。" /></div>
+        <div className="p-5"><EmptyState title="No probes" description="No data is currently available.Configuration check" /></div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -79,9 +79,9 @@ function DiagnosticTable({ title, description, probes }: Readonly<{ title: strin
 export function ClusterDiagnosticsPanel() {
   const { data, loading, refreshing, error, lastUpdatedAt, refresh } = useClusterDiagnostics();
 
-  if (loading) return <LoadingBox label="檢查 Cluster/Admin API capabilities..." />;
+  if (loading) return <LoadingBox label=" Cluster/Admin API capabilities..." />;
   if (error) return <ErrorBox message={error} />;
-  if (!data) return <EmptyState title="沒有 diagnostics report" description="前端尚未取得 API diagnostics 結果。" />;
+  if (!data) return <EmptyState title="No data is currently available. diagnostics report" description="Not available yet API diagnostics Result." />;
 
   const grouped = groupByScope(data.probes);
 
@@ -93,12 +93,12 @@ export function ClusterDiagnosticsPanel() {
         <div>
           <h2 className="text-lg font-bold text-slate-900">API Capability Diagnostics</h2>
           <p className="mt-1 text-sm text-slate-500">
-            這裡直接檢查 Admin UI 實際使用的 API：cluster aggregation、local fallback、events local scope 與 health。可用來判斷畫面缺資料是後端未提供、API 不可用，還是前端 fallback 到 local scope。
+             Admin UI  API:cluster aggregation,local fallback,events local scope and healthAPI  fallback to local scope.
           </p>
           <div className="mt-3 grid gap-1 text-xs text-slate-500 md:grid-cols-2">
-            <div>Resolved API base：{data.adminApiBaseUrl}</div>
-            <div>Resolved WebSocket：{data.adminWebSocketUrl}</div>
-            <div>Generated：{formatDateTime(data.generatedAt)}</div>
+            <div>Resolved API base:{data.adminApiBaseUrl}</div>
+            <div>Resolved WebSocket:{data.adminWebSocketUrl}</div>
+            <div>Generated:{formatDateTime(data.generatedAt)}</div>
           </div>
         </div>
         <RefreshButton refreshing={refreshing} lastUpdatedAt={lastUpdatedAt ?? data.generatedAt} onRefresh={refresh} />
@@ -113,12 +113,12 @@ export function ClusterDiagnosticsPanel() {
 
       <DiagnosticTable
         title="Cluster Aggregation APIs"
-        description="這些 API 應由目前 SELF Gateway 彙整其它節點資料；若 unavailable，相關頁面會 fallback 或顯示 local scope。"
+        description=" API  SELF Gateway  unavailable fallback or display local scope."
         probes={grouped.CLUSTER}
       />
       <DiagnosticTable
         title="Local / SELF Node APIs"
-        description="這些 API 只代表目前處理 request 的 local node，不應被解讀為整個 cluster 的完整資料。"
+        description=" API  request  local node cluster "
         probes={[...grouped.ADMIN, ...grouped.LOCAL]}
       />
     </div>

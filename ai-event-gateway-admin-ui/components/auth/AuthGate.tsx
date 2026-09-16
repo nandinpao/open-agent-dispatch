@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { getPublicEnv } from '@/lib/constants/env';
 
-function AuthLoadingBox({ message = '正在檢查登入狀態...' }: Readonly<{ message?: string }>) {
+function AuthLoadingBox({ message = 'Status...' }: Readonly<{ message?: string }>) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-8">
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
@@ -19,14 +19,15 @@ function AuthLoadingBox({ message = '正在檢查登入狀態...' }: Readonly<{ 
 export function AuthGate({ children }: Readonly<{ children: ReactNode }>) {
   const env = getPublicEnv();
   const pathname = usePathname();
-  const { status } = useAuth();
+  const { status, refreshCurrentUser } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!env.authEnabled || env.useMock || pathname === '/login') {
+  const publicRoute = ['/login', '/setup', '/forgot-password', '/reset-password'].some((route) => pathname === route || pathname.startsWith(`${route}/`));
+  if (!env.authEnabled || env.useMock || publicRoute) {
     return <>{children}</>;
   }
 
@@ -36,8 +37,29 @@ export function AuthGate({ children }: Readonly<{ children: ReactNode }>) {
     return <AuthLoadingBox />;
   }
 
+  if (status === 'SERVICE_UNAVAILABLE') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-8">
+        <div className="max-w-lg rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
+          <h1 className="text-lg font-black text-slate-950">Administration session temporarily unavailable</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Your browser was not signed out. The Session or authorization service could not complete
+            the validation request. Retry after the service is ready.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refreshCurrentUser()}
+            className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white"
+          >
+            Retry session validation
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (status === 'UNAUTHENTICATED') {
-    return <AuthLoadingBox message="尚未登入，正在導向登入頁..." />;
+    return <AuthLoadingBox message="Redirecting to sign in…" />;
   }
 
   return <>{children}</>;

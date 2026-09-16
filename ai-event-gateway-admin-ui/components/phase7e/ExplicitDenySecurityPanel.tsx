@@ -1,0 +1,3 @@
+'use client';
+import { explicitDenyExperience } from '@/lib/phase7e/iamResourceAccessUx';
+export function ExplicitDenySecurityPanel({ severity, state='DRAFT' }: Readonly<{ severity:string; state?:string }>) { const experience=explicitDenyExperience(severity,state); return <section className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-950"><div className="flex items-center gap-2 font-black"><span aria-hidden="true">🔒</span>{experience.title}</div><p className="mt-2 leading-6">{experience.authorityEffect}</p><p className="mt-2 text-xs font-semibold">Independent approval is required{experience.requiresStepUp?' and backend policy may require step-up authentication':''}. Status is communicated by label and icon, not color alone.</p></section> }

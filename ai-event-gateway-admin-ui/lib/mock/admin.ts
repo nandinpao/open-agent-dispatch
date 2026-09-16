@@ -252,7 +252,7 @@ const capabilityTemplates = {
     {
       capabilityId: 'tool-call',
       name: 'Tool Call Dispatcher',
-      description: '支援由 Gateway 派發工具呼叫請求，適合串 MCP / A2A adapter。',
+      description: ' Gateway Review the configuration and try again. MCP / A2A adapter.',
       status: 'ENABLED' as const,
       version: '1.0.0',
       supportedActions: ['ANALYZE_QUALITY_EXCEPTION', 'QUERY_MCP_TOOL', 'CREATE_ISSUE']
@@ -260,7 +260,7 @@ const capabilityTemplates = {
     {
       capabilityId: 'stream-status',
       name: 'Streaming Status',
-      description: '支援將 Agent 執行狀態即時回報給 Netty WebSocket。',
+      description: ' Agent runStatus Netty WebSocket.',
       status: 'ENABLED' as const,
       version: '1.0.0',
       supportedActions: ['STATUS_BUSY', 'STATUS_IDLE', 'STATUS_FAILED']
@@ -270,7 +270,7 @@ const capabilityTemplates = {
     {
       capabilityId: 'risk-check',
       name: 'Risk Check',
-      description: '支援 ERP / 採購 / 庫存風險初判。',
+      description: ' ERP /  / ',
       status: 'DEGRADED' as const,
       version: '0.9.5',
       supportedActions: ['CHECK_PO_RISK', 'CHECK_VENDOR_RISK']
@@ -280,7 +280,7 @@ const capabilityTemplates = {
     {
       capabilityId: 'tool-sync',
       name: 'Tool Sync',
-      description: '同步 Agent 本地工具狀態與 Gateway Registry。',
+      description: ' Agent Statusand Gateway Registry.',
       status: 'ENABLED' as const,
       version: '0.8.0',
       supportedActions: ['SYNC_TOOL_STATUS', 'HEALTH_CHECK']
@@ -290,7 +290,7 @@ const capabilityTemplates = {
     {
       capabilityId: 'qa-check',
       name: 'Custom QA Check',
-      description: '企業客製化品質檢查能力。',
+      description: 'Details',
       status: 'ENABLED' as const,
       version: '0.1.0',
       supportedActions: ['CHECK_APPROVAL_TIMEOUT', 'CHECK_CUSTOM_RULE']

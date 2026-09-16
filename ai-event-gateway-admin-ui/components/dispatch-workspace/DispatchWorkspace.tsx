@@ -1,14 +1,18 @@
 'use client';
+import { createUuid } from '@/lib/utils/uuid';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useUiEntitlements } from '@/lib/navigation/useUiEntitlements';
+import { actionAllowed } from '@/lib/navigation/uiEntitlements';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { coreAdminApi } from '@/lib/api/coreAdminApi';
 import { ApiError } from '@/lib/api/client';
 import type { CoreAgentPoolView, CoreDispatchFlowAgentOptionView, CoreDispatchFlowView, CoreDispatchSimulationResponse, CoreEventIntakeDecisionResponse, CoreSourceSystem } from '@/lib/types/core';
 import { DispatchWorkspaceSections } from './DispatchWorkspaceSections';
+import { CreateSourceFlowDialog, type CreateSourceFlowInput } from './CreateSourceFlowDialog';
 import { DispatchSetupChecklist } from './DispatchSetupChecklist';
 import {
   type DispatchWorkspaceQuery,
@@ -17,6 +21,9 @@ import {
   sectionState,
 } from './dispatchWorkspaceModel';
 import { SourceFlowMasterList } from './SourceFlowMasterList';
+import { BeginnerGuideButton } from '@/components/resource-scope/EnterpriseAccessUi';
+import { SourceSystemOnboardingDialog, type SourceSystemOnboardingResult } from '@/components/source-systems/SourceSystemOnboardingDialog';
+import { IssueTrackingContextCard } from '@/components/integrations/IssueTrackingContextCard';
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message || fallback;
@@ -36,21 +43,18 @@ function buildWorkspaceHref(pathname: string, sourceSystem?: string | null, flow
   return text ? `${pathname}?${text}` : pathname;
 }
 
-function normalizeCode(value: string | undefined | null): string {
-  return String(value ?? '').trim().toUpperCase().replace(/[^A-Z0-9_\-.]/g, '_').replace(/^_+|_+$/g, '');
-}
 
 function generateId(prefix: string): string {
-  const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  return `${prefix}-${suffix}`;
+  return `${prefix}-${createUuid()}`;
 }
 
 export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: DispatchWorkspaceQuery }> = {}) {
   const router = useRouter();
   const pathname = usePathname();
-  const { selectedTenantId } = useAuth();
+  const { activeTenantId: selectedTenantId } = useAuth();
+  const entitlements = useUiEntitlements();
+  const canCreateFlow = actionAllowed(entitlements.value, 'dispatch.create');
+  const canCreateSource = actionAllowed(entitlements.value, 'source-systems.create');
   const tenantId = selectedTenantId ?? '';
 
   const [sourceSystems, setSourceSystems] = useState<CoreSourceSystem[]>([]);
@@ -70,6 +74,8 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [setupChecklistOpen, setSetupChecklistOpen] = useState(true);
+  const [createFlowOpen, setCreateFlowOpen] = useState(() => queryValue(initialQuery, 'create') === '1');
+  const [createSourceOpen, setCreateSourceOpen] = useState(false);
   const [latestSimulationResult, setLatestSimulationResult] = useState<CoreDispatchSimulationResponse | null>(null);
   const [latestRealTestResult, setLatestRealTestResult] = useState<CoreEventIntakeDecisionResponse | null>(null);
 
@@ -90,7 +96,7 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
     try {
       setSourceSystems(await coreAdminApi.getSourceSystems(tenantId));
     } catch (caught) {
-      setSourceError(apiErrorMessage(caught, '來源系統載入失敗。'));
+      setSourceError(apiErrorMessage(caught, 'Failed to load Source Systems.'));
       setSourceSystems([]);
     } finally {
       setSourceLoading(false);
@@ -107,7 +113,7 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
     try {
       setFlows(await coreAdminApi.getDispatchFlows(tenantId));
     } catch (caught) {
-      setFlowError(apiErrorMessage(caught, 'Source Flow 載入失敗。'));
+      setFlowError(apiErrorMessage(caught, 'Source Flow Loading failed.'));
       setFlows([]);
     } finally {
       setFlowLoading(false);
@@ -124,7 +130,7 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
     try {
       setPools(await coreAdminApi.getAgentPools(tenantId));
     } catch (caught) {
-      setPoolError(apiErrorMessage(caught, 'Agent Pool 載入失敗。'));
+      setPoolError(apiErrorMessage(caught, 'Agent Pool Loading failed.'));
       setPools([]);
     } finally {
       setPoolLoading(false);
@@ -141,7 +147,7 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
     try {
       setAgents(await coreAdminApi.getDispatchFlowAgentOptions(tenantId));
     } catch (caught) {
-      setAgentError(apiErrorMessage(caught, 'Agent 清單載入失敗。'));
+      setAgentError(apiErrorMessage(caught, 'Failed to load Agents.'));
       setAgents([]);
     } finally {
       setAgentLoading(false);
@@ -201,18 +207,56 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
     persistSelection(sourceSystem, flowId);
   }
 
-  async function handleCreateFlow() {
+  function openCreateSourceDialog() {
+    setActionError(null);
+    setActionMessage(null);
+    if (!canCreateSource) { setActionError('Your current access does not allow Source System creation.'); return; }
+    setCreateSourceOpen(true);
+  }
+
+  function handleSourceCreated(result: SourceSystemOnboardingResult) {
+    setSourceSystems((current) => current.some((item) => item.sourceSystemId === result.source.sourceSystemId) ? current : [...current, result.source].sort((left, right) => left.sourceSystemId.localeCompare(right.sourceSystemId)));
+    setSelectedSourceSystem(result.source.sourceSystemId);
+    setSelectedFlowId(null);
+    persistSelection(result.source.sourceSystemId, null);
+    setActionMessage(`${result.source.displayName} and its default Intake are ready. Create the Source Flow next; machine secrets remain governed by Machine Access.`);
+  }
+
+  function openCreateFlowDialog() {
+    setActionError(null);
+    setActionMessage(null);
+    if (!canCreateFlow) { setActionError('Your current access does not allow Source Flow creation.'); return; }
+    setCreateFlowOpen(true);
+  }
+
+  function closeCreateFlowDialog() {
+    setCreateFlowOpen(false);
+    setActionError(null);
+    router.replace(buildWorkspaceHref(pathname, selectedSourceSystem, selectedFlowId), { scroll: false });
+  }
+
+  async function handleCreateFlow(input: CreateSourceFlowInput) {
     const scopedTenantId = tenantId.trim();
     if (!scopedTenantId) {
-      setActionError('請先選擇 Workspace。');
+      setActionError('Select a Workspace first.');
       return;
     }
-    const sourceSystem = selectedSourceSystem ?? sourceSystems[0]?.sourceSystemId ?? flows[0]?.sourceSystem ?? '';
-    if (!sourceSystem) {
-      setActionError('請先建立來源系統，再建立 Source Flow。');
+    const sourceSystem = input.sourceSystem.trim();
+    const flowCode = input.flowCode.trim();
+    const flowName = input.flowName.trim();
+    if (!sourceSystem || !flowCode || !flowName) {
+      setActionError('Source System, Flow Code, and Flow Name are required.');
       return;
     }
-    const normalizedSource = normalizeCode(sourceSystem);
+    if (!sourceSystems.some((source) => source.sourceSystemId === sourceSystem)) {
+      setActionError('Select a valid Source System before creating the Source Flow.');
+      return;
+    }
+    if (flows.some((flow) => String(flow.flowCode ?? '').trim().toUpperCase() === flowCode.toUpperCase())) {
+      setActionError(`Flow Code ${flowCode} already exists in this Workspace.`);
+      return;
+    }
+
     const flowId = generateId('flow');
     setActionBusy(true);
     setActionError(null);
@@ -221,27 +265,33 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
       const saved = await coreAdminApi.createDispatchFlow({
         tenantId: scopedTenantId,
         flowId,
-        flowCode: `${normalizedSource}_DEFAULT_FLOW`,
-        flowName: `${normalizedSource} 預設派工`,
+        flowCode,
+        flowName,
         sourceSystem,
         flowType: 'SOURCE_FLOW',
+        defaultPoolId: input.defaultPoolId || undefined,
         status: 'DRAFT',
         defaultCandidatePoolMode: 'AGENT_POOL',
-        defaultRoutingStrategy: 'LOWEST_LOAD',
-        description: '未符合特殊分類規則的事件會進入此 Source Flow 的 Default Pool。',
+        defaultRoutingStrategy: input.defaultRoutingStrategy || 'LOWEST_LOAD',
+        defaultIssueSyncPolicy: input.defaultIssueSyncPolicy,
+        evidenceMutationSource: 'ADMIN_UI_CREATE_SOURCE_FLOW',
+        description: input.description.trim() || undefined,
         rules: [],
         metadata: {
           routingModel: 'AGENT_POOL_FIRST',
           adminUiEditor: 'DISPATCH_WORKSPACE_FLOW_EDITOR',
         },
       }, scopedTenantId);
+      setCreateFlowOpen(false);
       setSelectedSourceSystem(saved.sourceSystem ?? sourceSystem);
       setSelectedFlowId(saved.flowId);
       persistSelection(saved.sourceSystem ?? sourceSystem, saved.flowId);
-      setActionMessage('Source Flow 已建立，請指定 Default Pool。');
+      setActionMessage(saved.defaultPoolId
+        ? 'Source Flow Draft created. Review Pool Members and runtime eligibility before activation.'
+        : 'Source Flow Draft created. Assign a Default Agent Pool before activation.');
       reload();
     } catch (caught) {
-      setActionError(apiErrorMessage(caught, 'Source Flow 建立失敗。'));
+      setActionError(apiErrorMessage(caught, 'Source Flow creation failed.'));
     } finally {
       setActionBusy(false);
     }
@@ -253,30 +303,51 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
 
   return (
     <section className="space-y-6">
+      <SourceSystemOnboardingDialog
+        open={createSourceOpen}
+        tenantId={tenantId}
+        existingSources={sourceSystems}
+        onClose={() => setCreateSourceOpen(false)}
+        onCreated={handleSourceCreated}
+      />
+      <CreateSourceFlowDialog
+        open={createFlowOpen}
+        sourceSystems={sourceSystems}
+        flows={flows}
+        pools={pools}
+        initialSourceSystem={selectedSourceSystem ?? queryValue(initialQuery, 'sourceSystem') ?? null}
+        busy={actionBusy}
+        error={createFlowOpen ? actionError : null}
+        onClose={closeCreateFlowDialog}
+        onCreateSource={openCreateSourceDialog}
+        onSubmit={(input) => { void handleCreateFlow(input); }}
+      />
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-xs font-black uppercase tracking-wide text-purple-700">Dispatch Workspace</div>
-            <h1 className="mt-1 text-2xl font-black text-slate-950">派工設定</h1>
+            <h1 className="mt-1 text-2xl font-black text-slate-950">Dispatch</h1>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
-              本工作區採 Source System / Source Flow 主導設計，並提供互動式設定檢查，協助管理員依序完成來源系統、Agent、工作池、Source Flow、Runtime、派工模擬與真實測試事件。Current setup path：來源系統 → Source Flow → Agent Pool → Pool Member Agent。
+              Configure the whole dispatch path in one workspace: Source System → Classification → Required Capability → Agent Pool → Preview → Activate & Live Test.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button tone="primary" onClick={() => { void handleCreateFlow(); }} disabled={actionBusy || !tenantId.trim()}>建立 Source Flow</Button>
-            <Button onClick={reload} disabled={allLoading}>{allLoading ? '載入中' : '重新整理'}</Button>
+            <BeginnerGuideButton title="Dispatch setup from one workspace" description="The normal path stays on this page. Use inline selectors, drawers and dialogs; engineering diagnostics stay collapsed unless you need them." steps={[{title:'1. Source and classify the work',description:'Choose the Source System, then add clear classification rules for the work this Flow should handle.'},{title:'2. Choose capability and Agent Pool',description:'Select Canonical Capabilities when needed, then choose the Pool and add approved Agents.'},{title:'3. Preview, activate and verify',description:'Run a side-effect-free preview, activate only when ready, check the live path, then send one governed test event.'}]} />
+            {canCreateSource ? <Button tone="secondary" onClick={openCreateSourceDialog} disabled={actionBusy || !tenantId.trim()}>+ Source System</Button> : null}
+            {canCreateFlow ? <Button tone="primary" onClick={openCreateFlowDialog} disabled={actionBusy || !tenantId.trim()}>Create a Source Flow</Button> : null}
+            <Button onClick={reload} disabled={allLoading}>{allLoading ? 'Loading' : 'Refresh'}</Button>
           </div>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-4">
-          <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs font-black text-slate-500">來源系統</div><div className="mt-1 text-2xl font-black text-slate-950">{sourceSystems.length || Array.from(new Set(flows.map((flow) => flow.sourceSystem).filter(Boolean))).length}</div></div>
+          <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs font-black text-slate-500">Source Systems</div><div className="mt-1 text-2xl font-black text-slate-950">{sourceSystems.length || Array.from(new Set(flows.map((flow) => flow.sourceSystem).filter(Boolean))).length}</div></div>
           <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs font-black text-slate-500">Source Flow</div><div className="mt-1 text-2xl font-black text-slate-950">{flows.length}</div></div>
-          <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs font-black text-slate-500">目前來源 Flow</div><div className="mt-1 text-2xl font-black text-slate-950">{selectedSourceFlowCount}</div></div>
-          <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs font-black text-slate-500">工作池</div><div className="mt-1 text-2xl font-black text-slate-950">{pools.length}</div></div>
+          <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs font-black text-slate-500">Selected Source Flows</div><div className="mt-1 text-2xl font-black text-slate-950">{selectedSourceFlowCount}</div></div>
+          <div className="rounded-2xl bg-slate-50 p-4"><div className="text-xs font-black text-slate-500">Agent Pool</div><div className="mt-1 text-2xl font-black text-slate-950">{pools.length}</div></div>
         </div>
       </section>
 
       {!tenantId.trim() ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">請先選擇 Workspace，才會載入來源系統、Source Flow 與 Agent Pool。</div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">No active workspace is available. Sign in again or ask an administrator to review your Tenant membership before managing Source Systems, Source Flows, and Agent Pools.</div>
       ) : null}
 
       {actionMessage ? (
@@ -289,7 +360,7 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
 
       {(sourceError || flowError || poolError) ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-900">
-          {[sourceError, flowError, poolError].filter(Boolean).join('；')}
+          {[sourceError, flowError, poolError].filter(Boolean).join(';')}
         </div>
       ) : null}
 
@@ -306,7 +377,8 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
         agentError={agentError}
         simulationResult={latestSimulationResult}
         realTestResult={latestRealTestResult}
-        onCreateFlow={() => { void handleCreateFlow(); }}
+        onCreateSource={openCreateSourceDialog}
+        onCreateFlow={openCreateFlowDialog}
         onToggleOpen={() => setSetupChecklistOpen((current) => !current)}
       />
 
@@ -325,6 +397,7 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
           onSelectSource={handleSelectSource}
           onSelectFlow={handleSelectFlow}
           onRefresh={reload}
+          onCreateSource={canCreateSource ? openCreateSourceDialog : undefined}
         />
         <section className="min-w-0 space-y-5">
           {selectedFlow ? (
@@ -333,11 +406,18 @@ export function DispatchWorkspace({ initialQuery }: Readonly<{ initialQuery?: Di
                 <div>
                   <div className="text-xs font-black uppercase tracking-wide text-purple-700">Selected Source Flow</div>
                   <h2 className="mt-1 text-2xl font-black text-slate-950">{flowDisplay(selectedFlow)}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">URL 會保存目前選取的 sourceSystem 與 flowId，重新整理後仍回到同一個工作區上下文。</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Complete the business setup here. Advanced routing internals and migration evidence stay collapsed unless an engineer needs them.</p>
                 </div>
                 <StatusBadge status={selectedFlow.status ?? 'DRAFT'} />
               </div>
             </div>
+          ) : null}
+          {selectedFlow ? (
+            <IssueTrackingContextCard
+              title="Issue Tracking · inherited from Source System"
+              configure={false}
+              contexts={[{ sourceSystemId: selectedFlow.sourceSystem ?? '', taskType: null }]}
+            />
           ) : null}
           <DispatchWorkspaceSections
             flow={selectedFlow}

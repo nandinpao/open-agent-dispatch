@@ -56,7 +56,7 @@ export function AgentDuplicateRuntimeSecurityPanel({
         <div>
           <h2 className="text-base font-bold text-slate-900">Duplicate Runtime Security Enforcement</h2>
           <p className="mt-1 text-sm text-slate-500">
-            同一 Agent ID 出現在多個 runtime sessions 時，應視為 credential reuse / split-brain / 舊 session 未清除的安全事件。
+             Agent ID  runtime sessions  credential reuse / split-brain /  session Event details
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -67,14 +67,14 @@ export function AgentDuplicateRuntimeSecurityPanel({
       </div>
 
       {!profile ? (
-        <EmptyState title="Core profile missing" description="尚未有 Core Agent profile，無法執行 quarantine 或 credential rotation workflow。" />
+        <EmptyState title="Core profile missing" description="Not yet has Core Agent profile quarantine or credential rotation workflow." />
       ) : (
         <div className="space-y-4">
           {latestAutoEvent ? (
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
               <div className="font-bold">Netty auto-detection event: {latestAutoEvent.eventType}</div>
               <div className="mt-1">
-                Mode: {latestAutoEventMode}. Gateway: {latestAutoEvent.gatewayNodeId ?? '-'}。Occurred: {formatDateTime(latestAutoEvent.occurredAt)}。
+                Mode: {latestAutoEventMode}. Gateway: {latestAutoEvent.gatewayNodeId ?? '-'}.Occurred: {formatDateTime(latestAutoEvent.occurredAt)}.
               </div>
               {latestAutoEvent.reason ? <div className="mt-1 text-blue-800">Reason: {latestAutoEvent.reason}</div> : null}
             </div>
@@ -84,12 +84,12 @@ export function AgentDuplicateRuntimeSecurityPanel({
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
               <div className="font-bold">Duplicate runtime detected: {connected.length} connected sessions</div>
               <div className="mt-1">
-                Nodes: {Array.from(new Set(connected.map(nodeIdOf))).join(', ') || '-'}。建議執行安全處置：quarantine、disconnect all、必要時 revoke credentials，然後發行新 credential。
+                Nodes: {Array.from(new Set(connected.map(nodeIdOf))).join(', ') || '-'}quarantine,disconnect all revoke credentials credential.
               </div>
             </div>
           ) : (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-              目前沒有偵測到 duplicate connected sessions。若先前已 quarantine，請確認 credential rotation 已部署後再 resolve。
+              No data is currently available. duplicate connected sessions quarantine, Verify credential rotation  resolve.
             </div>
           )}
 
@@ -140,9 +140,9 @@ export function AgentDuplicateRuntimeSecurityPanel({
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <div className="font-bold">Recommended workflow</div>
             <ol className="mt-2 list-decimal space-y-1 pl-5">
-              <li>Enforce Security：Core 將 Agent 風險標記為 QUARANTINED、enabled=false，並執行 disconnect-all。</li>
-              <li>Rotate Credential：在下方發行新 token，部署到唯一合法的 OpenClaw runtime。</li>
-              <li>Resolve：確認新 credential 的 issuedAt 晚於 quarantine timestamp，且舊 runtime 不再連線後，將風險恢復 NORMAL 並重新 enabled。</li>
+              <li>Enforce Security:Core  Agent  QUARANTINED,enabled=false, and run disconnect-all.</li>
+              <li>Rotate Credential token OpenClaw runtime.</li>
+              <li>Resolve credential  issuedAt  quarantine timestamp runtime  NORMAL  enabled.</li>
             </ol>
           </div>
 
@@ -174,7 +174,7 @@ export function AgentDuplicateRuntimeSecurityPanel({
             </button>
             {quarantined && credentialActive && !rotatedAfterQuarantine ? (
               <div className="basis-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Resolve 被鎖定：Core 要求 active credential 必須是在 quarantine 之後重新發行，避免使用舊 token 直接解除隔離。
+                Resolve Core  active credential mustis in quarantine  token 
               </div>
             ) : null}
           </div>

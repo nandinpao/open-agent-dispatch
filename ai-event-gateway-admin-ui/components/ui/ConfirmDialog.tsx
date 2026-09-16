@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 
 export type ConfirmDialogTone = 'danger' | 'warning' | 'primary' | 'neutral';
 
@@ -43,15 +44,18 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Readonly<ConfirmDialogProps>) {
+  const dialogRef = useDialogAccessibility(open, onCancel);
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6 backdrop-blur-sm" role="presentation">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
-        className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl"
+        className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl outline-none"
       >
         <div className="flex items-start gap-4">
           <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-lg font-black ${iconToneClassMap[tone]}`}>

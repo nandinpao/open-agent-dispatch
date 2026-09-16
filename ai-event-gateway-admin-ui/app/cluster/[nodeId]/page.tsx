@@ -5,7 +5,7 @@ export default async function ClusterNodeDetailPage({ params }: { params: Promis
   const { nodeId } = await params;
   return (
     <main className="space-y-5">
-      <LegacyRuntimePlaneNotice compact description="此節點明細仍是 Netty cluster/runtime 視角，適合觀察 Gateway node、local agents、local tasks 與 runtime metrics；Agent 審核與 Task 權威狀態請回到 Core/dual-plane 頁面確認。" />
+      <LegacyRuntimePlaneNotice compact description="This legacy view shows a Netty gateway node, local Agents, local Tasks, and runtime metrics. Return to Core for authoritative Agent and Task status." />
       <ClusterNodeDetailView nodeId={decodeURIComponent(nodeId)} />
     </main>
   );

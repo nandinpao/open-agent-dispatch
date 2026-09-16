@@ -136,10 +136,10 @@ export function deriveAgentRuntimeWarning(row: AgentDashboardRow): string | null
     return 'Runtime observed this Agent, but Core has no governance profile. Treat as ungoverned/high-risk until an enrollment is reviewed and approved.';
   }
   if (row.profile && row.runtime?.connected && row.profile.approvalStatus !== 'APPROVED') {
-    return 'Agent 已連線，但 Core 審核狀態不是 APPROVED。請檢查授權流程或 runtime cache。';
+    return 'Agent  Core Statusnot is APPROVEDReview the configuration and try again. runtime cache.';
   }
   if (row.profile && row.runtime?.connected && !row.profile.enabled) {
-    return 'Agent 已連線，但 Core enabled=false。Netty 應斷線或拒絕後續 delivery。';
+    return 'Agent  Core enabled=false.Netty  delivery.';
   }
   return null;
 }

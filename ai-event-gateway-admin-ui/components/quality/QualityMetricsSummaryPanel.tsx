@@ -164,7 +164,7 @@ export function QualityMetricsSummaryPanel({
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-      <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-1 text-xl font-black text-slate-950">{value}</p>
     </div>
   );

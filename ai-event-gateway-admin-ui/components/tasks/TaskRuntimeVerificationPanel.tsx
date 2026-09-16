@@ -26,10 +26,10 @@ function shortJson(value?: Record<string, unknown>) {
 
 export function TaskRuntimeVerificationPanel({ verification, error, onRetry, retrying }: Readonly<Props>) {
   if (error) {
-    return <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">Runtime E2E Verification 讀取失敗：{error}</section>;
+    return <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">Runtime E2E Verification Failed to load: {error}</section>;
   }
   if (!verification) {
-    return <section className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">尚未取得 Runtime E2E Verification。</section>;
+    return <section className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">Not available yet Runtime E2E Verification.</section>;
   }
 
   const agentHref = verification.selectedAgentId ? `/agents/${encodeURIComponent(verification.selectedAgentId)}?tab=diagnostics` : "/agents";
@@ -43,7 +43,7 @@ export function TaskRuntimeVerificationPanel({ verification, error, onRetry, ret
           <div className="text-xs font-black uppercase tracking-wide text-indigo-700">P6 Runtime Delivery E2E Verification</div>
           <h2 className="mt-1 text-lg font-black text-slate-950">Contract → Test Task → Routing → Delivery → ACK → RESULT</h2>
           <p className="mt-1 max-w-4xl text-sm leading-6 text-slate-600">
-            以 Task 為中心追蹤 Runtime 實際投遞鏈，逾時或失敗時標出卡在哪一段，並提供 Retry / Recovery / Agent Diagnostics 入口。
+            Task runtime verification failed. Review runtime evidence and use governed remediation from Agent Assignment.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

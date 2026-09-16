@@ -7,4 +7,5 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
-docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --build
+python3 ../scripts/release/verify-production-image-refs.py --env-file "$ENV_FILE" --required AI_EVENT_GATEWAY_ADMIN_UI_IMAGE --required NGINX_IMAGE
+docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d

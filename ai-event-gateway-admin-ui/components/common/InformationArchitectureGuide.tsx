@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { adminInformationLayers, getAdminInformationLayer, type AdminInformationLayerId } from '@/lib/navigation/adminInformationArchitecture';
+import type { AdminInformationLayerId } from '@/lib/navigation/adminInformationArchitecture';
+import { adminPublicInformationLayers, getAdminPublicInformationLayer } from '@/lib/navigation/adminInformationArchitecturePublic';
 import { canAccessAdminUiMode, getAdminUiModeOption } from '@/lib/navigation/adminUiMode';
 import { useAdminUiMode } from '@/hooks/useAdminUiMode';
 
@@ -28,7 +29,7 @@ export function InformationArchitectureGuide({
   const { mode, setMode } = useAdminUiMode();
 
   if (compact && activeLayer) {
-    const layer = getAdminInformationLayer(activeLayer);
+    const layer = getAdminPublicInformationLayer(activeLayer);
     const hasAccess = canAccessAdminUiMode(mode, layer.requiredMode);
     const modeOption = getAdminUiModeOption(layer.requiredMode);
     return (
@@ -48,7 +49,7 @@ export function InformationArchitectureGuide({
             ) : null}
           </div>
           <Link href="/dashboard" className="shrink-0 rounded-xl border border-blue-300 bg-white px-3 py-2 text-xs font-bold text-blue-800 hover:bg-blue-100">
-            查看三層總覽 →
+            View detailsDashboard →
           </Link>
         </div>
       </section>
@@ -60,17 +61,17 @@ export function InformationArchitectureGuide({
       <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-blue-600">Admin UI Information Architecture</p>
-          <h2 className="mt-1 text-xl font-black text-slate-950">先判斷資料層，再判斷操作</h2>
+          <h2 className="mt-1 text-xl font-black text-slate-950">Identify the authority plane before choosing an action</h2>
           <p className="mt-2 max-w-5xl text-sm leading-6 text-slate-600">
             The left navigation is intentionally limited to the daily operator workflow: Dashboard, Dispatch Flows, Agents, Tasks, Issues & Events, and System Settings. Internal catalogs, standalone Dispatch Rules, legacy tools, migration screens, and developer diagnostics are supporting pages.
           </p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600">
-          Core = 權威狀態；Netty = transport 診斷；兩者不可互相覆蓋。
+          Core is the authoritative control plane; Netty is the runtime transport plane.
         </div>
       </div>
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {adminInformationLayers.map((layer) => {
+        {adminPublicInformationLayers.map((layer) => {
           const active = activeLayer === layer.id;
           const accessible = canAccessAdminUiMode(mode, layer.requiredMode);
           const visibleLinks = layer.primaryLinks.filter((item) => canAccessAdminUiMode(mode, item.requiredMode));

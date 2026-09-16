@@ -1,0 +1,7 @@
+import Link from 'next/link';
+import { AdminUiModeNotice } from '@/components/common/AdminUiModeNotice';
+import { EntitlementPageGuard } from '@/components/auth/EntitlementPageGuard';
+
+export default function DispatchSimulatorCompatibilityPage() {
+  return <EntitlementPageGuard featureId="dispatch"><main className="space-y-6"><AdminUiModeNotice requiredMode="advanced" title="Dispatch simulator compatibility route" description="The former standalone dispatch simulator is no longer an authority surface. This compatibility route remains addressable for existing operational links." /><section className="rounded-3xl border border-amber-200 bg-amber-50 p-6"><h1 className="text-xl font-black text-slate-950">Simulation is evidence only</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">Use Dispatch Flows to inspect current routing configuration. Use the Resource Access Decision Simulator to explain authorization. Neither simulator can publish or replace current routing, authorization, assignment, or execution authority.</p><div className="mt-5 flex flex-wrap gap-3"><Link href="/dispatch-flows" className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Open Dispatch Flows →</Link><Link href="/resource-access/decision-simulator" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-800">Open Decision Simulator →</Link></div></section></main></EntitlementPageGuard>;
+}

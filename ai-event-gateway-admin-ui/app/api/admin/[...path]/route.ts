@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * Legacy Admin API compatibility route.
  *
  * `/api/admin/*` remains the Netty runtime-plane compatibility namespace.
- * Human authentication now uses `/api/auth/*`, which is proxied to Core by default.
+ * Human authentication now uses `/api/session/*`, which is proxied to Core by default.
  * This route must never handle browser login or expose browser bearer tokens.
  */
 function proxy(request: NextRequest, context: { params: Promise<{ path?: string[] }> }) {

@@ -47,7 +47,7 @@ export function RuntimeFeatureCardSelector({
                   <div className="text-sm font-black text-slate-900">{feature.featureName || feature.featureCode}</div>
                   <div className="mt-1 font-mono text-xs text-slate-500">{feature.featureCode}</div>
                 </div>
-                <span className={`rounded-full px-2 py-1 text-[10px] font-black ${checked ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{checked ? 'SELECTED' : feature.status ?? 'ACTIVE'}</span>
+                <span className={`rounded-full px-2 py-1 text-xs font-black ${checked ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{checked ? 'SELECTED' : feature.status ?? 'ACTIVE'}</span>
               </div>
               <div className="mt-2 grid gap-1 text-xs text-slate-600">
                 <div>Category: {feature.category || '-'}</div>

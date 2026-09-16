@@ -101,7 +101,7 @@ export function AgentCredentialIssueDialog({
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">{effectiveLabel}</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Agent <span className="font-semibold">{profile.agentId}</span> 需要有效 credential 才能從 Credential missing 進入 Ready 判斷流程。
+                  Agent <span className="font-semibold">{profile.agentId}</span>  credential  Credential missing  Ready 
                 </p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-lg border px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">
@@ -161,7 +161,7 @@ export function AgentCredentialIssueDialog({
             </div>
 
             <div className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">
-              不會憑空補假 credential。日常流程請輸入實際 token，並同步更新 `AGENT_ONBOARDING_TOKEN` / `OPENSOCKET_AGENT_TOKEN` / OpenClaw credential file。Hash / fingerprint 僅為 Advanced compatibility，不代表目前 local 或 OpenClaw runtime 已完成 key-based challenge/signature 驗證。
+               credentialEnter  token `AGENT_ONBOARDING_TOKEN` / `OPENSOCKET_AGENT_TOKEN` / OpenClaw credential file.Hash / fingerprint only is Advanced compatibility local or OpenClaw runtime Completed key-based challenge/signature 
             </div>
 
             {error ? <div className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</div> : null}

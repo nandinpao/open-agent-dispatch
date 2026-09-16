@@ -1,0 +1,92 @@
+pipeline {
+  agent any
+
+  environment {
+    IMAGE_NAME = 'ai-event-gateway-admin-ui'
+    IMAGE_TAG = "${env.BUILD_NUMBER}"
+    NEXT_PUBLIC_APP_NAME = 'AI Event Gateway Admin'
+    NEXT_PUBLIC_ADMIN_BACKEND_MODE = 'dual'
+    NEXT_PUBLIC_USE_MOCK = 'false'
+    NEXT_PUBLIC_AUTH_ENABLED = 'true'
+    NEXT_PUBLIC_CORE_API_BASE_URL = '/core-api'
+    NEXT_PUBLIC_NETTY_API_BASE_URL = '/netty-api'
+    NEXT_PUBLIC_NETTY_RUNTIME_WS_URL = '/api/admin/runtime/stream'
+    NEXT_PUBLIC_GATEWAY_API_BASE_URL = '/netty-api'
+    NEXT_PUBLIC_GATEWAY_WS_URL = '/api/admin/runtime/stream'
+    CORE_BACKEND_ORIGIN = 'http://ai-event-gateway-core:18080'
+    NETTY_BACKEND_ORIGIN = 'http://ai-event-gateway-netty:18081'
+    GATEWAY_BACKEND_ORIGIN = 'http://ai-event-gateway-netty:18081'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+
+    stage('Install') {
+      steps {
+        sh 'npm ci'
+      }
+    }
+
+    stage('Quality Gate') {
+      steps {
+        sh 'npm run typecheck'
+        sh 'npm run lint'
+        sh 'npm run test:normalizers'
+      }
+    }
+
+    stage('Build Next.js') {
+      steps {
+        sh 'npm run build'
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        sh '''
+          docker build \
+            --build-arg NEXT_PUBLIC_APP_NAME="$NEXT_PUBLIC_APP_NAME" \
+            --build-arg NEXT_PUBLIC_ADMIN_BACKEND_MODE="$NEXT_PUBLIC_ADMIN_BACKEND_MODE" \
+            --build-arg NEXT_PUBLIC_USE_MOCK="$NEXT_PUBLIC_USE_MOCK" \
+            --build-arg NEXT_PUBLIC_AUTH_ENABLED="$NEXT_PUBLIC_AUTH_ENABLED" \
+            --build-arg NEXT_PUBLIC_CORE_API_BASE_URL="$NEXT_PUBLIC_CORE_API_BASE_URL" \
+            --build-arg NEXT_PUBLIC_NETTY_API_BASE_URL="$NEXT_PUBLIC_NETTY_API_BASE_URL" \
+            --build-arg NEXT_PUBLIC_NETTY_RUNTIME_WS_URL="$NEXT_PUBLIC_NETTY_RUNTIME_WS_URL" \
+            --build-arg NEXT_PUBLIC_GATEWAY_API_BASE_URL="$NEXT_PUBLIC_GATEWAY_API_BASE_URL" \
+            --build-arg NEXT_PUBLIC_GATEWAY_WS_URL="$NEXT_PUBLIC_GATEWAY_WS_URL" \
+            --build-arg CORE_BACKEND_ORIGIN="$CORE_BACKEND_ORIGIN" \
+            --build-arg NETTY_BACKEND_ORIGIN="$NETTY_BACKEND_ORIGIN" \
+            --build-arg GATEWAY_BACKEND_ORIGIN="$GATEWAY_BACKEND_ORIGIN" \
+            -t "$IMAGE_NAME:$IMAGE_TAG" \
+            -t "$IMAGE_NAME:latest" .
+        '''
+      }
+    }
+
+    stage('Deploy by Docker Compose') {
+      when { branch 'main' }
+      steps {
+        sh '''
+          cp .env.production.example .env.production
+          IMAGE_ID="$(docker image inspect "$IMAGE_NAME:$IMAGE_TAG" --format '{{.Id}}')"
+          test -n "$IMAGE_ID"
+          : "${NGINX_IMAGE:?Configure NGINX_IMAGE as an immutable registry image@sha256 digest in Jenkins}"
+          export AI_EVENT_GATEWAY_ADMIN_UI_IMAGE="$IMAGE_ID"
+          export NGINX_IMAGE
+          python3 ../scripts/release/verify-production-image-refs.py \
+            --value "AI_EVENT_GATEWAY_ADMIN_UI_IMAGE=$AI_EVENT_GATEWAY_ADMIN_UI_IMAGE" \
+            --value "NGINX_IMAGE=$NGINX_IMAGE"
+          docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+        '''
+      }
+    }
+  }
+
+  post {
+    always {
+      sh 'docker image prune -f || true'
+    }
+  }
+}

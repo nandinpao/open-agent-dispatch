@@ -1,0 +1,2 @@
+'use client';
+export function OrphanRepairSafetyPanel(){return <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><div className="font-black">Fail-closed ownership repair</div><ul className="mt-2 list-disc space-y-1 pl-5"><li>Preview participant, grant, deny, and child-resource impact.</li><li>Use the latest resource version and a stable idempotency key.</li><li>Assign a canonical owner through the originating Domain authority.</li><li>Refresh projection and security epoch after the mutation.</li></ul></section>}

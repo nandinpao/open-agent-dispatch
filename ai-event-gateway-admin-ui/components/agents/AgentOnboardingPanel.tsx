@@ -1,11 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { coreAdminApi } from '@/lib/api/coreAdminApi';
 import { useI18n } from '@/hooks/useI18n';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useUiEntitlements } from '@/lib/navigation/useUiEntitlements';
+import { actionAllowedForScope } from '@/lib/navigation/uiEntitlements';
+import { accessManagementApi } from '@/lib/api/accessManagementApi';
+import { generateAgentCredentialToken } from '@/lib/agents/credentialToken';
 import type { CoreAgentSetupRequest, CoreAgentSetupResponse } from '@/lib/types/core';
+import { BeginnerGuideButton, FieldAssist } from '@/components/resource-scope/EnterpriseAccessUi';
+import { AdvancedSection, AsyncSearchSelectField, BooleanToggle, FormField, SelectField, TextAreaField, TextField, type SelectOption } from '@/components/forms';
 
 type AgentPurpose = 'ISSUE_TRACKING' | 'CALLBACK_HANDLER' | 'DATA_SYNC' | 'CUSTOM_TASK';
 type RuntimeType = 'Docker' | 'Local Process' | 'Remote Host';
@@ -15,6 +21,11 @@ interface AgentSetupDraft {
   agentId: string;
   agentName: string;
   ownerTeam: string;
+  ownerDepartmentId: string;
+  ownerGroupId: string;
+  businessOwnerUserId: string;
+  technicalStewardUserId: string;
+  responsibilityRoleId: string;
   description: string;
   purpose: AgentPurpose;
   runtimeType: RuntimeType;
@@ -59,9 +70,22 @@ const purposeOptions: PurposeOption[] = [
 
 const runtimeTypes: RuntimeType[] = ['Docker', 'Local Process', 'Remote Host'];
 
-function createToken(): string {
-  const random = Math.random().toString(36).slice(2, 12);
-  return `dev-${Date.now().toString(36)}-${random}`;
+function isLoopbackGatewayUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function insecureRemoteGatewayUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' && !isLoopbackGatewayUrl(value);
+  } catch {
+    return false;
+  }
 }
 
 function normalizeAgentId(value: string): string {
@@ -97,7 +121,7 @@ function startCommand(draft: AgentSetupDraft): string {
 
 function setupChecklist(draft: AgentSetupDraft): Array<{ label: string; done: boolean; description: string }> {
   return [
-    { label: 'Basic information', done: Boolean(draft.agentId && draft.agentName), description: 'Agent ID and display name are required.' },
+    { label: 'Basic information', done: Boolean(draft.agentId && draft.agentName), description: 'Enter a display name. The technical Agent ID is generated automatically and can be adjusted under Advanced.' },
     { label: 'Connection settings', done: Boolean(draft.gatewayUrl && draft.credentialToken), description: 'Gateway URL and token are required before runtime connection.' },
     { label: 'Optional capabilities', done: false, description: 'Capabilities are optional. Add them only when a Dispatch Flow explicitly requires specialized execution.' },
     { label: 'Dispatch Flow usage', done: false, description: 'Add this Agent to an active Dispatch Flow to make it a candidate.' },
@@ -111,6 +135,11 @@ function buildSetupRequest(draft: AgentSetupDraft, purpose: PurposeOption): Core
     agentId: draft.agentId,
     agentName: draft.agentName,
     ownerTeam: draft.ownerTeam || undefined,
+    ownerDepartmentId: draft.ownerDepartmentId || undefined,
+    ownerGroupId: draft.ownerGroupId || undefined,
+    businessOwnerUserId: draft.businessOwnerUserId || undefined,
+    technicalStewardUserId: draft.technicalStewardUserId || undefined,
+    responsibilityRoleId: draft.responsibilityRoleId || undefined,
     description: draft.description || `${purpose.label} agent created from first-agent setup.`,
     purpose: draft.purpose,
     runtimeType: draft.runtimeType,
@@ -122,7 +151,6 @@ function buildSetupRequest(draft: AgentSetupDraft, purpose: PurposeOption): Core
     createSupplyProfile: false,
     createDefaultDispatchRule: false,
     capacityLimit: 1,
-    operatorId: 'admin-ui',
     defaultCapabilities: [],
     defaultTaskTypes: [],
     metadata: {
@@ -134,30 +162,91 @@ function buildSetupRequest(draft: AgentSetupDraft, purpose: PurposeOption): Core
 
 export function AgentOnboardingPanel() {
   const { t } = useI18n();
-  const { selectedTenantId } = useAuth();
+  const { activeTenantId: selectedTenantId } = useAuth();
+  const entitlements = useUiEntitlements();
   const [draft, setDraft] = useState<AgentSetupDraft>({
     tenantId: selectedTenantId,
     agentId: '',
     agentName: '',
     ownerTeam: '',
+    ownerDepartmentId: '',
+    ownerGroupId: '',
+    businessOwnerUserId: '',
+    technicalStewardUserId: '',
+    responsibilityRoleId: '',
     description: '',
     purpose: 'CUSTOM_TASK',
     runtimeType: 'Docker',
     gatewayUrl: 'http://localhost:18081',
-    credentialToken: createToken(),
+    credentialToken: generateAgentCredentialToken(),
     autoApprove: false,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [agentIdCustomized, setAgentIdCustomized] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
   const [setupResult, setSetupResult] = useState<CoreAgentSetupResponse | null>(null);
+  const [selectedDepartmentOption,setSelectedDepartmentOption]=useState<SelectOption|null>(null);
+  const [selectedGroupOption,setSelectedGroupOption]=useState<SelectOption|null>(null);
+  const [selectedBusinessOwnerOption,setSelectedBusinessOwnerOption]=useState<SelectOption|null>(null);
+  const [selectedTechnicalStewardOption,setSelectedTechnicalStewardOption]=useState<SelectOption|null>(null);
+  const [selectedResponsibilityOption,setSelectedResponsibilityOption]=useState<SelectOption|null>(null);
 
+  // Tenant context is authoritative. Never carry ownership selections from a previous workspace
+  // into a newly selected Tenant, even when entity identifiers happen to collide.
   useEffect(() => {
-    if (selectedTenantId) setDraft((current) => ({ ...current, tenantId: selectedTenantId }));
+    setDraft((current) => ({
+      ...current,
+      tenantId: selectedTenantId,
+      ownerDepartmentId: '',
+      ownerGroupId: '',
+      businessOwnerUserId: '',
+      technicalStewardUserId: '',
+      responsibilityRoleId: '',
+    }));
+    setSelectedDepartmentOption(null);
+    setSelectedGroupOption(null);
+    setSelectedBusinessOwnerOption(null);
+    setSelectedTechnicalStewardOption(null);
+    setSelectedResponsibilityOption(null);
   }, [selectedTenantId]);
 
+  const loadDepartments=useCallback(async(query:string,cursor?:string)=>{
+    if(!selectedTenantId)return {options:[]};
+    const page=Number(cursor||'0');
+    const response=await accessManagementApi.departments(selectedTenantId,page,25,query,'ACTIVE');
+    const options=response.items.filter(item=>actionAllowedForScope(entitlements.value,'agents.setup','DEPARTMENT',item.departmentId)).map(item=>({value:item.departmentId,label:item.name,description:item.code}));
+    return {options,nextCursor:response.hasMore?String(page+1):undefined};
+  },[selectedTenantId,entitlements.value]);
+  const loadGroups=useCallback(async(query:string,cursor?:string)=>{
+    if(!selectedTenantId)return {options:[]};
+    const page=Number(cursor||'0');
+    const response=await accessManagementApi.groups(selectedTenantId,page,25,query,'','ACTIVE');
+    const options=response.items.filter(item=>actionAllowedForScope(entitlements.value,'agents.setup','GROUP',item.groupId)).map(item=>({value:item.groupId,label:item.name,description:item.code}));
+    return {options,nextCursor:response.hasMore?String(page+1):undefined};
+  },[selectedTenantId,entitlements.value]);
+  const loadBusinessOwners=useCallback(async(query:string,cursor?:string)=>{
+    if(!selectedTenantId||!draft.ownerDepartmentId)return {options:[]};
+    const response=await accessManagementApi.tenantUsers(selectedTenantId,25,cursor||'',query,'ACTIVE','ACTIVE','',draft.ownerDepartmentId);
+    return {options:response.items.map(item=>({value:item.userId,label:item.displayName,description:item.email||item.username})),nextCursor:response.nextCursor||undefined};
+  },[selectedTenantId,draft.ownerDepartmentId]);
+  const loadTechnicalStewards=useCallback(async(query:string,cursor?:string)=>{
+    if(!selectedTenantId)return {options:[]};
+    const response=await accessManagementApi.tenantUsers(selectedTenantId,25,cursor||'',query,'ACTIVE','ACTIVE');
+    return {options:response.items.map(item=>({value:item.userId,label:item.displayName,description:item.email||item.username})),nextCursor:response.nextCursor||undefined};
+  },[selectedTenantId]);
+  const loadResponsibilities=useCallback(async(query:string,cursor?:string)=>{
+    if(!selectedTenantId)return {options:[]};
+    const page=Number(cursor||'0');
+    const response=await accessManagementApi.responsibilityTemplates(selectedTenantId,page,25,query,'ACTIVE');
+    const options=response.items.filter(item=>item.allowedPrincipalTypes?.includes('AGENT')).map(item=>({value:item.roleId,label:item.roleName,description:item.description||item.riskLevel}));
+    return {options,nextCursor:response.hasMore?String(page+1):undefined};
+  },[selectedTenantId]);
+  const businessOwnerEligible=!draft.businessOwnerUserId||selectedBusinessOwnerOption?.value===draft.businessOwnerUserId;
+
   const purpose = useMemo(() => purposeOptions.find((option) => option.value === draft.purpose) ?? purposeOptions[0], [draft.purpose]);
+  const allowTenantWideOwnership = actionAllowedForScope(entitlements.value, 'agents.setup', 'TENANT', selectedTenantId);
   const checklist = useMemo(() => setupChecklist(draft), [draft]);
   const command = setupResult?.startCommand?.command ?? startCommand(draft);
   const startCommandDetails = setupResult?.startCommand;
@@ -174,7 +263,13 @@ export function AgentOnboardingPanel() {
     setMessage(null);
     setError(null);
     setSetupResult(null);
-    setDraft((current) => ({ ...current, [key]: value }));
+    setDraft((current) => {
+      if(key==='ownerDepartmentId'&&current.ownerDepartmentId!==value){
+        setSelectedBusinessOwnerOption(null);
+        return {...current,[key]:value,businessOwnerUserId:''};
+      }
+      return { ...current, [key]: value };
+    });
   }
 
   async function submit() {
@@ -182,15 +277,27 @@ export function AgentOnboardingPanel() {
       setError(t('agent.setup.validation.requiredName'));
       return;
     }
+    if (!draft.ownerDepartmentId || !draft.businessOwnerUserId || !draft.responsibilityRoleId) {
+      setError('Owner Department, Business Owner and Agent Responsibility are required.');
+      return;
+    }
+    if (!businessOwnerEligible) {
+      setError('The selected Business Owner is not an active Tenant member and active member of the selected Owner Department.');
+      return;
+    }
     if (draft.autoApprove && !draft.credentialToken.trim()) {
       setError(t('agent.setup.validation.tokenRequired'));
+      return;
+    }
+    if (insecureRemoteGatewayUrl(draft.gatewayUrl)) {
+      setError('Remote Agent Gateway connections must use HTTPS. Plain HTTP is allowed only for loopback development endpoints.');
       return;
     }
     setSubmitting(true);
     setMessage(null);
     setError(null);
     try {
-      const result = await coreAdminApi.setupAgent(buildSetupRequest(draft, purpose));
+      const result = await coreAdminApi.setupAgent(buildSetupRequest({ ...draft, tenantId: selectedTenantId || draft.tenantId }, purpose));
       setSetupResult(result);
       setMessage(result.setupStatus === 'READY' ? t('agent.setup.success.approved') : t('agent.setup.success.draft'));
       setCreatedAgentId(result.agentId || draft.agentId);
@@ -201,46 +308,44 @@ export function AgentOnboardingPanel() {
     }
   }
 
-  const inputClass = 'mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100';
-  const labelClass = 'text-xs font-black uppercase tracking-wide text-slate-500';
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
       <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div>
-          <p className="text-xs font-black uppercase tracking-wide text-blue-600">{t('agent.setup.badge')}</p>
-          <h2 className="mt-1 text-xl font-black text-slate-950">{t('agent.setup.title')}</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {t('agent.setup.description')}
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-blue-600">{t('agent.setup.badge')}</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">{t('agent.setup.title')}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{t('agent.setup.description')}</p>
+          </div>
+          <BeginnerGuideButton title="Create an Agent without learning the internals" description="The setup keeps business ownership, runtime connection and dispatch usage together. Advanced values stay optional." steps={[
+            { title: 'Name and own the Agent', description: 'Choose the Department or Group that owns the Agent. Only scopes allowed by your current Responsibility are offered.' },
+            { title: 'Choose what it does', description: 'Pick a purpose and runtime type from the provided options. Capabilities remain optional and do not grant access by themselves.' },
+            { title: 'Connect and test', description: 'Create the Agent, start its runtime with the generated command, then use the nearby Dispatch link to add it to a Flow and run a real test.' },
+          ]} />
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="text-xs font-black uppercase tracking-wide text-slate-500">Current workspace</div>
+          <div className="mt-1 text-sm font-black text-slate-900">{selectedTenantId || draft.tenantId || 'No active workspace'}</div>
+          <p className="mt-1 text-xs leading-5 text-slate-500">The Tenant comes from your authenticated session. There is no Tenant selector during Agent creation.</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <label>
-            <span className={labelClass}>{t('agent.setup.tenantId')}</span>
-            <input className={`${inputClass} bg-slate-100`} value={selectedTenantId || draft.tenantId} readOnly aria-label="Workspace Tenant" />
-          </label>
-          <label>
-            <span className={labelClass}>{t('agent.setup.agentId')}</span>
-            <input className={inputClass} value={draft.agentId} onChange={(event) => setField('agentId', normalizeAgentId(event.target.value))} />
-          </label>
-          <label>
-            <span className={labelClass}>{t('agent.setup.agentName')}</span>
-            <input className={inputClass} value={draft.agentName} onChange={(event) => setField('agentName', event.target.value)} />
-          </label>
-          <label>
-            <span className={labelClass}>{t('agent.setup.ownerTeam')}</span>
-            <input className={inputClass} value={draft.ownerTeam} onChange={(event) => setField('ownerTeam', event.target.value)} />
-          </label>
+          <div className="md:col-span-2"><FormField id="agent-setup-name" label={t('agent.setup.agentName')} help="Use a business-friendly name. OpenDispatch generates the technical Agent ID for you." required><TextField id="agent-setup-name" value={draft.agentName} onChange={(value) => { setField('agentName', value); if (!agentIdCustomized) setField('agentId', normalizeAgentId(value)); }} placeholder="Finance Payment Agent" /></FormField></div>
+          <div><div className="mb-1 flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-black text-slate-800">Owner Department</span><FieldAssist help="Choose the business Department responsible for this Agent. This determines the Agent's default data scope; it does not grant permission by itself." href="/access-management?workspace=organization" linkLabel="Manage organization" /></div><AsyncSearchSelectField id="agent-owner-department" value={draft.ownerDepartmentId} onChange={(value,option) => {setSelectedDepartmentOption(option??null);setField('ownerDepartmentId', value);}} loadOptions={loadDepartments} selectedOption={selectedDepartmentOption} placeholder={allowTenantWideOwnership ? 'Search authorized Departments' : 'Search an authorized Department'} /></div>
+          <div><div className="mb-1 flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-black text-slate-800">Owner Group</span><FieldAssist help="Choose a Group when a cross-functional team governs this Agent. Group membership alone does not grant Agent access." href="/access-management?workspace=organization" linkLabel="Manage groups" /></div><AsyncSearchSelectField id="agent-owner-group" value={draft.ownerGroupId} onChange={(value,option) => {setSelectedGroupOption(option??null);setField('ownerGroupId', value);}} loadOptions={loadGroups} selectedOption={selectedGroupOption} placeholder="Search an authorized Group (optional)" /></div>
+          <div><div className="mb-1 flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-black text-slate-800">Business Owner</span><FieldAssist help="The accountable Human owner for purpose, risk and periodic review. Ownership does not grant the Person Agent administration permissions." href="/access-management?workspace=people" linkLabel="Manage people" /></div><AsyncSearchSelectField id="agent-business-owner" value={draft.businessOwnerUserId} onChange={(value,option) => {setSelectedBusinessOwnerOption(option??null);setField('businessOwnerUserId', value);}} loadOptions={loadBusinessOwners} selectedOption={selectedBusinessOwnerOption} disabled={!draft.ownerDepartmentId} placeholder={draft.ownerDepartmentId ? "Search active Department members" : "Select Owner Department first"} required /><p className={`mt-1 text-xs ${businessOwnerEligible ? 'text-slate-500' : 'text-rose-600'}`}>Only active Tenant members with an active membership in the selected Department can be accountable Business Owners.</p></div>
+          <FormField id="agent-technical-steward" label="Technical Steward"><AsyncSearchSelectField id="agent-technical-steward" value={draft.technicalStewardUserId} onChange={(value,option) => {setSelectedTechnicalStewardOption(option??null);setField('technicalStewardUserId', value);}} loadOptions={loadTechnicalStewards} selectedOption={selectedTechnicalStewardOption} placeholder="Search optional technical steward" /></FormField>
+          <div className="md:col-span-2"><div className="mb-1 flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-black text-slate-800">Agent Responsibility</span><FieldAssist help="This is the canonical RBAC Responsibility held by the Agent principal. Only Responsibilities explicitly eligible for AGENT are shown." href="/access-management?workspace=roles" linkLabel="Manage responsibilities" /></div><AsyncSearchSelectField id="agent-responsibility" value={draft.responsibilityRoleId} onChange={(value,option) => {setSelectedResponsibilityOption(option??null);setField('responsibilityRoleId', value);}} loadOptions={loadResponsibilities} selectedOption={selectedResponsibilityOption} placeholder="Search Agent Responsibilities" required /></div>
         </div>
+        <p className="text-xs leading-5 text-slate-500">Agent ownership combines accountable Human ownership with an Organization scope. Department or Group membership alone does not grant Agent access; your Responsibility must allow the selected scope.</p>
+        <AdvancedSection title="Advanced identity and legacy metadata" description="generated Agent ID and compatibility label"><div className="grid gap-4 md:grid-cols-2"><FormField id="agent-setup-id" label={t('agent.setup.agentId')} help="Usually leave the generated value unchanged. It is shown mainly for runtime/API integration."><TextField id="agent-setup-id" value={draft.agentId} onChange={(value) => { setAgentIdCustomized(true); setField('agentId', normalizeAgentId(value)); }} placeholder="finance-payment-agent" /></FormField><FormField id="agent-owner-team" label={t('agent.setup.ownerTeam')} help="Legacy compatibility label only."><TextField id="agent-owner-team" value={draft.ownerTeam} onChange={(value)=>setField('ownerTeam',value)} placeholder="Legacy team label (optional)" /></FormField></div></AdvancedSection>
 
-        <label className="block">
-          <span className={labelClass}>{t('agent.setup.descriptionLabel')}</span>
-          <textarea className={`${inputClass} min-h-20`} value={draft.description} onChange={(event) => setField('description', event.target.value)} />
-        </label>
+        <FormField id="agent-description" label={t('agent.setup.descriptionLabel')}><TextAreaField id="agent-description" value={draft.description} onChange={(value)=>setField('description',value)} rows={4} /></FormField>
 
         <div>
-          <div className={labelClass}>{t('agent.setup.purposeQuestion')}</div>
+          <div className="text-sm font-black text-slate-800">{t('agent.setup.purposeQuestion')}</div>
           <div className="mt-2 grid gap-3 md:grid-cols-2">
             {purposeOptions.map((option) => {
               const selected = draft.purpose === option.value;
@@ -259,34 +364,9 @@ export function AgentOnboardingPanel() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label>
-            <span className={labelClass}>{t('agent.setup.runtimeType')}</span>
-            <select className={inputClass} value={draft.runtimeType} onChange={(event) => setField('runtimeType', event.target.value as RuntimeType)}>
-              {runtimeTypes.map((runtimeType) => <option key={runtimeType} value={runtimeType}>{runtimeType}</option>)}
-            </select>
-          </label>
-          <label>
-            <span className={labelClass}>{t('agent.setup.gatewayUrl')}</span>
-            <input className={inputClass} value={draft.gatewayUrl} onChange={(event) => setField('gatewayUrl', event.target.value)} />
-          </label>
-        </div>
+        <div className="grid gap-4 md:grid-cols-2"><FormField id="agent-runtime-type" label={t('agent.setup.runtimeType')} help="Choose the runtime location. Connection defaults are generated automatically."><SelectField id="agent-runtime-type" value={draft.runtimeType} onChange={(value)=>setField('runtimeType',value as RuntimeType)} options={runtimeTypes.map((value)=>({value,label:value}))} /></FormField></div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            <label className="flex-1">
-              <span className={labelClass}>{t('agent.setup.connectionToken')}</span>
-              <input className={inputClass} value={draft.credentialToken} onChange={(event) => setField('credentialToken', event.target.value)} />
-            </label>
-            <button type="button" onClick={() => setField('credentialToken', createToken())} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
-              {t('agent.setup.generateToken')}
-            </button>
-          </div>
-          <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <input type="checkbox" checked={draft.autoApprove} onChange={(event) => setField('autoApprove', event.target.checked)} />
-            {t('agent.setup.autoApprove')}
-          </label>
-        </div>
+        <AdvancedSection title="Connection & approval settings" description="normally generated automatically"><p className="mb-3 text-xs leading-5 text-slate-500">Open this only when the Gateway endpoint, token, or approval workflow needs to be changed.</p><div className="grid gap-4 md:grid-cols-2"><FormField id="agent-gateway-url" label={t('agent.setup.gatewayUrl')}><TextField id="agent-gateway-url" type="url" value={draft.gatewayUrl} onChange={(value)=>setField('gatewayUrl',value)} /></FormField><div><FormField id="agent-connection-token" label={t('agent.setup.connectionToken')}><TextField id="agent-connection-token" type="password" autoComplete="new-password" value={draft.credentialToken} onChange={(value)=>setField('credentialToken',value)} /></FormField><button type="button" onClick={() => setField('credentialToken', generateAgentCredentialToken())} className="mt-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">{t('agent.setup.generateToken')}</button><p className="mt-2 text-xs leading-5 text-amber-700">Treat this connection token as a secret. Copying startup commands can place it in clipboard history, terminal scrollback, or shell history.</p></div></div>{insecureRemoteGatewayUrl(draft.gatewayUrl) ? <p className="mt-3 text-xs font-semibold text-rose-700">Remote Agent Gateway connections must use HTTPS. Plain HTTP is allowed only for loopback development endpoints.</p> : null}<div className="mt-4"><BooleanToggle id="agent-auto-approve" checked={draft.autoApprove} onChange={(checked)=>setField('autoApprove',checked)} label={t('agent.setup.autoApprove')} description="Use only when your governance policy permits immediate approval during setup." /></div></AdvancedSection>
 
         {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</div> : null}
         {message ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{message}</div> : null}
@@ -300,7 +380,7 @@ export function AgentOnboardingPanel() {
                     <div className="font-bold">{check.label}</div>
                     <div className="text-xs text-blue-800">{check.description}</div>
                   </div>
-                  <span className={`rounded-full px-2 py-1 text-[11px] font-black ${check.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  <span className={`rounded-full px-2 py-1 text-xs font-black ${check.ready ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                     {check.ready ? 'Ready' : 'Pending'}
                   </span>
                 </div>
@@ -332,7 +412,7 @@ export function AgentOnboardingPanel() {
               <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-black text-slate-900">{item.label}</div>
-                  <span className={`rounded-full px-2 py-1 text-[11px] font-black ${item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{item.done ? t('agent.setup.ready') : t('agent.setup.pending')}</span>
+                  <span className={`rounded-full px-2 py-1 text-xs font-black ${item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{item.done ? t('agent.setup.ready') : t('agent.setup.pending')}</span>
                 </div>
                 <p className="mt-1 text-xs leading-5 text-slate-600">{item.description}</p>
               </div>
@@ -361,7 +441,7 @@ export function AgentOnboardingPanel() {
               {commandVariants.map((entry) => (
                 <details key={entry.label} className="rounded-2xl border border-slate-700 bg-slate-900/70 p-3">
                   <summary className="cursor-pointer text-xs font-black text-slate-200">{entry.label}</summary>
-                  <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-xl bg-black/30 p-3 text-[11px] leading-5 text-slate-100">{entry.value}</pre>
+                  <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-xl bg-black/30 p-3 text-xs leading-5 text-slate-100">{entry.value}</pre>
                 </details>
               ))}
             </div>
@@ -382,7 +462,7 @@ export function AgentOnboardingPanel() {
                   <div key={step.code || step.label} className="rounded-xl bg-black/20 p-2 text-xs leading-5 text-amber-50">
                     <div className="font-black">{step.label || step.code}</div>
                     <div>{step.description}</div>
-                    {step.command ? <pre className="mt-2 overflow-auto rounded-lg bg-black/30 p-2 text-[11px] text-slate-100">{step.command}</pre> : null}
+                    {step.command ? <pre className="mt-2 overflow-auto rounded-lg bg-black/30 p-2 text-xs text-slate-100">{step.command}</pre> : null}
                   </div>
                 ))}
               </div>

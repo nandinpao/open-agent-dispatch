@@ -117,7 +117,7 @@ function normalizePercentValue(value: unknown): number {
   const numberValue = toFiniteNumber(value as number | string | null | undefined);
   if (numberValue === undefined) return 0;
 
-  // 後端可能回 0.35，也可能回 35 或 '35%'; 統一轉成百分比數字。
+  //  0.35 35 or '35%'; 
   if (numberValue >= 0 && numberValue <= 1) return numberValue * 100;
   return numberValue;
 }

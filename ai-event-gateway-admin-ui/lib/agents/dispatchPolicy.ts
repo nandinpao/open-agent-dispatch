@@ -200,7 +200,7 @@ export function deriveEffectiveDispatchPolicy(input: {
   };
 
   if (!input.profile) {
-    policy.gates.push(gate('BLOCK', 'PROFILE', 'Core Profile', 'Core 尚未建立 Agent profile，不能納入治理式派工。'));
+    policy.gates.push(gate('BLOCK', 'PROFILE', 'Core Profile', 'Core Not created yet Agent profileDispatch information'));
   } else {
     policy.gates.push(gate(input.profile.approvalStatus === 'APPROVED' ? 'PASS' : 'BLOCK', 'APPROVAL', 'Approval', `approvalStatus=${input.profile.approvalStatus}`));
     policy.gates.push(gate(input.profile.enabled ? 'PASS' : 'BLOCK', 'ENABLED', 'Enabled', `enabled=${input.profile.enabled}`));
@@ -210,7 +210,7 @@ export function deriveEffectiveDispatchPolicy(input: {
   }
 
   const runtimeConnected = input.runtime?.connected === true || Boolean(input.runtimeLoad?.heartbeatAt);
-  policy.gates.push(gate(runtimeConnected ? 'PASS' : 'WARN', 'RUNTIME', 'Runtime', runtimeConnected ? 'runtime session/load observed' : '沒有 Netty runtime 或 Core runtime load snapshot'));
+  policy.gates.push(gate(runtimeConnected ? 'PASS' : 'WARN', 'RUNTIME', 'Runtime', runtimeConnected ? 'runtime session/load observed' : 'No data is currently available. Netty runtime or Core runtime load snapshot'));
 
   const hasReportedSkill = reportedValues.length > 0 || Boolean(input.runtimeCapabilityProfile?.capabilityProfile);
   policy.gates.push(gate('PASS', 'CAPABILITY_SOURCE_OF_TRUTH', 'Capability authority', 'Admin UI/Core approved capabilities are the dispatch source of truth. Runtime capability reports are diagnostic only.'));
@@ -223,7 +223,7 @@ export function deriveEffectiveDispatchPolicy(input: {
     policy.gates.push(gate(availableSlots > 0 ? 'PASS' : 'WARN', 'SLOTS', 'Available Slots', `availableSlots=${availableSlots}`));
     addScoreHint(policy, 'availableSlots', 'Available slots', String(availableSlots), availableSlots > 0 ? 'positive' : 'negative');
   } else {
-    policy.gates.push(gate('WARN', 'SLOTS', 'Available Slots', 'availableSlots 尚未回報'));
+    policy.gates.push(gate('WARN', 'SLOTS', 'Available Slots', 'availableSlots '));
   }
 
   const utilization = input.runtimeLoad?.capacityUtilization ?? input.runtime?.capacityUtilization;
@@ -232,7 +232,7 @@ export function deriveEffectiveDispatchPolicy(input: {
   }
 
   const draining = input.runtimeLoad?.draining ?? input.runtime?.draining;
-  policy.gates.push(gate(draining ? 'BLOCK' : 'PASS', 'DRAINING', 'Draining', draining ? 'Agent 正在 draining，不應派新任務。' : 'not draining'));
+  policy.gates.push(gate(draining ? 'BLOCK' : 'PASS', 'DRAINING', 'Draining', draining ? 'Agent  drainingTask details' : 'not draining'));
 
   const outboxPending = input.runtimeLoad?.outboxPending ?? input.runtime?.outboxPending;
   if (outboxPending !== undefined) {

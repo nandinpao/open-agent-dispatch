@@ -22,7 +22,7 @@ export function CredentialTokenInput({
   placeholder = "plain token; Core stores only hash",
   className = "space-y-1 text-sm md:col-span-2",
   inputClassName = "w-full rounded-lg border px-3 py-2",
-  helperText = "Generate Token 會使用瀏覽器 Web Crypto 產生 256-bit token；Core 端只儲存 hash。請同步更新實際 Agent 啟動設定。",
+  helperText = "Generate Token  Web Crypto  256-bit token;Core Save hashReview the configuration and try again. Agent Configuration",
   onGenerateError,
 }: Readonly<CredentialTokenInputProps>) {
   function generateToken() {

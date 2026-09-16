@@ -6,6 +6,7 @@ import type {
   CoreTaskRuntimeView,
 } from '@/lib/types/core';
 import { formatDateTime } from '@/lib/utils/format';
+import { taskDiagnosisCatalogEntry, type TaskDiagnosisCatalogCode } from '@/lib/tasks/taskDiagnosisCatalog';
 
 export type DispatchLifecycleStepState = 'done' | 'current' | 'waiting' | 'blocked' | 'failed' | 'skipped';
 
@@ -20,7 +21,7 @@ export interface DispatchLifecycleStep {
 }
 
 export interface DispatchLifecycleSummary {
-  overallStatus: 'NO_TASK' | 'IN_PROGRESS' | 'QUEUED' | 'DELIVERING' | 'WAITING_AGENT' | 'RUNNING' | 'COMPLETED' | 'BLOCKED' | 'FAILED';
+  overallStatus: 'NO_TASK' | 'IN_PROGRESS' | 'QUEUED' | 'WAITING_RETRY' | 'DELIVERING' | 'WAITING_AGENT' | 'RUNNING' | 'COMPLETED' | 'BLOCKED' | 'FAILED';
   headline: string;
   nextAction?: string;
   blockedReason?: string;
@@ -40,58 +41,58 @@ export interface OperatorLifecycleStage {
 
 const operatorStageLabels: Record<string, { title: string; waiting: string; current: string; done: string; failed: string; blocked: string }> = {
   event: {
-    title: '事件已收到',
-    waiting: '系統尚未看到事件或 Incident。',
-    current: '事件正在進入 Core。',
-    done: 'Core 已收到事件或已建立 Incident。',
-    failed: '事件或 Incident 建立失敗。',
-    blocked: '事件被規則或治理條件阻擋。'
+    title: 'Event intake',
+    waiting: 'Waiting for Core to persist the event or incident context.',
+    current: 'Core is accepting and normalizing the event context.',
+    done: 'Core accepted the event or incident context.',
+    failed: 'Event or incident intake failed.',
+    blocked: 'Event intake is blocked by validation or authorization.'
   },
   task: {
-    title: 'Task 已建立',
-    waiting: 'Task 尚未建立。',
-    current: 'Core 正在建立 Task。',
-    done: 'Core 已建立 Task，後續會進入派工判斷。',
-    failed: 'Task 建立或狀態轉換失敗。',
-    blocked: 'Task 被治理或規則阻擋。'
+    title: 'Task authority',
+    waiting: 'Waiting for the authoritative Task record.',
+    current: 'Core is creating or updating the Task authority record.',
+    done: 'Core created the authoritative Task record.',
+    failed: 'Task creation or lifecycle transition failed.',
+    blocked: 'Task lifecycle is blocked.'
   },
   assignment: {
-    title: '已選擇 Agent',
-    waiting: '尚未找到可派工 Agent。',
-    current: 'Core 正在檢查 Skill、Governance、Runtime 與容量。',
-    done: 'Core 已選出可接任務的 Agent。',
-    failed: '找不到符合 Task required capabilities 的 Agent。',
-    blocked: 'Agent 指派被治理條件阻擋。'
+    title: 'Agent assignment',
+    waiting: 'Waiting for Core routing and eligibility to select an assignable Agent.',
+    current: 'Core is evaluating pool membership, eligibility, runtime state, and capacity.',
+    done: 'Core recorded an Agent assignment for this Task.',
+    failed: 'Core could not create a valid Agent assignment.',
+    blocked: 'Agent assignment is blocked by routing, eligibility, or operator policy.'
   },
   'dispatch-request': {
-    title: '派工請求已建立',
-    waiting: '等待 Agent 指派成功後才會建立派工請求。',
-    current: 'Core 正在建立派工請求。',
-    done: 'Core 已保存 Dispatch Request。',
-    failed: 'Dispatch Request 建立失敗。',
-    blocked: 'Dispatch Request 被治理條件阻擋。'
+    title: 'Dispatch request',
+    waiting: 'Waiting for Core to create the dispatch request after assignment.',
+    current: 'Core is creating the dispatch request and delivery intent.',
+    done: 'Core created the dispatch request.',
+    failed: 'Dispatch request creation failed.',
+    blocked: 'Dispatch request creation is blocked.'
   },
   execution: {
-    title: 'Gateway 已接收',
-    waiting: '尚未開始送到 Gateway。',
-    current: 'Core 正在把任務送到 Netty Gateway。',
-    done: 'Netty Gateway 已接受派工。',
-    failed: '派工送到 Gateway 前或過程中失敗。',
-    blocked: '派工執行被治理條件阻擋。'
+    title: 'Delivery',
+    waiting: 'Waiting for Gateway delivery evidence.',
+    current: 'Core handed delivery intent to the Netty Gateway path.',
+    done: 'Gateway delivery evidence was recorded.',
+    failed: 'Gateway or Agent transport delivery failed.',
+    blocked: 'Delivery is blocked by Gateway or Agent runtime conditions.'
   },
   agent: {
-    title: 'Agent 回傳結果',
-    waiting: '等待 Agent ACK、progress 或 result callback。',
-    current: 'Agent 已接收或執行中，Core 正在等待 callback。',
-    done: 'Agent 已回傳終態結果。',
-    failed: 'Agent 或 Task 已進入失敗狀態。',
-    blocked: 'Agent 執行被治理條件阻擋。'
+    title: 'Agent result',
+    waiting: 'Waiting for Agent ACK, progress, RESULT, or ERROR callback evidence.',
+    current: 'Core is waiting for the next authoritative Agent callback.',
+    done: 'Core received terminal Agent result evidence.',
+    failed: 'Agent execution or Task result processing failed.',
+    blocked: 'Agent execution is blocked.'
   }
 };
 
 function operatorHintFor(step: DispatchLifecycleStep): string {
   const labels = operatorStageLabels[step.id];
-  if (!labels) return step.description ?? '查看下方 Timeline Event Log 取得細節。';
+  if (!labels) return step.description ?? 'View details Timeline Event Log ';
   switch (step.status) {
     case 'done': return labels.done;
     case 'current': return labels.current;
@@ -109,32 +110,31 @@ function operatorNextActionText(value: string | undefined, fallback: string): st
   const normalized = normalize(value);
   switch (normalized) {
     case 'NONE':
-      return '不需要進一步處理，請查看結果摘要與 Issue Sync。';
+      return 'No mutation is recommended. Review result and audit evidence.';
     case 'WAIT_FOR_AGENT_ACK':
-      return '等待 Agent ACK 或 callback；若長時間無回應，請檢查 Agent runtime 與 callback relay。';
+      return 'Wait for Agent ACK and inspect Agent runtime or callback relay evidence if the wait exceeds policy.';
     case 'WAIT_FOR_AGENT_RESULT':
-      return '等待 Agent RESULT / ERROR callback，或檢查 runtime callback relay。';
+      return 'Wait for the Agent RESULT or ERROR callback, or inspect the runtime callback relay.';
     case 'WAIT_FOR_AUTO_DISPATCH_WORKER':
-      return '等待 Core dispatch worker 自動投遞；若停留過久，請檢查 dispatch worker 與 Gateway 連線。';
+      return 'Wait for the Core dispatch worker and inspect worker or Gateway health if the Task remains queued.';
     case 'RETRY':
     case 'RETRY_DELIVERY':
-      return '檢查 Timeline Event Log 後執行 Retry delivery。';
+      return 'Use the governed Retry Delivery command and then review the timeline for a new delivery attempt.';
     case 'REASSIGN':
-      return '改派給其他符合 Skill / Governance / Runtime 條件的 Agent。';
+      return 'Review Agent eligibility and use the governed Reassign Agent command if an alternate Agent is appropriate.';
     case 'CANCEL':
     case 'CANCEL_TASK':
-      return '確認此 Task 不再需要處理後取消任務。';
+      return 'Cancel only when the Task no longer requires execution; Core will preserve audit evidence.';
     case 'CHECK_AGENT':
     case 'CHECK_AGENT_RUNTIME':
-      return '檢查 Agent runtime 是否在線、是否回報 required capabilities。';
+      return 'Inspect Agent runtime, credentials, required capabilities, capacity, and heartbeat evidence.';
     case 'CHECK_GATEWAY':
     case 'CHECK_GATEWAY_RUNTIME':
-      return '檢查 Netty Gateway 是否在線，並確認 delivery queue 是否正常。';
+      return 'Inspect Netty Gateway health, delivery queue, and connection evidence.';
     case 'CHECK_CALLBACK_RELAY':
-      return '檢查 callback relay 是否收到 Agent RESULT / ERROR callback。';
+      return 'Inspect callback relay evidence for the Agent RESULT or ERROR callback.';
     default:
-      if (!normalized) return fallback;
-      return `${fallback}（系統建議代碼：${normalized}）`;
+      return normalized ? `${fallback} (${normalized})` : fallback;
   }
 }
 
@@ -154,18 +154,21 @@ export function buildOperatorLifecycleStages(summary: DispatchLifecycleSummary):
 export function lifecycleOperatorDecision(summary: DispatchLifecycleSummary): { title: string; description: string; currentStage: string; nextAction: string; tone: 'success' | 'warning' | 'danger' | 'info' } {
   const current = summary.steps.find((step) => ['current', 'blocked', 'failed'].includes(step.status)) ?? summary.steps[summary.steps.length - 1];
   if (summary.overallStatus === 'COMPLETED') {
-    return { title: 'Lifecycle 已完成', description: 'Agent 已回傳結果，請查看結果摘要或 Issue Sync。', currentStage: current?.title ?? 'Completed', nextAction: '查看 Agent 結果與 Issue History。', tone: 'success' };
+    return { title: 'Lifecycle completed', description: 'Core recorded terminal result evidence for this Task.', currentStage: current?.title ?? 'Completed', nextAction: 'Review the Agent result, issue history, and audit evidence.', tone: 'success' };
   }
   if (summary.overallStatus === 'FAILED') {
-    return { title: 'Lifecycle 失敗', description: summary.headline, currentStage: current?.title ?? 'Failed', nextAction: operatorNextActionText(summary.nextAction, '查看 Timeline Event Log 後決定 Retry / Reassign / Cancel。'), tone: 'danger' };
+    return { title: 'Lifecycle failed', description: summary.headline, currentStage: current?.title ?? 'Failed', nextAction: operatorNextActionText(summary.nextAction, 'Review the timeline and choose a governed remediation command from Agent Assignment.'), tone: 'danger' };
   }
   if (summary.overallStatus === 'BLOCKED') {
-    return { title: 'Lifecycle 被阻擋', description: summary.blockedReason ?? summary.headline, currentStage: current?.title ?? 'Blocked', nextAction: operatorNextActionText(summary.nextAction, '修正派工設定、Agent Pool 或 Runtime 條件後再派工。'), tone: 'warning' };
+    return { title: 'Lifecycle blocked', description: summary.blockedReason ?? summary.headline, currentStage: current?.title ?? 'Blocked', nextAction: operatorNextActionText(summary.nextAction, 'Review routing, Agent Pool, and runtime evidence before choosing a remediation command.'), tone: 'warning' };
+  }
+  if (summary.overallStatus === 'WAITING_RETRY') {
+    return { title: 'Waiting for automatic retry', description: summary.headline, currentStage: current?.title ?? 'Retry queue', nextAction: operatorNextActionText(summary.nextAction, 'Wait for the scheduled retry, or inspect Agent availability and routing evidence.'), tone: 'warning' };
   }
   if (summary.overallStatus === 'WAITING_AGENT') {
-    return { title: '等待 Agent 回覆', description: 'Gateway 已接受或 Agent 已 ACK，Core 正在等待 callback。', currentStage: current?.title ?? 'Agent callback', nextAction: operatorNextActionText(summary.nextAction, '等待 Agent RESULT / ERROR callback，或檢查 runtime callback relay。'), tone: 'warning' };
+    return { title: 'Waiting for Agent callback', description: 'Delivery reached the Agent path and Core is waiting for authoritative callback evidence.', currentStage: current?.title ?? 'Agent callback', nextAction: operatorNextActionText(summary.nextAction, 'Wait for the Agent RESULT or ERROR callback, or inspect the runtime callback relay.'), tone: 'warning' };
   }
-  return { title: summary.headline, description: '派工流程尚未完成，請查看目前所在階段與下一步。', currentStage: current?.title ?? 'Lifecycle', nextAction: operatorNextActionText(summary.nextAction, '等待下一個 dispatch lifecycle event。'), tone: 'info' };
+  return { title: summary.headline, description: 'The Task lifecycle is still in progress and no terminal blocker has been recorded.', currentStage: current?.title ?? 'Lifecycle', nextAction: operatorNextActionText(summary.nextAction, 'Wait for the next authoritative lifecycle transition and review evidence if progress stalls.'), tone: 'info' };
 }
 
 const terminalSuccessTaskStatuses = new Set(['COMPLETED', 'SUCCEEDED', 'SUCCESS']);
@@ -214,11 +217,17 @@ function failedStep(id: string, title: string, options: Partial<DispatchLifecycl
 }
 
 function taskCompleted(task: CoreTaskRuntimeView): boolean {
-  return terminalSuccessTaskStatuses.has(normalize(task.status)) || normalize(task.dispatchExecutionStatus) === 'COMPLETED';
+  const taskStatus = normalize(task.status);
+  if (terminalSuccessTaskStatuses.has(taskStatus)) return true;
+  if (taskStatus === 'RETRY_WAIT' || task.nextDispatchAttemptAt || task.dispatchWaitReason || task.dispatchRetryReason) return false;
+  return normalize(task.dispatchExecutionStatus) === 'COMPLETED';
 }
 
 function taskFailed(task: CoreTaskRuntimeView): boolean {
-  return terminalFailureTaskStatuses.has(normalize(task.status)) || normalize(task.dispatchExecutionStatus) === 'FAILED';
+  const taskStatus = normalize(task.status);
+  if (terminalFailureTaskStatuses.has(taskStatus)) return true;
+  if (taskStatus === 'RETRY_WAIT' || task.nextDispatchAttemptAt || task.dispatchWaitReason || task.dispatchRetryReason) return false;
+  return normalize(task.dispatchExecutionStatus) === 'FAILED';
 }
 
 function gatewayDelivered(task: CoreTaskRuntimeView, delivery?: RuntimeAttemptSummary): boolean {
@@ -258,7 +267,8 @@ export function buildDispatchLifecycleSummary(row: TaskDispatchDashboardRow): Di
   const acked = agentAcknowledged(task, callbackRelay);
   const completed = taskCompleted(task);
   const failed = taskFailed(task);
-  const blocked = executionStatus === 'BLOCKED' || Boolean(blockedReason);
+  const waitingRetry = taskStatus === 'RETRY_WAIT' || Boolean(task.nextDispatchAttemptAt) || Boolean(waitReason);
+  const blocked = !waitingRetry && (executionStatus === 'BLOCKED' || Boolean(blockedReason));
 
   const steps: DispatchLifecycleStep[] = [];
 
@@ -421,6 +431,14 @@ export function buildDispatchLifecycleSummary(row: TaskDispatchDashboardRow): Di
       steps
     };
   }
+  if (waitingRetry) {
+    return {
+      overallStatus: 'WAITING_RETRY',
+      headline: task.nextDispatchAttemptAt ? `Waiting for automatic retry at ${formatDateTime(task.nextDispatchAttemptAt)}` : 'Waiting for automatic retry',
+      nextAction: task.nextAction ?? 'WAIT_FOR_RETRY_OR_TRIGGER_RECOVERY',
+      steps
+    };
+  }
   if (agentRunning(task)) {
     return {
       overallStatus: 'RUNNING',
@@ -498,17 +516,7 @@ export function lifecycleStateIcon(status: DispatchLifecycleStepState): string {
 }
 
 
-export type TaskDispatchDiagnosisCode =
-  | 'COMPLETED'
-  | 'IN_PROGRESS'
-  | 'NO_MATCHING_FLOW'
-  | 'NO_MATCHING_RULE'
-  | 'NO_FLOW_AGENT'
-  | 'AGENT_OFFLINE'
-  | 'AGENT_CAPACITY_FULL'
-  | 'MANUAL_ASSIGNMENT_REQUIRED'
-  | 'DISPATCH_DELIVERY_FAILED'
-  | 'RESULT_TIMEOUT';
+export type TaskDispatchDiagnosisCode = TaskDiagnosisCatalogCode;
 
 export interface TaskDispatchDiagnosis {
   code: TaskDispatchDiagnosisCode;
@@ -544,6 +552,13 @@ const noFlowCodes = new Set([
   'NO_ACTIVE_TASK_DEFINITION_PROFILE_MATCH',
   'NO_ASSIGNMENT_PROFILE_MATCH',
   'NO_SOURCE_SYSTEM_PROFILE_MATCH',
+]);
+
+const noRuleCodes = new Set([
+  'MISSING_FLOW_RULE',
+  'DISPATCH_RULE_MISSING',
+  'FLOW_RULE_REQUIRED_BLOCKED',
+  'NO_MATCHING_FLOW_RULE',
 ]);
 
 const offlineCodes = new Set([
@@ -637,7 +652,6 @@ export function deriveTaskDispatchDiagnosis(input: {
 }): TaskDispatchDiagnosis {
   const { task, evidence, runtimeVerification } = input;
   const tokens = collectDiagnosisTokens(task, evidence, runtimeVerification);
-  const status = normalize(task.status);
   const execution = normalize(task.dispatchExecutionStatus);
   const missingCapabilities = Array.from(new Set([...(task.requiredCapabilities ?? [])].filter(Boolean)));
   const common = {
@@ -648,101 +662,38 @@ export function deriveTaskDispatchDiagnosis(input: {
     missingCapabilities,
   };
 
-  if (taskCompleted(task)) {
-    return { ...common, code: 'COMPLETED', title: 'Task 已完成', reason: 'Agent 已回傳正式結果，Task lifecycle 已完成。', nextAction: '查看結果與完整派工時間線。', tone: 'success' };
-  }
-  if (containsCode(tokens, noFlowCodes) || (!task.matchedFlowId && normalize(task.routingPath).includes('FLOW_RULE_REQUIRED'))) {
-    return {
-      ...common,
-      code: 'NO_MATCHING_FLOW',
-      title: '沒有符合的派工流程',
-      reason: '此事件沒有命中已啟用的 Dispatch Flow Rule，因此尚未進入 Agent 候選判斷。',
-      nextAction: '建立或啟用符合事件條件的 Source Flow，指定預設或規則目標 Agent Pool，並加入至少一個已核准 Agent。',
-      tone: 'warning',
-      actionHref: flowCreateHref(task),
-      actionLabel: '建立派工流程',
-    };
-  }
+  let code: TaskDispatchDiagnosisCode = 'IN_PROGRESS';
+  if (taskCompleted(task)) code = 'COMPLETED';
+  else if (task.matchedFlowId && containsCode(tokens, noRuleCodes)) code = 'NO_MATCHING_RULE';
+  else if (containsCode(tokens, noFlowCodes) || (!task.matchedFlowId && normalize(task.routingPath).includes('FLOW_RULE_REQUIRED'))) code = 'NO_MATCHING_FLOW';
+  else if (containsCode(tokens, offlineCodes)) code = 'AGENT_OFFLINE';
+  else if (containsCode(tokens, capacityCodes)) code = 'AGENT_CAPACITY_FULL';
+  else if (containsCode(tokens, manualAssignmentCodes)) code = 'MANUAL_ASSIGNMENT_REQUIRED';
+  else if (containsCode(tokens, noAgentCodes)) code = 'NO_FLOW_AGENT';
+  else if (containsCode(tokens, deliveryCodes) || execution === 'DISPATCH_DELIVERY_FAILED' || taskFailed(task)) code = 'DISPATCH_DELIVERY_FAILED';
+  else if (containsCode(tokens, callbackCodes)) code = 'RESULT_TIMEOUT';
 
-  if (containsCode(tokens, offlineCodes)) {
-    return {
-      ...common,
-      code: 'AGENT_OFFLINE',
-      title: '處理 Agent 目前離線',
-      reason: common.agentId ? `Agent ${common.agentId} 沒有可用 Runtime Session。` : '流程中的 Agent 目前沒有可用 Runtime Session。',
-      nextAction: '檢查 Agent 連線、Heartbeat 與 Credential；恢復連線後再重新派工。',
-      tone: 'warning',
-      actionHref: common.agentId ? `/agents/${encodeURIComponent(common.agentId)}` : '/agents',
-      actionLabel: '查看 Agent',
-    };
-  }
-  if (containsCode(tokens, capacityCodes)) {
-    return {
-      ...common,
-      code: 'AGENT_CAPACITY_FULL',
-      title: 'Agent 暫無可用容量',
-      reason: '符合條件的 Agent 目前忙碌或沒有可用工作槽位。',
-      nextAction: '等待 Agent 釋放容量，或在派工流程中增加其他處理 Agent。',
-      tone: 'warning',
-      actionHref: task.matchedFlowId ? `/dispatch-flows?flowId=${encodeURIComponent(task.matchedFlowId)}` : '/dispatch-flows',
-      actionLabel: '調整處理 Agent',
-    };
-  }
-  if (containsCode(tokens, manualAssignmentCodes)) {
-    return {
-      ...common,
-      code: 'MANUAL_ASSIGNMENT_REQUIRED',
-      title: '需要人工指定派工目標',
-      reason: 'Task 已進入人工處置狀態，自動派工不會繼續選擇 Agent。',
-      nextAction: '指定 Agent、變更工作池，或取消此 Task。',
-      tone: 'warning',
-      actionHref: `/tasks/${encodeURIComponent(task.taskId)}`,
-      actionLabel: '執行人工處置',
-    };
-  }
-  if (containsCode(tokens, noAgentCodes)) {
-    return {
-      ...common,
-      code: 'NO_FLOW_AGENT',
-      title: '派工流程沒有可用 Agent',
-      reason: 'Source Flow 已命中，但目標 Agent Pool 目前沒有同時符合治理狀態、Runtime、容量與 backoff 條件的 Agent。',
-      nextAction: '查看目標 Agent Pool 與成員排除原因，修正後再重新派工。',
-      tone: 'warning',
-      actionHref: task.matchedFlowId ? `/dispatch-flows?flowId=${encodeURIComponent(task.matchedFlowId)}` : '/dispatch-flows',
-      actionLabel: '查看派工流程',
-    };
-  }
-  if (containsCode(tokens, deliveryCodes) || execution === 'DISPATCH_DELIVERY_FAILED') {
-    return {
-      ...common,
-      code: 'DISPATCH_DELIVERY_FAILED',
-      title: '派工送達失敗',
-      reason: 'Core 已建立派工資料，但 Netty Gateway 或 Agent transport 沒有成功接收。',
-      nextAction: '確認 Gateway 與 Agent Runtime 後執行重新派工。',
-      tone: 'danger',
-      actionHref: common.agentId ? `/agents/${encodeURIComponent(common.agentId)}` : '/agents',
-      actionLabel: '檢查 Agent',
-    };
-  }
-  if (containsCode(tokens, callbackCodes)) {
-    return {
-      ...common,
-      code: 'RESULT_TIMEOUT',
-      title: 'Agent Result 逾時',
-      reason: 'Task 已送達或已 ACK，但正式 RESULT／ERROR callback 尚未成功回到 Core。',
-      nextAction: '檢查 Agent 執行狀態與 callback relay。',
-      tone: 'danger',
-      actionHref: common.agentId ? `/agents/${encodeURIComponent(common.agentId)}` : '/agents',
-      actionLabel: '查看 Agent',
-    };
-  }
-  if (taskFailed(task)) {
-    return { ...common, code: 'DISPATCH_DELIVERY_FAILED', title: 'Task 執行失敗', reason: task.failureReason ?? task.blockedReason ?? 'Task 已進入失敗終態。', nextAction: '查看標準時間線與 Trace，確認後再 Retry、Reassign 或取消。', tone: 'danger' };
-  }
-  if (task.assignedAgentId || task.dispatchRequestId || ['RUNNING', 'ACKED', 'DISPATCHED'].includes(normalize(task.dispatchStatus))) {
-    return { ...common, code: 'IN_PROGRESS', title: 'Task 派工執行中', reason: '已命中流程並進入 Agent 派送或執行階段。', nextAction: '等待 Agent ACK／Result，並查看下方標準時間線。', tone: 'info' };
-  }
-  return { ...common, code: 'IN_PROGRESS', title: '等待派工', reason: status === 'OPEN' ? 'Task 已建立，正在進行 Flow Rule 與 Agent eligibility 判斷。' : 'Task 尚未完成 Agent 指派。', nextAction: '查看標準時間線，確認目前停留階段。', tone: 'info' };
+  const catalog = taskDiagnosisCatalogEntry(code);
+  const action = (() => {
+    if (code === 'NO_MATCHING_FLOW' || code === 'NO_MATCHING_RULE') return { actionHref: flowCreateHref(task), actionLabel: 'Open Dispatch Setup' };
+    if (code === 'AGENT_OFFLINE' || code === 'RESULT_TIMEOUT') return { actionHref: common.agentId ? `/agents/${encodeURIComponent(common.agentId)}` : '/agents', actionLabel: 'Open Agent Runtime' };
+    if (code === 'AGENT_CAPACITY_FULL' || code === 'NO_FLOW_AGENT') return { actionHref: task.matchedFlowId ? `/dispatch-flows?flowId=${encodeURIComponent(task.matchedFlowId)}` : '/dispatch-flows', actionLabel: 'Review Agent Pool' };
+    return {};
+  })();
+
+  const technicalReason = code === 'DISPATCH_DELIVERY_FAILED'
+    ? firstPresent(task.failureReason, task.blockedReason, evidence?.firstBlockingReason, catalog.explanation)
+    : catalog.explanation;
+
+  return {
+    ...common,
+    code,
+    title: catalog.title,
+    reason: technicalReason ?? catalog.explanation,
+    nextAction: catalog.nextAction,
+    tone: code === 'COMPLETED' ? 'success' : code === 'IN_PROGRESS' ? 'info' : code === 'DISPATCH_DELIVERY_FAILED' || code === 'RESULT_TIMEOUT' ? 'danger' : 'warning',
+    ...action,
+  };
 }
 
 function timelineHas(timeline: CoreDispatchTimelineResponse | undefined, ...needles: string[]): boolean {
@@ -782,13 +733,13 @@ export function buildStandardDispatchTimeline(
     return 'waiting';
   };
   return [
-    { id: 'event', title: 'Event 已接收', state: state('event', Boolean(task.sourceEventId || task.incidentId || task.createdAt)), detail: task.sourceEventId ? `Event ${task.sourceEventId}` : 'Core 已接受事件。', timestamp: task.createdAt },
-    { id: 'task', title: 'Task 已建立', state: state('task', true), detail: `Task ${task.taskId}`, timestamp: task.createdAt },
-    { id: 'flow', title: '命中派工流程', state: state('flow', flowMatched, !flowMatched && !blockedAt), detail: flowMatched ? `Flow ${task.matchedFlowId} / Rule ${task.matchedRuleId}` : diagnosis.code === 'NO_MATCHING_FLOW' ? diagnosis.reason : '正在比對 Dispatch Flow Rule。', timestamp: timelineTime(timeline, 'FLOW_MATCHED', 'RULE_MATCHED') },
-    { id: 'agent', title: '選出符合 Agent', state: state('agent', agentSelected, flowMatched && !agentSelected && !blockedAt), detail: agentSelected ? `Agent ${task.assignedAgentId}` : blockedAt === 'agent' ? diagnosis.reason : '正在檢查核准、Capability、Runtime 與容量。', timestamp: timelineTime(timeline, 'AGENT_ELIGIBLE', 'AGENT_SELECTED') },
-    { id: 'assignment', title: '建立 Assignment', state: state('assignment', assignmentCreated, agentSelected && !assignmentCreated), detail: task.dispatchRequestId ? `Dispatch Request ${task.dispatchRequestId}` : assignmentCreated ? 'Core 已保存派工關聯。' : '等待 Agent selection。', timestamp: timelineTime(timeline, 'ASSIGNMENT_CREATED', 'DISPATCH_REQUEST_CREATED') },
-    { id: 'delivery', title: 'Netty 已送達', state: state('delivery', delivered, assignmentCreated && !delivered && blockedAt !== 'delivery'), detail: delivered ? 'Gateway／Agent transport 已接受派工。' : blockedAt === 'delivery' ? diagnosis.reason : '等待 Gateway delivery。', timestamp: timelineTime(timeline, 'DELIVERED', 'GATEWAY_ACCEPTED') },
-    { id: 'ack', title: 'Agent ACK', state: state('ack', acked, delivered && !acked), detail: acked ? 'Agent 已確認接收並開始處理。' : '等待 Agent ACK。', timestamp: timelineTime(timeline, 'ACK', 'AGENT_ACCEPTED') },
-    { id: 'result', title: 'Agent Result', state: state('result', completed, acked && !completed && blockedAt !== 'result'), detail: completed ? '正式 Result 已回到 Core，Task 完成。' : blockedAt === 'result' ? diagnosis.reason : '等待 RESULT／ERROR callback。', timestamp: task.updatedAt ?? timelineTime(timeline, 'RESULT', 'COMPLETED') },
+    { id: 'event', title: 'Event ', state: state('event', Boolean(task.sourceEventId || task.incidentId || task.createdAt)), detail: task.sourceEventId ? `Event ${task.sourceEventId}` : 'Core Event details', timestamp: task.createdAt },
+    { id: 'task', title: 'Task created', state: state('task', true), detail: `Task ${task.taskId}`, timestamp: task.createdAt },
+    { id: 'flow', title: 'Flow and rule match', state: state('flow', flowMatched, !flowMatched && !blockedAt), detail: flowMatched ? `Flow ${task.matchedFlowId} / Rule ${task.matchedRuleId}` : diagnosis.code === 'NO_MATCHING_FLOW' ? diagnosis.reason : 'Waiting for Core to record the matched Source Flow and rule.', timestamp: timelineTime(timeline, 'FLOW_MATCHED', 'RULE_MATCHED') },
+    { id: 'agent', title: ' Agent', state: state('agent', agentSelected, flowMatched && !agentSelected && !blockedAt), detail: agentSelected ? `Agent ${task.assignedAgentId}` : blockedAt === 'agent' ? diagnosis.reason : 'Capability,Runtime and capacity.', timestamp: timelineTime(timeline, 'AGENT_ELIGIBLE', 'AGENT_SELECTED') },
+    { id: 'assignment', title: 'create Assignment', state: state('assignment', assignmentCreated, agentSelected && !assignmentCreated), detail: task.dispatchRequestId ? `Dispatch Request ${task.dispatchRequestId}` : assignmentCreated ? 'Core recorded assignment evidence.' : 'Waiting for Agent selection.', timestamp: timelineTime(timeline, 'ASSIGNMENT_CREATED', 'DISPATCH_REQUEST_CREATED') },
+    { id: 'delivery', title: 'Netty ', state: state('delivery', delivered, assignmentCreated && !delivered && blockedAt !== 'delivery'), detail: delivered ? 'Gateway or Agent transport delivery evidence is recorded.' : blockedAt === 'delivery' ? diagnosis.reason : 'Waiting for Gateway delivery evidence.', timestamp: timelineTime(timeline, 'DELIVERED', 'GATEWAY_ACCEPTED') },
+    { id: 'ack', title: 'Agent ACK', state: state('ack', acked, delivered && !acked), detail: acked ? 'Agent ' : 'waiting Agent ACK.', timestamp: timelineTime(timeline, 'ACK', 'AGENT_ACCEPTED') },
+    { id: 'result', title: 'Agent Result', state: state('result', completed, acked && !completed && blockedAt !== 'result'), detail: completed ? 'production Result return to Core,Task ' : blockedAt === 'result' ? diagnosis.reason : 'waiting RESULT/ERROR callback.', timestamp: task.updatedAt ?? timelineTime(timeline, 'RESULT', 'COMPLETED') },
   ];
 }

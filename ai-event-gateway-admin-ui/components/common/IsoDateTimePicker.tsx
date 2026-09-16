@@ -18,7 +18,7 @@ export function IsoDateTimePicker({
   onChange,
   className = "space-y-1 text-sm",
   inputClassName = "w-full rounded-lg border px-3 py-2",
-  helperText = "使用本機時區選擇日期與時間，送出時會轉成 ISO UTC 格式。留空代表不設定到期日。",
+  helperText = " ISO UTC Configuration",
   clearLabel = "Clear",
 }: Readonly<IsoDateTimePickerProps>) {
   const localValue = isoToDateTimeLocalValue(value);

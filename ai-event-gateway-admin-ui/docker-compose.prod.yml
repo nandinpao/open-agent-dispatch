@@ -1,0 +1,40 @@
+services:
+  ai-event-gateway-admin-ui:
+    # v24 Phase 1: production deployment is deploy-only; build/publish happens before this compose file.
+    image: ${AI_EVENT_GATEWAY_ADMIN_UI_IMAGE:?Set AI_EVENT_GATEWAY_ADMIN_UI_IMAGE to an immutable image@sha256 digest}
+    container_name: ai-event-gateway-admin-ui
+    restart: unless-stopped
+    environment:
+      CORE_BACKEND_ORIGIN: ${CORE_BACKEND_ORIGIN:-http://ai-event-gateway-core:18080}
+      NETTY_BACKEND_ORIGIN: ${NETTY_BACKEND_ORIGIN:-http://ai-event-gateway-netty:18081}
+      GATEWAY_BACKEND_ORIGIN: ${GATEWAY_BACKEND_ORIGIN:-http://ai-event-gateway-netty:18081}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - ai-event-gateway-net
+
+  nginx:
+    image: ${NGINX_IMAGE:?Set NGINX_IMAGE to an immutable nginx image@sha256 digest}
+    container_name: ai-event-gateway-admin-ui-nginx
+    restart: unless-stopped
+    depends_on:
+      ai-event-gateway-admin-ui:
+        condition: service_healthy
+    ports:
+      - "${PUBLIC_HTTP_PORT:-8080}:80"
+      # - "${PUBLIC_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./deploy/nginx/admin-ui.conf:/etc/nginx/conf.d/default.conf:ro
+      # - ./deploy/nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - ai-event-gateway-net
+
+networks:
+  ai-event-gateway-net:
+    driver: bridge

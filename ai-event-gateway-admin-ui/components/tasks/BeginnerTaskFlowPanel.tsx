@@ -37,14 +37,14 @@ export function BeginnerTaskFlowPanel({ row }: Readonly<{ row: TaskDispatchDashb
           <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{headline.nextAction}</p>
         </div>
         <div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${toneToClass(headline.tone)}`}>
-          <div>目前狀態：{headline.tone === 'done' ? '已完成' : headline.tone === 'blocked' ? '需要處理' : headline.tone === 'ok' ? '進行中' : '等待中'}</div>
+          <div>Current status:{headline.tone === 'done' ? 'Completed' : headline.tone === 'blocked' ? 'Action required' : headline.tone === 'ok' ? 'In progress' : 'Waiting'}</div>
           <div className="mt-1 text-xs font-normal opacity-80">raw: task={task.status} dispatch={task.dispatchExecutionStatus ?? task.dispatchStatus ?? '-'}</div>
         </div>
       </div>
 
       <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1fr_1fr]">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-sm font-black text-slate-900">這個 Task 需要什麼能力？</div>
+          <div className="text-sm font-black text-slate-900">Required Capabilities</div>
           <div className="mt-3 space-y-2">
             {required.length > 0 ? required.map((capability) => (
               <div key={capability} className="rounded-xl border border-white bg-white p-3 shadow-sm">
@@ -52,30 +52,30 @@ export function BeginnerTaskFlowPanel({ row }: Readonly<{ row: TaskDispatchDashb
                 <div className="mt-1 text-xs leading-5 text-slate-500">{beginnerSkillDescription(capability)}</div>
                 <div className="mt-2"><HumanizedCode code={capability} type="skill" compact /></div>
               </div>
-            )) : <div className="text-sm text-amber-700">此 Task 沒有 requiredCapabilities，routing 會很難解釋。</div>}
+            )) : <div className="text-sm text-amber-700">No Required Capability is declared. A normal Dispatch Task cannot determine qualified Agents until this is configured.</div>}
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-sm font-black text-slate-900">系統選了哪個 Agent？</div>
+          <div className="text-sm font-black text-slate-900">Selected Agent</div>
           {selectedAgent ? (
             <div className="mt-3 rounded-xl border border-white bg-white p-3 shadow-sm">
               <div className="font-bold text-slate-900"><Link href={`/agents/${encodeURIComponent(selectedAgent)}`} className="text-blue-700 hover:text-blue-800">{selectedAgent}</Link></div>
               <div className="mt-2 grid gap-2 text-xs text-slate-600">
-                <div>派工請求：{task.dispatchRequestId ?? '-'}</div>
-                <div>下一步：<HumanizedCode code={task.nextAction} type="status" compact /></div>
-                <div>Delivery：<HumanizedCode code={task.dispatchDeliveryStatus ?? task.dispatchStatus} type="status" compact /></div>
+                <div>Dispatch Request: {task.dispatchRequestId ?? 'Not created'}</div>
+                <div>Next step: <HumanizedCode code={task.nextAction} type="status" compact /></div>
+                <div>Delivery:<HumanizedCode code={task.dispatchDeliveryStatus ?? task.dispatchStatus} type="status" compact /></div>
               </div>
             </div>
           ) : (
-            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">尚未選中 Agent。請先檢查 後台 qualification、runtime 與 task requirement 是否成立。</div>
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">No Agent is assigned yet. Core is still evaluating eligibility, runtime state, and Task requirements.</div>
           )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="text-sm font-black text-slate-900">Agent 收到 Task 後在幹嘛？</div>
+          <div className="text-sm font-black text-slate-900">Agent  Task </div>
           <p className="mt-2 text-xs leading-5 text-slate-600">
-            如果 Agent runtime 顯示 IDLE，但這裡顯示 Gateway 已接受派工，通常代表 Core 正在等待 Agent callback；IDLE 不等於派工沒有送出。
+            An Agent may appear IDLE while Core is waiting for Gateway delivery or callback evidence. Runtime status alone does not determine Task completion.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <StatusBadge status={task.callbackStatus ?? 'NO_CALLBACK'} />
@@ -87,8 +87,8 @@ export function BeginnerTaskFlowPanel({ row }: Readonly<{ row: TaskDispatchDashb
       <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-black text-slate-900">流程進度</div>
-            <div className="mt-1 text-xs text-slate-500">這是給新手看的摘要；工程師詳情仍保留在下方「Timeline Event Log 與進階診斷」。</div>
+            <div className="text-sm font-black text-slate-900">Lifecycle evidence</div>
+            <div className="mt-1 text-xs text-slate-500">Timeline Event Log </div>
           </div>
           <StatusBadge status={lifecycle.overallStatus} />
         </div>

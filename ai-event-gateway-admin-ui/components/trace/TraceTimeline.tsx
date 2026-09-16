@@ -16,7 +16,7 @@ function TraceStepCard({ step, index }: Readonly<{ step: TraceStep; index: numbe
             <StatusBadge status={step.status} />
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            {step.actorType}{step.actorId ? `：${step.actorId}` : ''} ・ {formatDateTime(step.timestamp)}
+            {step.actorType}{step.actorId ? `:${step.actorId}` : ''} · {formatDateTime(step.timestamp)}
           </div>
         </div>
         <div className="text-xs font-semibold text-slate-500">{formatDurationMs(step.durationMs)}</div>
@@ -41,7 +41,7 @@ export function TraceTimeline({ trace }: Readonly<{ trace?: TraceDetail | null }
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-base font-bold text-slate-900">Trace Timeline</h2>
-          <p className="mt-1 text-sm text-slate-500">依 traceId 串起 Event → Route → Task → Agent 的完整生命週期。</p>
+          <p className="mt-1 text-sm text-slate-500">according to traceId  Event → Route → Task → Agent </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={safeTrace.status} />
@@ -71,7 +71,7 @@ export function TraceTimeline({ trace }: Readonly<{ trace?: TraceDetail | null }
       <div className="border-l-2 border-slate-200 pl-6">
         <div className="space-y-4">
           {steps.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">目前沒有 Trace steps。</div>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">No Trace steps.</div>
           ) : steps.map((step, index) => <TraceStepCard key={step.stepId} step={step} index={index} />)}
         </div>
       </div>

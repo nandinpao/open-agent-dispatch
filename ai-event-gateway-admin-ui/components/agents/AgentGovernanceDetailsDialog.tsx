@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDialogAccessibility } from '@/hooks/useDialogAccessibility';
 import { JsonViewer } from '@/components/common/JsonViewer';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import {
@@ -30,7 +31,7 @@ function capabilityRows(row: AgentDashboardRow): string[] {
 
 function scopeRows(row: AgentDashboardRow): string[] {
   return (row.profile?.authorizationScopes ?? [])
-    .map((scope) => [scope.systemCode ?? '*', scope.taskType ?? '*', scope.siteCode].filter(Boolean).join('/'))
+    .map((scope) => `${scope.systemCode ?? '*'} → ${scope.taskType ?? '*'}${scope.siteCode ? ` · site ${scope.siteCode}` : ''}`)
     .filter(Boolean);
 }
 
@@ -45,6 +46,7 @@ function Field({ label, value }: Readonly<{ label: string; value?: string | numb
 
 export function AgentGovernanceDetailsDialog({ row, triggerLabel = 'Details' }: Readonly<AgentGovernanceDetailsDialogProps>) {
   const [open, setOpen] = useState(false);
+  const dialogRef = useDialogAccessibility(open, () => setOpen(false));
   const review = getRowReviewTimestamp(row);
   const warning = deriveAgentRuntimeWarning(row);
   const capabilities = capabilityRows(row);
@@ -61,7 +63,7 @@ export function AgentGovernanceDetailsDialog({ row, triggerLabel = 'Details' }: 
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4" role="dialog" aria-modal="true">
+        <div ref={dialogRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 outline-none" role="dialog" aria-modal="true" aria-label="Agent governance details">
           <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
@@ -131,7 +133,7 @@ export function AgentGovernanceDetailsDialog({ row, triggerLabel = 'Details' }: 
                 </div>
               </section>
               <section className="rounded-2xl border border-slate-200 p-4">
-                <div className="text-sm font-bold text-slate-900">Authorization Scopes</div>
+                <div className="text-sm font-bold text-slate-900">Dispatch Access</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {scopes.length > 0 ? scopes.map((scope) => <StatusBadge key={scope} status={scope} />) : <span className="text-sm text-slate-500">-</span>}
                 </div>
