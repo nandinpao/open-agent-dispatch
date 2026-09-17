@@ -24,6 +24,41 @@ export const saveRedmineApiKeyAndTest=(principalId:string,apiKey:string)=>coreTe
 export interface IssueTrackingActivationResult { mapping: IntegrationProjectMapping; metadata?: ProviderMetadataSnapshot | null; validation?: ProjectMappingValidationResult | null; probe?: PermissionProbeResult | null; alreadyActive: boolean; retiredLegacyMappings: number; message: string }
 export const activateSourceIssueTracking=(sourceSystemId:string,value:{connectionId:string;principalId:string;projectId:string;projectKey?:string|null;trackerId:string})=>coreTenantApiPost<IssueTrackingActivationResult>(`/api/integrations/source-systems/${encodeURIComponent(sourceSystemId)}/issue-tracking/activate`,value,{headers:{'Idempotency-Key':key('source-issue-tracking-activate')}});
 
+
+export interface IssueTrackingReadinessCheck {
+  code: string;
+  label: string;
+  status: 'READY' | 'BLOCKED' | 'WAITING' | 'CHECK_REQUIRED' | 'CERTIFIED' | 'NOT_CERTIFIED';
+  reasonCode?: string | null;
+  summary?: string | null;
+  remediationRoute?: string | null;
+}
+export interface IssueTrackingRuntimeReadiness {
+  sourceSystemId: string;
+  taskType?: string | null;
+  overallStatus: 'BLOCKED' | 'CHECK_REQUIRED' | 'READY_NOT_CERTIFIED' | 'CERTIFIED';
+  configured: boolean;
+  runtimeReady: boolean;
+  providerAuthenticated: boolean;
+  liveCreateCertified: boolean;
+  liveCreateCertificationStatus: string;
+  executionAuthority: string;
+  autoExecutePending: boolean;
+  connectorRuntimeEnabled: boolean;
+  connectionId?: string | null;
+  mappingId?: string | null;
+  externalProjectId?: string | null;
+  externalProjectKey?: string | null;
+  externalTrackerId?: string | null;
+  technicalPrincipalId?: string | null;
+  credentialId?: string | null;
+  blockers: string[];
+  checks: IssueTrackingReadinessCheck[];
+  evaluatedAt?: string | null;
+}
+export const getSourceIssueTrackingReadiness=(sourceSystemId:string,taskType?:string|null)=>coreTenantApiGet<IssueTrackingRuntimeReadiness>(`/api/integrations/source-systems/${encodeURIComponent(sourceSystemId)}/issue-tracking/readiness`,{taskType:taskType||undefined});
+export const probeSourceIssueTrackingReadiness=(sourceSystemId:string,taskType?:string|null)=>coreTenantApiPost<IssueTrackingRuntimeReadiness>(`/api/integrations/source-systems/${encodeURIComponent(sourceSystemId)}/issue-tracking/readiness/probe`,undefined,{query:{taskType:taskType||undefined}});
+
 export interface ConnectorRuntimePreflightResult {
   status: 'READY';
   providerType: ProviderType;

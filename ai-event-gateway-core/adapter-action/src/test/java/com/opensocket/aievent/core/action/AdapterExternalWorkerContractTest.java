@@ -41,14 +41,27 @@ class AdapterExternalWorkerContractTest {
     void anotherWorkerCannotCompleteClaimedAction() {
         InMemoryAdapterActionRepository repository = new InMemoryAdapterActionRepository();
         AdapterActionService service = service(repository);
-        repository.save(action("act-1", AdapterType.ISSUE_TRACKING));
+        repository.save(action("act-1", AdapterType.MCP));
 
-        AdapterAction claimed = service.claimNext(AdapterType.ISSUE_TRACKING, "worker-issue-001", Duration.ofSeconds(60)).orElseThrow();
+        AdapterAction claimed = service.claimNext(AdapterType.MCP, "worker-mcp-001", Duration.ofSeconds(60)).orElseThrow();
 
-        assertThatThrownBy(() -> service.completeByWorker(claimed.getActionId(), "worker-issue-002", "wrong-worker"))
+        assertThatThrownBy(() -> service.completeByWorker(claimed.getActionId(), "worker-mcp-002", "wrong-worker"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("claimed by another worker");
         assertThat(repository.findById(claimed.getActionId()).orElseThrow().getStatus()).isEqualTo(AdapterActionStatus.CLAIMED);
+    }
+
+
+    @Test
+    void issueTrackingCannotBeClaimedByExternalWorker() {
+        InMemoryAdapterActionRepository repository = new InMemoryAdapterActionRepository();
+        AdapterActionService service = service(repository);
+        repository.save(action("act-issue-core", AdapterType.ISSUE_TRACKING));
+
+        assertThatThrownBy(() -> service.claimNext(AdapterType.ISSUE_TRACKING, "worker-issue-001", Duration.ofSeconds(60)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ISSUE_TRACKING_EXTERNAL_WORKER_FORBIDDEN_CORE_GOVERNED_AUTHORITY");
+        assertThat(repository.findById("act-issue-core").orElseThrow().getStatus()).isEqualTo(AdapterActionStatus.PENDING);
     }
 
     @Test
@@ -72,12 +85,12 @@ class AdapterExternalWorkerContractTest {
     void retryableWorkerFailureShouldMoveActionToRetryWaiting() {
         InMemoryAdapterActionRepository repository = new InMemoryAdapterActionRepository();
         AdapterActionService service = service(repository);
-        AdapterAction action = action("act-retryable", AdapterType.ISSUE_TRACKING);
+        AdapterAction action = action("act-retryable", AdapterType.MCP);
         action.setMaxAttempts(3);
         repository.save(action);
 
-        AdapterAction claimed = service.claimNext(AdapterType.ISSUE_TRACKING, "issue-worker-001", Duration.ofSeconds(60)).orElseThrow();
-        AdapterAction failed = service.failByWorker(claimed.getActionId(), "issue-worker-001", "Redmine timeout", true);
+        AdapterAction claimed = service.claimNext(AdapterType.MCP, "mcp-worker-001", Duration.ofSeconds(60)).orElseThrow();
+        AdapterAction failed = service.failByWorker(claimed.getActionId(), "mcp-worker-001", "MCP endpoint timeout", true);
 
         assertThat(failed.getStatus()).isEqualTo(AdapterActionStatus.RETRY_WAITING);
         assertThat(failed.getAttemptCount()).isEqualTo(1);

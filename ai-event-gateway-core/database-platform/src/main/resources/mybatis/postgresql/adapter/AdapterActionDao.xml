@@ -35,6 +35,9 @@
     <select id="findExecutablePending" resultMap="AdapterActionPoMap">
         select * from adapter_actions where status in ('PENDING','RETRY_WAITING','EXECUTOR_UNAVAILABLE') and (next_attempt_at is null or next_attempt_at &lt;= #{now}) order by created_at asc limit #{limit}
     </select>
+    <select id="findExecutablePendingByAdapterType" resultMap="AdapterActionPoMap">
+        select * from adapter_actions where adapter_type = #{adapterType} and status in ('PENDING','RETRY_WAITING','EXECUTOR_UNAVAILABLE') and (next_attempt_at is null or next_attempt_at &lt;= #{now}) order by created_at asc limit #{limit}
+    </select>
     <select id="claimNext" resultMap="AdapterActionPoMap">
         with candidate as (
             select action_id from adapter_actions where adapter_type = #{adapterType} and (next_attempt_at is null or next_attempt_at &lt;= #{now})

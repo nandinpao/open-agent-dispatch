@@ -22,6 +22,7 @@ public interface AdapterActionRepository {
     List<AdapterAction> findByTaskId(String taskId, int limit);
     List<AdapterAction> findByStatus(AdapterActionStatus status, int limit);
     List<AdapterAction> findExecutablePending(OffsetDateTime now, int limit);
+    List<AdapterAction> findExecutablePendingByAdapterType(AdapterType adapterType, OffsetDateTime now, int limit);
 
     default Optional<AdapterAction> claimNext(AdapterType adapterType, ClaimRequest request) {
         return Optional.empty();

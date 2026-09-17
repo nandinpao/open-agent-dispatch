@@ -18,6 +18,7 @@ public interface AdapterActionDao {
     List<AdapterActionPo> findByTaskId(@Param("taskId") String taskId, @Param("limit") int limit);
     List<AdapterActionPo> findByStatus(@Param("status") String status, @Param("limit") int limit);
     List<AdapterActionPo> findExecutablePending(@Param("now") OffsetDateTime now, @Param("limit") int limit);
+    List<AdapterActionPo> findExecutablePendingByAdapterType(@Param("adapterType") String adapterType, @Param("now") OffsetDateTime now, @Param("limit") int limit);
     AdapterActionPo claimNext(
             @Param("adapterType") String adapterType,
             @Param("workerId") String workerId,

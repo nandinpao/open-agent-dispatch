@@ -10,7 +10,7 @@ public class AdapterWorkerProperties {
     private boolean enabled = true;
     private String coreBaseUrl = "http://localhost:18080";
     private String workerId = "adapter-worker-001";
-    private Set<String> adapterTypes = new LinkedHashSet<>(Set.of("MCP", "ISSUE_TRACKING"));
+    private Set<String> adapterTypes = new LinkedHashSet<>(Set.of("MCP"));
     private long leaseSeconds = 120;
     private long pollIntervalMs = 2000;
     private Duration requestTimeout = Duration.ofSeconds(15);
@@ -100,10 +100,13 @@ public class AdapterWorkerProperties {
         mcpEndpointUrl = v == null ? "" : v;
     }
 
+    /** Compatibility detector only. ISSUE_TRACKING is not executable by the generic external worker. */
+    @Deprecated
     public String getIssueEndpointUrl() {
         return issueEndpointUrl;
     }
 
+    @Deprecated
     public void setIssueEndpointUrl(String v) {
         issueEndpointUrl = v == null ? "" : v;
     }
@@ -122,7 +125,7 @@ public class AdapterWorkerProperties {
         if ("MCP".equalsIgnoreCase(adapterType))
             return !mcpEndpointUrl.isBlank();
         if ("ISSUE_TRACKING".equalsIgnoreCase(adapterType))
-            return !issueEndpointUrl.isBlank();
+            return false;
         return false;
     }
 }

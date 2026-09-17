@@ -1,10 +1,14 @@
 // Generated projection of release/current-release-identity.json. Do not edit independently.
 export const releaseIdentity = Object.freeze({
-  releaseLabel: 'v38',
+  releaseLabel: 'v39',
   productVersion: '0.8.2-SNAPSHOT',
-  artifactRevision: 'V38_7B1_HF18_FINALIZATION_OUTBOX_AGGREGATE_OWNERSHIP_CLOSURE',
-  artifactName: 'OpenDispatch_v38-7b1-hf18-finalization-outbox-aggregate-ownership-closure.zip',
-  rootDirectory: 'OpenDispatch_v38',
+  artifactRevision: 'V39_6C_FAILURE_SCENARIO_AUTOMATION',
+  artifactName: 'OpenDispatch_v39-6c-failure-scenario-automation.zip',
+  rootDirectory: 'OpenDispatch_v39',
+  repositorySnapshot: 'v39',
   productionReady: false,
   releaseGateStatus: 'NOT_CERTIFIED',
+  runtimeCertificationStatus: 'NOT_CERTIFIED',
+  certificationClaim: 'NONE',
+  identityGeneratedAt: '2026-09-17T02:23:55Z',
 } as const);

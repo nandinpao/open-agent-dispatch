@@ -106,6 +106,18 @@ public class InMemoryAdapterActionRepository implements AdapterActionRepository 
     }
 
     @Override
+    public List<AdapterAction> findExecutablePendingByAdapterType(AdapterType adapterType, OffsetDateTime now, int limit) {
+        return actions.values().stream()
+                .filter(a -> adapterType != null && a.getAdapterType() == adapterType)
+                .filter(a -> a.getStatus() == AdapterActionStatus.PENDING || a.getStatus() == AdapterActionStatus.RETRY_WAITING || a.getStatus() == AdapterActionStatus.EXECUTOR_UNAVAILABLE)
+                .filter(a -> a.getNextAttemptAt() == null || !a.getNextAttemptAt().isAfter(now))
+                .sorted(Comparator.comparing(AdapterAction::getCreatedAt))
+                .limit(Math.max(1, Math.min(limit, 1000)))
+                .map(this::copy)
+                .toList();
+    }
+
+    @Override
     public synchronized Optional<AdapterAction> claimNext(AdapterType adapterType, ClaimRequest request) {
         Optional<AdapterAction> candidate = actions.values().stream()
                 .filter(action -> adapterType == null || adapterType == action.getAdapterType())

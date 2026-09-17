@@ -37,6 +37,7 @@ import type {
   CoreTaskDispatchRequirements,
   CoreTaskEligibleAgentsResponse,
   CoreTaskIssueDedupSummary,
+  CoreIssueRuntimeJourneyView,
   CoreTaskRecord,
   CoreTaskRemediationCommandRequest,
   CoreTaskRemediationCommandResult,
@@ -55,6 +56,11 @@ import {
   normalizeCoreTaskRuntimeViewPayload,
   normalizeFailureQueueResponse,
 } from "@/lib/api/domains/taskRuntimeNormalizer";
+
+
+type IssueLinkReconcileCommandResult = CommandResult & {
+  payload: CoreIssueRuntimeJourneyView;
+};
 
 type PageLike<T> =
   | T[]
@@ -340,6 +346,13 @@ export const taskAdminApi = {
       return coreTenantApiPost<CommandResult>(
         coreAdminEndpoints.taskEscalate(taskId),
         body ?? {},
+      );
+    },
+
+  reconcileTaskIssueLink(taskId: string): Promise<IssueLinkReconcileCommandResult> {
+      return coreTenantApiPost<IssueLinkReconcileCommandResult>(
+        coreAdminEndpoints.taskIssueLinkReconcile(taskId),
+        {},
       );
     },
 

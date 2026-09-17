@@ -274,6 +274,16 @@ adapter-executor:
     jira-mock-enabled: ${JIRA_EXECUTOR_MOCK_ENABLED:true}
     redmine-mock-enabled: ${REDMINE_EXECUTOR_MOCK_ENABLED:true}
     gitlab-mock-enabled: ${GITLAB_EXECUTOR_MOCK_ENABLED:true}
+    execution-authority: ${ISSUE_EXECUTION_AUTHORITY:CORE_GOVERNED}
+    auto-execute-pending: ${ISSUE_EXECUTOR_AUTO_EXECUTE_PENDING:true}
+    connector-runtime-enabled: ${ISSUE_CONNECTOR_RUNTIME_ENABLED:true}
+    connector-runtime-required: ${ISSUE_CONNECTOR_RUNTIME_REQUIRED:true}
+    link-projection-reconciliation-enabled: ${ISSUE_LINK_PROJECTION_RECONCILIATION_ENABLED:true}
+    link-projection-reconciliation-delay: ${ISSUE_LINK_PROJECTION_RECONCILIATION_DELAY:30s}
+    link-projection-batch-size: ${ISSUE_LINK_PROJECTION_BATCH_SIZE:50}
+    link-projection-max-attempts: ${ISSUE_LINK_PROJECTION_MAX_ATTEMPTS:10}
+    link-projection-initial-backoff: ${ISSUE_LINK_PROJECTION_INITIAL_BACKOFF:15s}
+    link-projection-max-backoff: ${ISSUE_LINK_PROJECTION_MAX_BACKOFF:5m}
     # Local compatibility mode consumes the existing vendor ENV configuration directly.
     # Production remains scoped-only through application-prod.yml.
     scoped-identity-enabled: ${ISSUE_SCOPED_IDENTITY_ENABLED:true}

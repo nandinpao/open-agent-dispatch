@@ -92,7 +92,7 @@ The Core common env example now contains the deployment-mode and integration-eve
 
 ```text
 MODULAR_MONOLITH          default; all Core feature modules execute in one process
-HYBRID_ADAPTER_WORKER     Core owns state; an external worker executes Adapter Actions
+HYBRID_ADAPTER_WORKER     Core owns state; an external worker executes externally delegated Adapter Actions (for example MCP). ISSUE_TRACKING remains Core-governed
 EXTERNALIZED_CONTROL_PLANE reserved migration target; guarded from accidental use
 ```
 
@@ -116,10 +116,11 @@ Execution endpoints are opt-in:
 
 ```text
 ADAPTER_WORKER_MCP_ENDPOINT_URL
-ADAPTER_WORKER_ISSUE_ENDPOINT_URL
 ```
 
-When an endpoint is blank, the worker skips claiming that adapter type unless `ADAPTER_WORKER_MOCK_SUCCESS_ENABLED=true`. Keep mock success disabled outside test environments.
+`ISSUE_TRACKING` is deliberately not an external-worker adapter type. Redmine/JIRA execution stays inside the Core-governed Connector Runtime so Project Mapping, Technical Principal and Credential authority remain server-side. Configuring `ISSUE_TRACKING` in `ADAPTER_WORKER_TYPES` or setting the legacy `ADAPTER_WORKER_ISSUE_ENDPOINT_URL` causes worker startup to fail.
+
+When the MCP endpoint is blank, the worker skips claiming MCP unless `ADAPTER_WORKER_MOCK_SUCCESS_ENABLED=true`. Keep mock success disabled outside test environments.
 
 Integration-event projection and delivery settings belong to Core because Core owns `integration_event_outbox`:
 

@@ -23,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.opensocket.aievent.core.callback.TaskCallbackRequest;
 import com.opensocket.aievent.core.callback.TaskCallbackType;
 import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRecord;
+import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
+import com.opensocket.aievent.core.action.executor.AdapterExecutionAuthorityPolicy;
 import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRepository;
 import com.opensocket.aievent.core.dispatch.DispatchRequest;
 import com.opensocket.aievent.core.incident.Incident;
@@ -49,6 +51,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     private final AdapterActionRepository repository;
     private final IncidentFacade incidentFacade;
     private final AdapterActionProperties properties;
+    private final AdapterExecutionAuthorityPolicy authorityPolicy;
 
     @Autowired(required = false)
     private AdapterActionMetricsPort metrics = AdapterActionMetricsPort.noop();
@@ -62,12 +65,15 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     @Autowired(required = false)
     private TaskIssueLinkRepository taskIssueLinkRepository = TaskIssueLinkRepository.noop();
 
+    @Autowired
     public AdapterActionService(AdapterActionRepository repository,
                                 IncidentFacade incidentFacade,
-                                AdapterActionProperties properties) {
+                                AdapterActionProperties properties,
+                                AdapterActionExecutionProperties executionProperties) {
         this.repository = repository;
         this.incidentFacade = incidentFacade;
         this.properties = properties;
+        this.authorityPolicy = new AdapterExecutionAuthorityPolicy(executionProperties);
         log.info("issue_sync_runtime_config legacyWriteEnabled={} issueEnabled={} createOnCompletedTask={} createOnFailedTask={} updateExistingIssueComment={} oneCreatePerIncident={} adapterName={}",
                 properties.getIssue().isLegacyWriteEnabled(), properties.getIssue().isEnabled(),
                 properties.getIssue().isCreateOnCompletedTask(),
@@ -75,6 +81,13 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
                 properties.getIssue().isUpdateExistingIssueComment(),
                 properties.getIssue().isOneCreatePerIncident(),
                 properties.getIssue().getAdapterName());
+    }
+
+    /** Test/compatibility constructor; default execution authority remains Core-governed for Issue Tracking. */
+    public AdapterActionService(AdapterActionRepository repository,
+                                IncidentFacade incidentFacade,
+                                AdapterActionProperties properties) {
+        this(repository, incidentFacade, properties, new AdapterActionExecutionProperties());
     }
 
     @Override
@@ -340,6 +353,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
         if (adapterType == null) {
             throw new IllegalArgumentException("adapterType is required");
         }
+        authorityPolicy.requireExternalWorkerClaim(adapterType);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         ClaimRequest claimRequest = ClaimRequest.forLease(
                 requireWorkerId(workerId),
@@ -354,6 +368,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     public AdapterAction heartbeat(String actionId, String workerId, Duration leaseDuration) {
         AdapterAction current = repository.findById(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Adapter action not found: " + actionId));
+        authorityPolicy.requireExternalWorkerClaim(current.getAdapterType());
         ensureClaimedBy(current, workerId);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         LeaseRenewalRequest request = new LeaseRenewalRequest(
@@ -371,6 +386,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     public AdapterAction completeByWorker(String actionId, String workerId, String responseRef) {
         AdapterAction action = repository.findById(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Adapter action not found: " + actionId));
+        authorityPolicy.requireExternalWorkerClaim(action.getAdapterType());
         ensureClaimedBy(action, workerId);
         ClaimOwnership ownership = ownership(action);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -395,6 +411,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     public AdapterAction failByWorker(String actionId, String workerId, String error, Boolean retryable) {
         AdapterAction action = repository.findById(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Adapter action not found: " + actionId));
+        authorityPolicy.requireExternalWorkerClaim(action.getAdapterType());
         ensureClaimedBy(action, workerId);
         ClaimOwnership ownership = ownership(action);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);

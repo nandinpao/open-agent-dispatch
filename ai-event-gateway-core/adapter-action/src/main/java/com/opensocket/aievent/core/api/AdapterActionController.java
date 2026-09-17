@@ -187,6 +187,12 @@ public class AdapterActionController {
         map.put("gitlabMockEnabled", executionProperties.getIssue().isGitlabMockEnabled());
         map.put("issueConnectorRuntimeEnabled", executionProperties.getIssue().isConnectorRuntimeEnabled());
         map.put("issueConnectorRuntimeRequired", executionProperties.getIssue().isConnectorRuntimeRequired());
+        map.put("issueExecutionAuthority", executionProperties.getIssue().getExecutionAuthority().name());
+        map.put("issueCoreGoverned", executionProperties.getIssue().getExecutionAuthority() == com.opensocket.aievent.core.action.executor.AdapterExecutionAuthority.CORE_GOVERNED);
+        map.put("issueAutoExecutePending", executionProperties.getIssue().isAutoExecutePending());
+        map.put("issueLinkProjectionReconciliationEnabled", executionProperties.getIssue().isLinkProjectionReconciliationEnabled());
+        map.put("issueLinkProjectionMaxAttempts", executionProperties.getIssue().getLinkProjectionMaxAttempts());
+        map.put("issueExternalWorkerAllowed", false);
         map.put("issueScopedIdentityEnabled", false);
         map.put("issueScopedIdentityRequired", false);
         return map;

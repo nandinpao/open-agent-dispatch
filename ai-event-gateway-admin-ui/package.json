@@ -295,7 +295,7 @@
   },
   "packageManager": "npm@10.9.0",
   "opendispatchReleaseVersion": "0.8.2-SNAPSHOT",
-  "opendispatchReleaseLabel": "v38",
-  "opendispatchArtifactRevision": "V38_7B1_HF18_FINALIZATION_OUTBOX_AGGREGATE_OWNERSHIP_CLOSURE",
-  "opendispatchArtifactName": "OpenDispatch_v38-7b1-hf10-fix3a-inheritance-mode-schema-contract.zip"
+  "opendispatchReleaseLabel": "v39",
+  "opendispatchArtifactRevision": "V39_6C_FAILURE_SCENARIO_AUTOMATION",
+  "opendispatchArtifactName": "OpenDispatch_v39-6c-failure-scenario-automation.zip"
 }

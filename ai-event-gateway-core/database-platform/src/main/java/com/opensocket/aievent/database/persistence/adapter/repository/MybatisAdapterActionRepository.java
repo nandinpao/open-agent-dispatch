@@ -79,6 +79,12 @@ public class MybatisAdapterActionRepository implements AdapterActionRepository {
     }
 
     @Override
+    public List<AdapterAction> findExecutablePendingByAdapterType(AdapterType adapterType, OffsetDateTime now, int limit) {
+        if (adapterType == null) return List.of();
+        return dao.findExecutablePendingByAdapterType(adapterType.name(), now, cap(limit)).stream().map(converter::toAction).toList();
+    }
+
+    @Override
     public Optional<AdapterAction> claimNext(AdapterType adapterType, ClaimRequest request) {
         return Optional.ofNullable(dao.claimNext(
                         adapterType.name(),

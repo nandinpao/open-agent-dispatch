@@ -15,9 +15,9 @@ public class ScheduledAdapterActionExecutor {
 
     @Scheduled(fixedDelayString = "${adapter-executor.auto-execute-interval-ms:10000}")
     public void executePending() {
-        if (!properties.isEnabled() || !properties.isAutoExecutePending()) {
+        if (!service.hasAutoExecutableAuthority()) {
             return;
         }
-        service.executePending(properties.getBatchSize());
+        service.executeAutoPending(properties.getBatchSize());
     }
 }

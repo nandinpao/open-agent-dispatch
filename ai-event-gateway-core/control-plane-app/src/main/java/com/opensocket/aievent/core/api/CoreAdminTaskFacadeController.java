@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.opensocket.aievent.core.action.AdapterAction;
 import com.opensocket.aievent.core.action.AdapterActionRepository;
 import com.opensocket.aievent.core.action.AdapterType;
+import com.opensocket.aievent.core.action.executor.AdapterActionExecutionService;
 import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRecord;
 import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRepository;
 import com.opensocket.aievent.core.callback.CallbackInboxEntry;
@@ -54,6 +55,8 @@ import com.opensocket.aievent.core.dispatch.ExecutionOperationalQuery;
 import com.opensocket.aievent.core.dispatch.TaskFailureQueueService;
 import com.opensocket.aievent.core.issue.TaskIssueLink;
 import com.opensocket.aievent.core.issue.TaskIssueLinkRepository;
+import com.opensocket.aievent.core.issue.observability.IssueRuntimeJourneyService;
+import com.opensocket.aievent.core.issue.observability.IssueRuntimeJourneyView;
 import com.opensocket.aievent.core.integration.issue.policy.IssuePolicyDecision;
 import com.opensocket.aievent.core.integration.issue.policy.IssuePolicyDecisionRepository;
 import com.opensocket.aievent.core.lifecycle.TaskLifecycleService;
@@ -117,7 +120,13 @@ public class CoreAdminTaskFacadeController {
     private IssuePolicyDecisionRepository issuePolicyDecisionRepository;
 
     @Autowired(required = false)
+    private IssueRuntimeJourneyService issueRuntimeJourneyService;
+
+    @Autowired(required = false)
     private AdapterActionRepository adapterActionRepository;
+
+    @Autowired(required = false)
+    private AdapterActionExecutionService adapterActionExecutionService;
 
     @Autowired(required = false)
     private AdapterExecutorAuditRepository adapterExecutorAuditRepository;
@@ -292,12 +301,17 @@ public class CoreAdminTaskFacadeController {
                 : issuePolicyDecisionRepository.findByTaskAndPurpose(task.getTenantId(), taskId, "PRIMARY_ISSUE").orElse(null);
         List<AdapterAction> actions = issueAdapterActions(taskId);
         List<AdapterExecutorAuditRecord> providerExecutions = issueProviderExecutions(primaryIssueAction(actions, decision));
+        IssueRuntimeJourneyView issueRuntimeJourney = issueRuntimeJourneyService == null ? null : issueRuntimeJourneyService.journey(taskId);
         long revision = issueOperationsRevision(task, link, decision, actions, providerExecutions);
-        log.info("task_detail_issue_authority_loaded taskId={} taskIssueSyncPolicy={} taskIssueSyncPolicySource={} issueDecision={} bindingStatus={} automationStatus={} adapterActionCount={} providerExecutionCount={} issueLinked={} issueRevision={}",
+        if (issueRuntimeJourney != null) revision = Math.max(revision, issueRuntimeJourney.revision());
+        log.info("task_detail_issue_authority_loaded taskId={} taskIssueSyncPolicy={} taskIssueSyncPolicySource={} issueDecision={} bindingStatus={} automationStatus={} adapterActionCount={} providerExecutionCount={} issueLinked={} issueRuntimeOverall={} issueFirstFailedStage={} issueReasonCode={} issueRevision={}",
                 taskId, task.getIssueSyncPolicy(), task.getIssueSyncPolicySource(),
                 decision == null ? null : decision.decision(), decision == null ? null : decision.bindingStatus(),
-                decision == null ? null : decision.automationStatus(), actions.size(), providerExecutions.size(), link != null, revision);
-        return new AdminTaskOperationsIssue(link, buildIssueDedupSummary(task, link), decision, actions, providerExecutions, revision);
+                decision == null ? null : decision.automationStatus(), actions.size(), providerExecutions.size(), link != null,
+                issueRuntimeJourney == null ? null : issueRuntimeJourney.overallStatus(),
+                issueRuntimeJourney == null ? null : issueRuntimeJourney.firstFailedStage(),
+                issueRuntimeJourney == null ? null : issueRuntimeJourney.reasonCode(), revision);
+        return new AdminTaskOperationsIssue(link, buildIssueDedupSummary(task, link), decision, actions, providerExecutions, issueRuntimeJourney, revision);
     }
 
     private long issueOperationsRevision(TaskRecord task) {
@@ -323,6 +337,14 @@ public class CoreAdminTaskFacadeController {
         }
         for (AdapterExecutorAuditRecord audit : providerExecutions) {
             revision = Math.max(revision, epochMillis(audit.getCreatedAt()));
+        }
+        if (issueRuntimeJourneyService != null) {
+            try {
+                revision = Math.max(revision, issueRuntimeJourneyService.journey(task.getTaskId()).revision());
+            } catch (RuntimeException ex) {
+                log.warn("issue_runtime_journey_revision_unavailable taskId={} errorClass={} safeMessage={}",
+                        task.getTaskId(), ex.getClass().getSimpleName(), firstNonBlank(ex.getMessage(), "Issue runtime journey unavailable"));
+            }
         }
         return revision;
     }
@@ -445,6 +467,35 @@ public class CoreAdminTaskFacadeController {
     public TaskExecutionJourneyView taskExecutionJourney(@PathVariable String taskId) {
         getTask(taskId); // preserve Task resource authorization/anti-enumeration behavior
         return executionJourneyService.journey(taskId);
+    }
+
+
+    /** Canonical seven-stage Issue Runtime Journey. Read-only observability authority. */
+    @GetMapping("/tasks/{taskId}/issue-runtime-journey")
+    public IssueRuntimeJourneyView taskIssueRuntimeJourney(@PathVariable String taskId) {
+        getTask(taskId); // preserve Task anti-enumeration/resource authorization behavior
+        if (issueRuntimeJourneyService == null) {
+            throw new IllegalStateException("ISSUE_RUNTIME_JOURNEY_NOT_AVAILABLE");
+        }
+        return issueRuntimeJourneyService.journey(taskId);
+    }
+
+    /**
+     * Operator-safe recovery for a failed TaskIssueLink projection. This replays only the local
+     * read model from durable provider evidence and cannot execute another provider CREATE.
+     */
+    @PostMapping("/tasks/{taskId}/issue-link/reconcile")
+    public AdminCommandResult<IssueRuntimeJourneyView> reconcileTaskIssueLink(@PathVariable String taskId) {
+        getTask(taskId); // preserve Task resource authorization/anti-enumeration behavior
+        if (adapterActionExecutionService == null || issueRuntimeJourneyService == null) {
+            throw new IllegalStateException("ISSUE_LINK_RECONCILIATION_NOT_AVAILABLE");
+        }
+        boolean projected = adapterActionExecutionService.reconcileIssueLinkProjectionForTask(taskId);
+        IssueRuntimeJourneyView journey = issueRuntimeJourneyService.journey(taskId);
+        return AdminCommandResult.success(
+                projected ? "TaskIssueLink projection reconciled from durable provider evidence."
+                        : "No eligible confirmed provider evidence required TaskIssueLink projection.",
+                journey);
     }
 
     @GetMapping("/tasks/{taskId}/issue-dedup")
@@ -1117,7 +1168,8 @@ public class CoreAdminTaskFacadeController {
 
     public record AdminTaskOperationsIssue(
             TaskIssueLink issueTracking, AdminTaskIssueDedupSummary issueDedup, IssuePolicyDecision issuePolicyDecision,
-            List<AdapterAction> adapterActions, List<AdapterExecutorAuditRecord> providerExecutions, long revision) {}
+            List<AdapterAction> adapterActions, List<AdapterExecutorAuditRecord> providerExecutions,
+            IssueRuntimeJourneyView issueRuntimeJourney, long revision) {}
 
     public record AdminTaskA2AEvidence(
             List<A2ARequest> outboundRequests, A2ARequest inboundRequest, List<A2AResult> results,

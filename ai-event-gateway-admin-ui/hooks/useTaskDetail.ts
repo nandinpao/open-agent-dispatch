@@ -42,6 +42,7 @@ import type { A2AResultReliabilityView, A2AResultProcessingView } from "@/lib/a2
 import type {
   CoreAdapterExecutorAuditView,
   CoreIssuePolicyDecisionView,
+  CoreIssueRuntimeJourneyView,
   CoreTaskLineageEvidence,
   CoreTaskOperationsView,
 } from "@/lib/types/domains/task";
@@ -73,6 +74,7 @@ export interface TaskDispatchDetailResource {
   issuePolicyDecision?: CoreIssuePolicyDecisionView;
   issueAdapterActions?: CoreAdapterAction[];
   issueProviderExecutions?: CoreAdapterExecutorAuditView[];
+  issueRuntimeJourney?: CoreIssueRuntimeJourneyView;
   issueOperationsError?: string;
   issueDedupError?: string;
   dispatchEvidence?: CoreTaskDispatchEvidenceView;
@@ -274,6 +276,7 @@ export function useTaskDetail(taskId: string) {
         next.issuePolicyDecision = operations.issue.payload?.issuePolicyDecision;
         next.issueAdapterActions = operations.issue.payload?.adapterActions ?? [];
         next.issueProviderExecutions = operations.issue.payload?.providerExecutions ?? [];
+        next.issueRuntimeJourney = operations.issue.payload?.issueRuntimeJourney;
         next.issueOperationsError = operations.issue.status === "UNAVAILABLE"
           ? operations.issue.errorMessage ?? operations.issue.errorCode
           : undefined;

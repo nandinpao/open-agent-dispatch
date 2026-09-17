@@ -29,7 +29,7 @@ public class DefaultAdapterWorkExecutor implements AdapterWorkExecutor {
 
     @Override
     public boolean supports(AdapterWorkItem item) {
-        return item != null;
+        return item != null && "MCP".equalsIgnoreCase(item.adapterType());
     }
 
     @Override
@@ -85,9 +85,6 @@ public class DefaultAdapterWorkExecutor implements AdapterWorkExecutor {
     private String resolveEndpoint(String adapterType) {
         if ("MCP".equalsIgnoreCase(adapterType)) {
             return properties.getMcpEndpointUrl();
-        }
-        if ("ISSUE_TRACKING".equalsIgnoreCase(adapterType)) {
-            return properties.getIssueEndpointUrl();
         }
         return "";
     }

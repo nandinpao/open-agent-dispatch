@@ -9,12 +9,13 @@ import {
   activateSourceIssueTracking,
   addCredential,
   discoverProviderMetadata,
+  getSourceIssueTrackingReadiness,
+  probeSourceIssueTrackingReadiness,
   listConnections,
   listCredentials,
   listPrincipals,
   listProjectMappings,
   runPermissionProbe,
-  runConnectorRuntimePreflight,
   saveConnection,
   savePrincipal,
   saveRedmineApiKeyAndTest,
@@ -22,8 +23,8 @@ import {
   type IntegrationCredentialMetadata,
   type IntegrationPrincipal,
   type IntegrationProjectMapping,
+  type IssueTrackingRuntimeReadiness,
   type PermissionProbeResult,
-  type ConnectorRuntimePreflightResult,
   type ProviderMetadataSnapshot,
 } from '@/lib/api/domains/integrationIdentityApi';
 
@@ -104,9 +105,7 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
   const [mappings, setMappings] = useState<IntegrationProjectMapping[]>([]);
   const [metadata, setMetadata] = useState<ProviderMetadataSnapshot | null>(null);
   const [probe, setProbe] = useState<PermissionProbeResult | null>(null);
-  const [runtimePreflight, setRuntimePreflight] = useState<ConnectorRuntimePreflightResult | null>(null);
-  const [runtimePreflightError, setRuntimePreflightError] = useState('');
-  const [runtimePreflightLoading, setRuntimePreflightLoading] = useState(false);
+  const [serverReadiness, setServerReadiness] = useState<IssueTrackingRuntimeReadiness | null>(null);
   const [projectId, setProjectId] = useState('');
   const [trackerId, setTrackerId] = useState('');
   const [message, setMessage] = useState('');
@@ -132,12 +131,8 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
   const mutableDraft = currentMappings.find((value) => !activeLifecycleMapping(value) && ['DRAFT','VALIDATING','VALID'].includes(upper(value.lifecycleStatus)));
   const projectOptions = metadata?.projects?.filter((value) => value.accessible) ?? [];
   const trackerOptions = metadata?.issueTypes ?? [];
-  const credentialMaterialUnavailable = Boolean(currentMappingReady && runtimePreflightError && /ISSUE_CREDENTIAL_SECRET|SECRET_REFERENCE/i.test(runtimePreflightError));
-  const serverRuntimeReady = Boolean(currentMappingReady
-    && runtimePreflight?.status === 'READY'
-    && runtimePreflight.mappingId === currentMappingReady.mappingId
-    && runtimePreflight.credentialMaterialResolvable === true
-    && upper(runtimePreflight.authenticationStatus) === 'READY');
+  const credentialMaterialUnavailable = Boolean(serverReadiness?.blockers?.some((value) => /ISSUE_CREDENTIAL_SECRET|SECRET_REFERENCE/i.test(value)));
+  const serverRuntimeReady = Boolean(serverReadiness?.runtimeReady && serverReadiness.providerAuthenticated);
   const activationBlocker = !context.sourceSystemId
     ? 'Open this setup from a Source System. Issue Tracking is configured once per Source System.'
     : !selectedConnection?.enabled || upper(selectedConnection?.status) !== 'ACTIVE'
@@ -153,10 +148,7 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
           : '';
   const currentActive = serverRuntimeReady
     && currentMappingReady
-    && currentMappingReady.connectionId === connectionId
-    && selectedConnection?.enabled === true
-    && upper(selectedConnection?.status) === 'ACTIVE'
-    && credentialReady(credentials)
+    && serverReadiness?.mappingId === currentMappingReady.mappingId
       ? currentMappingReady
       : undefined;
 
@@ -176,11 +168,19 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
     setCredentials(await listCredentials(targetPrincipalId));
   }
   async function refreshMappings() { setMappings(await listProjectMappings()); }
+  async function refreshServerReadiness(liveProbe=false) {
+    if (!context.sourceSystemId) { setServerReadiness(null); return null; }
+    const value = liveProbe
+      ? await probeSourceIssueTrackingReadiness(context.sourceSystemId, context.taskType ?? null)
+      : await getSourceIssueTrackingReadiness(context.sourceSystemId, context.taskType ?? null);
+    setServerReadiness(value);
+    return value;
+  }
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setContextIndex(0); setError(''); setMessage(''); setMetadata(null); setProbe(null); setRuntimePreflight(null); setRuntimePreflightError(''); setProjectId(''); setTrackerId('');
+    setContextIndex(0); setError(''); setMessage(''); setMetadata(null); setProbe(null); setServerReadiness(null); setProjectId(''); setTrackerId('');
     setBusy(true);
     Promise.all([listConnections(), listProjectMappings()])
       .then(async ([allConnections, allMappings]) => {
@@ -207,7 +207,7 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
   useEffect(() => {
     if (!open || !connectionId) return;
     let cancelled = false;
-    setMetadata(null); setProjectId(''); setTrackerId(''); setProbe(null); setRuntimePreflight(null); setRuntimePreflightError('');
+    setMetadata(null); setProjectId(''); setTrackerId(''); setProbe(null); setServerReadiness(null);
     refreshPrincipals(connectionId).catch((reason) => { if (!cancelled) setError(errorText(reason)); });
     return () => { cancelled = true; };
   }, [connectionId, open]);
@@ -215,29 +215,13 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
   useEffect(() => { if (open) void refreshCredentials(principalId).catch((reason) => setError(errorText(reason))); }, [principalId, open]);
 
   useEffect(() => {
-    if (!open || !currentMappingReady || !connectionId || !context.sourceSystemId || !credentialReady(credentials)) {
-      setRuntimePreflight(null);
-      setRuntimePreflightError('');
-      setRuntimePreflightLoading(false);
-      return;
-    }
+    if (!open || !context.sourceSystemId) { setServerReadiness(null); return; }
     let cancelled = false;
-    setRuntimePreflightLoading(true);
-    setRuntimePreflight(null);
-    setRuntimePreflightError('');
-    runConnectorRuntimePreflight({
-      connectionId,
-      sourceSystemId: context.sourceSystemId,
-      taskType: context.taskType ?? null,
-    }).then((value) => {
-      if (!cancelled) setRuntimePreflight(value);
-    }).catch((reason) => {
-      if (!cancelled) setRuntimePreflightError(errorText(reason));
-    }).finally(() => {
-      if (!cancelled) setRuntimePreflightLoading(false);
-    });
+    getSourceIssueTrackingReadiness(context.sourceSystemId, context.taskType ?? null)
+      .then((value) => { if (!cancelled) setServerReadiness(value); })
+      .catch((reason) => { if (!cancelled) setError(errorText(reason)); });
     return () => { cancelled = true; };
-  }, [open, currentMappingReady?.mappingId, currentMappingReady?.mappingVersion, connectionId, context.sourceSystemId, context.taskType, credentials.map((value)=>`${value.credentialId}:${value.secretVersion}:${value.status}`).join('|')]);
+  }, [open, context.sourceSystemId, context.taskType, currentMappingReady?.mappingId, currentMappingReady?.mappingVersion, credentials.map((value)=>`${value.credentialId}:${value.secretVersion}:${value.status}`).join('|')]);
 
   useEffect(() => {
     const active = currentMappingReady ?? staleActive ?? mutableDraft;
@@ -282,6 +266,7 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
       setRedmineApiKey('');
       setProbe(result.probe);
       await refreshCredentials(principalId);
+      await refreshServerReadiness(false);
       if (result.authenticated) {
         setMessage(`Redmine authentication succeeded. API Key saved securely (${result.storageMode}).`);
       } else {
@@ -304,6 +289,7 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
       const result = await runPermissionProbe(principalId);
       setProbe(result);
       await refreshCredentials(principalId);
+      await refreshServerReadiness(false);
       const authenticated = upper(result.capabilityResults?.Authentication || result.capabilityResults?.AUTHENTICATE) === 'GRANTED';
       setMessage(authenticated ? 'Credential reference resolved and Redmine authentication succeeded.' : 'Credential saved, but Redmine authentication did not pass. Review the secret reference or Redmine account.');
     } catch (reason) { setError(errorText(reason)); } finally { setBusy(false); }
@@ -342,12 +328,13 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
       if (result.metadata) setMetadata(result.metadata);
       if (result.probe) setProbe(result.probe);
       setMappings((previous) => [result.mapping, ...previous.filter((value) => value.mappingId !== result.mapping.mappingId)]);
+      const authoritativeReadiness = await refreshServerReadiness(false);
       const projectLabel = selectedProject?.displayName || selectedProject?.projectKey || projectId;
       const trackerLabel = selectedTracker?.displayName || trackerId;
       const retiredNote = result.retiredLegacyMappings > 0 ? ` ${result.retiredLegacyMappings} old Agent/Flow-specific mapping(s) were retired automatically.` : '';
       setMessage(result.alreadyActive
-        ? `Already active. ${context.sourceSystemId} uses Redmine project “${projectLabel}” with tracker “${trackerLabel}”.`
-        : `Activated successfully. ${context.sourceSystemId} now uses Redmine project “${projectLabel}” with tracker “${trackerLabel}”. Agents and Flows inherit this connector context. OpenDispatch Task Issue Policy decides when a provider operation is requested.${retiredNote}`);
+        ? `Already active. ${context.sourceSystemId} uses Redmine project “${projectLabel}” with tracker “${trackerLabel}”. Server readiness: ${authoritativeReadiness?.overallStatus ?? 'CHECK_REQUIRED'}.`
+        : `Activated successfully. ${context.sourceSystemId} now uses Redmine project “${projectLabel}” with tracker “${trackerLabel}”. Server readiness: ${authoritativeReadiness?.overallStatus ?? 'CHECK_REQUIRED'}. Agents and Flows inherit this connector context. OpenDispatch Task Issue Policy decides when a provider operation is requested.${retiredNote}`);
       try { await onSaved?.(); } catch { /* parent refresh is non-authoritative */ }
     } catch (reason) { setError(errorText(reason)); } finally { setBusy(false); }
   }
@@ -365,6 +352,12 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
           {message ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">{message}</div> : null}
 
           <IssueTrackingSetupProgress connectionReady={Boolean(selectedConnection?.enabled && upper(selectedConnection?.status) === 'ACTIVE')} credentialReady={credentialReady(credentials)} mappingReady={Boolean(projectId && trackerId)} active={Boolean(currentActive)} />
+
+          {serverReadiness ? <section className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-wide text-slate-500">Runtime readiness</div><h3 className="mt-1 font-black text-slate-950">Core authority · {serverReadiness.overallStatus}</h3><p className="mt-1 text-sm leading-6 text-slate-600">Configured, executable runtime, provider authentication and live CREATE certification are separate states. “Active” alone is not runtime proof.</p></div><button type="button" disabled={busy} onClick={()=>void refreshServerReadiness(true)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-50">Run live auth check</button></div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{serverReadiness.checks.map((check)=><div key={check.code} className={`rounded-xl border p-3 ${['READY','CERTIFIED'].includes(check.status)?'border-emerald-200 bg-emerald-50':['BLOCKED'].includes(check.status)?'border-rose-200 bg-rose-50':['NOT_CERTIFIED'].includes(check.status)?'border-sky-200 bg-sky-50':'border-amber-200 bg-amber-50'}`}><div className="flex justify-between gap-2 text-xs font-black"><span>{check.label}</span><span>{check.status}</span></div><p className="mt-2 text-xs leading-5 text-slate-700">{check.summary}</p><p className="mt-2 break-all font-mono text-[10px] text-slate-500">{check.reasonCode || '—'}</p></div>)}</div>
+            {serverReadiness.blockers.length ? <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-900">First repair target: {serverReadiness.blockers[0]}{serverReadiness.blockers.length > 1 ? ` · ${serverReadiness.blockers.slice(1).join(' · ')}` : ''}</div> : null}
+          </section> : null}
 
           <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="text-xs font-black uppercase tracking-wide text-slate-500">Applies to</div>
@@ -400,13 +393,11 @@ export function IssueTrackingQuickSetupDialog({ open, contexts, title='Configure
             <div className="mt-3 grid gap-3 md:grid-cols-2"><FormField id="issue-project" label="Project"><EntityPicker id="issue-project" value={projectId} onChange={setProjectId} disabled={!projectOptions.length} placeholder={projectOptions.length?'Select Redmine project':'Discover projects first'} options={projectOptions.map((value)=>({value:value.projectId,label:value.displayName || value.projectKey || value.projectId,description:value.projectKey ?? undefined}))} /></FormField><FormField id="issue-tracker" label="Tracker"><EntityPicker id="issue-tracker" value={trackerId} onChange={setTrackerId} disabled={!trackerOptions.length} placeholder={trackerOptions.length?'Select tracker':'Discover trackers first'} options={trackerOptions.map((value)=>({value:value.issueTypeId,label:value.displayName || value.issueTypeKey || value.issueTypeId,description:value.issueTypeKey ?? undefined}))} /></FormField></div>
           </section>
 
-          {runtimePreflightLoading && currentMappingReady ? <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"><div className="font-black">Checking runtime credential material…</div><p className="mt-1 leading-6">OpenDispatch is verifying the saved secret material and Redmine authentication using the same runtime path used by Task Issue automation.</p></section>:null}
-          {currentMappingReady && runtimePreflightError ? <section className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-950"><div className="font-black">Issue Tracking runtime credential is not ready</div><p className="mt-1 leading-6">{credentialMaterialUnavailable ? 'The credential metadata is present, but the actual API Key material cannot be resolved by Core. Replace the API Key and test the connection again.' : runtimePreflightError}</p></section>:null}
-          {currentActive ? <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950"><div className="font-black">Issue Tracking is runtime-ready</div><p className="mt-1 leading-6">{currentActive.externalProjectKey || currentActive.externalProjectId} · tracker {currentActive.externalIssueType || currentActive.externalTrackerId || 'default'} · ACTIVE + VALID; credential material resolvable; Redmine authentication READY. Agents and Flows inherit this connector context; OpenDispatch Task Issue Policy decides when a provider operation is requested.</p></section>:null}
+          {currentActive ? <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950"><div className="font-black">Issue Tracking runtime is ready</div><p className="mt-1 leading-6">{currentActive.externalProjectKey || currentActive.externalProjectId} · tracker {currentActive.externalIssueType || currentActive.externalTrackerId || 'default'} · Core confirms executable connector context and Redmine authentication. Live CREATE certification: {serverReadiness?.liveCreateCertificationStatus ?? 'NOT_CERTIFIED'}.</p></section>:null}
           {staleActive ? <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><div className="font-black">Issue Tracking needs repair</div><p className="mt-1 leading-6">A mapping is marked ACTIVE, but it is not runtime-ready. Status: {upper(staleActive.mappingStatus) || 'UNKNOWN'}; metadata snapshot/schema: {clean(staleActive.metadataSnapshotId) && clean(staleActive.metadataSchemaHash) ? 'present' : 'incomplete'}. Save & activate will validate a replacement mapping and retire the stale ACTIVE mapping.</p></section>:null}
           {currentMappingReady && !currentActive ? <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><div className="font-black">Connector is not runtime-ready</div><p className="mt-1 leading-6">The Project Mapping is ACTIVE + VALID, but the Redmine connection or credential is not currently ready. Restore an ACTIVE connection and a valid Service Account credential before Task Issue automation can run.</p></section>:null}
 
-          <div className="border-t border-slate-200 pt-5">{activationBlocker && !busy ? <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900"><b>Before activation:</b> {activationBlocker}</div> : null}<div className="flex flex-wrap items-center justify-between gap-3"><Link href="/settings/integrations" className="text-sm font-black text-slate-600 underline decoration-dotted">Advanced settings →</Link><div className="flex gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-700">Close</button><button type="button" disabled={busy||runtimePreflightLoading||Boolean(currentActive)||Boolean(activationBlocker)} title={currentActive?'Issue Tracking is already runtime-ready for this work context.':activationBlocker || (staleActive ? 'Validate a replacement mapping and retire the stale ACTIVE mapping.' : 'Validate the selected Redmine project and activate Issue Tracking.')} onClick={()=>void saveAndActivate()} className="rounded-xl bg-emerald-700 px-5 py-2 text-sm font-black text-white disabled:opacity-50">{busy||runtimePreflightLoading?'Working…':currentActive?'Active':staleActive?'Repair & activate':'Save & activate'}</button></div></div></div>
+          <div className="border-t border-slate-200 pt-5">{activationBlocker && !busy ? <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900"><b>Before activation:</b> {activationBlocker}</div> : null}<div className="flex flex-wrap items-center justify-between gap-3"><Link href="/settings/integrations" className="text-sm font-black text-slate-600 underline decoration-dotted">Advanced settings →</Link><div className="flex gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-700">Close</button><button type="button" disabled={busy||Boolean(currentActive)||Boolean(activationBlocker)} title={currentActive?'Issue Tracking is already runtime-ready for this work context.':activationBlocker || (staleActive ? 'Validate a replacement mapping and retire the stale ACTIVE mapping.' : 'Validate the selected Redmine project and activate Issue Tracking.')} onClick={()=>void saveAndActivate()} className="rounded-xl bg-emerald-700 px-5 py-2 text-sm font-black text-white disabled:opacity-50">{busy?'Working…':currentActive?'Runtime ready':staleActive?'Repair & activate':'Save & activate'}</button></div></div></div>
           <p className="text-xs leading-5 text-slate-500">READ / CREATE / COMMENT / UPDATE are not separately granted here. The same technical Service Account is used by the canonical connector, and Redmine decides which operations are actually permitted. Provider 403 is shown as a business permission denial, not a broken OpenDispatch connection.</p>
         </div>
       </div>

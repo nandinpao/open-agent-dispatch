@@ -104,9 +104,13 @@ public class CoreStatusController {
         status.put("app", "ai-event-gateway-core");
         status.put("version", CoreVersion.CURRENT);
         status.put("releaseLabel", CoreVersion.RELEASE_LABEL);
+        status.put("repositorySnapshot", CoreVersion.REPOSITORY_SNAPSHOT);
         status.put("artifactRevision", CoreVersion.ARTIFACT_REVISION);
         status.put("artifactName", CoreVersion.ARTIFACT_NAME);
         status.put("releaseGateStatus", CoreVersion.RELEASE_GATE_STATUS);
+        status.put("runtimeCertificationStatus", CoreVersion.RUNTIME_CERTIFICATION_STATUS);
+        status.put("certificationClaim", CoreVersion.CERTIFICATION_CLAIM);
+        status.put("identityGeneratedAt", CoreVersion.IDENTITY_GENERATED_AT);
         status.put("productionReady", CoreVersion.PRODUCTION_READY);
         status.put("deploymentMode", deploymentProperties.getMode().name());
         status.put("dedupStore", eventProcessing.dedupStoreMode());
@@ -203,6 +207,13 @@ public class CoreStatusController {
         status.put("adapterExecutorMode", adapterActionExecutionProperties.getMode());
         status.put("adapterExecutorEmbeddedMode", adapterActionExecutionProperties.isEmbeddedMode());
         status.put("adapterExecutorExternalMode", adapterActionExecutionProperties.isExternalMode());
+        status.put("issueExecutionAuthority", adapterActionExecutionProperties.getIssue().getExecutionAuthority().name());
+        status.put("issueConnectorRuntimeEnabled", adapterActionExecutionProperties.getIssue().isConnectorRuntimeEnabled());
+        status.put("issueConnectorRuntimeRequired", adapterActionExecutionProperties.getIssue().isConnectorRuntimeRequired());
+        status.put("issueAutoExecutePending", adapterActionExecutionProperties.getIssue().isAutoExecutePending());
+        status.put("issueLinkProjectionReconciliationEnabled", adapterActionExecutionProperties.getIssue().isLinkProjectionReconciliationEnabled());
+        status.put("issueLinkProjectionMaxAttempts", adapterActionExecutionProperties.getIssue().getLinkProjectionMaxAttempts());
+        status.put("issueExternalWorkerAllowed", false);
         status.put("integrationEventStore", integrationEvents.storeMode());
         status.put("integrationEventProjectionEnabled", integrationEventProperties.isProjectionEnabled());
         status.put("integrationEventDeliveryEnabled", integrationEventProperties.isDeliveryEnabled());

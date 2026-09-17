@@ -11,6 +11,7 @@ export const coreAdminEndpoints = {
   taskOperationsView: (taskId: string) => `/admin/tasks/${encodeURIComponent(taskId)}/operations-view`,
   taskCaseTimeline: (taskId: string) => `/admin/tasks/${encodeURIComponent(taskId)}/case-timeline`,
   taskIssueDedup: (taskId: string) => `/admin/tasks/${encodeURIComponent(taskId)}/issue-dedup`,
+  taskIssueLinkReconcile: (taskId: string) => `/admin/tasks/${encodeURIComponent(taskId)}/issue-link/reconcile`,
   taskRetry: (taskId: string) => `/admin/tasks/${encodeURIComponent(taskId)}/retry`,
   taskCancel: (taskId: string) => `/admin/tasks/${encodeURIComponent(taskId)}/cancel`,
   taskReassign: (taskId: string) => `/admin/tasks/${encodeURIComponent(taskId)}/reassign`,

@@ -79,12 +79,11 @@ adapter-worker:
   enabled: ${ADAPTER_WORKER_ENABLED:true}
   core-base-url: ${ADAPTER_WORKER_CORE_BASE_URL:http://localhost:18080}
   worker-id: ${ADAPTER_WORKER_ID:adapter-worker-001}
-  adapter-types: ${ADAPTER_WORKER_TYPES:MCP,ISSUE_TRACKING}
+  adapter-types: ${ADAPTER_WORKER_TYPES:MCP}
   lease-seconds: ${ADAPTER_WORKER_LEASE_SECONDS:120}
   poll-interval-ms: ${ADAPTER_WORKER_POLL_INTERVAL_MS:2000}
   request-timeout: ${ADAPTER_WORKER_REQUEST_TIMEOUT:15s}
   token-header: ${ADAPTER_WORKER_TOKEN_HEADER:X-Internal-Token}
   token: ${ADAPTER_WORKER_TOKEN:}
   mcp-endpoint-url: ${ADAPTER_WORKER_MCP_ENDPOINT_URL:}
-  issue-endpoint-url: ${ADAPTER_WORKER_ISSUE_ENDPOINT_URL:}
   mock-success-enabled: ${ADAPTER_WORKER_MOCK_SUCCESS_ENABLED:false}

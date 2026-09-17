@@ -69,8 +69,8 @@ public class IssueTrackingAdapterActionExecutor implements AdapterActionExecutor
         if (connectorRuntimeService != null) {
             return connectorRuntimeService.execute(action);
         }
-        return AdapterExecutionResult.permanentFailure(name(),
-                "Redmine Connector Runtime is unavailable. Legacy scoped Issue authorization is not a production fallback.");
+        return AdapterExecutionResult.executorUnavailable(name(),
+                "ISSUE_EXECUTOR_NOT_AVAILABLE: canonical Issue Connector Runtime is unavailable; legacy/external Issue execution is not a fallback");
     }
 
 

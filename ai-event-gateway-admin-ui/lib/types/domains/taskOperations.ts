@@ -482,12 +482,51 @@ export interface CoreAdapterExecutorAuditView {
   payloadSnapshot?: Record<string, unknown>;
 }
 
+
+export type CoreIssueRuntimeStageCode = 'POLICY' | 'BINDING' | 'ACTION' | 'EXECUTOR' | 'PROVIDER' | 'RESULT' | 'LINK';
+export type CoreIssueRuntimeStageStatus = 'SUCCEEDED' | 'NOT_REQUIRED' | 'NOT_STARTED' | 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'FAILED_RETRYABLE' | 'FAILED_FINAL' | 'UNKNOWN';
+
+export interface CoreIssueRuntimeEvidenceRef {
+  evidenceType: string;
+  evidenceId: string;
+  authority: string;
+  observedAt?: string;
+  attributes?: Record<string, string>;
+}
+
+export interface CoreIssueRuntimeStage {
+  stage: CoreIssueRuntimeStageCode;
+  status: CoreIssueRuntimeStageStatus;
+  required: boolean;
+  retryable: boolean;
+  reasonCode?: string;
+  summary?: string;
+  changedAt?: string;
+  retryAfter?: string;
+  evidence?: CoreIssueRuntimeEvidenceRef[];
+}
+
+export interface CoreIssueRuntimeJourneyView {
+  tenantId?: string;
+  taskId: string;
+  correlationId?: string;
+  overallStatus: string;
+  currentStage: CoreIssueRuntimeStageCode;
+  firstFailedStage?: CoreIssueRuntimeStageCode;
+  reasonCode?: string;
+  summary?: string;
+  revision: number;
+  generatedAt?: string;
+  stages: CoreIssueRuntimeStage[];
+}
+
 export interface CoreTaskOperationsIssuePayload {
   issueTracking?: CoreTaskIssueTracking;
   issueDedup?: import('@/lib/types/domains/taskModel').CoreTaskIssueDedupSummary;
   issuePolicyDecision?: CoreIssuePolicyDecisionView;
   adapterActions?: CoreAdapterAction[];
   providerExecutions?: CoreAdapterExecutorAuditView[];
+  issueRuntimeJourney?: CoreIssueRuntimeJourneyView;
   revision: number;
 }
 

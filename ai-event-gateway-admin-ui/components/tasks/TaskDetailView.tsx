@@ -101,6 +101,7 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
     setPendingActionRequestId(action ? createIdempotencyKey(`task-${action}`) : null);
   };
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [reconcilingIssueLink, setReconcilingIssueLink] = useState(false);
   const [remediationCommandAudits, setRemediationCommandAudits] = useState<CoreTaskCommandAudit[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [targetAgentOptions, setTargetAgentOptions] = useState<SelectOption[]>([]);
@@ -223,6 +224,21 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
     }
   }
 
+  const reconcileIssueLinkProjection = async () => {
+    if (!task?.taskId) return;
+    setReconcilingIssueLink(true);
+    setActionMessage(null);
+    try {
+      const result = await taskAdminApi.reconcileTaskIssueLink(task.taskId);
+      setActionMessage(result.message ?? 'TaskIssueLink projection reconciliation completed.');
+      await refresh();
+    } catch (actionError) {
+      setActionMessage(actionFailureMessage(actionError));
+    } finally {
+      setReconcilingIssueLink(false);
+    }
+  };
+
   const guardedRetryIssueSync = async (actionId: string) => {
     try {
       return await runCapabilityMutation(TASK_UI_ACTIONS.retryIssueSync, () => retryIssueSync(actionId));
@@ -280,7 +296,7 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
       <CommandMessage message={actionMessage ?? commandMessage} />
       <TaskCapabilityPrefetch />
       <TaskInvestigationOverview task={task} model={taskDiagnosisReadModel} />
-      <TaskIssueOperationalSummary row={data.row} error={data.issueOperationsError} />
+      <TaskIssueOperationalSummary row={data.row} journey={data.issueRuntimeJourney} error={data.issueOperationsError} onReconcileLink={()=>void reconcileIssueLinkProjection()} reconcilingLink={reconcilingIssueLink} />
 
       <section id="task-actions" className="scroll-mt-24 space-y-3" aria-labelledby="task-actions-heading">
         <div>

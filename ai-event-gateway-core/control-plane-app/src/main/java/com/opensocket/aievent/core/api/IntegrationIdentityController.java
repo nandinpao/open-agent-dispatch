@@ -3,6 +3,7 @@ package com.opensocket.aievent.core.api;
 import com.opensocket.aievent.core.http.context.*;
 import com.opensocket.aievent.core.integration.identity.*;
 import com.opensocket.aievent.core.integration.issue.credential.ManagedIntegrationSecretIntakeService;
+import com.opensocket.aievent.core.integration.issue.readiness.IssueTrackingRuntimeReadinessService;
 import com.opensocket.aievent.core.resourceaccess.contract.*;
 import com.opensocket.aievent.core.resourceaccess.runtime.IntegrationResourceAccessCoordinator;
 import java.time.*; import java.util.*; import java.util.function.Function; import java.util.stream.Collectors;
@@ -13,11 +14,11 @@ import org.springframework.web.bind.annotation.*; import org.springframework.web
 @RestController @RequestMapping("/api/integrations")
 public class IntegrationIdentityController {
  private static final Logger log=LoggerFactory.getLogger(IntegrationIdentityController.class);
- private final IntegrationIdentityService service; private final ProjectMappingGovernanceService mappings; private final IntegrationWebhookEndpointService webhookEndpoints; private final ManagedIntegrationSecretIntakeService managedSecrets; private final IntegrationCredentialMaterialVerifier credentialMaterials;
+ private final IntegrationIdentityService service; private final ProjectMappingGovernanceService mappings; private final IntegrationWebhookEndpointService webhookEndpoints; private final ManagedIntegrationSecretIntakeService managedSecrets; private final IntegrationCredentialMaterialVerifier credentialMaterials; private final IssueTrackingRuntimeReadinessService issueReadiness;
  @Autowired(required=false) private IntegrationResourceAccessCoordinator resourceAccess;
  @Value("${resource-access.integration-enabled:false}") private boolean integrationResourceAccessEnabled;
  @Value("${resource-access.enforcement-mode:OFF}") private ResourceAccessEnforcementMode enforcementMode=ResourceAccessEnforcementMode.OFF;
- public IntegrationIdentityController(IntegrationIdentityService service,ProjectMappingGovernanceService mappings,IntegrationWebhookEndpointService webhookEndpoints,ManagedIntegrationSecretIntakeService managedSecrets,IntegrationCredentialMaterialVerifier credentialMaterials){this.service=service;this.mappings=mappings;this.webhookEndpoints=webhookEndpoints;this.managedSecrets=managedSecrets;this.credentialMaterials=credentialMaterials;}
+ public IntegrationIdentityController(IntegrationIdentityService service,ProjectMappingGovernanceService mappings,IntegrationWebhookEndpointService webhookEndpoints,ManagedIntegrationSecretIntakeService managedSecrets,IntegrationCredentialMaterialVerifier credentialMaterials,IssueTrackingRuntimeReadinessService issueReadiness){this.service=service;this.mappings=mappings;this.webhookEndpoints=webhookEndpoints;this.managedSecrets=managedSecrets;this.credentialMaterials=credentialMaterials;this.issueReadiness=issueReadiness;}
 
  @GetMapping("/connections") public List<IntegrationConnection> connections(@RequestParam(defaultValue="200")int limit){return run(()->scopedConnections(limit));}
  @GetMapping("/connections/{connectionId}") public IntegrationConnection connection(@PathVariable String connectionId){authorize(ResourceType.ISSUE_CONNECTION,connectionId,"integration.issue.connection.read",ResourceAction.ActionKind.READ,false,VisibilityLevel.STANDARD,"INTEGRATION_CONNECTION_READ");return run(()->service.connection(tenant(),connectionId));}
@@ -136,6 +137,26 @@ public class IntegrationIdentityController {
    return new IssueTrackingActivationView(
            published, metadata, validation, runtimeProbe, false, retiredMappings, message);
   });
+ }
+
+ @GetMapping("/source-systems/{sourceSystemId}/issue-tracking/readiness")
+ public IssueTrackingRuntimeReadiness issueTrackingReadiness(
+         @PathVariable String sourceSystemId,
+         @RequestParam(required=false) String taskType) {
+  String source=required(sourceSystemId,"sourceSystemId");
+  authorize(ResourceType.SOURCE_SYSTEM,source,"admin.source.system.detail",
+          ResourceAction.ActionKind.READ,false,VisibilityLevel.STANDARD,"INTEGRATION_SOURCE_ISSUE_TRACKING_READINESS");
+  return run(()->issueReadiness.evaluate(tenant(),source,taskType,false,correlation()));
+ }
+
+ @PostMapping("/source-systems/{sourceSystemId}/issue-tracking/readiness/probe")
+ public IssueTrackingRuntimeReadiness probeIssueTrackingReadiness(
+         @PathVariable String sourceSystemId,
+         @RequestParam(required=false) String taskType) {
+  String source=required(sourceSystemId,"sourceSystemId");
+  authorize(ResourceType.SOURCE_SYSTEM,source,"admin.source.system.update",
+          ResourceAction.ActionKind.EXECUTE,true,VisibilityLevel.SENSITIVE,"INTEGRATION_SOURCE_ISSUE_TRACKING_READINESS_PROBE");
+  return run(()->issueReadiness.evaluate(tenant(),source,taskType,true,correlation()));
  }
 
  @GetMapping("/connections/{connectionId}/principals") public List<IntegrationPrincipal> principals(@PathVariable String connectionId,@RequestParam(defaultValue="200")int limit){return run(()->scopedPrincipals(connectionId,limit));}

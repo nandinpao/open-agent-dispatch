@@ -9,6 +9,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
+import com.opensocket.aievent.core.action.executor.AdapterExecutionAuthority;
 import com.opensocket.aievent.core.dispatch.DispatchProperties;
 import com.opensocket.aievent.core.integration.IntegrationEventProperties;
 import com.opensocket.aievent.core.iam.runtime.config.EventIntakeSecurityProperties;
@@ -123,6 +124,22 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
         if (!issue.isConnectorRuntimeRequired()) {
             throw new IllegalStateException(
                     "Production profile must require canonical Issue Connector Runtime execution.");
+        }
+        if (issue.getExecutionAuthority() != AdapterExecutionAuthority.CORE_GOVERNED) {
+            throw new IllegalStateException(
+                    "Production profile requires ISSUE_EXECUTION_AUTHORITY=CORE_GOVERNED");
+        }
+        if (!issue.isAutoExecutePending()) {
+            throw new IllegalStateException(
+                    "Production profile requires ISSUE_EXECUTOR_AUTO_EXECUTE_PENDING=true so canonical Issue actions cannot remain unexecuted");
+        }
+        if (!issue.isLinkProjectionReconciliationEnabled()) {
+            throw new IllegalStateException(
+                    "Production profile requires ISSUE_LINK_PROJECTION_RECONCILIATION_ENABLED=true so durable provider results can converge into TaskIssueLink without re-executing the provider operation");
+        }
+        if (issue.getLinkProjectionMaxAttempts() < 1) {
+            throw new IllegalStateException(
+                    "Production profile requires ISSUE_LINK_PROJECTION_MAX_ATTEMPTS>=1");
         }
         if (adapterExecutor.getExecutionTimeout() == null
                 || adapterExecutor.getExecutionTimeout().isZero()

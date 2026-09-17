@@ -28,6 +28,8 @@ public class AdapterActionExecutionProperties {
     public boolean isExternalMode() { return "external".equalsIgnoreCase(mode); }
     public boolean isDisabledMode() { return "disabled".equalsIgnoreCase(mode); }
     public boolean isEnabled() { return enabled && isEmbeddedMode(); }
+    /** Raw legacy/global embedded-executor switch. ISSUE_TRACKING has its own Core authority. */
+    public boolean isConfiguredEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public boolean isAutoExecutePending() { return autoExecutePending; }
     public void setAutoExecutePending(boolean autoExecutePending) { this.autoExecutePending = autoExecutePending; }
@@ -109,6 +111,14 @@ public class AdapterActionExecutionProperties {
         private boolean gitlabMockEnabled = false;
         private boolean connectorRuntimeEnabled = true;
         private boolean connectorRuntimeRequired = true;
+        private AdapterExecutionAuthority executionAuthority = AdapterExecutionAuthority.CORE_GOVERNED;
+        private boolean autoExecutePending = true;
+        private boolean linkProjectionReconciliationEnabled = true;
+        private Duration linkProjectionReconciliationDelay = Duration.ofSeconds(30);
+        private int linkProjectionBatchSize = 50;
+        private int linkProjectionMaxAttempts = 10;
+        private Duration linkProjectionInitialBackoff = Duration.ofSeconds(15);
+        private Duration linkProjectionMaxBackoff = Duration.ofMinutes(5);
         private final Redmine redmine = new Redmine();
         private final Gitlab gitlab = new Gitlab();
 
@@ -124,6 +134,28 @@ public class AdapterActionExecutionProperties {
         public void setConnectorRuntimeEnabled(boolean connectorRuntimeEnabled) { this.connectorRuntimeEnabled = connectorRuntimeEnabled; }
         public boolean isConnectorRuntimeRequired() { return connectorRuntimeRequired; }
         public void setConnectorRuntimeRequired(boolean connectorRuntimeRequired) { this.connectorRuntimeRequired = connectorRuntimeRequired; }
+        public AdapterExecutionAuthority getExecutionAuthority() { return executionAuthority; }
+        public void setExecutionAuthority(AdapterExecutionAuthority executionAuthority) {
+            AdapterExecutionAuthority effective = executionAuthority == null ? AdapterExecutionAuthority.CORE_GOVERNED : executionAuthority;
+            if (effective == AdapterExecutionAuthority.EXTERNAL_WORKER) {
+                throw new IllegalArgumentException("ISSUE_TRACKING execution authority cannot be EXTERNAL_WORKER");
+            }
+            this.executionAuthority = effective;
+        }
+        public boolean isAutoExecutePending() { return autoExecutePending; }
+        public void setAutoExecutePending(boolean autoExecutePending) { this.autoExecutePending = autoExecutePending; }
+        public boolean isLinkProjectionReconciliationEnabled() { return linkProjectionReconciliationEnabled; }
+        public void setLinkProjectionReconciliationEnabled(boolean value) { this.linkProjectionReconciliationEnabled = value; }
+        public Duration getLinkProjectionReconciliationDelay() { return linkProjectionReconciliationDelay; }
+        public void setLinkProjectionReconciliationDelay(Duration value) { this.linkProjectionReconciliationDelay = value == null ? Duration.ofSeconds(30) : value; }
+        public int getLinkProjectionBatchSize() { return linkProjectionBatchSize; }
+        public void setLinkProjectionBatchSize(int value) { this.linkProjectionBatchSize = Math.max(1, Math.min(value, 1000)); }
+        public int getLinkProjectionMaxAttempts() { return linkProjectionMaxAttempts; }
+        public void setLinkProjectionMaxAttempts(int value) { this.linkProjectionMaxAttempts = Math.max(1, value); }
+        public Duration getLinkProjectionInitialBackoff() { return linkProjectionInitialBackoff; }
+        public void setLinkProjectionInitialBackoff(Duration value) { this.linkProjectionInitialBackoff = value == null ? Duration.ofSeconds(15) : value; }
+        public Duration getLinkProjectionMaxBackoff() { return linkProjectionMaxBackoff; }
+        public void setLinkProjectionMaxBackoff(Duration value) { this.linkProjectionMaxBackoff = value == null ? Duration.ofMinutes(5) : value; }
         /** Stage 7 compatibility aliases: accepted by old YAML but never restore scoped-identity authority. */
         @Deprecated public boolean isScopedIdentityEnabled() { return false; }
         @Deprecated public void setScopedIdentityEnabled(boolean ignored) { }
