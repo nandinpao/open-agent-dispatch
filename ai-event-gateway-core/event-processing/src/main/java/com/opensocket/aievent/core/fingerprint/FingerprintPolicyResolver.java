@@ -12,29 +12,33 @@ import com.opensocket.aievent.core.event.NormalizedEvent;
 
 @Component
 public class FingerprintPolicyResolver {
-    private final FingerprintPolicyProperties properties;
+    private final FingerprintRuntimeConfigurationView runtimeConfiguration;
 
     @Autowired
+    public FingerprintPolicyResolver(FingerprintRuntimeConfigurationView runtimeConfiguration) {
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
     public FingerprintPolicyResolver(FingerprintPolicyProperties properties) {
-        this.properties = properties;
+        this(new FingerprintRuntimeConfigurationView(properties));
     }
 
     public FingerprintPolicyResolver() {
-        this(new FingerprintPolicyProperties());
+        this(new FingerprintRuntimeConfigurationView(new FingerprintPolicyProperties()));
     }
 
     public FingerprintTemplate resolve(NormalizedEvent event) {
-        if (properties.isEnabled() && properties.getPolicies() != null) {
-            for (FingerprintPolicyProperties.Policy policy : properties.getPolicies()) {
+        if (runtimeConfiguration.enabled() && runtimeConfiguration.policies() != null) {
+            for (FingerprintPolicyProperties.Policy policy : runtimeConfiguration.policies()) {
                 if (matches(policy, event)) {
                     List<String> fields = policy.getFields() == null || policy.getFields().isEmpty()
-                            ? properties.getDefaultFields()
+                            ? runtimeConfiguration.defaultFields()
                             : policy.getFields();
                     return new FingerprintTemplate(policy.getName(), fields);
                 }
             }
         }
-        return new FingerprintTemplate("default", properties.getDefaultFields());
+        return new FingerprintTemplate("default", runtimeConfiguration.defaultFields());
     }
 
     private boolean matches(FingerprintPolicyProperties.Policy policy, NormalizedEvent event) {

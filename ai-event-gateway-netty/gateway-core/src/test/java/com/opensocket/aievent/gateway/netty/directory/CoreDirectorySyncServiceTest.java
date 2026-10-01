@@ -13,9 +13,12 @@ import com.opensocket.aievent.gateway.netty.authorization.AgentConnectionAuthori
 import com.opensocket.aievent.gateway.netty.authorization.CoreAgentAuthorizationProperties;
 import com.opensocket.aievent.gateway.netty.config.CoreDirectorySyncProperties;
 import com.opensocket.aievent.gateway.netty.config.CoreOutboundProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreForwardProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreTaskCallbackRelayProperties;
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
 import com.opensocket.aievent.gateway.netty.config.NettyServerProperties;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundDispatcher;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -93,9 +96,11 @@ class CoreDirectorySyncServiceTest {
                 gatewayProperties,
                 new NettyServerProperties(null, null, null),
                 registry,
+                null,
                 JsonMapper.builder().build(),
                 new MockEnvironment().withProperty("server.port", "18080"),
-                new CoreOutboundDispatcher(new CoreOutboundProperties())
+                new CoreOutboundDispatcher(new CoreOutboundProperties()),
+                runtimeConfiguration(properties)
         );
 
         service.publishGatewayRegistration();
@@ -158,9 +163,11 @@ class CoreDirectorySyncServiceTest {
                 gatewayProperties,
                 new NettyServerProperties(null, null, null),
                 registry,
+                null,
                 JsonMapper.builder().build(),
                 new MockEnvironment(),
-                new CoreOutboundDispatcher(new CoreOutboundProperties())
+                new CoreOutboundDispatcher(new CoreOutboundProperties()),
+                runtimeConfiguration(properties)
         );
 
         service.publishAgentHeartbeat(agent);
@@ -221,7 +228,7 @@ class CoreDirectorySyncServiceTest {
         var service = new CoreDirectorySyncService(
                 properties, gatewayProperties, new NettyServerProperties(null, null, null), registry,
                 authorizationRegistry, JsonMapper.builder().build(), new MockEnvironment(),
-                new CoreOutboundDispatcher(new CoreOutboundProperties())
+                new CoreOutboundDispatcher(new CoreOutboundProperties()), runtimeConfiguration(properties)
         );
 
         service.publishGatewaySnapshot(List.of(approved, pending));
@@ -256,7 +263,7 @@ class CoreDirectorySyncServiceTest {
         var service = new CoreDirectorySyncService(
                 properties, gatewayProperties, new NettyServerProperties(null, null, null), registry,
                 authorizationRegistry, JsonMapper.builder().build(), new MockEnvironment(),
-                new CoreOutboundDispatcher(new CoreOutboundProperties())
+                new CoreOutboundDispatcher(new CoreOutboundProperties()), runtimeConfiguration(properties)
         );
 
         service.publishAgentHeartbeat(agent);
@@ -307,7 +314,7 @@ class CoreDirectorySyncServiceTest {
         var service = new CoreDirectorySyncService(
                 properties, gatewayProperties, new NettyServerProperties(null, null, null), registry,
                 authorizationRegistry, JsonMapper.builder().build(), new MockEnvironment(),
-                new CoreOutboundDispatcher(new CoreOutboundProperties())
+                new CoreOutboundDispatcher(new CoreOutboundProperties()), runtimeConfiguration(properties)
         );
 
         service.publishAgentHeartbeat(agent);
@@ -319,6 +326,16 @@ class CoreDirectorySyncServiceTest {
         );
         String connectedBody = received.stream().filter(r -> r.path().endsWith("/connected")).findFirst().orElseThrow().body();
         assertThat(connectedBody).contains("\"tenantId\":\"tenant-a\"");
+    }
+
+    private static GatewayOperationalRuntimeConfigurationView runtimeConfiguration(CoreDirectorySyncProperties directory) {
+        return new GatewayOperationalRuntimeConfigurationView(
+                new CoreAgentAuthorizationProperties(),
+                directory,
+                new CoreForwardProperties(),
+                new CoreOutboundProperties(),
+                new CoreTaskCallbackRelayProperties()
+        );
     }
 
     private void startServer(List<ReceivedRequest> received, CountDownLatch latch) throws IOException {

@@ -44,6 +44,9 @@ public class DefaultTaskOrchestrationFacade implements TaskOrchestrationFacade, 
     private final RoutingDecisionRepository routingDecisionRepository;
     private final TaskDispatchRecoveryProperties dispatchRecoveryProperties;
 
+    @Autowired
+    private TaskDispatchRecoveryRuntimeConfigurationView dispatchRecoveryRuntime;
+
     @Autowired(required = false)
     private TaskExecutionLifecyclePort executionLifecyclePort = TaskExecutionLifecyclePort.noop();
 
@@ -219,18 +222,18 @@ public class DefaultTaskOrchestrationFacade implements TaskOrchestrationFacade, 
     @Override
     @Transactional
     public TaskDispatchRecoveryScanResult recoverDelayedDispatches(int limit, OffsetDateTime now) {
-        if (taskAssignmentService == null || !dispatchRecoveryProperties.isEnabled()) {
+        if (taskAssignmentService == null || !runtimeDispatchRecoveryEnabled()) {
             return TaskDispatchRecoveryScanResult.disabled("Task dispatch recovery is disabled");
         }
         OffsetDateTime at = effectiveNow(now);
-        OffsetDateTime claimUntil = at.plus(dispatchRecoveryProperties.getClaimLease());
+        OffsetDateTime claimUntil = at.plus(runtimeDispatchRecoveryClaimLease());
         List<TaskRecord> claimed;
         try {
             claimed = taskRepository.claimDispatchRecoveryDue(
-                    dispatchRecoveryProperties.getWorkerId(),
+                    runtimeDispatchRecoveryWorkerId(),
                     at,
                     claimUntil,
-                    Math.max(1, Math.min(limit, dispatchRecoveryProperties.getMaxBatchSize())));
+                    Math.max(1, Math.min(limit, runtimeDispatchRecoveryMaxBatchSize())));
         } catch (RuntimeException ex) {
             if (isMissingDispatchRecoverySchema(ex)) {
                 return TaskDispatchRecoveryScanResult.disabled(
@@ -246,7 +249,7 @@ public class DefaultTaskOrchestrationFacade implements TaskOrchestrationFacade, 
                 continue;
             }
             try {
-                attemptHistoryPort.recordRecoveryClaimed(task, firstNonBlank(task.getDispatchRecoveryClaimedBy(), dispatchRecoveryProperties.getWorkerId()), task.getDispatchRecoveryClaimUntil() == null ? claimUntil : task.getDispatchRecoveryClaimUntil(), at);
+                attemptHistoryPort.recordRecoveryClaimed(task, firstNonBlank(task.getDispatchRecoveryClaimedBy(), runtimeDispatchRecoveryWorkerId()), task.getDispatchRecoveryClaimUntil() == null ? claimUntil : task.getDispatchRecoveryClaimUntil(), at);
                 log.info("task_dispatch_recovery_claimed taskId={} status={} routingPath={} matchedFlowId={} matchedRuleId={} requestedSkill={} nextDispatchAttemptAt={} retryReason={}",
                         task.getTaskId(), task.getStatus(), task.getRoutingPath(), task.getMatchedFlowId(), task.getMatchedRuleId(), task.getRequestedSkill(),
                         task.getNextDispatchAttemptAt(), task.getDispatchRetryReason());
@@ -273,7 +276,7 @@ public class DefaultTaskOrchestrationFacade implements TaskOrchestrationFacade, 
                 }
             } catch (RuntimeException ex) {
                 failed++;
-                OffsetDateTime nextAttemptAt = at.plus(dispatchRecoveryProperties.delayForAttempt(task.getDispatchAttemptCount() + 1));
+                OffsetDateTime nextAttemptAt = at.plus(runtimeDispatchRecoveryDelayForAttempt(task.getDispatchAttemptCount() + 1));
                 String failureReason = "Task dispatch recovery scanner failed: " + rootMessage(ex);
                 taskRepository.deferDispatchAttempt(
                         task.getTaskId(),
@@ -285,7 +288,7 @@ public class DefaultTaskOrchestrationFacade implements TaskOrchestrationFacade, 
             } finally {
                 taskRepository.clearDispatchRecoveryClaim(
                         task.getTaskId(),
-                        firstNonBlank(task.getDispatchRecoveryClaimedBy(), dispatchRecoveryProperties.getWorkerId()),
+                        firstNonBlank(task.getDispatchRecoveryClaimedBy(), runtimeDispatchRecoveryWorkerId()),
                         task.getDispatchRecoveryClaimUntil() == null ? claimUntil : task.getDispatchRecoveryClaimUntil(),
                         at);
             }
@@ -340,12 +343,12 @@ public class DefaultTaskOrchestrationFacade implements TaskOrchestrationFacade, 
             return LifecycleCandidateOutcome.NONE;
         }
         if (dispatchRecoveryExhausted(task)) {
-            log.warn("task_lifecycle_dispatch_recovery_exhausted tenantId={} taskId={} status={} dispatchAttemptCount={} maxAttempts={} reason=DISPATCH_RECOVERY_EXHAUSTED", task.getTenantId(), task.getTaskId(), task.getStatus(), task.getDispatchAttemptCount(), dispatchRecoveryProperties.getMaxAttempts());
+            log.warn("task_lifecycle_dispatch_recovery_exhausted tenantId={} taskId={} status={} dispatchAttemptCount={} maxAttempts={} reason=DISPATCH_RECOVERY_EXHAUSTED", task.getTenantId(), task.getTaskId(), task.getStatus(), task.getDispatchAttemptCount(), runtimeDispatchRecoveryMaxAttempts());
             markDispatchRecoveryExhausted(task, at);
             return LifecycleCandidateOutcome.FAILED;
         }
         if(shouldRetryDispatchReady(task,policy)){
-            log.info("task_lifecycle_auto_assign_retry_due tenantId={} taskId={} status={} reassignmentCount={} maxReassignments={} dispatchAttemptCount={} dispatchRecoveryMaxAttempts={} updatedAt={} timeout={} reason=DISPATCH_READY_TIMEOUT", task.getTenantId(),task.getTaskId(),task.getStatus(),task.getReassignmentCount(),policy.maxReassignments(),task.getDispatchAttemptCount(),dispatchRecoveryProperties.getMaxAttempts(),task.getUpdatedAt(),timeoutFor(task,policy));
+            log.info("task_lifecycle_auto_assign_retry_due tenantId={} taskId={} status={} reassignmentCount={} maxReassignments={} dispatchAttemptCount={} dispatchRecoveryMaxAttempts={} updatedAt={} timeout={} reason=DISPATCH_READY_TIMEOUT", task.getTenantId(),task.getTaskId(),task.getStatus(),task.getReassignmentCount(),policy.maxReassignments(),task.getDispatchAttemptCount(),runtimeDispatchRecoveryMaxAttempts(),task.getUpdatedAt(),timeoutFor(task,policy));
             retryDispatchReadyInternal(task,"Auto-retried dispatch-ready task after lifecycle timeout for status "+task.getStatus(),at);
             return LifecycleCandidateOutcome.REASSIGNED;
         }
@@ -400,7 +403,7 @@ public class DefaultTaskOrchestrationFacade implements TaskOrchestrationFacade, 
         return task != null && task.getStatus() == TaskStatus.RETRY_WAIT && task.getNextDispatchAttemptAt() != null && task.getNextDispatchAttemptAt().isAfter(now);
     }
     private boolean dispatchRecoveryExhausted(TaskRecord task) {
-        int maxAttempts = dispatchRecoveryProperties.getMaxAttempts();
+        int maxAttempts = runtimeDispatchRecoveryMaxAttempts();
         return task != null && maxAttempts > 0 && task.getDispatchAttemptCount() >= maxAttempts
                 && (task.getStatus() == TaskStatus.QUEUED || task.getStatus() == TaskStatus.CREATED || task.getStatus() == TaskStatus.RETRY_WAIT);
     }
@@ -416,6 +419,13 @@ public class DefaultTaskOrchestrationFacade implements TaskOrchestrationFacade, 
                 : taskAssignmentService.assignIfPossible(task);
     }
     private boolean isTerminal(TaskStatus s){return s != null && s.isTerminal();}
+    private boolean runtimeDispatchRecoveryEnabled(){return dispatchRecoveryRuntime==null?dispatchRecoveryProperties.isEnabled():dispatchRecoveryRuntime.enabled();}
+    private Duration runtimeDispatchRecoveryClaimLease(){return dispatchRecoveryRuntime==null?dispatchRecoveryProperties.getClaimLease():dispatchRecoveryRuntime.claimLease();}
+    private String runtimeDispatchRecoveryWorkerId(){return dispatchRecoveryRuntime==null?dispatchRecoveryProperties.getWorkerId():dispatchRecoveryRuntime.workerId();}
+    private int runtimeDispatchRecoveryMaxBatchSize(){return dispatchRecoveryRuntime==null?dispatchRecoveryProperties.getMaxBatchSize():dispatchRecoveryRuntime.maxBatchSize();}
+    private int runtimeDispatchRecoveryMaxAttempts(){return dispatchRecoveryRuntime==null?dispatchRecoveryProperties.getMaxAttempts():dispatchRecoveryRuntime.maxAttempts();}
+    private Duration runtimeDispatchRecoveryDelayForAttempt(int attemptNo){return dispatchRecoveryRuntime==null?dispatchRecoveryProperties.delayForAttempt(attemptNo):dispatchRecoveryRuntime.delayForAttempt(attemptNo);}
+
     private boolean isMissingDispatchRecoverySchema(Throwable exception){Throwable current=exception;while(current!=null){String message=current.getMessage();if(message!=null){String normalized=message.toLowerCase(java.util.Locale.ROOT);boolean missingColumn=normalized.contains("does not exist")&&(normalized.contains("next_dispatch_attempt_at")||normalized.contains("dispatch_attempt_count")||normalized.contains("dispatch_retry_reason")||normalized.contains("dispatch_recovery_claimed_by")||normalized.contains("dispatch_recovery_claim_until"));if(missingColumn)return true;}current=current.getCause();}return false;}
     private String rootMessage(Throwable exception){Throwable current=exception;while(current!=null&&current.getCause()!=null){current=current.getCause();}return current==null?"unknown":(current.getMessage()==null?current.getClass().getName():current.getMessage());}
     private TaskRecord requireTask(String id){return taskRepository.findById(id).orElseThrow(()->new IllegalArgumentException("Task not found: "+id));}

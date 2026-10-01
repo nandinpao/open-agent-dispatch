@@ -1,6 +1,8 @@
 package com.opensocket.aievent.gateway.netty.authorization;
 
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,16 +24,28 @@ public class CoreAgentConnectionAuthorizationClient implements AgentConnectionAu
     private final CoreAgentAuthorizationProperties properties;
     private final GatewayProperties gatewayProperties;
     private final ObjectMapper objectMapper;
+    private final GatewayOperationalRuntimeConfigurationView runtimeConfiguration;
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+
+    @Autowired
+    public CoreAgentConnectionAuthorizationClient(
+            CoreAgentAuthorizationProperties properties,
+            GatewayProperties gatewayProperties,
+            ObjectMapper objectMapper,
+            GatewayOperationalRuntimeConfigurationView runtimeConfiguration
+    ) {
+        this.properties = properties;
+        this.gatewayProperties = gatewayProperties;
+        this.objectMapper = objectMapper;
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
 
     public CoreAgentConnectionAuthorizationClient(
             CoreAgentAuthorizationProperties properties,
             GatewayProperties gatewayProperties,
             ObjectMapper objectMapper
     ) {
-        this.properties = properties;
-        this.gatewayProperties = gatewayProperties;
-        this.objectMapper = objectMapper;
+        this(properties, gatewayProperties, objectMapper, null);
     }
 
     @Override
@@ -60,7 +74,7 @@ public class CoreAgentConnectionAuthorizationClient implements AgentConnectionAu
             body.put("publicKeyFingerprint", request.publicKeyFingerprint());
             var json = objectMapper.writeValueAsString(body);
             var builder = HttpRequest.newBuilder(URI.create(properties.authorizeUrl()))
-                    .timeout(Duration.ofMillis(properties.timeoutMs()))
+                    .timeout(Duration.ofMillis(runtimeConfiguration == null ? properties.timeoutMs() : runtimeConfiguration.agentAuthorizationTimeoutMs()))
                     .header("Content-Type", "application/json")
                     .header("X-Gateway-Node-Id", gatewayProperties.nodeId())
                     .header("X-Gateway-Site-Id", gatewayProperties.siteId())

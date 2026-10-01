@@ -5,6 +5,11 @@ import com.opensocket.aievent.gateway.netty.admin.AdminEventPublisher;
 import com.opensocket.aievent.gateway.netty.agent.ConnectionType;
 import com.opensocket.aievent.gateway.netty.config.CoreForwardProperties;
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
+import com.opensocket.aievent.gateway.netty.authorization.CoreAgentAuthorizationProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreDirectorySyncProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreOutboundProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreTaskCallbackRelayProperties;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundDispatcher;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundRequest;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundStatus;
@@ -41,6 +46,7 @@ public class InboundEventForwarder {
     private final AdminEventPublisher adminBroadcaster;
     private final AdminEventMetricsRecorder eventMetricsMeter;
     private final CoreOutboundDispatcher coreOutboundDispatcher;
+    private final GatewayOperationalRuntimeConfigurationView runtimeConfiguration;
 
     @Autowired
     public InboundEventForwarder(
@@ -50,7 +56,8 @@ public class InboundEventForwarder {
             InboundEventTracker inboundEventTracker,
             AdminEventPublisher adminBroadcaster,
             AdminEventMetricsRecorder eventMetricsMeter,
-            CoreOutboundDispatcher coreOutboundDispatcher
+            CoreOutboundDispatcher coreOutboundDispatcher,
+            GatewayOperationalRuntimeConfigurationView runtimeConfiguration
     ) {
         this.objectMapper = objectMapper;
         this.gatewayProperties = gatewayProperties;
@@ -59,6 +66,22 @@ public class InboundEventForwarder {
         this.adminBroadcaster = adminBroadcaster;
         this.eventMetricsMeter = eventMetricsMeter;
         this.coreOutboundDispatcher = coreOutboundDispatcher;
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
+    public InboundEventForwarder(
+            ObjectMapper objectMapper,
+            GatewayProperties gatewayProperties,
+            CoreForwardProperties coreForwardProperties,
+            InboundEventTracker inboundEventTracker,
+            AdminEventPublisher adminBroadcaster,
+            AdminEventMetricsRecorder eventMetricsMeter,
+            CoreOutboundDispatcher coreOutboundDispatcher
+    ) {
+        this(objectMapper, gatewayProperties, coreForwardProperties, inboundEventTracker, adminBroadcaster,
+                eventMetricsMeter, coreOutboundDispatcher, new GatewayOperationalRuntimeConfigurationView(
+                        new CoreAgentAuthorizationProperties(), new CoreDirectorySyncProperties(), coreForwardProperties,
+                        new CoreOutboundProperties(), new CoreTaskCallbackRelayProperties()));
     }
 
     public InboundEventRecord accept(
@@ -68,14 +91,14 @@ public class InboundEventForwarder {
             String agentId
     ) {
         var attempt = inboundEventTracker.begin(envelope, connectionType, connectionId, agentId);
-        var shouldRecord = coreForwardProperties.shouldRecord(attempt.category());
-        var shouldForward = coreForwardProperties.enabled() && coreForwardProperties.shouldForward(attempt.category());
+        var shouldRecord = runtimeConfiguration.shouldRecord(attempt.category());
+        var shouldForward = runtimeConfiguration.coreForwardEnabled() && runtimeConfiguration.shouldForward(attempt.category());
 
         if (!shouldForward) {
-            var status = coreForwardProperties.enabled()
+            var status = runtimeConfiguration.coreForwardEnabled()
                     ? InboundForwardStatus.FORWARD_SKIPPED_BY_CATEGORY
                     : InboundForwardStatus.FORWARD_DISABLED;
-            var message = coreForwardProperties.enabled()
+            var message = runtimeConfiguration.coreForwardEnabled()
                     ? "Core forward skipped by inbound event category " + attempt.category()
                     : "Core forwarder disabled; inbound event recorded locally only";
             var record = inboundEventTracker.complete(attempt, status, message, shouldRecord);

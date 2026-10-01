@@ -5,7 +5,6 @@ import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -16,7 +15,6 @@ public class A2AAuthorityRevocationSweep {
     private final JdbcTemplate tenants; private final NamedParameterJdbcTemplate jdbc; private final A2ATrustAssurancePolicyService assurance; private final TransactionTemplate transactions;
     public A2AAuthorityRevocationSweep(JdbcTemplate tenants,NamedParameterJdbcTemplate jdbc,A2ATrustAssurancePolicyService assurance,PlatformTransactionManager transactionManager){this.tenants=tenants;this.jdbc=jdbc;this.assurance=assurance;this.transactions=new TransactionTemplate(transactionManager);}
 
-    @Scheduled(fixedDelayString="${opendispatch.a2a-authority-revocation-sweep-ms:30000}", scheduler="a2aRemoteOperationalScheduler")
     public void run(){for(String tenant:tenants.queryForList("select tenant_id from tenants where status='ACTIVE' order by tenant_id",String.class))sweepTenant(tenant);}
 
     public void sweepTenant(String tenant){transactions.executeWithoutResult(status -> sweepTenantInTransaction(tenant));}

@@ -1,6 +1,8 @@
 package com.opensocket.aievent.gateway.netty.audit.autoconfigure;
 
 import com.opensocket.aievent.gateway.netty.admin.AdminEventStore;
+import com.opensocket.aievent.gateway.netty.admin.AdminRuntimeConfigurationView;
+import com.opensocket.aievent.gateway.netty.configuration.GatewayRuntimeConfigurationSnapshotValues;
 import com.opensocket.aievent.gateway.netty.admin.audit.AuditEventPersistencePort;
 import com.opensocket.aievent.gateway.netty.admin.audit.NoopAuditEventPersistencePort;
 import com.opensocket.aievent.gateway.netty.config.AdminProperties;
@@ -25,13 +27,22 @@ public class AiEventGatewayAuditAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(AdminRuntimeConfigurationView.class)
+    public AdminRuntimeConfigurationView aiEventGatewayAdminRuntimeConfigurationView(
+            AdminProperties adminProperties,
+            GatewayRuntimeConfigurationSnapshotValues snapshotValues) {
+        return new AdminRuntimeConfigurationView(adminProperties, snapshotValues);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(AdminEventStore.class)
     public AdminEventStore aiEventGatewayAdminEventStore(
             GatewayProperties gatewayProperties,
             AdminProperties adminProperties,
             AuditLogProperties auditLogProperties,
-            AuditEventPersistencePort auditEventPersistencePort
+            AuditEventPersistencePort auditEventPersistencePort,
+            AdminRuntimeConfigurationView runtimeConfiguration
     ) {
-        return new AdminEventStore(gatewayProperties, adminProperties, auditLogProperties, auditEventPersistencePort);
+        return new AdminEventStore(gatewayProperties, adminProperties, auditLogProperties, auditEventPersistencePort, runtimeConfiguration);
     }
 }

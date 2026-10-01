@@ -2,13 +2,14 @@ package com.opensocket.aievent.gateway.netty.callback;
 
 import com.opensocket.aievent.gateway.netty.agent.ConnectionType;
 import com.opensocket.aievent.gateway.netty.config.CoreTaskCallbackRelayProperties;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
 import com.opensocket.aievent.gateway.netty.protocol.AiEventEnvelope;
 import com.opensocket.aievent.gateway.netty.protocol.MessageType;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundDispatcher;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundRequest;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundStatus;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class TaskCallbackRelay {
     private final CoreTaskCallbackRelayProperties properties;
     private final CoreOutboundDispatcher coreOutboundDispatcher;
     private final TaskCallbackRelayMetrics metrics;
+    private GatewayOperationalRuntimeConfigurationView runtimeConfiguration;
 
     @Autowired
     public TaskCallbackRelay(
@@ -91,12 +93,12 @@ public class TaskCallbackRelay {
         copyIfPresent(payload, request, "assignmentId");
         request.put("taskId", taskId);
         request.put("agentId", firstNonBlank(stringValue(payload.get("agentId")), registeredAgentId, envelope.source()));
-        if (properties.enrichGatewayIdentity()) {
+        if (enrichGatewayIdentity()) {
             request.put("ownerGatewayNodeId", gatewayProperties.nodeId());
         } else {
             copyIfPresent(payload, request, "ownerGatewayNodeId");
         }
-        if (properties.fillMissingAgentSessionId()) {
+        if (fillMissingAgentSessionId()) {
             request.put("agentSessionId", firstNonBlank(stringValue(payload.get("agentSessionId")), connectionId));
         } else {
             copyIfPresent(payload, request, "agentSessionId");
@@ -141,7 +143,7 @@ public class TaskCallbackRelay {
                 outboundHeaders.put(properties.authHeaderName(), properties.authToken());
             }
             CoreOutboundRequest outboundRequest = CoreOutboundRequest.jsonPost(URI.create(url), body, outboundHeaders);
-            if (properties.synchronousTerminalCallbacks() && isTerminalCallback(envelope.messageType())) {
+            if (synchronousTerminalCallbacks() && isTerminalCallback(envelope.messageType())) {
                 return recorded(relayTerminalCallbackSynchronously(taskId, callbackType, request, outboundRequest));
             }
 
@@ -202,6 +204,23 @@ public class TaskCallbackRelay {
                     taskId, callbackType, request.get("callbackId"), request.get("dispatchRequestId"), ex.getMessage());
             return TaskCallbackRelayResult.failed(taskId, callbackType, ex.getMessage());
         }
+    }
+
+    @Autowired(required = false)
+    void setRuntimeConfiguration(GatewayOperationalRuntimeConfigurationView runtimeConfiguration) {
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
+    private boolean enrichGatewayIdentity() {
+        return runtimeConfiguration == null ? properties.enrichGatewayIdentity() : runtimeConfiguration.callbackEnrichGatewayIdentity();
+    }
+
+    private boolean fillMissingAgentSessionId() {
+        return runtimeConfiguration == null ? properties.fillMissingAgentSessionId() : runtimeConfiguration.callbackFillMissingAgentSessionId();
+    }
+
+    private boolean synchronousTerminalCallbacks() {
+        return runtimeConfiguration == null ? properties.synchronousTerminalCallbacks() : runtimeConfiguration.callbackSynchronousTerminalCallbacks();
     }
 
     private boolean isTerminalCallback(MessageType messageType) {

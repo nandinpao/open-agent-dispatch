@@ -38,14 +38,14 @@ public class TaskDecisionService {
 
     private final TaskRepository taskRepository;
     private final IncidentFacade incidentFacade;
-    private final TaskOrchestrationProperties properties;
+    private final TaskDecisionRuntimeConfigurationView runtimeConfiguration;
     private final TaskAssignmentService taskAssignmentService;
     private final FlowRuleRoutingService flowRuleRoutingService;
     private final RoutingProperties routingProperties;
     private final IncidentTaskSuppressionPolicy suppressionPolicy;
 
     public TaskDecisionService(TaskRepository taskRepository, IncidentFacade incidentFacade, TaskOrchestrationProperties properties, TaskAssignmentService taskAssignmentService) {
-        this(taskRepository, incidentFacade, properties, taskAssignmentService, new IncidentTaskSuppressionPolicy(), (FlowRuleRoutingService) null, (RoutingProperties) null);
+        this(taskRepository, incidentFacade, new TaskDecisionRuntimeConfigurationView(properties), taskAssignmentService, new IncidentTaskSuppressionPolicy(), (FlowRuleRoutingService) null, (RoutingProperties) null);
     }
 
     public TaskDecisionService(TaskRepository taskRepository,
@@ -53,18 +53,18 @@ public class TaskDecisionService {
                                TaskOrchestrationProperties properties,
                                TaskAssignmentService taskAssignmentService,
                                IncidentTaskSuppressionPolicy suppressionPolicy) {
-        this(taskRepository, incidentFacade, properties, taskAssignmentService, suppressionPolicy, (FlowRuleRoutingService) null, (RoutingProperties) null);
+        this(taskRepository, incidentFacade, new TaskDecisionRuntimeConfigurationView(properties), taskAssignmentService, suppressionPolicy, (FlowRuleRoutingService) null, (RoutingProperties) null);
     }
 
     @Autowired
     public TaskDecisionService(TaskRepository taskRepository,
                                IncidentFacade incidentFacade,
-                               TaskOrchestrationProperties properties,
+                               TaskDecisionRuntimeConfigurationView runtimeConfiguration,
                                TaskAssignmentService taskAssignmentService,
                                IncidentTaskSuppressionPolicy suppressionPolicy,
                                ObjectProvider<FlowRuleRoutingService> flowRuleRoutingService,
                                ObjectProvider<RoutingProperties> routingProperties) {
-        this(taskRepository, incidentFacade, properties, taskAssignmentService, suppressionPolicy,
+        this(taskRepository, incidentFacade, runtimeConfiguration, taskAssignmentService, suppressionPolicy,
                 flowRuleRoutingService == null ? null : flowRuleRoutingService.getIfAvailable(),
                 routingProperties == null ? null : routingProperties.getIfAvailable());
     }
@@ -75,20 +75,20 @@ public class TaskDecisionService {
                                TaskAssignmentService taskAssignmentService,
                                IncidentTaskSuppressionPolicy suppressionPolicy,
                                FlowRuleRoutingService flowRuleRoutingService) {
-        this(taskRepository, incidentFacade, properties, taskAssignmentService, suppressionPolicy,
+        this(taskRepository, incidentFacade, new TaskDecisionRuntimeConfigurationView(properties), taskAssignmentService, suppressionPolicy,
                 flowRuleRoutingService, null);
     }
 
     public TaskDecisionService(TaskRepository taskRepository,
                                IncidentFacade incidentFacade,
-                               TaskOrchestrationProperties properties,
+                               TaskDecisionRuntimeConfigurationView runtimeConfiguration,
                                TaskAssignmentService taskAssignmentService,
                                IncidentTaskSuppressionPolicy suppressionPolicy,
                                FlowRuleRoutingService flowRuleRoutingService,
                                RoutingProperties routingProperties) {
         this.taskRepository = taskRepository;
         this.incidentFacade = incidentFacade;
-        this.properties = properties == null ? new TaskOrchestrationProperties() : properties;
+        this.runtimeConfiguration = runtimeConfiguration == null ? new TaskDecisionRuntimeConfigurationView(new TaskOrchestrationProperties()) : runtimeConfiguration;
         this.taskAssignmentService = taskAssignmentService;
         this.flowRuleRoutingService = flowRuleRoutingService;
         this.routingProperties = routingProperties == null ? new RoutingProperties() : routingProperties;
@@ -97,7 +97,7 @@ public class TaskDecisionService {
 
     @Transactional
     public TaskDecisionResult decide(Incident incident, NormalizedEvent event, DedupDecision dedup) {
-        if (!properties.isTaskCreationEnabled()) {
+        if (!runtimeConfiguration.taskCreationEnabled()) {
             log.info("task_decision_suppressed reason={} eventId={} tenantId={} sourceSystem={} eventStage={} eventType={} correlationId={}",
                     "TASK_CREATION_DISABLED", event == null ? null : event.eventId(), event == null ? null : event.tenantId(),
                     event == null ? null : event.sourceSystem(), event == null ? null : event.eventStage(),
@@ -108,15 +108,15 @@ public class TaskDecisionService {
         }
 
         boolean unclassifiedEvent = isUnclassifiedEvent(event);
-        if (!unclassifiedEvent && incident.getStatus() == IncidentStatus.ESCALATED && properties.isTaskEscalationEnabled()) {
+        if (!unclassifiedEvent && incident.getStatus() == IncidentStatus.ESCALATED && runtimeConfiguration.taskEscalationEnabled()) {
             TaskDecisionResult escalation = maybeCreateEscalationTask(incident, event, dedup);
             if (escalation.taskCreated() || escalation.taskSuppressed()) {
                 return escalation;
             }
         }
 
-        boolean immediateSeverity = properties.getImmediateTaskSeverities().contains(event.severity().name());
-        boolean reachedThreshold = dedup.state().getOccurrenceCount() >= properties.getTaskMinOccurrences();
+        boolean immediateSeverity = runtimeConfiguration.immediateTaskSeverities().contains(event.severity().name());
+        boolean reachedThreshold = dedup.state().getOccurrenceCount() >= runtimeConfiguration.taskMinOccurrences();
         TaskType responseTaskType = unclassifiedEvent ? TaskType.TRIAGE : TaskType.INCIDENT_RESPONSE;
         Optional<TaskRecord> existingOpenResponseTask = taskRepository.findOpenByTenantAndIncidentAndType(
                 event.tenantId(), incident.getIncidentId(), responseTaskType);
@@ -127,7 +127,7 @@ public class TaskDecisionService {
                 immediateSeverity,
                 reachedThreshold,
                 existingOpenResponseTask,
-                properties.getTaskMinOccurrences());
+                runtimeConfiguration.taskMinOccurrences());
         if (suppression.suppressed()) {
             log.info("task_decision_suppressed reason={} incidentId={} eventId={} sourceSystem={} eventStage={} eventType={} occurrenceCount={}",
                     suppression.reason(), incident.getIncidentId(), event.eventId(), event.sourceSystem(), event.eventStage(), event.eventType(),
@@ -375,7 +375,7 @@ public class TaskDecisionService {
         if (value != null && !value.isBlank()) {
             return normalizeCode(value);
         }
-        String configuredDefault = properties.getDefaultRoutingPolicy();
+        String configuredDefault = runtimeConfiguration.defaultRoutingPolicy();
         return configuredDefault == null || configuredDefault.isBlank()
                 ? "MANUAL_REVIEW"
                 : normalizeCode(configuredDefault);

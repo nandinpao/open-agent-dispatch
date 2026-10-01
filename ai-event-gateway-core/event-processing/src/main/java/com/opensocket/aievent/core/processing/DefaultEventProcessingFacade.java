@@ -32,7 +32,7 @@ public class DefaultEventProcessingFacade implements EventProcessingFacade, Even
     private final DedupStateSnapshotRepository dedupStateSnapshotRepository;
     private final DedupStateCache dedupStateCache;
     private final IncidentFacade incidentFacade;
-    private final EventProcessingProperties properties;
+    private final EventDecisionRuntimeConfigurationView runtimeConfiguration;
 
     public DefaultEventProcessingFacade(EventNormalizer normalizer,
                                         FingerprintGenerator fingerprintGenerator,
@@ -41,7 +41,7 @@ public class DefaultEventProcessingFacade implements EventProcessingFacade, Even
                                         IncidentFacade incidentFacade,
                                         EventProcessingProperties properties) {
         this(normalizer, fingerprintGenerator, dedupStateStore, dedupStateSnapshotRepository,
-                new NoopDedupStateCache(), incidentFacade, properties);
+                new NoopDedupStateCache(), incidentFacade, new EventDecisionRuntimeConfigurationView(properties));
     }
 
     @Autowired
@@ -51,14 +51,14 @@ public class DefaultEventProcessingFacade implements EventProcessingFacade, Even
                                         DedupStateSnapshotRepository dedupStateSnapshotRepository,
                                         DedupStateCache dedupStateCache,
                                         IncidentFacade incidentFacade,
-                                        EventProcessingProperties properties) {
+                                        EventDecisionRuntimeConfigurationView runtimeConfiguration) {
         this.normalizer = normalizer;
         this.fingerprintGenerator = fingerprintGenerator;
         this.dedupStateStore = dedupStateStore;
         this.dedupStateSnapshotRepository = dedupStateSnapshotRepository;
         this.dedupStateCache = dedupStateCache;
         this.incidentFacade = incidentFacade;
-        this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     @Override
@@ -71,8 +71,8 @@ public class DefaultEventProcessingFacade implements EventProcessingFacade, Even
         DedupDecision dedup = dedupStateStore.touch(
                 fingerprint,
                 event,
-                properties.getDedupWindow(),
-                properties.getDedupTtl());
+                runtimeConfiguration.dedupWindow(),
+                runtimeConfiguration.dedupTtl());
 
         Incident incident = incidentFacade.observe(new IncidentObservationCommand(
                 fingerprint,
@@ -84,12 +84,12 @@ public class DefaultEventProcessingFacade implements EventProcessingFacade, Even
                 event.eventId(), fingerprint, dedup.duplicate(), dedup.state().getOccurrenceCount(), incident.getIncidentId(), dedup.reason());
 
         if (dedupStateStore.transactionalSourceOfTruth()) {
-            dedupStateStore.attachIncident(fingerprint, incident.getIncidentId(), properties.getDedupTtl());
+            dedupStateStore.attachIncident(fingerprint, incident.getIncidentId(), runtimeConfiguration.dedupTtl());
             DedupState state = dedupStateStore.find(fingerprint).orElse(dedup.state());
             runAfterCommit(() -> publishCommittedDedupState(state, event));
         } else {
             runAfterCommit(() -> {
-                dedupStateStore.attachIncident(fingerprint, incident.getIncidentId(), properties.getDedupTtl());
+                dedupStateStore.attachIncident(fingerprint, incident.getIncidentId(), runtimeConfiguration.dedupTtl());
                 dedupStateStore.find(fingerprint).ifPresent(state -> publishCommittedDedupState(state, event));
             });
         }
@@ -108,9 +108,9 @@ public class DefaultEventProcessingFacade implements EventProcessingFacade, Even
                 event == null ? null : event.eventId(), state == null ? null : state.getFingerprint(),
                 dedupStateStore.mode(), dedupStateSnapshotRepository.mode());
         if (!sameMode(dedupStateStore.mode(), dedupStateSnapshotRepository.mode())) {
-            dedupStateSnapshotRepository.saveSnapshot(state, event, properties.getDedupTtl());
+            dedupStateSnapshotRepository.saveSnapshot(state, event, runtimeConfiguration.dedupTtl());
         }
-        dedupStateCache.publish(state, event, properties.getDedupTtl());
+        dedupStateCache.publish(state, event, runtimeConfiguration.dedupTtl());
     }
 
     /**

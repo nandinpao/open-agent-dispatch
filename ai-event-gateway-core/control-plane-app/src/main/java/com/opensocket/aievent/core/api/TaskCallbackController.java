@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import com.opensocket.aievent.core.callback.DispatchRecoveryResult;
 import com.opensocket.aievent.core.callback.DispatchRecoveryService;
 import com.opensocket.aievent.core.callback.TaskCallbackProperties;
+import com.opensocket.aievent.core.callback.TaskCallbackRuntimeConfigurationView;
 import com.opensocket.aievent.core.callback.TaskCallbackRecord;
 import com.opensocket.aievent.core.dispatch.ExecutionOperationalQuery;
 import com.opensocket.aievent.core.callback.TaskCallbackRequest;
@@ -39,6 +40,7 @@ public class TaskCallbackController {
     private final ExecutionOperationalQuery queryService;
     private final DispatchRecoveryService recoveryService;
     private final TaskCallbackProperties properties;
+    private final TaskCallbackRuntimeConfigurationView runtimeConfiguration;
 
     @Autowired(required=false)
     private AgentTaskRuntimeAuthorizationService agentTaskRuntimeAuthorization;
@@ -50,10 +52,20 @@ public class TaskCallbackController {
                                   ExecutionOperationalQuery queryService,
                                   DispatchRecoveryService recoveryService,
                                   TaskCallbackProperties properties) {
+        this(callbackService, queryService, recoveryService, properties, null);
+    }
+
+    @Autowired
+    public TaskCallbackController(TaskCallbackService callbackService,
+                                  ExecutionOperationalQuery queryService,
+                                  DispatchRecoveryService recoveryService,
+                                  TaskCallbackProperties properties,
+                                  TaskCallbackRuntimeConfigurationView runtimeConfiguration) {
         this.callbackService = callbackService;
         this.queryService = queryService;
         this.recoveryService = recoveryService;
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     @PostMapping("/{taskId}/ack")
@@ -141,25 +153,46 @@ public class TaskCallbackController {
     public Map<String, Object> metadata() {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("store", queryService.callbackStoreMode());
-        metadata.put("idempotencyEnabled", properties.isIdempotencyEnabled());
-        metadata.put("replayProtectionEnabled", properties.isReplayProtectionEnabled());
-        metadata.put("rejectCallbackIdReplayMismatch", properties.isRejectCallbackIdReplayMismatch());
+        metadata.put("idempotencyEnabled", runtimeIdempotencyEnabled());
+        metadata.put("replayProtectionEnabled", runtimeReplayProtectionEnabled());
+        metadata.put("rejectCallbackIdReplayMismatch", runtimeRejectCallbackIdReplayMismatch());
+        // Dispatch-token enforcement remains a security/startup invariant and is intentionally not Runtime Configuration.
         metadata.put("requireDispatchToken", properties.isRequireDispatchToken());
-        metadata.put("allowMissingDispatchRequestId", properties.isAllowMissingDispatchRequestId());
-        metadata.put("enforceStateTransition", properties.isEnforceStateTransition());
-        metadata.put("rejectOldAttemptCallbacks", properties.isRejectOldAttemptCallbacks());
-        metadata.put("requireAttemptNo", properties.isRequireAttemptNo());
-        metadata.put("enforceGatewayAndAgentIdentity", properties.isEnforceGatewayAndAgentIdentity());
-        metadata.put("allowTerminalCallbackOverride", properties.isAllowTerminalCallbackOverride());
-        metadata.put("timeoutEnabled", properties.getRecovery().isTimeoutEnabled());
-        metadata.put("dispatchTimeout", properties.getRecovery().getDispatchTimeout().toString());
-        metadata.put("retryEnabled", properties.getRecovery().isRetryEnabled());
-        metadata.put("maxAttempts", properties.getRecovery().getMaxAttempts());
-        metadata.put("initialBackoff", properties.getRecovery().getInitialBackoff().toString());
-        metadata.put("maxBackoff", properties.getRecovery().getMaxBackoff().toString());
-        metadata.put("jitterPercent", properties.getRecovery().getJitterPercent());
-        metadata.put("autoFailTimedOut", properties.getRecovery().isAutoFailTimedOut());
-        metadata.put("maxBatchSize", properties.getRecovery().getMaxBatchSize());
+        metadata.put("allowMissingDispatchRequestId", runtimeAllowMissingDispatchRequestId());
+        metadata.put("enforceStateTransition", runtimeEnforceStateTransition());
+        metadata.put("rejectOldAttemptCallbacks", runtimeRejectOldAttemptCallbacks());
+        metadata.put("requireAttemptNo", runtimeRequireAttemptNo());
+        metadata.put("enforceGatewayAndAgentIdentity", runtimeEnforceGatewayAndAgentIdentity());
+        metadata.put("allowTerminalCallbackOverride", runtimeAllowTerminalCallbackOverride());
+        metadata.put("timeoutEnabled", runtimeRecoveryTimeoutEnabled());
+        metadata.put("dispatchTimeout", runtimeRecoveryDispatchTimeout().toString());
+        metadata.put("retryEnabled", runtimeRecoveryRetryEnabled());
+        metadata.put("maxAttempts", runtimeRecoveryMaxAttempts());
+        metadata.put("initialBackoff", runtimeRecoveryInitialBackoff().toString());
+        metadata.put("maxBackoff", runtimeRecoveryMaxBackoff().toString());
+        metadata.put("jitterPercent", runtimeRecoveryJitterPercent());
+        metadata.put("autoFailTimedOut", runtimeRecoveryAutoFailTimedOut());
+        metadata.put("maxBatchSize", runtimeRecoveryMaxBatchSize());
+        metadata.put("effectiveSource", runtimeConfiguration == null ? "STARTUP_COMPATIBILITY" : "RUNTIME_CONFIGURATION_VIEW");
         return metadata;
     }
+    private boolean runtimeIdempotencyEnabled() { return runtimeConfiguration == null ? properties.isIdempotencyEnabled() : runtimeConfiguration.idempotencyEnabled(); }
+    private boolean runtimeReplayProtectionEnabled() { return runtimeConfiguration == null ? properties.isReplayProtectionEnabled() : runtimeConfiguration.replayProtectionEnabled(); }
+    private boolean runtimeRejectCallbackIdReplayMismatch() { return runtimeConfiguration == null ? properties.isRejectCallbackIdReplayMismatch() : runtimeConfiguration.rejectCallbackIdReplayMismatch(); }
+    private boolean runtimeAllowMissingDispatchRequestId() { return runtimeConfiguration == null ? properties.isAllowMissingDispatchRequestId() : runtimeConfiguration.allowMissingDispatchRequestId(); }
+    private boolean runtimeEnforceStateTransition() { return runtimeConfiguration == null ? properties.isEnforceStateTransition() : runtimeConfiguration.enforceStateTransition(); }
+    private boolean runtimeRejectOldAttemptCallbacks() { return runtimeConfiguration == null ? properties.isRejectOldAttemptCallbacks() : runtimeConfiguration.rejectOldAttemptCallbacks(); }
+    private boolean runtimeRequireAttemptNo() { return runtimeConfiguration == null ? properties.isRequireAttemptNo() : runtimeConfiguration.requireAttemptNo(); }
+    private boolean runtimeEnforceGatewayAndAgentIdentity() { return runtimeConfiguration == null ? properties.isEnforceGatewayAndAgentIdentity() : runtimeConfiguration.enforceGatewayAndAgentIdentity(); }
+    private boolean runtimeAllowTerminalCallbackOverride() { return runtimeConfiguration == null ? properties.isAllowTerminalCallbackOverride() : runtimeConfiguration.allowTerminalCallbackOverride(); }
+    private boolean runtimeRecoveryTimeoutEnabled() { return runtimeConfiguration == null ? properties.getRecovery().isTimeoutEnabled() : runtimeConfiguration.recoveryTimeoutEnabled(); }
+    private java.time.Duration runtimeRecoveryDispatchTimeout() { return runtimeConfiguration == null ? properties.getRecovery().getDispatchTimeout() : runtimeConfiguration.recoveryDispatchTimeout(); }
+    private boolean runtimeRecoveryRetryEnabled() { return runtimeConfiguration == null ? properties.getRecovery().isRetryEnabled() : runtimeConfiguration.recoveryRetryEnabled(); }
+    private int runtimeRecoveryMaxAttempts() { return runtimeConfiguration == null ? properties.getRecovery().getMaxAttempts() : runtimeConfiguration.recoveryMaxAttempts(); }
+    private java.time.Duration runtimeRecoveryInitialBackoff() { return runtimeConfiguration == null ? properties.getRecovery().getInitialBackoff() : runtimeConfiguration.recoveryInitialBackoff(); }
+    private java.time.Duration runtimeRecoveryMaxBackoff() { return runtimeConfiguration == null ? properties.getRecovery().getMaxBackoff() : runtimeConfiguration.recoveryMaxBackoff(); }
+    private int runtimeRecoveryJitterPercent() { return runtimeConfiguration == null ? properties.getRecovery().getJitterPercent() : runtimeConfiguration.recoveryJitterPercent(); }
+    private boolean runtimeRecoveryAutoFailTimedOut() { return runtimeConfiguration == null ? properties.getRecovery().isAutoFailTimedOut() : runtimeConfiguration.recoveryAutoFailTimedOut(); }
+    private int runtimeRecoveryMaxBatchSize() { return runtimeConfiguration == null ? properties.getRecovery().getMaxBatchSize() : runtimeConfiguration.recoveryMaxBatchSize(); }
+
 }

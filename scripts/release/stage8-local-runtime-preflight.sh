@@ -24,7 +24,7 @@ load_dotenv_file "$ENV_FILE"
 
 CORE_URL="${CORE_URL:-${CORE_BASE_URL:-http://127.0.0.1:${CORE_HTTP_PORT:-18080}}}"
 CORE_URL="${CORE_URL%/}"
-CSRF_URL="${CORE_URL}/api/auth/csrf"
+CSRF_URL="${CORE_URL}/api/session/csrf"
 ATTEMPTS="${STAGE8_CORE_READY_ATTEMPTS:-60}"
 INTERVAL_SECONDS="${STAGE8_CORE_READY_INTERVAL_SECONDS:-2}"
 HTTP_TIMEOUT_SECONDS="${STAGE8_CORE_READY_HTTP_TIMEOUT_SECONDS:-3}"
@@ -95,7 +95,7 @@ fi
 echo "" >&2
 echo "Stage 8 local runtime preflight failed." >&2
 echo "Core is not ready at: $CORE_URL" >&2
-echo "The strict Stage 1 Golden Path cannot authenticate because /api/auth/csrf is unreachable or invalid." >&2
+echo "The strict Stage 1 Golden Path cannot authenticate because /api/session/csrf is unreachable or invalid." >&2
 echo "" >&2
 echo "Recommended fixes:" >&2
 echo "  1. Let the Stage 8 gate create an isolated fresh local stack:" >&2

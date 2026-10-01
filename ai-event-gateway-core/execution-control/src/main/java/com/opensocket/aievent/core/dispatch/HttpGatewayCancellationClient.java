@@ -6,8 +6,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -19,14 +21,59 @@ import com.opensocket.aievent.core.assignment.TaskAssignment;
 public class HttpGatewayCancellationClient implements GatewayCancellationClient {
     private final DispatchProperties properties;
     private final ObjectMapper mapper;
-    private final HttpClient client;
+    private final DispatchRuntimeConfigurationView runtimeConfiguration;
+    private volatile HttpClient client;
+    private volatile Duration clientConnectTimeout;
 
+    @Autowired
+    public HttpGatewayCancellationClient(DispatchProperties properties, ObjectMapper mapper, DispatchRuntimeConfigurationView runtimeConfiguration) {
+        this.properties = properties;
+        this.mapper = mapper;
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
+    /** Compatibility constructor for focused tests. */
     public HttpGatewayCancellationClient(DispatchProperties properties, ObjectMapper mapper) {
         this.properties = properties;
         this.mapper = mapper;
-        this.client = HttpClient.newBuilder()
-                .connectTimeout(properties.getClient().getConnectTimeout())
-                .build();
+        this.runtimeConfiguration = null;
+    }
+
+    private HttpClient client() {
+        Duration desired = runtimeConnectTimeout();
+        HttpClient current = client;
+        if (current != null && desired.equals(clientConnectTimeout)) return current;
+        synchronized (this) {
+            if (client == null || !desired.equals(clientConnectTimeout)) {
+                client = HttpClient.newBuilder().connectTimeout(desired).build();
+                clientConnectTimeout = desired;
+            }
+            return client;
+        }
+    }
+
+    private Duration runtimeConnectTimeout() {
+        return runtimeConfiguration == null ? properties.getClient().getConnectTimeout() : runtimeConfiguration.connectTimeout();
+    }
+
+    private Duration runtimeRequestTimeout() {
+        return runtimeConfiguration == null ? properties.getClient().getRequestTimeout() : runtimeConfiguration.requestTimeout();
+    }
+
+    private String runtimeGatewayBaseUrl(String gatewayNodeId) {
+        String base;
+        if (runtimeConfiguration != null) {
+            base = runtimeConfiguration.gatewayBaseUrl(gatewayNodeId);
+        } else {
+            base = properties.getClient().getGatewayBaseUrls().get(gatewayNodeId);
+            if (base == null || base.isBlank()) base = properties.getClient().getDefaultGatewayBaseUrl();
+            if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+        }
+        return base;
+    }
+
+    private String runtimeSourceNodeId() {
+        return runtimeConfiguration == null ? properties.getSourceNodeId() : runtimeConfiguration.sourceNodeId();
     }
 
     @Override
@@ -47,12 +94,7 @@ public class HttpGatewayCancellationClient implements GatewayCancellationClient 
                     "Neither the original Dispatch fence nor the rotated Assignment fence is available");
         }
         try {
-            String base = properties.getClient().getGatewayBaseUrls()
-                    .get(cancellation.getOwnerGatewayNodeId());
-            if (base == null || base.isBlank()) {
-                base = properties.getClient().getDefaultGatewayBaseUrl();
-            }
-            if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+            String base = runtimeGatewayBaseUrl(cancellation.getOwnerGatewayNodeId());
             String path = "/internal/delivery/agents/"
                     + URLEncoder.encode(cancellation.getAgentId(), StandardCharsets.UTF_8)
                     + "/commands";
@@ -80,18 +122,18 @@ public class HttpGatewayCancellationClient implements GatewayCancellationClient 
                     "messageType", "TASK_CANCEL",
                     "payload", payload,
                     "traceId", cancellation.getRequestId(),
-                    "issuedBy", properties.getSourceNodeId(),
+                    "issuedBy", runtimeSourceNodeId(),
                     "timeoutMs", Math.max(100L,
-                            properties.getClient().getRequestTimeout().toMillis()));
+                            runtimeRequestTimeout().toMillis()));
             HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base + path))
-                    .timeout(properties.getClient().getRequestTimeout())
+                    .timeout(runtimeRequestTimeout())
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(envelope)));
             String token = properties.getClient().getInternalToken();
             if (token != null && !token.isBlank()) {
                 builder.header(properties.getClient().getInternalTokenHeader(), token);
             }
-            HttpResponse<String> response = client.send(builder.build(),
+            HttpResponse<String> response = client().send(builder.build(),
                     HttpResponse.BodyHandlers.ofString());
             boolean accepted = response.statusCode() >= 200 && response.statusCode() < 300;
             return accepted

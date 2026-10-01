@@ -237,6 +237,7 @@ GET	/admin/tasks/{taskId}/execution-journey	task.read	TENANT		TASK	taskId	false	
 GET	/admin/tasks/{taskId}/finalization-authority	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/admin/tasks/{taskId}/flow-match-authority	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/admin/tasks/{taskId}/issue-dedup	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/admin/tasks/{taskId}/issue-runtime-journey	admin.core.admin.task.facade.task.issue.runtime.journey	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/admin/tasks/{taskId}/operations-view	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/admin/tasks/{taskId}/routing-decisions	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/admin/tasks/{taskId}/runtime-verification	task.read	TENANT		TASK	taskId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
@@ -449,6 +450,7 @@ GET	/api/integrations/relay-governance/topologies/{topologyId}	api.relay.governa
 GET	/api/integrations/relay-governance/topologies/{topologyId}/edges	api.relay.governance.topology.edges	TENANT		RELAY_GOVERNANCE	topologyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/integrations/relay-governance/topologies/{topologyId}/events	api.relay.governance.topology.events	TENANT		RELAY_GOVERNANCE	topologyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/integrations/security-overrides	api.integration.identity.security.overrides	TENANT		INTEGRATION_IDENTITY		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/integrations/source-systems/{sourceSystemId}/issue-tracking/readiness	api.integration.identity.issue.tracking.readiness	TENANT		INTEGRATION_IDENTITY	sourceSystemId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/integrations/sync/conflicts	api.issue.projection.conflicts	TENANT		ISSUE_PROJECTION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/integrations/sync/dead-letters	api.issue.projection.dead.letters	TENANT		ISSUE_PROJECTION		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/integrations/sync/inbox	api.issue.projection.inbox	TENANT		ISSUE_PROJECTION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
@@ -482,6 +484,20 @@ GET	/api/platform/enforcement-activation/wave0/read/permission-catalog	permissio
 GET	/api/platform/enforcement-activation/wave0/read/readiness-evidence/{type}/{evidenceId}	permission.enforcement_wave0.read	INSTANCE		WAVE0_READ_PILOT	evidenceId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/platform/enforcement-activation/wave0/read/runtime-status	permission.enforcement_wave0.read	INSTANCE		WAVE0_READ_PILOT		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/platform/enforcement-activation/wave0/task-read-certifications	permission.enforcement_wave0.read	INSTANCE		TASK_READ_CERTIFICATION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/config-sets/{configSetId}/cutover	api.runtime.configuration.generic.cutover.status	TENANT		RUNTIME_CONFIGURATION_GENERIC_CUTOVER	configSetId	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/cutover-waves	configuration.cutover.view	INSTANCE		RUNTIME_CONFIGURATION		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/cutover-waves/{waveId}	configuration.cutover.view	INSTANCE		RUNTIME_CONFIGURATION	waveId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/cutover-waves/{waveId}/certification	configuration.cutover.view	INSTANCE		RUNTIME_CONFIGURATION	waveId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/cutover-waves/{waveId}/safety-attestation	configuration.cutover.view	INSTANCE		RUNTIME_CONFIGURATION	waveId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/governance	api.runtime.configuration.admin.governance	TENANT		RUNTIME_CONFIGURATION_ADMIN		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/inventory	api.configuration.migration.governance.list	TENANT		CONFIGURATION_MIGRATION_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/inventory/{key:.+}	api.configuration.migration.governance.detail	TENANT		CONFIGURATION_MIGRATION_GOVERNANCE	key	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/migration-cutovers/adapter-executor-circuit-breaker	api.runtime.configuration.migration.cutover.status	TENANT		RUNTIME_CONFIGURATION_MIGRATION_CUTOVER		true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/overview	api.runtime.configuration.admin.overview	TENANT		RUNTIME_CONFIGURATION_ADMIN		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/settings/{key:.+}	api.runtime.configuration.admin.detail	TENANT		RUNTIME_CONFIGURATION_ADMIN	key	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/settings/{key:.+}/apply-state	api.runtime.configuration.admin.apply.state	TENANT		RUNTIME_CONFIGURATION_ADMIN	key	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/settings/{key:.+}/revisions	api.runtime.configuration.admin.revisions	TENANT		RUNTIME_CONFIGURATION_ADMIN	key	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+GET	/api/platform/runtime-configuration/settings/{key:.+}/rollback-preview	api.runtime.configuration.admin.rollback.preview	TENANT		RUNTIME_CONFIGURATION_ADMIN	key	true	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/resource-access/clearances/{clearanceId}	resource.clearance.read	TENANT		RESOURCE_SCOPE_ADMINISTRATION	clearanceId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/resource-access/denies/{denyId}	resource.deny.read	TENANT		RESOURCE_SCOPE_ADMINISTRATION	denyId	false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 GET	/api/resource-access/governance/denies	resource.deny.read	TENANT		RESOURCE_GOVERNANCE		false	VIEWER,OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
@@ -705,6 +721,7 @@ POST	/admin/tasks/{taskId}/commands	admin.core.admin.task.facade.run.task.remedi
 POST	/admin/tasks/{taskId}/dead-letter	admin.core.admin.task.facade.dead.letter.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/admin/tasks/{taskId}/escalate	admin.core.admin.task.facade.escalate.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/admin/tasks/{taskId}/finalization-authority/retry	admin.core.admin.task.facade.run.task.remediation.command	TENANT		TASK	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/admin/tasks/{taskId}/issue-link/reconcile	admin.core.admin.task.facade.reconcile.task.issue.link	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/admin/tasks/{taskId}/manual-retry	admin.core.admin.task.facade.manual.retry.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/admin/tasks/{taskId}/reassign	admin.core.admin.task.facade.reassign.task	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/admin/tasks/{taskId}/retry	admin.core.admin.task.facade.retry.task.latest.dispatch	TENANT		CORE_ADMIN_TASK_FACADE	taskId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
@@ -726,6 +743,7 @@ POST	/api/adapter-actions/{actionId}/complete	api.adapter.action.complete	TENANT
 POST	/api/adapter-actions/{actionId}/execute	api.adapter.action.execute	TENANT		ADAPTER_ACTION	actionId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/adapter-actions/{actionId}/execute-retry	api.adapter.action.execute.retry	TENANT		ADAPTER_ACTION	actionId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/adapter-actions/{actionId}/fail	api.adapter.action.fail	TENANT		ADAPTER_ACTION	actionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/adapter-actions/{actionId}/reconcile-uncertain	api.adapter.action.reconcile.uncertain	TENANT		ADAPTER_ACTION	actionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/adapter-actions/{actionId}/retry	api.adapter.action.retry	TENANT		ADAPTER_ACTION	actionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/admin/access/platform/permission-catalog/revisions	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG		false		
 POST	/api/admin/access/platform/permission-catalog/revisions/{revisionId}/aliases	permission.catalog.manage	INSTANCE		IAM_PERMISSION_CATALOG	revisionId	false		
@@ -827,6 +845,7 @@ POST	/api/incidents/lifecycle/auto-resolve	api.incident.auto.resolve	TENANT		INC
 POST	/api/incidents/{incidentId}/reopen	api.incident.reopen	TENANT		INCIDENT	incidentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/incidents/{incidentId}/resolve	api.incident.resolve	TENANT		INCIDENT	incidentId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/incidents/{incidentId}/suppress	api.incident.suppress	TENANT		INCIDENT	incidentId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/connections/{connectionId}/metadata-discovery	api.integration.identity.metadata.probe	TENANT		INTEGRATION_IDENTITY	connectionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/external-change-governance/candidates/{candidateId}/approve	api.external.change.governance.approve	TENANT		EXTERNAL_CHANGE_GOVERNANCE	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/external-change-governance/candidates/{candidateId}/execute	api.external.change.governance.execute	TENANT		EXTERNAL_CHANGE_GOVERNANCE	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/external-change-governance/candidates/{candidateId}/reject	api.external.change.governance.reject	TENANT		EXTERNAL_CHANGE_GOVERNANCE	candidateId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
@@ -836,15 +855,14 @@ POST	/api/integrations/external-change-governance/policies/{policyId}/activate	a
 POST	/api/integrations/external-change-governance/policies/{policyId}/disable	api.external.change.governance.disable	TENANT		EXTERNAL_CHANGE_GOVERNANCE	policyId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/external-change-governance/relation-sync/project	api.external.change.governance.project.relation	TENANT		EXTERNAL_CHANGE_GOVERNANCE		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/external-conflicts/{conflictId}/resolve	api.provider.webhook.operations.resolve	TENANT		PROVIDER_WEBHOOK_OPERATIONS	conflictId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
-POST	/api/integrations/connections/{connectionId}/metadata-discovery	api.integration.identity.metadata.probe	TENANT		INTEGRATION_IDENTITY	connectionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/issue-relay/readiness	api.integration.identity.relay.readiness	TENANT		INTEGRATION_IDENTITY		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/principals/{principalId}/credentials/{credentialId}	api.integration.identity.credential	TENANT		INTEGRATION_IDENTITY	credentialId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
-POST	/api/integrations/principals/{principalId}/redmine-api-key	api.integration.identity.credential	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/principals/{principalId}/permission-probe	api.integration.identity.probe.principal	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/principals/{principalId}/redmine-api-key	api.integration.identity.credential	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/principals/{principalId}/revoke	api.integration.identity.revoke	TENANT		INTEGRATION_IDENTITY	principalId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/principals/{principalId}/rotate-credential	api.integration.identity.rotate	TENANT		INTEGRATION_IDENTITY	principalId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/principals/{principalId}/rotations/{rotationEventId}/complete	api.integration.identity.complete.rotation	TENANT		INTEGRATION_IDENTITY	rotationEventId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
-POST	/api/integrations/source-systems/{sourceSystemId}/issue-tracking/activate	api.integration.identity.publish.mapping	TENANT		INTEGRATION_IDENTITY	sourceSystemId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/project-mappings/connector-runtime-preflight	api.integration.identity.connector.runtime.preflight	TENANT		INTEGRATION_IDENTITY		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/project-mappings/resolve	api.integration.identity.resolve	TENANT		INTEGRATION_IDENTITY		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/project-mappings/{mappingId}/deprecate	api.integration.identity.deprecate.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/project-mappings/{mappingId}/fork	api.integration.identity.fork.mapping	TENANT		INTEGRATION_IDENTITY	mappingId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
@@ -872,6 +890,8 @@ POST	/api/integrations/relay-governance/topologies	api.relay.governance.create.t
 POST	/api/integrations/relay-governance/topologies/{topologyId}/compensations	api.relay.governance.request.compensation	TENANT		RELAY_GOVERNANCE	topologyId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/security-overrides/{overrideId}	api.integration.identity.grant.override	TENANT		INTEGRATION_IDENTITY	overrideId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/security-overrides/{overrideId}/revoke	api.integration.identity.revoke.override	TENANT		INTEGRATION_IDENTITY	overrideId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/source-systems/{sourceSystemId}/issue-tracking/activate	api.integration.identity.publish.mapping	TENANT		INTEGRATION_IDENTITY	sourceSystemId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/integrations/source-systems/{sourceSystemId}/issue-tracking/readiness/probe	api.integration.identity.probe.issue.tracking.readiness	TENANT		INTEGRATION_IDENTITY	sourceSystemId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/sync/conflicts/{conflictId}/resolve	api.issue.projection.resolve	TENANT		ISSUE_PROJECTION	conflictId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/sync/dead-letters/{deadLetterId}/retry	api.issue.projection.retry	TENANT		ISSUE_PROJECTION	deadLetterId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/integrations/webhooks/{connectionId}/{providerType}	api.issue.projection.legacy.webhook.disabled	TENANT		ISSUE_PROJECTION	providerType	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
@@ -893,6 +913,28 @@ POST	/api/platform/enforcement-activation/wave0/entry-points/{entryPoint}/evalua
 POST	/api/platform/enforcement-activation/wave0/entry-points/{entryPoint}/pause	api.wave0.read.pilot.pause	INSTANCE		WAVE0_READ_PILOT	entryPoint	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/platform/enforcement-activation/wave0/entry-points/{entryPoint}/resume	api.wave0.read.pilot.resume	INSTANCE		WAVE0_READ_PILOT	entryPoint	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/platform/enforcement-activation/wave0/task-read-certifications	permission.enforcement_wave0.operate	INSTANCE		TASK_READ_CERTIFICATION		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/config-sets/{configSetId}/cutover	api.runtime.configuration.generic.cutover.prepare.default	TENANT		RUNTIME_CONFIGURATION_GENERIC_CUTOVER	configSetId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/config-sets/{configSetId}/cutover/cancel	api.runtime.configuration.generic.cutover.cancel	TENANT		RUNTIME_CONFIGURATION_GENERIC_CUTOVER	configSetId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/config-sets/{configSetId}/cutover/finalize	api.runtime.configuration.generic.cutover.finalize.cutover	TENANT		RUNTIME_CONFIGURATION_GENERIC_CUTOVER	configSetId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/config-sets/{configSetId}/cutover/prepare	api.runtime.configuration.generic.cutover.prepare	TENANT		RUNTIME_CONFIGURATION_GENERIC_CUTOVER	configSetId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/cutover-waves/{waveId}/cancel	configuration.cutover.cancel	INSTANCE		RUNTIME_CONFIGURATION	waveId	true	ADMIN	RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/cutover-waves/{waveId}/certify	configuration.cutover.certify	INSTANCE		RUNTIME_CONFIGURATION	waveId	true	ADMIN	RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/cutover-waves/{waveId}/finalize	configuration.cutover.finalize	INSTANCE		RUNTIME_CONFIGURATION	waveId	true	ADMIN	RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/cutover-waves/{waveId}/prepare	configuration.cutover.prepare	INSTANCE		RUNTIME_CONFIGURATION	waveId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/cutover-waves/{waveId}/safety-attestation	configuration.cutover.assess	INSTANCE		RUNTIME_CONFIGURATION	waveId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/emergency-overrides/{overrideId}/revoke	api.runtime.configuration.admin.revoke.emergency.override	TENANT		RUNTIME_CONFIGURATION_ADMIN	overrideId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/inventory/{key:.+}/architecture-approve	api.configuration.migration.governance.architecture.approve	TENANT		CONFIGURATION_MIGRATION_GOVERNANCE	key	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/inventory/{key:.+}/classify	api.configuration.migration.governance.classify	TENANT		CONFIGURATION_MIGRATION_GOVERNANCE	key	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/inventory/{key:.+}/migration-authorize	api.configuration.migration.governance.authorize.migration	TENANT		CONFIGURATION_MIGRATION_GOVERNANCE	key	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/inventory/{key:.+}/owner-review	api.configuration.migration.governance.owner.review	TENANT		CONFIGURATION_MIGRATION_GOVERNANCE	key	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/migration-cutovers/adapter-executor-circuit-breaker/finalize	api.runtime.configuration.migration.cutover.finalize.cutover	TENANT		RUNTIME_CONFIGURATION_MIGRATION_CUTOVER		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/migration-cutovers/adapter-executor-circuit-breaker/prepare	api.runtime.configuration.migration.cutover.prepare	TENANT		RUNTIME_CONFIGURATION_MIGRATION_CUTOVER		true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/revisions/{revisionId}/approve	api.runtime.configuration.admin.approve	TENANT		RUNTIME_CONFIGURATION_ADMIN	revisionId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/revisions/{revisionId}/publish	api.runtime.configuration.admin.publish	TENANT		RUNTIME_CONFIGURATION_ADMIN	revisionId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/revisions/{revisionId}/reject	api.runtime.configuration.admin.reject	TENANT		RUNTIME_CONFIGURATION_ADMIN	revisionId	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/settings/{key:.+}/change-requests	api.runtime.configuration.admin.request.change	TENANT		RUNTIME_CONFIGURATION_ADMIN	key	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/settings/{key:.+}/emergency-overrides	api.runtime.configuration.admin.emergency.override	TENANT		RUNTIME_CONFIGURATION_ADMIN	key	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
+POST	/api/platform/runtime-configuration/settings/{key:.+}/rollback-requests	api.runtime.configuration.admin.rollback	TENANT		RUNTIME_CONFIGURATION_ADMIN	key	true	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/resource-access/artifacts/attachments/{resourceType}/{resourceId}/download-grants	api.attachment.artifact.grant	TENANT		ATTACHMENT_ARTIFACT	resourceId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/resource-access/artifacts/exports/authorize	api.resource.export.authorize	TENANT		RESOURCE_EXPORT		false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN
 POST	/api/resource-access/artifacts/exports/{authorizationId}/commit	api.resource.export.commit	TENANT		RESOURCE_EXPORT	authorizationId	false	OPERATOR,ADMIN	OPERATOR,RECOVERY_OPERATOR,RECOVERY_ADMIN

@@ -3,6 +3,12 @@ package com.opensocket.aievent.gateway.netty.inbound;
 import com.opensocket.aievent.gateway.netty.agent.ConnectionType;
 import com.opensocket.aievent.gateway.netty.config.CoreForwardProperties;
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
+import com.opensocket.aievent.gateway.netty.authorization.CoreAgentAuthorizationProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreDirectorySyncProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreOutboundProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreTaskCallbackRelayProperties;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.opensocket.aievent.gateway.netty.config.InboundEventCategory;
 import com.opensocket.aievent.gateway.netty.protocol.AiEventEnvelope;
 import com.opensocket.aievent.gateway.netty.protocol.MessageType;
@@ -28,6 +34,7 @@ public class InboundEventTracker {
 
     private final GatewayProperties gatewayProperties;
     private final CoreForwardProperties coreForwardProperties;
+    private final GatewayOperationalRuntimeConfigurationView runtimeConfiguration;
     private final Object historyLock = new Object();
     private final ArrayDeque<InboundEventRecord> history = new ArrayDeque<>();
     private final AtomicLong totalInboundEvents = new AtomicLong();
@@ -35,15 +42,26 @@ public class InboundEventTracker {
     private final Map<InboundForwardStatus, AtomicLong> counters = new EnumMap<>(InboundForwardStatus.class);
     private final Map<InboundEventCategory, AtomicLong> categoryCounters = new EnumMap<>(InboundEventCategory.class);
 
-    public InboundEventTracker(GatewayProperties gatewayProperties, CoreForwardProperties coreForwardProperties) {
+    @Autowired
+    public InboundEventTracker(
+            GatewayProperties gatewayProperties,
+            CoreForwardProperties coreForwardProperties,
+            GatewayOperationalRuntimeConfigurationView runtimeConfiguration) {
         this.gatewayProperties = gatewayProperties;
         this.coreForwardProperties = coreForwardProperties;
+        this.runtimeConfiguration = runtimeConfiguration;
         for (InboundForwardStatus status : InboundForwardStatus.values()) {
             counters.put(status, new AtomicLong());
         }
         for (InboundEventCategory category : InboundEventCategory.values()) {
             categoryCounters.put(category, new AtomicLong());
         }
+    }
+
+    public InboundEventTracker(GatewayProperties gatewayProperties, CoreForwardProperties coreForwardProperties) {
+        this(gatewayProperties, coreForwardProperties, new GatewayOperationalRuntimeConfigurationView(
+                new CoreAgentAuthorizationProperties(), new CoreDirectorySyncProperties(), coreForwardProperties,
+                new CoreOutboundProperties(), new CoreTaskCallbackRelayProperties()));
     }
 
     public InboundAttempt begin(
@@ -106,7 +124,7 @@ public class InboundEventTracker {
         if (storeHistory) {
             synchronized (historyLock) {
                 history.addFirst(record);
-                while (history.size() > coreForwardProperties.historyLimit()) {
+                while (history.size() > runtimeConfiguration.coreForwardHistoryLimit()) {
                     history.removeLast();
                 }
             }
@@ -151,8 +169,8 @@ public class InboundEventTracker {
         }
         return new InboundEventMetrics(
                 gatewayProperties.nodeId(),
-                coreForwardProperties.enabled(),
-                coreForwardProperties.enabled() ? coreForwardProperties.endpointUrl() : "",
+                runtimeConfiguration.coreForwardEnabled(),
+                runtimeConfiguration.coreForwardEnabled() ? coreForwardProperties.endpointUrl() : "",
                 totalInboundEvents.get(),
                 byStatus.getOrDefault(InboundForwardStatus.FORWARDED, 0L),
                 byStatus.getOrDefault(InboundForwardStatus.FORWARD_DISABLED, 0L),
@@ -181,7 +199,7 @@ public class InboundEventTracker {
         if (limit <= 0) {
             return 100;
         }
-        return Math.min(limit, coreForwardProperties.historyLimit());
+        return Math.min(limit, runtimeConfiguration.coreForwardHistoryLimit());
     }
 
     public record InboundAttempt(

@@ -17,6 +17,8 @@ import com.opensocket.aievent.gateway.netty.config.CoreForwardProperties;
 import com.opensocket.aievent.gateway.netty.config.CoreTaskCallbackRelayProperties;
 import com.opensocket.aievent.gateway.netty.config.TaskAssignmentProperties;
 import com.opensocket.aievent.gateway.netty.authorization.CoreAgentAuthorizationProperties;
+import com.opensocket.aievent.gateway.netty.configuration.GatewayRuntimeConfigurationProperties;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
 
 /**
  * Fail-fast guard for production Netty deployments.
@@ -38,6 +40,8 @@ public class NettyProductionDeploymentValidator implements ApplicationRunner {
     private final CoreForwardProperties coreForwardProperties;
     private final TaskAssignmentProperties taskAssignmentProperties;
     private final CoreAgentAuthorizationProperties agentAuthorizationProperties;
+    private final GatewayOperationalRuntimeConfigurationView gatewayRuntime;
+    private final GatewayRuntimeConfigurationProperties runtimeConfigurationProperties;
 
     public NettyProductionDeploymentValidator(Environment environment,
                                               AdminProperties adminProperties,
@@ -48,7 +52,9 @@ public class NettyProductionDeploymentValidator implements ApplicationRunner {
                                               CoreTaskCallbackRelayProperties callbackRelayProperties,
                                               CoreForwardProperties coreForwardProperties,
                                               TaskAssignmentProperties taskAssignmentProperties,
-                                              CoreAgentAuthorizationProperties agentAuthorizationProperties) {
+                                              CoreAgentAuthorizationProperties agentAuthorizationProperties,
+                                              GatewayOperationalRuntimeConfigurationView gatewayRuntime,
+                                              GatewayRuntimeConfigurationProperties runtimeConfigurationProperties) {
         this.environment = environment;
         this.adminProperties = adminProperties;
         this.agentProperties = agentProperties;
@@ -59,6 +65,8 @@ public class NettyProductionDeploymentValidator implements ApplicationRunner {
         this.coreForwardProperties = coreForwardProperties;
         this.taskAssignmentProperties = taskAssignmentProperties;
         this.agentAuthorizationProperties = agentAuthorizationProperties;
+        this.gatewayRuntime = gatewayRuntime;
+        this.runtimeConfigurationProperties = runtimeConfigurationProperties;
     }
 
     @Override
@@ -66,6 +74,7 @@ public class NettyProductionDeploymentValidator implements ApplicationRunner {
         if (!isProd()) {
             return;
         }
+        validateRuntimeConfigurationAuthority();
         validateAdminSecurity();
         validateAgentSecurity();
         validateConnectionProtection();
@@ -78,6 +87,22 @@ public class NettyProductionDeploymentValidator implements ApplicationRunner {
     private boolean isProd() {
         return Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(profile -> "prod".equalsIgnoreCase(profile));
+    }
+
+    private void validateRuntimeConfigurationAuthority() {
+        if (runtimeConfigurationProperties == null || !runtimeConfigurationProperties.enabled()) {
+            throw new IllegalStateException("Production profile requires gateway.runtime-configuration.enabled=true");
+        }
+        if (!runtimeConfigurationProperties.failClosedOnColdStart()) {
+            throw new IllegalStateException("Production profile requires gateway.runtime-configuration.fail-closed-on-cold-start=true");
+        }
+        if (!runtimeConfigurationProperties.lkgEnabled()) {
+            throw new IllegalStateException("Production profile requires gateway.runtime-configuration.lkg-enabled=true");
+        }
+        if (runtimeConfigurationProperties.maxStaleMs() <= 0) {
+            throw new IllegalStateException("Production profile requires gateway.runtime-configuration.max-stale-ms>0");
+        }
+        runtimeConfigurationProperties.requireSecureKey();
     }
 
     private void validateAdminSecurity() {
@@ -166,7 +191,7 @@ public class NettyProductionDeploymentValidator implements ApplicationRunner {
         if (isUnsafeToken(callbackRelayProperties.getAuthToken())) {
             throw new IllegalStateException("Production profile requires gateway.core-task-callback-relay.auth-token to be non-empty and non-placeholder");
         }
-        if (coreForwardProperties.isEnabled() && isUnsafeToken(coreForwardProperties.getAuthToken())) {
+        if (gatewayRuntime.coreForwardEnabled() && isUnsafeToken(coreForwardProperties.getAuthToken())) {
             throw new IllegalStateException("Production profile requires gateway.core-forward.auth-token when gateway.core-forward.enabled=true");
         }
     }

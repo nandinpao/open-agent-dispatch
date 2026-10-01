@@ -6,9 +6,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import com.opensocket.aievent.core.taskauthority.runtime.TaskAuthorityRuntimeConfigurationView;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
@@ -26,19 +26,19 @@ public class TaskFinalizationProcessor {
     private final ObjectMapper json;
     private final TaskOutcomeResolver resolver;
     private final TransactionTemplate transactions;
-    private final int claimSeconds;
+    private final TaskAuthorityRuntimeConfigurationView runtime;
 
     public TaskFinalizationProcessor(
             JdbcTemplate jdbc,
             ObjectMapper json,
             TaskOutcomeResolver resolver,
             PlatformTransactionManager transactionManager,
-            @Value("${opendispatch.a0-r2.finalization.claim-seconds:60}") int claimSeconds) {
+            TaskAuthorityRuntimeConfigurationView runtime) {
         this.jdbc = jdbc;
         this.json = json;
         this.resolver = resolver;
         this.transactions = new TransactionTemplate(transactionManager);
-        this.claimSeconds = Math.max(15, Math.min(claimSeconds, 300));
+        this.runtime = runtime;
     }
 
     public void finalizeTask(String tenant, TaskFinalizationQueueService.Item item, String actor) {
@@ -260,7 +260,7 @@ public class TaskFinalizationProcessor {
     }
 
     private void renewClaim(String tenant, String taskId, String actor) {
-        OffsetDateTime until = OffsetDateTime.now().plusSeconds(claimSeconds);
+        OffsetDateTime until = OffsetDateTime.now().plusSeconds(runtime.finalizationClaimSeconds());
         int n = jdbc.update("""
           update tasks set finalization_claim_until=?,updated_at=now()
            where tenant_id=? and task_id=? and task_lifecycle='FINALIZING' and finalization_state='RUNNING' and finalization_claimed_by=?

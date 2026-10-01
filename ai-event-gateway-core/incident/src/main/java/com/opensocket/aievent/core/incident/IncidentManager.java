@@ -13,15 +13,21 @@ import com.opensocket.aievent.core.event.NormalizedEvent;
 public class IncidentManager {
     private final IncidentRepository incidentRepository;
     private final IncidentModuleProperties properties;
+    private final IncidentRuntimeConfigurationView runtimeConfiguration;
 
     public IncidentManager(IncidentRepository incidentRepository) {
-        this(incidentRepository, new IncidentModuleProperties());
+        this(incidentRepository, new IncidentModuleProperties(), null);
+    }
+
+    public IncidentManager(IncidentRepository incidentRepository, IncidentModuleProperties properties) {
+        this(incidentRepository, properties, null);
     }
 
     @Autowired
-    public IncidentManager(IncidentRepository incidentRepository, IncidentModuleProperties properties) {
+    public IncidentManager(IncidentRepository incidentRepository, IncidentModuleProperties properties, IncidentRuntimeConfigurationView runtimeConfiguration) {
         this.incidentRepository = incidentRepository;
         this.properties = properties == null ? new IncidentModuleProperties() : properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     public Incident getOrCreate(IncidentObservationCommand command) {
@@ -42,11 +48,13 @@ public class IncidentManager {
         if (incident == null || incident.getStatus() != IncidentStatus.RESOLVED) {
             return false;
         }
-        if (properties.getReopenPolicy() != IncidentModuleProperties.ReopenPolicy.REOPEN_RECENT) {
+        IncidentModuleProperties.ReopenPolicy reopenPolicy = runtimeConfiguration == null ? properties.getReopenPolicy() : runtimeConfiguration.reopenPolicy();
+        if (reopenPolicy != IncidentModuleProperties.ReopenPolicy.REOPEN_RECENT) {
             return false;
         }
         OffsetDateTime base = incident.getResolvedAt() == null ? incident.getLastSeenAt() : incident.getResolvedAt();
-        return base != null && !base.isBefore(now.minus(properties.getReopenWindow()));
+        java.time.Duration reopenWindow = runtimeConfiguration == null ? properties.getReopenWindow() : runtimeConfiguration.reopenWindow();
+        return base != null && !base.isBefore(now.minus(reopenWindow));
     }
 
     private Incident createNew(IncidentObservationCommand command) {

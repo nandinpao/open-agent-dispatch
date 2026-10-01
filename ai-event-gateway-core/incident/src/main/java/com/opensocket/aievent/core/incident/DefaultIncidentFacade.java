@@ -18,20 +18,21 @@ import com.opensocket.aievent.core.lifecycle.LifecycleScanResult;
 import com.opensocket.aievent.core.outbox.ModuleEventPublisher;
 import com.opensocket.aievent.core.summary.IncidentOccurrenceSummaryRepository;
 import com.opensocket.aievent.core.summary.IncidentSummaryProperties;
+import com.opensocket.aievent.core.summary.IncidentSummaryRuntimeConfigurationView;
 
 @Service
 public class DefaultIncidentFacade implements IncidentFacade, IncidentOperationalQuery {
     private final IncidentManager incidentManager;
     private final IncidentRepository incidentRepository;
     private final IncidentOccurrenceSummaryRepository occurrenceSummaryRepository;
-    private final IncidentSummaryProperties summaryProperties;
+    private final IncidentSummaryRuntimeConfigurationView summaryRuntimeConfiguration;
     private final ModuleEventPublisher eventPublisher;
 
     public DefaultIncidentFacade(IncidentManager incidentManager,
                                  IncidentRepository incidentRepository,
                                  IncidentOccurrenceSummaryRepository occurrenceSummaryRepository) {
         this(incidentManager, incidentRepository, occurrenceSummaryRepository,
-                new IncidentSummaryProperties(), ModuleEventPublisher.noop());
+                new IncidentSummaryRuntimeConfigurationView(new IncidentSummaryProperties()), ModuleEventPublisher.noop());
     }
 
     @Autowired
@@ -39,22 +40,24 @@ public class DefaultIncidentFacade implements IncidentFacade, IncidentOperationa
                                  IncidentRepository incidentRepository,
                                  IncidentOccurrenceSummaryRepository occurrenceSummaryRepository,
                                  IncidentSummaryProperties summaryProperties,
+                                 IncidentSummaryRuntimeConfigurationView summaryRuntimeConfiguration,
                                  ObjectProvider<ModuleEventPublisher> eventPublisherProvider) {
-        this(incidentManager, incidentRepository, occurrenceSummaryRepository, summaryProperties,
+        this(incidentManager, incidentRepository, occurrenceSummaryRepository,
+                summaryRuntimeConfiguration == null ? new IncidentSummaryRuntimeConfigurationView(summaryProperties) : summaryRuntimeConfiguration,
                 eventPublisherProvider.getIfAvailable(ModuleEventPublisher::noop));
     }
 
     private DefaultIncidentFacade(IncidentManager incidentManager,
                                   IncidentRepository incidentRepository,
                                   IncidentOccurrenceSummaryRepository occurrenceSummaryRepository,
-                                  IncidentSummaryProperties summaryProperties,
+                                  IncidentSummaryRuntimeConfigurationView summaryRuntimeConfiguration,
                                   ModuleEventPublisher eventPublisher) {
         this.incidentManager = incidentManager;
         this.incidentRepository = incidentRepository;
         this.occurrenceSummaryRepository = occurrenceSummaryRepository;
-        this.summaryProperties = summaryProperties == null
-                ? new IncidentSummaryProperties()
-                : summaryProperties;
+        this.summaryRuntimeConfiguration = summaryRuntimeConfiguration == null
+                ? new IncidentSummaryRuntimeConfigurationView(new IncidentSummaryProperties())
+                : summaryRuntimeConfiguration;
         this.eventPublisher = eventPublisher == null ? ModuleEventPublisher.noop() : eventPublisher;
     }
 
@@ -66,7 +69,7 @@ public class DefaultIncidentFacade implements IncidentFacade, IncidentOperationa
         EventSeverity previousSeverity = before == null ? null : before.getSeverity();
         Incident incident = incidentManager.getOrCreate(command);
         occurrenceSummaryRepository.recordOccurrence(
-                incident, command.event(), command.fingerprint(), summaryProperties.getWindow());
+                incident, command.event(), command.fingerprint(), summaryRuntimeConfiguration.window());
         if (incident.getStatus() == IncidentStatus.ESCALATED
                 && (previousStatus != IncidentStatus.ESCALATED || previousSeverity != incident.getSeverity())) {
             eventPublisher.publish(new IncidentEscalatedEvent(

@@ -20,7 +20,7 @@ import java.util.Map;
 public class ClusterOverviewService {
 
     private final ClusterRuntimeProperties clusterRuntimeProperties;
-    private final ClusterSyncProperties clusterSyncProperties;
+    private final ClusterSyncRuntimeConfigurationView runtimeConfiguration;
     private final ClusterStateSnapshotService clusterStateSnapshotService;
     private final ClusterNodeRegistry clusterNodeRegistry;
     private final ClusterRemoteStateRegistry clusterRemoteStateRegistry;
@@ -29,13 +29,16 @@ public class ClusterOverviewService {
     public ClusterOverviewService(
             ClusterRuntimeProperties clusterRuntimeProperties,
             ClusterSyncProperties clusterSyncProperties,
+            ClusterSyncRuntimeConfigurationView runtimeConfiguration,
             ClusterStateSnapshotService clusterStateSnapshotService,
             ClusterNodeRegistry clusterNodeRegistry,
             ClusterRemoteStateRegistry clusterRemoteStateRegistry,
             ClusterPeerRelationService clusterPeerRelationService
     ) {
         this.clusterRuntimeProperties = clusterRuntimeProperties;
-        this.clusterSyncProperties = clusterSyncProperties;
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new ClusterSyncRuntimeConfigurationView(clusterSyncProperties)
+                : runtimeConfiguration;
         this.clusterStateSnapshotService = clusterStateSnapshotService;
         this.clusterNodeRegistry = clusterNodeRegistry;
         this.clusterRemoteStateRegistry = clusterRemoteStateRegistry;
@@ -156,11 +159,11 @@ public class ClusterOverviewService {
     public ClusterSyncStatusResponse syncStatus() {
         return new ClusterSyncStatusResponse(
                 clusterRuntimeProperties.enabled(),
-                clusterSyncProperties.enabled(),
-                clusterSyncProperties.safeIntervalMs(),
-                clusterSyncProperties.safeRequestTimeoutMs(),
-                clusterSyncProperties.safeRemoteStateTtlMs(),
-                clusterSyncProperties.safeMaxAgentsPerNode(),
+                runtimeConfiguration.enabled(),
+                runtimeConfiguration.intervalMs(),
+                runtimeConfiguration.requestTimeoutMs(),
+                runtimeConfiguration.remoteStateTtlMs(),
+                runtimeConfiguration.maxAgentsPerNode(),
                 clusterRemoteStateRegistry.count(),
                 clusterRemoteStateRegistry.countByStatus(ClusterNodeSyncStatus.SYNCED),
                 clusterRemoteStateRegistry.countByStatus(ClusterNodeSyncStatus.FAILED),

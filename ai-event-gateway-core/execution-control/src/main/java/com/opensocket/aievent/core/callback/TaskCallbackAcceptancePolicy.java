@@ -23,6 +23,7 @@ final class TaskCallbackAcceptancePolicy {
             DispatchRequest dispatch,
             TaskRecord task,
             TaskCallbackProperties properties,
+            TaskCallbackRuntimeConfigurationView runtime,
             TaskAssignmentRepository assignmentRepository,
             AssignmentFencingTokenPolicy fencingTokenPolicy) {
         if (dispatch == null) return null;
@@ -32,16 +33,16 @@ final class TaskCallbackAcceptancePolicy {
             if (request.getDispatchToken() == null || request.getDispatchToken().isBlank()) return "DISPATCH_TOKEN_REQUIRED";
             if (!expected.equals(request.getDispatchToken())) return "INVALID_DISPATCH_TOKEN";
         }
-        if (properties.isRejectOldAttemptCallbacks()) {
+        if (rejectOldAttemptCallbacks(properties, runtime)) {
             if (request.getAttemptNo() == null) {
-                if (properties.isRequireAttemptNo()) return "ATTEMPT_NO_REQUIRED";
+                if (requireAttemptNo(properties, runtime)) return "ATTEMPT_NO_REQUIRED";
             } else if (request.getAttemptNo() != dispatch.getAttemptCount()) {
                 return request.getAttemptNo() < dispatch.getAttemptCount()
                         ? "OLD_ATTEMPT_CALLBACK"
                         : "FUTURE_ATTEMPT_CALLBACK";
             }
         }
-        if (properties.isEnforceGatewayAndAgentIdentity()) {
+        if (enforceGatewayAndAgentIdentity(properties, runtime)) {
             String identityError = requireMatching("agentId", request.getAgentId(), dispatch.getAgentId());
             if (identityError != null) return identityError;
             identityError = requireMatching("ownerGatewayNodeId", request.getOwnerGatewayNodeId(), dispatch.getOwnerGatewayNodeId());
@@ -55,11 +56,11 @@ final class TaskCallbackAcceptancePolicy {
         boolean cancellationCallback = isCancellationCallback(type, request)
                 && task.getStatus() == TaskStatus.CANCEL_REQUESTED
                 && dispatch.getStatus() == DispatchRequestStatus.CANCELLED;
-        if (!properties.isAllowTerminalCallbackOverride() && !cancellationCallback) {
+        if (!allowTerminalCallbackOverride(properties, runtime) && !cancellationCallback) {
             if (isTerminal(task.getStatus())) return "TASK_ALREADY_TERMINAL";
             if (isTerminal(dispatch.getStatus())) return "DISPATCH_ALREADY_TERMINAL";
         }
-        if (properties.isEnforceStateTransition() && !cancellationCallback
+        if (enforceStateTransition(properties, runtime) && !cancellationCallback
                 && !isAllowedDispatchTransition(type, dispatch.getStatus())) {
             return "INVALID_DISPATCH_TRANSITION_" + dispatch.getStatus() + "_TO_" + type;
         }
@@ -100,6 +101,26 @@ final class TaskCallbackAcceptancePolicy {
                     || status == DispatchRequestStatus.ACKED
                     || status == DispatchRequestStatus.RUNNING;
         };
+    }
+
+    private static boolean rejectOldAttemptCallbacks(TaskCallbackProperties properties, TaskCallbackRuntimeConfigurationView runtime) {
+        return runtime == null ? properties.isRejectOldAttemptCallbacks() : runtime.rejectOldAttemptCallbacks();
+    }
+
+    private static boolean requireAttemptNo(TaskCallbackProperties properties, TaskCallbackRuntimeConfigurationView runtime) {
+        return runtime == null ? properties.isRequireAttemptNo() : runtime.requireAttemptNo();
+    }
+
+    private static boolean enforceGatewayAndAgentIdentity(TaskCallbackProperties properties, TaskCallbackRuntimeConfigurationView runtime) {
+        return runtime == null ? properties.isEnforceGatewayAndAgentIdentity() : runtime.enforceGatewayAndAgentIdentity();
+    }
+
+    private static boolean allowTerminalCallbackOverride(TaskCallbackProperties properties, TaskCallbackRuntimeConfigurationView runtime) {
+        return runtime == null ? properties.isAllowTerminalCallbackOverride() : runtime.allowTerminalCallbackOverride();
+    }
+
+    private static boolean enforceStateTransition(TaskCallbackProperties properties, TaskCallbackRuntimeConfigurationView runtime) {
+        return runtime == null ? properties.isEnforceStateTransition() : runtime.enforceStateTransition();
     }
 
     private static String validateAssignmentFence(

@@ -7,11 +7,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.mock.env.MockEnvironment;
 
+import tools.jackson.databind.json.JsonMapper;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
+import com.opensocket.aievent.core.action.executor.AdapterExecutorRuntimeConfigurationView;
+import com.opensocket.aievent.core.configuration.runtime.RuntimeConfigurationAuthorityRegistry;
+import com.opensocket.aievent.core.configuration.runtime.RuntimeConfigurationSnapshotValues;
 import com.opensocket.aievent.core.dispatch.DispatchProperties;
+import com.opensocket.aievent.core.dispatch.DispatchRuntimeConfigurationView;
 import com.opensocket.aievent.core.integration.IntegrationEventProperties;
+import com.opensocket.aievent.core.integration.IntegrationEventsRuntimeConfigurationView;
 import com.opensocket.aievent.core.iam.runtime.config.EventIntakeSecurityProperties;
 import com.opensocket.aievent.core.security.CoreInternalSecurityProperties;
+import com.opensocket.aievent.core.kernel.configuration.distribution.RuntimeConfigurationLocalSnapshotRegistry;
 
 class CoreDeploymentModeValidatorTest {
 
@@ -285,14 +292,21 @@ class CoreDeploymentModeValidatorTest {
                                                   DispatchProperties dispatchProperties,
                                                   RecoveryGovernanceProperties recoveryGovernance,
                                                   EventIntakeSecurityProperties eventIntakeSecurity) {
+        IntegrationEventProperties integrationEvents = new IntegrationEventProperties();
+        RuntimeConfigurationLocalSnapshotRegistry registry = new RuntimeConfigurationLocalSnapshotRegistry();
+        RuntimeConfigurationSnapshotValues values = new RuntimeConfigurationSnapshotValues(registry, JsonMapper.builder().build());
+        RuntimeConfigurationAuthorityRegistry authority = new RuntimeConfigurationAuthorityRegistry();
         return new CoreDeploymentModeValidator(
                 new CoreDeploymentProperties(),
                 adapter,
-                new IntegrationEventProperties(),
+                integrationEvents,
                 eventIntakeSecurity,
                 security,
                 dispatchProperties,
                 recoveryGovernance,
+                new AdapterExecutorRuntimeConfigurationView(adapter, values, authority),
+                new IntegrationEventsRuntimeConfigurationView(values, authority, integrationEvents),
+                new DispatchRuntimeConfigurationView(dispatchProperties, values, authority),
                 environment);
     }
 

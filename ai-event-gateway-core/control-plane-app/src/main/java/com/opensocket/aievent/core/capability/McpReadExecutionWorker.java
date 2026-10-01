@@ -11,23 +11,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import com.opensocket.aievent.core.capability.runtime.A2ADelegationRuntimeConfigurationView;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 /** Stage 6 durable MCP READ worker. */
 @Component
-@ConditionalOnProperty(name="opendispatch.mcp-read.enabled",havingValue="true",matchIfMissing=true)
 public class McpReadExecutionWorker {
     private final JdbcTemplate jdbc; private final McpReadExecutionQueueService queue; private final ProviderNeutralExecutionCompletionRouter completion; private final CapabilityRemoteExecutionSafetyService safety;
-    private final ObjectMapper json; private final HttpClient http; private final OutboundDestinationValidator destinations; private final String workerId; private final int batchSize;
-    public McpReadExecutionWorker(JdbcTemplate jdbc,McpReadExecutionQueueService queue,ProviderNeutralExecutionCompletionRouter completion,CapabilityRemoteExecutionSafetyService safety,ObjectMapper json,OutboundDestinationValidator destinations,
-            @Value("${opendispatch.mcp-read.worker-id:mcp-read-worker}") String workerId,@Value("${opendispatch.mcp-read.batch-size:20}") int batchSize){
-        this.jdbc=jdbc;this.queue=queue;this.completion=completion;this.safety=safety;this.json=json;this.destinations=destinations;this.workerId=workerId;this.batchSize=Math.max(1,Math.min(batchSize,50));this.http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();}
-    @Scheduled(fixedDelayString="${opendispatch.mcp-read.poll-ms:2000}") public void run(){for(String tenant:jdbc.queryForList("select tenant_id from tenants where status='ACTIVE' order by tenant_id",String.class)){for(McpReadExecutionQueueService.Item item:queue.claimDue(tenant,workerId,batchSize))process(tenant,item);}}
+    private final ObjectMapper json; private final HttpClient http; private final OutboundDestinationValidator destinations; private final String workerId; private final A2ADelegationRuntimeConfigurationView runtimeConfiguration;
+    public McpReadExecutionWorker(JdbcTemplate jdbc,McpReadExecutionQueueService queue,ProviderNeutralExecutionCompletionRouter completion,CapabilityRemoteExecutionSafetyService safety,ObjectMapper json,OutboundDestinationValidator destinations,A2ADelegationRuntimeConfigurationView runtimeConfiguration,
+            @Value("${opendispatch.mcp-read.worker-id:mcp-read-worker}") String workerId){
+        this.jdbc=jdbc;this.queue=queue;this.completion=completion;this.safety=safety;this.json=json;this.destinations=destinations;this.workerId=workerId;this.runtimeConfiguration=runtimeConfiguration;this.http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();}
+    public void run(){if(!runtimeConfiguration.mcpReadEnabled())return;int batchSize=runtimeConfiguration.mcpReadBatchSize();for(String tenant:jdbc.queryForList("select tenant_id from tenants where status='ACTIVE' order by tenant_id",String.class)){for(McpReadExecutionQueueService.Item item:queue.claimDue(tenant,workerId,batchSize))process(tenant,item);}}
     private void process(String tenant,McpReadExecutionQueueService.Item item){try{
         safety.requireAllowed(tenant,item.assignmentId());
         URI endpoint=destinations.requireAllowed(item.endpointUrl(),OutboundDestinationPolicy.registeredEnterpriseService(),"MCP_RUNTIME");

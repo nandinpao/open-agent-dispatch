@@ -1,5 +1,8 @@
 # Dev profile: integration profile for developer / SIT environments.
 # Database and Redis are configured through SharedUtility database pg.single and redisson-client packages.
+opendispatch:
+  environment: ${OPENDISPATCH_ENVIRONMENT:DEV}
+
 spring:
   flyway:
     enabled: ${FLYWAY_ENABLED:true}

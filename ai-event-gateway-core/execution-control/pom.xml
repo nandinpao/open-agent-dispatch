@@ -4,13 +4,17 @@
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>control-plane-parent</artifactId>
-        <version>0.8.2-SNAPSHOT</version>
+        <version>0.9.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>execution-control</artifactId>
     <name>execution-control</name>
     <description>Dispatch, callback, retry, timeout recovery, dead-letter and Netty outbound execution boundary.</description>
     <dependencies>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>configuration-runtime</artifactId>
+        </dependency>
     <dependency>
       <groupId>com.opensocket</groupId>
       <artifactId>a2a-application</artifactId>

@@ -52,6 +52,8 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     private final IncidentFacade incidentFacade;
     private final AdapterActionProperties properties;
     private final AdapterExecutionAuthorityPolicy authorityPolicy;
+    @Autowired(required = false)
+    private AdapterExecutionAuthorityPolicy runtimeAuthorityPolicy;
 
     @Autowired(required = false)
     private AdapterActionMetricsPort metrics = AdapterActionMetricsPort.noop();
@@ -64,6 +66,15 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
 
     @Autowired(required = false)
     private TaskIssueLinkRepository taskIssueLinkRepository = TaskIssueLinkRepository.noop();
+
+    @Autowired(required = false)
+    private AdapterActionWorkerRuntimeConfigurationView workerRuntimeConfiguration;
+
+    @Autowired(required = false)
+    private AdapterActionMcpRuntimeConfigurationView mcpRuntimeConfiguration;
+
+    @Autowired(required = false)
+    private AdapterActionPolicyRuntimeConfigurationView actionRuntimeConfiguration;
 
     @Autowired
     public AdapterActionService(AdapterActionRepository repository,
@@ -89,6 +100,8 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
                                 AdapterActionProperties properties) {
         this(repository, incidentFacade, properties, new AdapterActionExecutionProperties());
     }
+
+    private AdapterExecutionAuthorityPolicy effectiveAuthorityPolicy() { return runtimeAuthorityPolicy == null ? authorityPolicy : runtimeAuthorityPolicy; }
 
     @Override
     @Transactional(propagation = Propagation.NESTED)
@@ -124,7 +137,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
         action.setIdempotencyKey(command.idempotencyKey());
         action.setIncidentId(command.incidentId());
         action.setTaskId(command.taskId());
-        action.setAdapterName(properties.getIssue().getAdapterName());
+        action.setAdapterName(issueAdapterName());
         action.setAdapterType(AdapterType.ISSUE_TRACKING);
         action.setActionType(actionType);
         action.setStatus(AdapterActionStatus.PENDING);
@@ -166,7 +179,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
         }
         if (!command.sourceEvidence().isEmpty()) payload.put("sourceEvidence", command.sourceEvidence());
         action.setPayload(payload);
-        action.setMaxAttempts(properties.getWorker().getMaxAttempts());
+        action.setMaxAttempts(workerMaxAttempts());
         action.setCreatedAt(now);
         action.setUpdatedAt(now);
 
@@ -223,7 +236,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
         log.info("issue_sync_evaluation_started taskId={} incidentId={} taskStatus={} callbackType={} callbackId={} dispatchRequestId={} issueEnabled={} mcpEnabled={}",
                 task == null ? null : task.getTaskId(), task == null ? null : task.getIncidentId(), task == null ? null : task.getStatus(),
                 callbackType, callback == null ? null : callback.getCallbackId(), dispatchRequest == null ? null : dispatchRequest.getDispatchRequestId(),
-                properties.getIssue().isEnabled(), properties.getMcp().isEnabled());
+                properties.getIssue().isEnabled(), mcpEnabled());
         if (task == null || !isTerminal(task.getStatus())) {
             log.info("issue_sync_evaluation_skipped taskId={} reason={}", task == null ? null : task.getTaskId(), task == null ? "TASK_MISSING" : "TASK_NOT_TERMINAL");
             result.setTerminalTask(false);
@@ -243,12 +256,12 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
             AdapterAction action = createOrSuppress(
                     AdapterType.MCP,
                     AdapterActionType.MCP_CONTEXT_FETCH,
-                    properties.getMcp().getAdapterName(),
+                    mcpAdapterName(),
                     mcpIdempotencyKey(task),
                     task,
                     dispatchRequest,
                     incident,
-                    properties.getMcp().isEnabled(),
+                    mcpEnabled(),
                     "MCP context fetch requested after task terminal status " + task.getStatus(),
                     "MCP action disabled or already exists for this task",
                     callback,
@@ -274,7 +287,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
             AdapterAction action = createOrSuppress(
                     AdapterType.ISSUE_TRACKING,
                     actionType,
-                    properties.getIssue().getAdapterName(),
+                    issueAdapterName(),
                     idemKey,
                     task,
                     dispatchRequest,
@@ -353,7 +366,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
         if (adapterType == null) {
             throw new IllegalArgumentException("adapterType is required");
         }
-        authorityPolicy.requireExternalWorkerClaim(adapterType);
+        effectiveAuthorityPolicy().requireExternalWorkerClaim(adapterType);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         ClaimRequest claimRequest = ClaimRequest.forLease(
                 requireWorkerId(workerId),
@@ -368,7 +381,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     public AdapterAction heartbeat(String actionId, String workerId, Duration leaseDuration) {
         AdapterAction current = repository.findById(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Adapter action not found: " + actionId));
-        authorityPolicy.requireExternalWorkerClaim(current.getAdapterType());
+        effectiveAuthorityPolicy().requireExternalWorkerClaim(current.getAdapterType());
         ensureClaimedBy(current, workerId);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         LeaseRenewalRequest request = new LeaseRenewalRequest(
@@ -386,7 +399,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     public AdapterAction completeByWorker(String actionId, String workerId, String responseRef) {
         AdapterAction action = repository.findById(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Adapter action not found: " + actionId));
-        authorityPolicy.requireExternalWorkerClaim(action.getAdapterType());
+        effectiveAuthorityPolicy().requireExternalWorkerClaim(action.getAdapterType());
         ensureClaimedBy(action, workerId);
         ClaimOwnership ownership = ownership(action);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -411,7 +424,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     public AdapterAction failByWorker(String actionId, String workerId, String error, Boolean retryable) {
         AdapterAction action = repository.findById(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Adapter action not found: " + actionId));
-        authorityPolicy.requireExternalWorkerClaim(action.getAdapterType());
+        effectiveAuthorityPolicy().requireExternalWorkerClaim(action.getAdapterType());
         ensureClaimedBy(action, workerId);
         ClaimOwnership ownership = ownership(action);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -431,7 +444,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
 
     public List<AdapterAction> recoverExpiredWorkerLeases(int limit) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        int capped = Math.max(1, Math.min(limit, properties.getWorker().getExpiredLeaseScanBatchSize()));
+        int capped = Math.max(1, Math.min(limit, workerExpiredLeaseScanBatchSize()));
         return repository.findByStatus(AdapterActionStatus.CLAIMED, capped).stream()
                 .filter(action -> action.getLeaseExpiresAt() != null && !action.getLeaseExpiresAt().isAfter(now))
                 .map(action -> recoverExpiredWorkerLease(action, now))
@@ -511,7 +524,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     }
 
     private void applyWorkerFailureStatus(AdapterAction action, boolean retryable, OffsetDateTime now, String reasonPrefix) {
-        boolean canRetry = properties.getWorker().isRetryEnabled()
+        boolean canRetry = workerRetryEnabled()
                 && retryable
                 && action.getAttemptCount() < effectiveMaxAttempts(action);
         if (canRetry) {
@@ -526,13 +539,33 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
         }
     }
 
+    private boolean workerRetryEnabled() {
+        return workerRuntimeConfiguration == null ? properties.getWorker().isRetryEnabled() : workerRuntimeConfiguration.retryEnabled();
+    }
+
+    private int workerMaxAttempts() {
+        return workerRuntimeConfiguration == null ? properties.getWorker().getMaxAttempts() : workerRuntimeConfiguration.maxAttempts();
+    }
+
+    private Duration workerInitialBackoff() {
+        return workerRuntimeConfiguration == null ? properties.getWorker().getInitialBackoff() : workerRuntimeConfiguration.initialBackoff();
+    }
+
+    private Duration workerMaxBackoff() {
+        return workerRuntimeConfiguration == null ? properties.getWorker().getMaxBackoff() : workerRuntimeConfiguration.maxBackoff();
+    }
+
+    private int workerExpiredLeaseScanBatchSize() {
+        return workerRuntimeConfiguration == null ? properties.getWorker().getExpiredLeaseScanBatchSize() : workerRuntimeConfiguration.expiredLeaseScanBatchSize();
+    }
+
     private int effectiveMaxAttempts(AdapterAction action) {
-        return action.getMaxAttempts() > 0 ? action.getMaxAttempts() : properties.getWorker().getMaxAttempts();
+        return action.getMaxAttempts() > 0 ? action.getMaxAttempts() : workerMaxAttempts();
     }
 
     private Duration workerBackoff(int attemptCount) {
-        long initial = Math.max(1, properties.getWorker().getInitialBackoff().toMillis());
-        long max = Math.max(initial, properties.getWorker().getMaxBackoff().toMillis());
+        long initial = Math.max(1, workerInitialBackoff().toMillis());
+        long max = Math.max(initial, workerMaxBackoff().toMillis());
         long multiplier = 1L << Math.max(0, Math.min(attemptCount - 1, 20));
         return Duration.ofMillis(Math.min(initial * multiplier, max));
     }
@@ -607,14 +640,14 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
                     || existing.getAdapterType() != adapterType) {
                 throw new IllegalStateException("ADAPTER_ACTION_IDEMPOTENCY_CONFLICT: key is already bound to a different action context");
             }
-            if (!properties.isCreateSuppressedRecords()) {
+            if (!createSuppressedRecords()) {
                 return existing;
             }
             return saveAction(adapterType, actionType, adapterName, idempotencyKey + ":suppressed:" + UUID.randomUUID(), task, dispatchRequest, incident,
                     AdapterActionStatus.SUPPRESSED, "Duplicate adapter action suppressed. Existing actionId=" + previous.get().getActionId(), callback, callbackType);
         }
         if (!enabled) {
-            if (!properties.isCreateSuppressedRecords()) {
+            if (!createSuppressedRecords()) {
                 return null;
             }
             return saveAction(adapterType, actionType, adapterName, idempotencyKey + ":disabled:" + UUID.randomUUID(), task, dispatchRequest, incident,
@@ -652,7 +685,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
         action.setReason(reason);
         action.setRequestHash(sha256(idempotencyKey + "|" + actionType + "|" + safe(task.getTaskId())));
         action.setPayload(payload(task, dispatchRequest, incident, callback, callbackType, actionId, idempotencyKey));
-        action.setMaxAttempts(properties.getWorker().getMaxAttempts());
+        action.setMaxAttempts(workerMaxAttempts());
         action.setCreatedAt(now);
         action.setUpdatedAt(now);
         if (status == AdapterActionStatus.PENDING) {
@@ -836,8 +869,37 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
         return status == AdapterActionStatus.COMPLETED || status == AdapterActionStatus.FAILED || status == AdapterActionStatus.CANCELLED || status == AdapterActionStatus.SUPPRESSED;
     }
 
+
+    private boolean createSuppressedRecords() {
+        return actionRuntimeConfiguration == null ? properties.isCreateSuppressedRecords() : actionRuntimeConfiguration.createSuppressedRecords();
+    }
+
+    private String issueAdapterName() {
+        return actionRuntimeConfiguration == null ? properties.getIssue().getAdapterName() : actionRuntimeConfiguration.issueAdapterName();
+    }
+
+    private String mcpAdapterName() {
+        return mcpRuntimeConfiguration == null ? properties.getMcp().getAdapterName() : mcpRuntimeConfiguration.adapterName();
+    }
+
+    private boolean mcpEnabled() {
+        return mcpRuntimeConfiguration == null ? properties.getMcp().isEnabled() : mcpRuntimeConfiguration.enabled();
+    }
+
+    private boolean mcpRunOnCompletedTask() {
+        return mcpRuntimeConfiguration == null ? properties.getMcp().isRunOnCompletedTask() : mcpRuntimeConfiguration.runOnCompletedTask();
+    }
+
+    private boolean mcpRunOnFailedTask() {
+        return mcpRuntimeConfiguration == null ? properties.getMcp().isRunOnFailedTask() : mcpRuntimeConfiguration.runOnFailedTask();
+    }
+
+    private boolean mcpOnePerTask() {
+        return mcpRuntimeConfiguration == null ? properties.getMcp().isOnePerTask() : mcpRuntimeConfiguration.onePerTask();
+    }
+
     private boolean shouldEvaluateMcp(boolean completed, boolean failed) {
-        return (completed && properties.getMcp().isRunOnCompletedTask()) || (failed && properties.getMcp().isRunOnFailedTask());
+        return (completed && mcpRunOnCompletedTask()) || (failed && mcpRunOnFailedTask());
     }
 
     private boolean shouldEvaluateIssue(boolean completed, boolean failed) {
@@ -849,7 +911,7 @@ public class AdapterActionService implements AdapterActionFacade, IssueAutomatio
     }
 
     private String mcpIdempotencyKey(TaskRecord task) {
-        return properties.getMcp().isOnePerTask()
+        return mcpOnePerTask()
                 ? sha256("MCP|" + task.getTaskId())
                 : sha256("MCP|" + task.getIncidentId() + "|" + task.getTaskId() + "|" + UUID.randomUUID());
     }

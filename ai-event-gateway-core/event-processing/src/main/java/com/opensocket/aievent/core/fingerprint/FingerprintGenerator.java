@@ -14,22 +14,29 @@ import com.opensocket.aievent.core.event.NormalizedEvent;
 
 @Service
 public class FingerprintGenerator {
-    private final FingerprintPolicyProperties properties;
+    private final FingerprintRuntimeConfigurationView runtimeConfiguration;
     private final FingerprintPolicyResolver policyResolver;
     private final FingerprintFieldResolver fieldResolver;
 
     @Autowired
-    public FingerprintGenerator(FingerprintPolicyProperties properties,
+    public FingerprintGenerator(FingerprintRuntimeConfigurationView runtimeConfiguration,
                                 FingerprintPolicyResolver policyResolver,
                                 FingerprintFieldResolver fieldResolver) {
-        this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
         this.policyResolver = policyResolver;
         this.fieldResolver = fieldResolver;
     }
 
+
+    public FingerprintGenerator(FingerprintPolicyProperties properties,
+                                FingerprintPolicyResolver policyResolver,
+                                FingerprintFieldResolver fieldResolver) {
+        this(new FingerprintRuntimeConfigurationView(properties), policyResolver, fieldResolver);
+    }
+
     /** Keeps unit tests and manual bootstrap code compatible with the earlier no-arg API. */
     public FingerprintGenerator() {
-        this(new FingerprintPolicyProperties(), new FingerprintPolicyResolver(), new FingerprintFieldResolver());
+        this(new FingerprintRuntimeConfigurationView(new FingerprintPolicyProperties()), new FingerprintPolicyResolver(), new FingerprintFieldResolver());
     }
 
     public String generate(NormalizedEvent event) {
@@ -45,7 +52,7 @@ public class FingerprintGenerator {
     String buildFingerprintBase(NormalizedEvent event) {
         FingerprintTemplate template = policyResolver.resolve(event);
         StringJoiner joiner = new StringJoiner("|");
-        joiner.add(properties.getPolicyVersion() == null ? "v2" : properties.getPolicyVersion());
+        joiner.add(runtimeConfiguration.policyVersion());
         joiner.add(template.policyName());
         for (String field : template.fields()) {
             joiner.add(field + "=" + fieldResolver.resolve(field, event));

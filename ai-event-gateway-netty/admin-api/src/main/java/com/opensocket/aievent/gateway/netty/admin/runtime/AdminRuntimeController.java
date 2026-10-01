@@ -11,6 +11,7 @@ import com.opensocket.aievent.gateway.netty.admin.runtime.dto.RuntimeInboundObse
 import com.opensocket.aievent.gateway.netty.admin.runtime.dto.RuntimeSloSnapshotResponse;
 import com.opensocket.aievent.gateway.netty.admin.runtime.dto.RuntimeSummaryResponse;
 import com.opensocket.aievent.gateway.netty.agent.AgentRegistry;
+import com.opensocket.aievent.gateway.netty.agent.AgentRuntimeConfigurationView;
 import com.opensocket.aievent.gateway.netty.config.AgentProperties;
 import com.opensocket.aievent.gateway.netty.cluster.sync.ClusterOverviewService;
 import com.opensocket.aievent.gateway.netty.authorization.AgentAuthorizationRuntimeRegistry;
@@ -50,6 +51,7 @@ public class AdminRuntimeController {
     private final TaskCallbackRelayMetrics taskCallbackRelayMetrics;
     private final ClusterOverviewService clusterOverviewService;
     private final AgentProperties agentProperties;
+    private final AgentRuntimeConfigurationView agentRuntimeConfiguration;
 
     public AdminRuntimeController(
             GatewayStatusService gatewayStatusService,
@@ -62,7 +64,8 @@ public class AdminRuntimeController {
             AgentAuthorizationRuntimeRegistry authorizationRuntimeRegistry,
             TaskCallbackRelayMetrics taskCallbackRelayMetrics,
             ClusterOverviewService clusterOverviewService,
-            AgentProperties agentProperties
+            AgentProperties agentProperties,
+            AgentRuntimeConfigurationView agentRuntimeConfiguration
     ) {
         this.gatewayStatusService = gatewayStatusService;
         this.adminRuntimeMetricsService = adminRuntimeMetricsService;
@@ -75,6 +78,7 @@ public class AdminRuntimeController {
         this.taskCallbackRelayMetrics = taskCallbackRelayMetrics;
         this.clusterOverviewService = clusterOverviewService;
         this.agentProperties = agentProperties == null ? new AgentProperties() : agentProperties;
+        this.agentRuntimeConfiguration = agentRuntimeConfiguration == null ? new AgentRuntimeConfigurationView(this.agentProperties) : agentRuntimeConfiguration;
     }
 
     @GetMapping({"", "/summary", "/snapshot", "/local"})
@@ -112,7 +116,7 @@ public class AdminRuntimeController {
                 .map(AgentResponse::from)
                 .map(agent -> RuntimeAgentConnectionResponse.from(
                         agent,
-                        agentProperties.heartbeatTimeoutSeconds(),
+                        agentRuntimeConfiguration.heartbeatTimeoutSeconds(),
                         authorizationRuntimeRegistry == null ? null : authorizationRuntimeRegistry.findByAgentId(agent.agentId()).orElse(null)))
                 .toList();
         return RuntimeAgentConnectionsResponse.from(agents);

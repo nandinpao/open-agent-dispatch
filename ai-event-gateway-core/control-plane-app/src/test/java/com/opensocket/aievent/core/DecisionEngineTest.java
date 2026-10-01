@@ -13,6 +13,7 @@ import com.opensocket.aievent.core.decision.InMemoryEventDecisionRepository;
 import com.opensocket.aievent.core.dedup.DedupStateStore;
 import com.opensocket.aievent.core.dedup.InMemoryDedupStateStore;
 import com.opensocket.aievent.core.dedup.snapshot.NoopDedupStateSnapshotRepository;
+import com.opensocket.aievent.core.dedup.cache.NoopDedupStateCache;
 import com.opensocket.aievent.core.event.EventIntakeRequest;
 import com.opensocket.aievent.core.fingerprint.FingerprintGenerator;
 import com.opensocket.aievent.core.incident.InMemoryIncidentRepository;
@@ -20,6 +21,7 @@ import com.opensocket.aievent.core.incident.IncidentManager;
 import com.opensocket.aievent.core.incident.DefaultIncidentFacade;
 import com.opensocket.aievent.core.normalize.EventNormalizer;
 import com.opensocket.aievent.core.processing.DefaultEventProcessingFacade;
+import com.opensocket.aievent.core.processing.EventDecisionRuntimeConfigurationView;
 import com.opensocket.aievent.core.processing.EventProcessingProperties;
 import com.opensocket.aievent.core.summary.InMemoryIncidentOccurrenceSummaryRepository;
 import com.opensocket.aievent.core.task.InMemoryTaskRepository;
@@ -51,8 +53,9 @@ class DecisionEngineTest {
                         new FingerprintGenerator(),
                         dedup,
                         new NoopDedupStateSnapshotRepository(),
+                        new NoopDedupStateCache(),
                         incidentFacade,
-                        eventProperties),
+                        new EventDecisionRuntimeConfigurationView(eventProperties)),
                 decisions,
                 new DefaultTaskOrchestrationFacade(taskDecisionService, null, taskRepository));
 

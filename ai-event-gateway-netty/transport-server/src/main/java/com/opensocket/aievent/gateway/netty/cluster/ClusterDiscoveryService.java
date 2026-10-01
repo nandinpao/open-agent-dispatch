@@ -4,6 +4,7 @@ import com.opensocket.aievent.gateway.netty.cluster.dto.ClusterHelloPayload;
 import com.opensocket.aievent.gateway.netty.cluster.dto.ClusterHeartbeatPayload;
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
 import com.opensocket.aievent.gateway.netty.config.ClusterRuntimeProperties;
+import com.opensocket.aievent.gateway.netty.runtime.NettyOperationalRuntimeConfigurationView;
 import com.opensocket.aievent.gateway.netty.protocol.AiEventEnvelope;
 import com.opensocket.aievent.gateway.netty.protocol.MessageType;
 import com.opensocket.aievent.gateway.netty.websocket.WebSocketAdminBroadcaster;
@@ -28,17 +29,20 @@ public class ClusterDiscoveryService {
     private final GatewayProperties gatewayProperties;
     private final ClusterRuntimeProperties clusterRuntimeProperties;
     private final ClusterNodeRegistry clusterNodeRegistry;
+    private final NettyOperationalRuntimeConfigurationView runtimeConfiguration;
     private final WebSocketAdminBroadcaster adminBroadcaster;
 
     public ClusterDiscoveryService(
             GatewayProperties gatewayProperties,
             ClusterRuntimeProperties clusterRuntimeProperties,
             ClusterNodeRegistry clusterNodeRegistry,
+            NettyOperationalRuntimeConfigurationView runtimeConfiguration,
             WebSocketAdminBroadcaster adminBroadcaster
     ) {
         this.gatewayProperties = gatewayProperties;
         this.clusterRuntimeProperties = clusterRuntimeProperties;
         this.clusterNodeRegistry = clusterNodeRegistry;
+        this.runtimeConfiguration = runtimeConfiguration;
         this.adminBroadcaster = adminBroadcaster;
     }
 
@@ -99,8 +103,8 @@ public class ClusterDiscoveryService {
 
     public List<ClusterNodeChange> scanStaleNodes() {
         var changes = clusterNodeRegistry.markStaleNodes(
-                clusterRuntimeProperties.suspectTimeoutMs(),
-                clusterRuntimeProperties.offlineTimeoutMs()
+                runtimeConfiguration.clusterSuspectTimeoutMs(),
+                runtimeConfiguration.clusterOfflineTimeoutMs()
         );
         for (ClusterNodeChange change : changes) {
             var eventType = change.currentStatus() == ClusterNodeStatus.OFFLINE

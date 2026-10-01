@@ -6,6 +6,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,22 +24,33 @@ public class DispatchRecoveryService {
     private final DispatchRequestRepository dispatchRepository;
     private final TaskOrchestrationFacade taskOrchestrationFacade;
     private final TaskCallbackProperties properties;
+    private final TaskCallbackRuntimeConfigurationView runtimeConfiguration;
 
+    /** Compatibility constructor for focused tests. */
     public DispatchRecoveryService(DispatchRequestRepository dispatchRepository,
                                    TaskOrchestrationFacade taskOrchestrationFacade,
                                    TaskCallbackProperties properties) {
+        this(dispatchRepository, taskOrchestrationFacade, properties, null);
+    }
+
+    @Autowired
+    public DispatchRecoveryService(DispatchRequestRepository dispatchRepository,
+                                   TaskOrchestrationFacade taskOrchestrationFacade,
+                                   TaskCallbackProperties properties,
+                                   TaskCallbackRuntimeConfigurationView runtimeConfiguration) {
         this.dispatchRepository = dispatchRepository;
         this.taskOrchestrationFacade = taskOrchestrationFacade;
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     @Transactional
     public List<DispatchRecoveryResult> scanAndRecoverTimedOut(int limit) {
-        if (!properties.getRecovery().isTimeoutEnabled()) {
+        if (!runtimeTimeoutEnabled()) {
             return List.of();
         }
-        int capped = Math.max(1, Math.min(limit, properties.getRecovery().getMaxBatchSize()));
-        OffsetDateTime cutoff = OffsetDateTime.now(ZoneOffset.UTC).minus(properties.getRecovery().getDispatchTimeout());
+        int capped = Math.max(1, Math.min(limit, runtimeMaxBatchSize()));
+        OffsetDateTime cutoff = OffsetDateTime.now(ZoneOffset.UTC).minus(runtimeDispatchTimeout());
         List<DispatchRequest> candidates = new ArrayList<>();
         candidates.addAll(dispatchRepository.findByStatus(DispatchRequestStatus.DELIVERY_UNKNOWN, capped));
         candidates.addAll(dispatchRepository.findByStatus(DispatchRequestStatus.DISPATCHED, capped));
@@ -69,8 +81,8 @@ public class DispatchRecoveryService {
         boolean deliveryUnknown = request.getStatus() == DispatchRequestStatus.DELIVERY_UNKNOWN
                 || request.getRecoveryClassification() == com.opensocket.aievent.core.dispatch.DispatchRecoveryClassification.RESPONSE_LOST;
         boolean retry = !deliveryUnknown
-                && properties.getRecovery().isRetryEnabled()
-                && request.getAttemptCount() < properties.getRecovery().getMaxAttempts();
+                && runtimeRetryEnabled()
+                && request.getAttemptCount() < runtimeMaxAttempts();
         Duration backoff = retry ? computeBackoff(request.getAttemptCount() + 1, request.getDispatchRequestId()) : Duration.ZERO;
         DispatchRequestStatus targetStatus = retry ? DispatchRequestStatus.RETRY_WAITING : DispatchRequestStatus.TIMED_OUT;
 
@@ -97,8 +109,8 @@ public class DispatchRecoveryService {
                     ? "Unknown delivery outcome exceeded reconciliation timeout; automatic resend remains forbidden"
                     : "Dispatch timed out and no retry is scheduled");
             transition.setLastError(deliveryUnknown
-                    ? "Delivery outcome remained unknown after " + properties.getRecovery().getDispatchTimeout()
-                    : "Dispatch timed out after " + properties.getRecovery().getDispatchTimeout());
+                    ? "Delivery outcome remained unknown after " + runtimeDispatchTimeout()
+                    : "Dispatch timed out after " + runtimeDispatchTimeout());
         }
 
         PersistenceWriteResult write = dispatchRepository.transitionStatus(transition);
@@ -125,7 +137,7 @@ public class DispatchRecoveryService {
             if (retry) {
                 taskTransition.setNewStatus(TaskStatus.DISPATCHED);
                 taskTransition.setLifecycleReason("Dispatch timeout recovery scheduled retry");
-            } else if (properties.getRecovery().isAutoFailTimedOut()) {
+            } else if (runtimeAutoFailTimedOut()) {
                 taskTransition.setNewStatus(TaskStatus.ORPHANED);
                 taskTransition.setTimeoutAt(now);
                 taskTransition.setTerminalAt(now);
@@ -141,13 +153,49 @@ public class DispatchRecoveryService {
         return result;
     }
 
+    private boolean runtimeTimeoutEnabled() {
+        return runtimeConfiguration == null ? properties.getRecovery().isTimeoutEnabled() : runtimeConfiguration.recoveryTimeoutEnabled();
+    }
+
+    private int runtimeMaxBatchSize() {
+        return runtimeConfiguration == null ? properties.getRecovery().getMaxBatchSize() : runtimeConfiguration.recoveryMaxBatchSize();
+    }
+
+    private Duration runtimeDispatchTimeout() {
+        return runtimeConfiguration == null ? properties.getRecovery().getDispatchTimeout() : runtimeConfiguration.recoveryDispatchTimeout();
+    }
+
+    private boolean runtimeRetryEnabled() {
+        return runtimeConfiguration == null ? properties.getRecovery().isRetryEnabled() : runtimeConfiguration.recoveryRetryEnabled();
+    }
+
+    private int runtimeMaxAttempts() {
+        return runtimeConfiguration == null ? properties.getRecovery().getMaxAttempts() : runtimeConfiguration.recoveryMaxAttempts();
+    }
+
+    private boolean runtimeAutoFailTimedOut() {
+        return runtimeConfiguration == null ? properties.getRecovery().isAutoFailTimedOut() : runtimeConfiguration.recoveryAutoFailTimedOut();
+    }
+
+    private Duration runtimeInitialBackoff() {
+        return runtimeConfiguration == null ? properties.getRecovery().getInitialBackoff() : runtimeConfiguration.recoveryInitialBackoff();
+    }
+
+    private Duration runtimeMaxBackoff() {
+        return runtimeConfiguration == null ? properties.getRecovery().getMaxBackoff() : runtimeConfiguration.recoveryMaxBackoff();
+    }
+
+    private int runtimeJitterPercent() {
+        return runtimeConfiguration == null ? properties.getRecovery().getJitterPercent() : runtimeConfiguration.recoveryJitterPercent();
+    }
+
     private Duration computeBackoff(int nextAttemptNo, String stableJitterKey) {
         long multiplier = 1L << Math.max(0, Math.min(nextAttemptNo - 1, 10));
-        Duration initial = properties.getRecovery().getInitialBackoff();
-        Duration max = properties.getRecovery().getMaxBackoff();
+        Duration initial = runtimeInitialBackoff();
+        Duration max = runtimeMaxBackoff();
         Duration candidate = initial.multipliedBy(multiplier);
         Duration capped = candidate.compareTo(max) > 0 ? max : candidate;
-        return applyDeterministicJitter(capped, stableJitterKey, properties.getRecovery().getJitterPercent());
+        return applyDeterministicJitter(capped, stableJitterKey, runtimeJitterPercent());
     }
 
     private Duration applyDeterministicJitter(Duration base, String stableJitterKey, int jitterPercent) {

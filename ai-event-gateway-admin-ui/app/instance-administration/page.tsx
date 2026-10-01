@@ -9,6 +9,11 @@ const actions = [
     title: 'Tenant Access Management',
     description: 'Select a Tenant, then manage People, Organization, Responsibilities, Assignments, Effective Access, Security and Audit from its canonical workspace.',
   },
+  {
+    href: '/settings/runtime-configuration',
+    title: 'Runtime Configuration',
+    description: 'Tune approved platform runtime behavior with revision history, impact guidance and node applied-state evidence.',
+  },
 ];
 
 export default function Page() {

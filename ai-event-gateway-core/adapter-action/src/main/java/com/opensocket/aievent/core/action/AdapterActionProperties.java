@@ -26,6 +26,7 @@ public class AdapterActionProperties {
         private Duration initialBackoff = Duration.ofSeconds(30);
         private Duration maxBackoff = Duration.ofMinutes(10);
         private int expiredLeaseScanBatchSize = 100;
+        private long expiredLeaseScanIntervalMs = 30000;
 
         public boolean isRetryEnabled() { return retryEnabled; }
         public void setRetryEnabled(boolean retryEnabled) { this.retryEnabled = retryEnabled; }
@@ -37,6 +38,8 @@ public class AdapterActionProperties {
         public void setMaxBackoff(Duration maxBackoff) { this.maxBackoff = maxBackoff == null ? Duration.ofMinutes(10) : maxBackoff; }
         public int getExpiredLeaseScanBatchSize() { return expiredLeaseScanBatchSize; }
         public void setExpiredLeaseScanBatchSize(int expiredLeaseScanBatchSize) { this.expiredLeaseScanBatchSize = Math.max(1, Math.min(expiredLeaseScanBatchSize, 1000)); }
+        public long getExpiredLeaseScanIntervalMs() { return expiredLeaseScanIntervalMs; }
+        public void setExpiredLeaseScanIntervalMs(long expiredLeaseScanIntervalMs) { this.expiredLeaseScanIntervalMs = Math.max(250, Math.min(expiredLeaseScanIntervalMs, 3_600_000)); }
     }
 
     public static class Mcp {

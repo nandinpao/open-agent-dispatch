@@ -8,6 +8,7 @@ import com.opensocket.aievent.gateway.netty.config.AdminProperties;
 import com.opensocket.aievent.gateway.netty.config.ConnectionProtectionProperties;
 import com.opensocket.aievent.gateway.netty.config.NettyServerProperties;
 import com.opensocket.aievent.gateway.netty.protection.ConnectionRateLimiter;
+import com.opensocket.aievent.gateway.netty.runtime.ConnectionProtectionRuntimeConfigurationView;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -56,6 +57,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
     private final AgentOnboardingTokenValidator agentOnboardingTokenValidator;
     private final ConnectionProtectionProperties protectionProperties;
     private final ConnectionRateLimiter rateLimiter;
+    private final ConnectionProtectionRuntimeConfigurationView runtimeProtection;
 
     public WebSocketServerHandler(
             NettyServerProperties nettyServerProperties,
@@ -68,7 +70,8 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
             MachineAdminTokenAuthFilter machineAdminTokenAuthFilter,
             AgentOnboardingTokenValidator agentOnboardingTokenValidator,
             ConnectionProtectionProperties protectionProperties,
-            ConnectionRateLimiter rateLimiter
+            ConnectionRateLimiter rateLimiter,
+            ConnectionProtectionRuntimeConfigurationView runtimeProtection
     ) {
         this.nettyServerProperties = nettyServerProperties;
         this.sessionRegistry = sessionRegistry;
@@ -81,6 +84,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         this.agentOnboardingTokenValidator = agentOnboardingTokenValidator;
         this.protectionProperties = protectionProperties;
         this.rateLimiter = rateLimiter;
+        this.runtimeProtection = runtimeProtection == null ? new ConnectionProtectionRuntimeConfigurationView(protectionProperties) : runtimeProtection;
     }
 
     @Override
@@ -201,7 +205,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         var remoteAddress = sessionRegistry.getRemoteAddress(sessionId);
         if (!messageQuotaAvailable(remoteAddress)) {
             log.warn("WebSocket message rejected by rate limit. sessionId={}, remoteAddress={}", sessionId, remoteAddress);
-            if (protectionProperties.closeOnRateLimit()) {
+            if (runtimeProtection.closeOnRateLimit()) {
                 ctx.writeAndFlush(new CloseWebSocketFrame(1013, "Rate limit exceeded"));
                 ctx.close();
             }
@@ -265,11 +269,11 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         if (!protectionProperties.enabled()) {
             return true;
         }
-        if (sessionRegistry.countActive() >= protectionProperties.maxWebSocketSessions()) {
+        if (sessionRegistry.countActive() >= runtimeProtection.maxWebSocketSessions()) {
             return false;
         }
         return sessionRegistry.countActiveByRemoteAddress(remoteAddress)
-                < protectionProperties.maxWebSocketSessionsPerRemoteAddress();
+                < runtimeProtection.maxWebSocketSessionsPerRemoteAddress();
     }
 
     private boolean messageQuotaAvailable(String remoteAddress) {
@@ -278,7 +282,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         }
         return rateLimiter.tryAcquire(
                 "ws:" + (remoteAddress == null ? "unknown" : remoteAddress),
-                protectionProperties.maxWebSocketMessagesPerMinutePerRemoteAddress()
+                runtimeProtection.maxWebSocketMessagesPerMinutePerRemoteAddress()
         );
     }
 

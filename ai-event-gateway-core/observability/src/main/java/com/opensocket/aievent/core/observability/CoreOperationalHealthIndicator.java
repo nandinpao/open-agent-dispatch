@@ -7,17 +7,17 @@ import org.springframework.stereotype.Component;
 @Component("aiEventGatewayCore")
 public class CoreOperationalHealthIndicator implements HealthIndicator {
     private final OperationalSummaryService summaryService;
-    private final ObservabilityProperties properties;
+    private final CoreObservabilityRuntimeConfigurationView runtimeConfiguration;
 
     public CoreOperationalHealthIndicator(OperationalSummaryService summaryService,
-                                          ObservabilityProperties properties) {
+                                          CoreObservabilityRuntimeConfigurationView runtimeConfiguration) {
         this.summaryService = summaryService;
-        this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     @Override
     public Health health() {
-        if (!properties.isEnabled() || !properties.isHealthIndicatorEnabled()) {
+        if (!runtimeConfiguration.enabled() || !runtimeConfiguration.healthIndicatorEnabled()) {
             return Health.unknown().withDetail("reason", "core observability health indicator disabled").build();
         }
         return Health.up().withDetails(summaryService.stores()).build();

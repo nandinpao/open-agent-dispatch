@@ -5,11 +5,12 @@
     <property name="ROOT_LEVEL" value="${LOG_LEVEL_ROOT:-INFO}"/>
     <property name="CORE_LEVEL" value="${LOG_LEVEL_CORE:-INFO}"/>
     <property name="DISPATCH_TRACE_LEVEL" value="${LOG_LEVEL_DISPATCH_TRACE:-INFO}"/>
+    <property name="CONFIGURATION_TRACE_LEVEL" value="${LOG_LEVEL_CONFIGURATION_TRACE:-INFO}"/>
     <property name="LOG_LEVEL_TRACING" value="${LOG_LEVEL_TRACING:-INFO}"/>
     <property name="LOG_MAX_FILE_SIZE" value="${LOG_MAX_FILE_SIZE:-50MB}"/>
     <property name="LOG_MAX_HISTORY" value="${LOG_MAX_HISTORY:-14}"/>
     <property name="LOG_TOTAL_SIZE_CAP" value="${LOG_TOTAL_SIZE_CAP:-2GB}"/>
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level app=${APP_NAME} thread=%thread traceId=%X{traceId:-} spanId=%X{spanId:-} tenant=%X{tenantId:-} eventStage=%X{eventStage:-} correlationId=%X{correlationId:-} flow=%X{matchedFlowId:-} rule=%X{matchedRuleId:-} skill=%X{requestedSkill:-} task=%X{taskId:-} agent=%X{agentId:-} logger=%logger{36} msg=%msg%n%ex"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level app=${APP_NAME} thread=%thread traceId=%X{traceId:-} spanId=%X{spanId:-} requestId=%X{requestId:-} correlationId=%X{correlationId:-} operatorId=%X{operatorId:-} tenant=%X{tenantId:-} eventStage=%X{eventStage:-} flow=%X{matchedFlowId:-} rule=%X{matchedRuleId:-} skill=%X{requestedSkill:-} task=%X{taskId:-} agent=%X{agentId:-} logger=%logger{36} msg=%msg%n%ex"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -43,7 +44,24 @@
         </encoder>
     </appender>
 
+
+    <appender name="CONFIGURATION_TRACE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/configuration-trace.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/configuration-trace.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
     <logger name="com.opensocket.aievent.core" level="${CORE_LEVEL}"/>
+    <logger name="com.opensocket.aievent.core.configuration" level="${CONFIGURATION_TRACE_LEVEL}" additivity="true">
+        <appender-ref ref="CONFIGURATION_TRACE_FILE"/>
+    </logger>
     <logger name="com.opensocket.aievent.core.api.EventIntakeController" level="${DISPATCH_TRACE_LEVEL}" additivity="true">
         <appender-ref ref="DISPATCH_TRACE_FILE"/>
     </logger>

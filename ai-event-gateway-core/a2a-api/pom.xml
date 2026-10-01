@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent><groupId>com.opensocket</groupId><artifactId>control-plane-parent</artifactId><version>0.8.2-SNAPSHOT</version><relativePath>../pom.xml</relativePath></parent>
+  <parent><groupId>com.opensocket</groupId><artifactId>control-plane-parent</artifactId><version>0.9.3-SNAPSHOT</version><relativePath>../pom.xml</relativePath></parent>
   <artifactId>a2a-api</artifactId>
   <name>a2a-api</name>
   <description>HTTP adapter for A2A use cases. Contains no persistence, runtime, or provider integration.</description>

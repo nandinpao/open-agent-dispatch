@@ -93,6 +93,7 @@ public class DispatchProperties {
          * Deprecated compatibility switch. Phase 1 uses dispatch.execution-policy instead.
          */
         private boolean autoExecuteApproved = true;
+        private long autoExecuteIntervalMs = 5000L;
         private String defaultGatewayBaseUrl = "http://localhost:18081";
         private Map<String, String> gatewayBaseUrls = new LinkedHashMap<>();
         private String internalTokenHeader = "X-Cluster-Token";
@@ -105,6 +106,8 @@ public class DispatchProperties {
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public boolean isAutoExecuteApproved() { return autoExecuteApproved; }
         public void setAutoExecuteApproved(boolean autoExecuteApproved) { this.autoExecuteApproved = autoExecuteApproved; }
+        public long getAutoExecuteIntervalMs() { return autoExecuteIntervalMs; }
+        public void setAutoExecuteIntervalMs(long autoExecuteIntervalMs) { this.autoExecuteIntervalMs = Math.max(250L, Math.min(autoExecuteIntervalMs, 3_600_000L)); }
         public String getDefaultGatewayBaseUrl() { return defaultGatewayBaseUrl; }
         public void setDefaultGatewayBaseUrl(String defaultGatewayBaseUrl) { this.defaultGatewayBaseUrl = blank(defaultGatewayBaseUrl) ? "http://localhost:18081" : defaultGatewayBaseUrl; }
         public Map<String, String> getGatewayBaseUrls() { return gatewayBaseUrls; }

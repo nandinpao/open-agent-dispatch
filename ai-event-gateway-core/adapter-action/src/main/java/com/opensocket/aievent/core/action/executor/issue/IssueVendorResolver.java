@@ -2,17 +2,28 @@ package com.opensocket.aievent.core.action.executor.issue;
 
 import java.util.Locale;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.opensocket.aievent.core.action.AdapterAction;
+import com.opensocket.aievent.core.action.executor.AdapterExecutorRuntimeConfigurationView;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
 
 @Component
 public class IssueVendorResolver {
-    private final AdapterActionExecutionProperties properties;
+    private final AdapterExecutorRuntimeConfigurationView runtimeConfiguration;
+    private final AdapterActionExecutionProperties startup;
 
-    public IssueVendorResolver(AdapterActionExecutionProperties properties) {
-        this.properties = properties;
+    @Autowired
+    public IssueVendorResolver(AdapterExecutorRuntimeConfigurationView runtimeConfiguration) {
+        this.runtimeConfiguration = runtimeConfiguration;
+        this.startup = null;
+    }
+
+    /** Test compatibility constructor. */
+    public IssueVendorResolver(AdapterActionExecutionProperties startup) {
+        this.runtimeConfiguration = null;
+        this.startup = startup;
     }
 
     public IssueVendor resolve(AdapterAction action) {
@@ -24,7 +35,7 @@ public class IssueVendorResolver {
         IssueVendor fromAdapterName = parse(action == null ? null : action.getAdapterName());
         if (fromAdapterName != null) return fromAdapterName;
 
-        return parse(properties.getIssue().getDefaultVendor());
+        return parse(runtimeConfiguration != null ? runtimeConfiguration.issueDefaultVendor() : startup.getIssue().getDefaultVendor());
     }
 
     private IssueVendor parse(Object value) {

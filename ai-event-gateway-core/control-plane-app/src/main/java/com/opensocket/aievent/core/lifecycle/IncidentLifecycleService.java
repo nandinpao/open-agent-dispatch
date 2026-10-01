@@ -8,19 +8,27 @@ import org.springframework.stereotype.Service;
 
 import com.opensocket.aievent.core.incident.Incident;
 import com.opensocket.aievent.core.incident.IncidentFacade;
+import com.opensocket.aievent.core.incident.IncidentRuntimeConfigurationView;
 import com.opensocket.aievent.core.observability.CoreMetricsService;
 
 @Service
 public class IncidentLifecycleService {
     private final IncidentFacade incidentFacade;
     private final LifecycleProperties properties;
+    private final IncidentRuntimeConfigurationView runtimeConfiguration;
 
     @Autowired(required = false)
     private CoreMetricsService metrics;
 
     public IncidentLifecycleService(IncidentFacade incidentFacade, LifecycleProperties properties) {
+        this(incidentFacade, properties, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public IncidentLifecycleService(IncidentFacade incidentFacade, LifecycleProperties properties, IncidentRuntimeConfigurationView runtimeConfiguration) {
         this.incidentFacade = incidentFacade;
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     public Incident resolve(String incidentId, String reason) {
@@ -40,11 +48,13 @@ public class IncidentLifecycleService {
             return LifecycleScanResult.empty("Incident auto-resolve is disabled");
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        OffsetDateTime cutoff = now.minus(properties.getIncident().getInactiveThreshold());
+        java.time.Duration inactiveThreshold = runtimeConfiguration == null ? properties.getIncident().getInactiveThreshold() : runtimeConfiguration.inactiveThreshold();
+        int maxBatchSize = runtimeConfiguration == null ? properties.getIncident().getMaxBatchSize() : runtimeConfiguration.maxBatchSize();
+        OffsetDateTime cutoff = now.minus(inactiveThreshold);
         LifecycleScanResult result = incidentFacade.autoResolveStale(
                 cutoff,
-                properties.getIncident().getMaxBatchSize(),
-                "Auto-resolved after inactive threshold " + properties.getIncident().getInactiveThreshold(),
+                maxBatchSize,
+                "Auto-resolved after inactive threshold " + inactiveThreshold,
                 now);
         record("incident", result);
         return result;

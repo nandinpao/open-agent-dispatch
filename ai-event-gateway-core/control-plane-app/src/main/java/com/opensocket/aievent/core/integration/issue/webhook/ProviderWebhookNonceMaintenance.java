@@ -1,10 +1,43 @@
 package com.opensocket.aievent.core.integration.issue.webhook;
-import java.time.OffsetDateTime; import java.time.ZoneOffset;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty; import org.springframework.scheduling.annotation.Scheduled; import org.springframework.stereotype.Component;
+
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.stereotype.Component;
+
+import com.opensocket.aievent.core.configuration.runtime.DynamicFixedDelayTask;
 import com.opensocket.aievent.core.integration.identity.IntegrationWebhookEndpointRepository;
-@Component @ConditionalOnProperty(prefix="integration-sync.webhook-security",name="enabled",havingValue="true",matchIfMissing=true)
-public class ProviderWebhookNonceMaintenance {
- private final IntegrationWebhookEndpointRepository repository; private final ProviderWebhookSecurityProperties properties;
- public ProviderWebhookNonceMaintenance(IntegrationWebhookEndpointRepository repository,ProviderWebhookSecurityProperties properties){this.repository=repository;this.properties=properties;}
- @Scheduled(fixedDelayString="${integration-sync.webhook-security.nonce-cleanup-interval-ms:60000}", scheduler="maintenanceOperationalScheduler") public void cleanupExpiredNonces(){repository.deleteExpiredNonces(OffsetDateTime.now(ZoneOffset.UTC),Math.max(1,properties.getNonceCleanupBatchSize()));}
+
+@Component
+public class ProviderWebhookNonceMaintenance implements InitializingBean, DisposableBean {
+    private final IntegrationWebhookEndpointRepository repository;
+    private final ProviderWebhookSecurityRuntimeConfigurationView runtimeConfiguration;
+    private final DynamicFixedDelayTask dynamicTask;
+
+    public ProviderWebhookNonceMaintenance(
+            IntegrationWebhookEndpointRepository repository,
+            ProviderWebhookSecurityRuntimeConfigurationView runtimeConfiguration,
+            @Qualifier("maintenanceOperationalScheduler") TaskScheduler scheduler) {
+        this.repository = repository;
+        this.runtimeConfiguration = runtimeConfiguration;
+        this.dynamicTask = new DynamicFixedDelayTask(
+                scheduler,
+                "provider-webhook-nonce-maintenance",
+                this::cleanupExpiredNonces,
+                runtimeConfiguration::nonceCleanupInterval);
+    }
+
+    @Override public void afterPropertiesSet() { dynamicTask.start(); }
+    @Override public void destroy() { dynamicTask.stop(); }
+
+    public void cleanupExpiredNonces() {
+        if (!runtimeConfiguration.enabled()) return;
+        repository.deleteExpiredNonces(
+                OffsetDateTime.now(ZoneOffset.UTC),
+                runtimeConfiguration.nonceCleanupBatchSize());
+    }
 }

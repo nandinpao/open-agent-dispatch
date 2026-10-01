@@ -1,7 +1,12 @@
 package com.opensocket.aievent.core.action.executor;
 
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
+
+import com.opensocket.aievent.core.configuration.runtime.DynamicFixedDelayTask;
 
 /**
  * Projection-only recovery loop for durable Issue provider results.
@@ -9,19 +14,29 @@ import org.springframework.stereotype.Component;
  * to rebuild TaskIssueLink from already-observed provider evidence.
  */
 @Component
-public class IssueTaskLinkProjectionReconciler {
+public class IssueTaskLinkProjectionReconciler implements InitializingBean, DisposableBean {
     private final AdapterActionExecutionService service;
-    private final AdapterActionExecutionProperties properties;
+    private final DynamicFixedDelayTask dynamicTask;
+    private final AdapterExecutorRuntimeConfigurationView runtimeConfiguration;
 
-    public IssueTaskLinkProjectionReconciler(AdapterActionExecutionService service,
-                                             AdapterActionExecutionProperties properties) {
+    public IssueTaskLinkProjectionReconciler(
+            AdapterActionExecutionService service,
+            AdapterExecutorRuntimeConfigurationView runtimeConfiguration,
+            @Qualifier("projectionOperationalScheduler") TaskScheduler scheduler) {
         this.service = service;
-        this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
+        this.dynamicTask = new DynamicFixedDelayTask(
+                scheduler,
+                "issue-task-link-projection-reconciler",
+                this::reconcile,
+                runtimeConfiguration::issueLinkProjectionReconciliationDelay);
     }
 
-    @Scheduled(fixedDelayString = "${adapter-executor.issue.link-projection-reconciliation-delay:30s}", scheduler = "projectionOperationalScheduler")
+    @Override public void afterPropertiesSet() { dynamicTask.start(); }
+    @Override public void destroy() { dynamicTask.stop(); }
+
     public void reconcile() {
-        if (!properties.getIssue().isLinkProjectionReconciliationEnabled()) return;
-        service.reconcileIssueLinkProjections(properties.getIssue().getLinkProjectionBatchSize());
+        if (!runtimeConfiguration.issueLinkProjectionReconciliationEnabled()) return;
+        service.reconcileIssueLinkProjections(runtimeConfiguration.issueLinkProjectionBatchSize());
     }
 }

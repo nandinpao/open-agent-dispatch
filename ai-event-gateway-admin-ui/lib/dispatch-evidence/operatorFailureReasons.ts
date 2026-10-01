@@ -248,7 +248,7 @@ export function normalizeOperatorDispatchFailureReason(
         },
         {
           label: "Open dispatch monitoring",
-          href: "/enforce-observability",
+          href: "/settings/enforce-observability",
           description:
             "Check production dispatch monitoring and routing audit.",
         },

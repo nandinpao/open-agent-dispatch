@@ -1,6 +1,7 @@
 package com.opensocket.aievent.gateway.netty.outbound;
 
 import com.opensocket.aievent.gateway.netty.config.CoreOutboundProperties;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
 import io.micrometer.context.ContextSnapshot;
 import io.micrometer.context.ContextSnapshotFactory;
 import io.micrometer.core.instrument.Counter;
@@ -63,6 +64,7 @@ public class CoreOutboundDispatcher {
     private final AtomicLong rejected = new AtomicLong();
     private final AtomicLong completed = new AtomicLong();
     private final AtomicLong failed = new AtomicLong();
+    private GatewayOperationalRuntimeConfigurationView runtimeConfiguration;
 
     @Autowired
     public CoreOutboundDispatcher(
@@ -125,12 +127,21 @@ public class CoreOutboundDispatcher {
                 .register(meterRegistry);
     }
 
+    @Autowired(required = false)
+    void setRuntimeConfiguration(GatewayOperationalRuntimeConfigurationView runtimeConfiguration) {
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
+    private boolean outboundEnabled() {
+        return runtimeConfiguration == null ? properties.enabled() : runtimeConfiguration.coreOutboundEnabled();
+    }
+
     public CoreOutboundSubmission submit(
             String operation,
             CoreOutboundRequest request,
             Consumer<CoreOutboundResult> completionHandler
     ) {
-        if (!properties.enabled()) {
+        if (!outboundEnabled()) {
             recordRejected();
             return CoreOutboundSubmission.disabled(queueSize(), queueRemainingCapacity());
         }
@@ -162,7 +173,7 @@ public class CoreOutboundDispatcher {
 
 
     public CoreOutboundResult executeSynchronously(String operation, CoreOutboundRequest request) {
-        if (!properties.enabled()) {
+        if (!outboundEnabled()) {
             return CoreOutboundResult.failed("Core outbound dispatcher is disabled", Duration.ZERO, null);
         }
         if (request == null) {

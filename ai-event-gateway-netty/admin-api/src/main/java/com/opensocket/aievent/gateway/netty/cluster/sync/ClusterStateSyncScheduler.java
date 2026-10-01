@@ -3,45 +3,58 @@ package com.opensocket.aievent.gateway.netty.cluster.sync;
 import com.opensocket.aievent.gateway.netty.cluster.ClusterNodeRegistry;
 import com.opensocket.aievent.gateway.netty.cluster.ClusterNodeStatus;
 import com.opensocket.aievent.gateway.netty.cluster.dto.ClusterHelloPayload;
-import com.opensocket.aievent.gateway.netty.config.ClusterSyncProperties;
 import com.opensocket.aievent.gateway.netty.config.ClusterRuntimeProperties;
+import com.opensocket.aievent.gateway.netty.config.ClusterSyncProperties;
+import com.opensocket.aievent.gateway.netty.configuration.GatewayDynamicFixedDelayTask;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 /**
- * Cluster state synchronization component for Cluster State Sync Scheduler. It exposes or
- * consumes lightweight node state snapshots so Admin UI can show a cluster-wide view without
- * moving business ownership across nodes.
+ * Cluster state synchronization component. C3R2J replaces the startup-only fixed scheduler cadence
+ * with a self-rescheduling task that re-reads the local Runtime Configuration snapshot each cycle.
  */
 @Component
-public class ClusterStateSyncScheduler {
+public class ClusterStateSyncScheduler implements DisposableBean {
 
     private final ClusterRuntimeProperties clusterRuntimeProperties;
-    private final ClusterSyncProperties clusterSyncProperties;
+    private final ClusterSyncRuntimeConfigurationView runtimeConfiguration;
     private final ClusterNodeRegistry clusterNodeRegistry;
     private final ClusterStatePullClient clusterStatePullClient;
     private final ClusterRemoteStateRegistry clusterRemoteStateRegistry;
     private final ClusterPeerRelationRegistry clusterPeerRelationRegistry;
     private final DuplicateRuntimeDetector duplicateRuntimeDetector;
+    private final GatewayDynamicFixedDelayTask dynamicTask;
 
     @Autowired
     public ClusterStateSyncScheduler(
             ClusterRuntimeProperties clusterRuntimeProperties,
             ClusterSyncProperties clusterSyncProperties,
+            ClusterSyncRuntimeConfigurationView runtimeConfiguration,
             ClusterNodeRegistry clusterNodeRegistry,
             ClusterStatePullClient clusterStatePullClient,
             ClusterRemoteStateRegistry clusterRemoteStateRegistry,
             ClusterPeerRelationRegistry clusterPeerRelationRegistry,
-            DuplicateRuntimeDetector duplicateRuntimeDetector
+            DuplicateRuntimeDetector duplicateRuntimeDetector,
+            TaskScheduler taskScheduler
     ) {
         this.clusterRuntimeProperties = clusterRuntimeProperties;
-        this.clusterSyncProperties = clusterSyncProperties;
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new ClusterSyncRuntimeConfigurationView(clusterSyncProperties)
+                : runtimeConfiguration;
         this.clusterNodeRegistry = clusterNodeRegistry;
         this.clusterStatePullClient = clusterStatePullClient;
         this.clusterRemoteStateRegistry = clusterRemoteStateRegistry;
         this.clusterPeerRelationRegistry = clusterPeerRelationRegistry;
         this.duplicateRuntimeDetector = duplicateRuntimeDetector;
+        this.dynamicTask = taskScheduler == null ? null : new GatewayDynamicFixedDelayTask(
+                taskScheduler,
+                "cluster-state-sync",
+                this::pullRemoteStates,
+                this.runtimeConfiguration::interval);
     }
 
     /** Backward-compatible constructor retained for focused unit tests. */
@@ -53,12 +66,24 @@ public class ClusterStateSyncScheduler {
             ClusterRemoteStateRegistry clusterRemoteStateRegistry,
             ClusterPeerRelationRegistry clusterPeerRelationRegistry
     ) {
-        this(clusterRuntimeProperties, clusterSyncProperties, clusterNodeRegistry, clusterStatePullClient, clusterRemoteStateRegistry, clusterPeerRelationRegistry, null);
+        this(clusterRuntimeProperties, clusterSyncProperties,
+                new ClusterSyncRuntimeConfigurationView(clusterSyncProperties),
+                clusterNodeRegistry, clusterStatePullClient, clusterRemoteStateRegistry,
+                clusterPeerRelationRegistry, null, null);
     }
 
-    @Scheduled(fixedDelayString = "${cluster.sync.interval-ms:5000}", initialDelayString = "${cluster.sync.interval-ms:5000}")
+    @EventListener(ApplicationReadyEvent.class)
+    public void startAfterApplicationReady() {
+        if (dynamicTask != null) dynamicTask.start();
+    }
+
+    @Override
+    public void destroy() {
+        if (dynamicTask != null) dynamicTask.stop();
+    }
+
     public void pullRemoteStates() {
-        if (!clusterRuntimeProperties.enabled() || !clusterSyncProperties.enabled()) {
+        if (!clusterRuntimeProperties.enabled() || !runtimeConfiguration.enabled()) {
             return;
         }
 
@@ -84,25 +109,14 @@ public class ClusterStateSyncScheduler {
             }
         }
     }
+
     private void markNodeOnlineFromRemoteState(ClusterStateSnapshotResponse state, String remoteAddress) {
-        if (state == null || state.node() == null) {
-            return;
-        }
+        if (state == null || state.node() == null) return;
         var node = state.node();
         clusterNodeRegistry.applyHello(new ClusterHelloPayload(
-                node.nodeId(),
-                node.host(),
-                node.tcpPort(),
-                node.websocketPort(),
-                node.adminPort(),
-                node.clusterUdpPort(),
-                node.startedAt(),
-                clusterRuntimeProperties.internalToken(),
-                node.siteId(),
-                node.siteName(),
-                node.region(),
-                node.zone()
+                node.nodeId(), node.host(), node.tcpPort(), node.websocketPort(), node.adminPort(),
+                node.clusterUdpPort(), node.startedAt(), clusterRuntimeProperties.internalToken(),
+                node.siteId(), node.siteName(), node.region(), node.zone()
         ), remoteAddress == null || remoteAddress.isBlank() ? "cluster-state-sync" : remoteAddress);
     }
-
 }

@@ -38,6 +38,7 @@ import com.opensocket.aievent.database.persistence.eventprocessing.converter.Eve
 import com.opensocket.aievent.database.persistence.eventprocessing.dao.EventDecisionDao;
 import com.opensocket.aievent.core.dedup.EventDedupRedisProperties;
 import com.opensocket.aievent.core.dedup.RedisDedupStateStore;
+import com.opensocket.aievent.core.dedup.cache.NoopDedupStateCache;
 import com.opensocket.aievent.database.persistence.eventprocessing.repository.MybatisDedupStateSnapshotRepository;
 import com.opensocket.aievent.database.persistence.eventprocessing.converter.DedupStateSnapshotPersistenceConverter;
 import com.opensocket.aievent.database.persistence.eventprocessing.dao.DedupStateSnapshotDao;
@@ -55,6 +56,7 @@ import com.opensocket.aievent.database.persistence.incident.converter.IncidentPe
 import com.opensocket.aievent.database.persistence.incident.dao.IncidentDao;
 import com.opensocket.aievent.core.normalize.EventNormalizer;
 import com.opensocket.aievent.core.processing.DefaultEventProcessingFacade;
+import com.opensocket.aievent.core.processing.EventDecisionRuntimeConfigurationView;
 import com.opensocket.aievent.core.processing.EventProcessingProperties;
 import com.opensocket.aievent.database.persistence.incident.repository.MybatisIncidentOccurrenceSummaryRepository;
 import com.opensocket.aievent.database.persistence.incident.converter.IncidentOccurrenceSummaryPersistenceConverter;
@@ -131,13 +133,14 @@ class CorePostgresRedisBaselineContainerTest {
                         fingerprintGenerator,
                         dedupStateStore,
                         new MybatisDedupStateSnapshotRepository(mybatis.mapper(DedupStateSnapshotDao.class), new DedupStateSnapshotPersistenceConverter()),
+                        new NoopDedupStateCache(),
                         new DefaultIncidentFacade(
                                 new IncidentManager(incidentRepository),
                                 incidentRepository,
                                 new MybatisIncidentOccurrenceSummaryRepository(
                                         mybatis.mapper(IncidentOccurrenceSummaryDao.class),
                                         new IncidentOccurrenceSummaryPersistenceConverter(objectMapper))),
-                        eventProperties),
+                        new EventDecisionRuntimeConfigurationView(eventProperties)),
                 new MybatisEventDecisionRepository(
                         mybatis.mapper(EventDecisionDao.class),
                         new EventDecisionPersistenceConverter(objectMapper)),

@@ -3,6 +3,7 @@ package com.opensocket.aievent.core.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import tools.jackson.databind.ObjectMapper;
@@ -19,8 +20,12 @@ class IntegrationEventProjectionTest {
         IntegrationEventProperties properties = new IntegrationEventProperties();
         properties.setProjectionEnabled(true);
         properties.setDeliveryEnabled(true);
+        properties.setSink("HTTP");
         ObjectMapper mapper = JsonMapper.builder().build();
-        IntegrationEventProjector projector = new IntegrationEventProjector(repository, properties, mapper);
+        IntegrationEventsRuntimeConfigurationView runtimeConfiguration =
+                IntegrationEventsRuntimeConfigurationTestFixtures.startupBacked(properties, mapper);
+        IntegrationEventProjector projector = new IntegrationEventProjector(
+                repository, properties, runtimeConfiguration, mapper);
         IncidentEscalatedEvent event = new IncidentEscalatedEvent(
                 "event-1", "incident-1", "fp", "CRITICAL", 4,
                 "source-1", "tenant-1", "site-1", OffsetDateTime.now());
@@ -35,10 +40,10 @@ class IntegrationEventProjectionTest {
             @Override public void deliver(com.opensocket.aievent.service.events.IntegrationEventEnvelope envelope) {
                 deliveries.incrementAndGet();
             }
-            @Override public String name() { return "TEST"; }
+            @Override public String name() { return "HTTP"; }
         };
         IntegrationEventDeliveryResult result = new IntegrationEventDeliveryService(
-                repository, properties, sink, mapper).deliverPending();
+                repository, properties, runtimeConfiguration, List.of(sink), mapper).deliverPending();
 
         assertThat(result.delivered()).isEqualTo(1);
         assertThat(deliveries.get()).isEqualTo(1);

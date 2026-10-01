@@ -21,6 +21,8 @@ public class DispatchBridgeReconciliationService {
     private final ModuleEventPublisher events;
     @Autowired(required = false)
     private List<DispatchRecoveryAuthority> recoveryAuthorities = List.of();
+    @Autowired(required = false)
+    private DispatchRuntimeConfigurationView runtimeConfigurationView;
 
     public DispatchBridgeReconciliationService(
             DispatchRequestRepository requests,
@@ -115,7 +117,7 @@ public class DispatchBridgeReconciliationService {
         if (!expiredLease) {
             return null;
         }
-        boolean retry = request.getAttemptCount() < properties.getRetry().getMaxAttempts();
+        boolean retry = request.getAttemptCount() < retryMaxAttempts();
         DispatchStatusTransition transition = base(request, now);
         transition.setNewStatus(retry ? DispatchRequestStatus.RETRY_WAITING : DispatchRequestStatus.DEAD_LETTER);
         transition.setOutboxStatus(retry ? DispatchOutboxStatus.FAILED_RETRYABLE : DispatchOutboxStatus.DEAD_LETTER);
@@ -123,12 +125,20 @@ public class DispatchBridgeReconciliationService {
                 ? DispatchRecoveryClassification.LEASE_EXPIRED
                 : DispatchRecoveryClassification.RETRY_EXHAUSTED);
         transition.setRetryWaitingAt(retry ? now : null);
-        transition.setNextRetryAt(retry ? now.plus(properties.getRetry().getInitialBackoff()) : null);
+        transition.setNextRetryAt(retry ? now.plus(retryInitialBackoff()) : null);
         transition.setFailedAt(now);
         transition.setReason(retry
                 ? "Expired worker lease recovered to retry waiting"
                 : "Expired worker lease exhausted retry budget");
         return transition;
+    }
+
+    private int retryMaxAttempts() {
+        return runtimeConfigurationView == null ? properties.getRetry().getMaxAttempts() : runtimeConfigurationView.maxAttempts();
+    }
+
+    private java.time.Duration retryInitialBackoff() {
+        return runtimeConfigurationView == null ? properties.getRetry().getInitialBackoff() : runtimeConfigurationView.initialBackoff();
     }
 
     private DispatchStatusTransition base(DispatchRequest request, OffsetDateTime now) {

@@ -5,6 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+
+import tools.jackson.databind.json.JsonMapper;
+import com.opensocket.aievent.core.configuration.runtime.RuntimeConfigurationAuthorityRegistry;
+import com.opensocket.aievent.core.configuration.runtime.RuntimeConfigurationSnapshotValues;
+import com.opensocket.aievent.core.integration.issue.projection.IssueProjectionProperties;
+import com.opensocket.aievent.core.integration.issue.projection.IssueProjectionRuntimeConfigurationView;
+import com.opensocket.aievent.core.kernel.configuration.distribution.RuntimeConfigurationLocalSnapshotRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -13,7 +20,7 @@ class RuntimeCapabilityServiceTest {
 
     @Test
     void dormantBundleStillPublishesCanonicalSessionContract() {
-        RuntimeCapabilitySnapshot snapshot = new RuntimeCapabilityService(new MockEnvironment(), CLOCK).snapshot();
+        RuntimeCapabilitySnapshot snapshot = service(new MockEnvironment()).snapshot();
 
         assertThat(snapshot.contractVersion()).isEqualTo("4.0");
         assertThat(snapshot.authentication().sessionPath()).isEqualTo("/api/session");
@@ -37,7 +44,7 @@ class RuntimeCapabilityServiceTest {
                 .withProperty("ui-capability.projection-api-enabled", "true")
                 .withProperty("ui-capability.page-bootstrap-enabled", "true");
 
-        RuntimeCapabilitySnapshot snapshot = new RuntimeCapabilityService(environment, CLOCK).snapshot();
+        RuntimeCapabilitySnapshot snapshot = service(environment).snapshot();
 
         assertThat(snapshot.authentication().sessionPath()).isEqualTo("/api/session");
         assertThat(snapshot.authentication().legacyPasswordAdapterEnabled()).isTrue();
@@ -54,7 +61,7 @@ class RuntimeCapabilityServiceTest {
                 .withProperty("resource-access.enabled", "false")
                 .withProperty("resource-access.decision-api-enabled", "false");
 
-        RuntimeCapabilitySnapshot snapshot = new RuntimeCapabilityService(environment, CLOCK).snapshot();
+        RuntimeCapabilitySnapshot snapshot = service(environment).snapshot();
 
         assertThat(snapshot.surfaces().enforcementActivation()).isEqualTo(RuntimeCapabilityState.SHADOW);
     }
@@ -67,9 +74,20 @@ class RuntimeCapabilityServiceTest {
                 .withProperty("resource-access.enabled", "true")
                 .withProperty("resource-access.decision-api-enabled", "true");
 
-        RuntimeCapabilitySnapshot snapshot = new RuntimeCapabilityService(environment, CLOCK).snapshot();
+        RuntimeCapabilitySnapshot snapshot = service(environment).snapshot();
 
         assertThat(snapshot.surfaces().enforcementActivation()).isEqualTo(RuntimeCapabilityState.ENABLED);
     }
 
+    private static RuntimeCapabilityService service(MockEnvironment environment) {
+        RuntimeConfigurationLocalSnapshotRegistry registry = new RuntimeConfigurationLocalSnapshotRegistry();
+        RuntimeConfigurationSnapshotValues values = new RuntimeConfigurationSnapshotValues(registry, JsonMapper.builder().build());
+        RuntimeConfigurationAuthorityRegistry authority = new RuntimeConfigurationAuthorityRegistry();
+        IssueProjectionProperties startup = new IssueProjectionProperties();
+        if (environment.containsProperty("issue-projection.enabled")) {
+            startup.setEnabled(environment.getProperty("issue-projection.enabled", Boolean.class, true));
+        }
+        IssueProjectionRuntimeConfigurationView projection = new IssueProjectionRuntimeConfigurationView(startup, values, authority);
+        return new RuntimeCapabilityService(environment, CLOCK, projection);
+    }
 }

@@ -2,6 +2,7 @@ package com.opensocket.aievent.core.integration.issue.readiness;
 
 import com.opensocket.aievent.core.action.AdapterType;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
+import com.opensocket.aievent.core.action.executor.AdapterExecutorRuntimeConfigurationView;
 import com.opensocket.aievent.core.action.executor.AdapterExecutionAuthority;
 import com.opensocket.aievent.core.action.executor.AdapterExecutionAuthorityPolicy;
 import com.opensocket.aievent.core.integration.identity.*;
@@ -30,16 +31,19 @@ public final class IssueTrackingRuntimeReadinessService {
     private final IntegrationCredentialMaterialVerifier credentialMaterials;
     private final AdapterExecutionAuthorityPolicy executionAuthority;
     private final AdapterActionExecutionProperties executionProperties;
+    private final AdapterExecutorRuntimeConfigurationView runtimeConfiguration;
 
     public IssueTrackingRuntimeReadinessService(
             IntegrationIdentityService identities,
             IntegrationCredentialMaterialVerifier credentialMaterials,
             AdapterExecutionAuthorityPolicy executionAuthority,
-            AdapterActionExecutionProperties executionProperties) {
+            AdapterActionExecutionProperties executionProperties,
+            AdapterExecutorRuntimeConfigurationView runtimeConfiguration) {
         this.identities = identities;
         this.credentialMaterials = credentialMaterials;
         this.executionAuthority = executionAuthority;
         this.executionProperties = executionProperties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     public IssueTrackingRuntimeReadiness evaluate(
@@ -83,7 +87,7 @@ public final class IssueTrackingRuntimeReadinessService {
 
         boolean authorityReady = executionAuthority.authorityFor(AdapterType.ISSUE_TRACKING) == AdapterExecutionAuthority.CORE_GOVERNED;
         boolean autoExecuteReady = executionAuthority.shouldAutoExecuteInCore(AdapterType.ISSUE_TRACKING);
-        boolean connectorRuntimeEnabled = executionProperties.getIssue().isConnectorRuntimeEnabled();
+        boolean connectorRuntimeEnabled = runtimeConfiguration.issueConnectorRuntimeEnabled();
         if (!authorityReady) blockers.add(AdapterExecutionAuthorityPolicy.ISSUE_EXECUTOR_NOT_AVAILABLE);
         if (!autoExecuteReady) blockers.add("ISSUE_EXECUTOR_AUTO_EXECUTION_DISABLED");
         if (!connectorRuntimeEnabled) blockers.add("ISSUE_CONNECTOR_RUNTIME_DISABLED");

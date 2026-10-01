@@ -10,13 +10,13 @@ import com.opensocket.aievent.gateway.netty.config.NettyServerProperties;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundDispatcher;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundRequest;
 import com.opensocket.aievent.gateway.netty.outbound.CoreOutboundStatus;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -50,6 +50,7 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
     private final ObjectMapper objectMapper;
     private final CoreOutboundDispatcher coreOutboundDispatcher;
     private final Environment environment;
+    private final GatewayOperationalRuntimeConfigurationView runtimeConfiguration;
     private final Map<String, Long> agentDirectoryReconcileAttempts = new ConcurrentHashMap<>();
     private volatile long applicationReadyNanos;
 
@@ -62,7 +63,8 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
             AgentAuthorizationRuntimeRegistry authorizationRuntimeRegistry,
             ObjectMapper objectMapper,
             Environment environment,
-            CoreOutboundDispatcher coreOutboundDispatcher
+            CoreOutboundDispatcher coreOutboundDispatcher,
+            GatewayOperationalRuntimeConfigurationView runtimeConfiguration
     ) {
         this.properties = properties;
         this.gatewayProperties = gatewayProperties;
@@ -72,6 +74,21 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         this.objectMapper = objectMapper;
         this.environment = environment;
         this.coreOutboundDispatcher = coreOutboundDispatcher;
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
+    public CoreDirectorySyncService(
+            CoreDirectorySyncProperties properties,
+            GatewayProperties gatewayProperties,
+            NettyServerProperties nettyServerProperties,
+            AgentRegistry agentRegistry,
+            AgentAuthorizationRuntimeRegistry authorizationRuntimeRegistry,
+            ObjectMapper objectMapper,
+            Environment environment,
+            CoreOutboundDispatcher coreOutboundDispatcher
+    ) {
+        this(properties, gatewayProperties, nettyServerProperties, agentRegistry, authorizationRuntimeRegistry,
+                objectMapper, environment, coreOutboundDispatcher, null);
     }
 
     CoreDirectorySyncService(
@@ -81,10 +98,11 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
             AgentRegistry agentRegistry,
             ObjectMapper objectMapper,
             Environment environment,
-            CoreOutboundDispatcher coreOutboundDispatcher
+            CoreOutboundDispatcher coreOutboundDispatcher,
+            GatewayOperationalRuntimeConfigurationView runtimeConfiguration
     ) {
         this(properties, gatewayProperties, nettyServerProperties, agentRegistry, null,
-                objectMapper, environment, coreOutboundDispatcher);
+                objectMapper, environment, coreOutboundDispatcher, runtimeConfiguration);
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -98,12 +116,10 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         publishGatewaySnapshot(agentRegistry.list());
     }
 
-    @Scheduled(fixedDelayString = "${gateway.core-directory-sync.gateway-heartbeat-interval-ms:15000}")
     public void scheduledGatewayHeartbeat() {
         publishGatewayHeartbeat();
     }
 
-    @Scheduled(fixedDelayString = "${gateway.core-directory-sync.snapshot-interval-ms:60000}")
     public void scheduledGatewaySnapshot() {
         publishGatewaySnapshot(agentRegistry.list());
     }
@@ -123,7 +139,7 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("status", "ONLINE");
-        payload.put("leaseTtlSeconds", properties.gatewayLeaseTtlSeconds());
+        payload.put("leaseTtlSeconds", gatewayLeaseTtlSeconds());
         post(properties.gatewayHeartbeatUrl(gatewayProperties.nodeId()), payload, "gateway heartbeat");
     }
 
@@ -254,7 +270,7 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         payload.put("status", "ONLINE");
         payload.put("version", gatewayProperties.version());
         payload.put("metadata", metadata);
-        payload.put("leaseExpiresAt", iso(OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(properties.gatewayLeaseTtlSeconds())));
+        payload.put("leaseExpiresAt", iso(OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(gatewayLeaseTtlSeconds())));
         return payload;
     }
 
@@ -295,7 +311,7 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         }
         payload.put("connectedAt", iso(agent.registeredAt()));
         payload.put("lastHeartbeatAt", iso(agent.lastHeartbeatAt()));
-        payload.put("leaseExpiresAt", iso(OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(properties.agentLeaseTtlSeconds())));
+        payload.put("leaseExpiresAt", iso(OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(agentLeaseTtlSeconds())));
         return payload;
     }
 
@@ -401,6 +417,22 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
         }
     }
 
+    private long gatewayLeaseTtlSeconds() {
+        return runtimeConfiguration == null ? properties.gatewayLeaseTtlSeconds() : runtimeConfiguration.gatewayLeaseTtlSeconds();
+    }
+
+    private long agentLeaseTtlSeconds() {
+        return runtimeConfiguration == null ? properties.agentLeaseTtlSeconds() : runtimeConfiguration.agentLeaseTtlSeconds();
+    }
+
+    private int defaultAgentMaxConcurrentTasks() {
+        return runtimeConfiguration == null ? properties.defaultAgentMaxConcurrentTasks() : runtimeConfiguration.defaultAgentMaxConcurrentTasks();
+    }
+
+    private int defaultAgentHealthScore() {
+        return runtimeConfiguration == null ? properties.defaultAgentHealthScore() : runtimeConfiguration.defaultAgentHealthScore();
+    }
+
     private int httpPort() {
         return environment.getProperty("server.port", Integer.class, 18080);
     }
@@ -441,7 +473,7 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
                 // Fall back to configured default.
             }
         }
-        return properties.defaultAgentMaxConcurrentTasks();
+        return defaultAgentMaxConcurrentTasks();
     }
 
     private int healthScore(AgentSnapshot agent) {
@@ -454,7 +486,7 @@ public class CoreDirectorySyncService implements CoreDirectorySyncPublisher {
             double value = Math.max(0.0d, Math.min(1.0d, utilization.doubleValue()));
             return (int) Math.round(100.0d - (value * 50.0d));
         }
-        return properties.defaultAgentHealthScore();
+        return defaultAgentHealthScore();
     }
 
     private Map<String, Object> runtimeLoadForCore(AgentSnapshot agent) {

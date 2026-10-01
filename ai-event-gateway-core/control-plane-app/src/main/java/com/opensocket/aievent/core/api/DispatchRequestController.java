@@ -28,6 +28,7 @@ import com.opensocket.aievent.core.dispatch.DispatchRequest;
 import com.opensocket.aievent.core.dispatch.ExecutionOperationalQuery;
 import com.opensocket.aievent.core.dispatch.DispatchRequestService;
 import com.opensocket.aievent.core.dispatch.DispatchRequestStatus;
+import com.opensocket.aievent.core.dispatch.DispatchRuntimeConfigurationView;
 
 @RestController
 @RequestMapping("/api/dispatch-requests")
@@ -35,6 +36,7 @@ public class DispatchRequestController {
     private final ExecutionOperationalQuery queryService;
     private final DispatchRequestService service;
     private final DispatchProperties properties;
+    private final DispatchRuntimeConfigurationView runtimeConfiguration;
     private final DispatchExecutionService executionService;
     private final DispatchAttemptHistoryService attemptHistoryService;
 
@@ -43,10 +45,11 @@ public class DispatchRequestController {
     @Autowired(required=false)
     private ScopedDispatchRequestQueryService scopedQueries;
 
-    public DispatchRequestController(ExecutionOperationalQuery queryService, DispatchRequestService service, DispatchProperties properties, DispatchExecutionService executionService, DispatchAttemptHistoryService attemptHistoryService) {
+    public DispatchRequestController(ExecutionOperationalQuery queryService, DispatchRequestService service, DispatchProperties properties, DispatchRuntimeConfigurationView runtimeConfiguration, DispatchExecutionService executionService, DispatchAttemptHistoryService attemptHistoryService) {
         this.queryService = queryService;
         this.service = service;
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
         this.executionService = executionService;
         this.attemptHistoryService = attemptHistoryService;
     }
@@ -163,26 +166,34 @@ public class DispatchRequestController {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("store", queryService.dispatchStoreMode());
         metadata.put("requestCreationEnabled", properties.isRequestCreationEnabled());
-        metadata.put("reviewMode", properties.getReviewMode().name());
-        metadata.put("executionPolicy", properties.getExecutionPolicy().name());
-        metadata.put("sourceNodeId", properties.getSourceNodeId());
-        metadata.put("gatewayDispatchPath", properties.getGatewayDispatchPath());
-        metadata.put("requireAssignableAgent", properties.isRequireAssignableAgent());
-        metadata.put("retryEnabled", properties.getRetry().isEnabled());
-        metadata.put("retryMaxAttempts", properties.getRetry().getMaxAttempts());
-        metadata.put("retryInitialBackoff", properties.getRetry().getInitialBackoff().toString());
-        metadata.put("retryMaxBackoff", properties.getRetry().getMaxBackoff().toString());
-        metadata.put("retryJitterPercent", properties.getRetry().getJitterPercent());
-        metadata.put("runtimeBackoffJitterPercent", properties.getFailureRequeue().getRuntimeJitterPercent());
-        metadata.put("poisonAgentFailureThreshold", properties.getFailureRequeue().getPoisonAgentFailureThreshold());
+        metadata.put("reviewMode", runtimeConfiguration.reviewMode().name());
+        metadata.put("executionPolicy", runtimeConfiguration.executionPolicy().name());
+        metadata.put("sourceNodeId", runtimeConfiguration.sourceNodeId());
+        metadata.put("gatewayDispatchPath", runtimeConfiguration.gatewayDispatchPath());
+        metadata.put("requireAssignableAgent", runtimeConfiguration.requireAssignableAgent());
+        metadata.put("retryEnabled", runtimeConfiguration.retryEnabled());
+        metadata.put("retryMaxAttempts", runtimeConfiguration.maxAttempts());
+        metadata.put("retryInitialBackoff", runtimeConfiguration.initialBackoff().toString());
+        metadata.put("retryMaxBackoff", runtimeConfiguration.maxBackoff().toString());
+        metadata.put("retryJitterPercent", runtimeConfiguration.jitterPercent());
+        metadata.put("runtimeBackoffJitterPercent", runtimeConfiguration.runtimeJitterPercent());
+        metadata.put("poisonAgentFailureThreshold", runtimeConfiguration.poisonAgentFailureThreshold());
+        metadata.put("runtimeConfigBacked", runtimeConfiguration.runtimeBacked());
+        metadata.put("runtimeConfigRevision", runtimeConfiguration.revisionId());
         metadata.put("dispatchClientEnabled", properties.getClient().isEnabled());
         metadata.put("autoExecuteApproved", properties.getClient().isAutoExecuteApproved());
-        metadata.put("autoExecutionActive", properties.getClient().isEnabled() && properties.getExecutionPolicy().autoExecutes());
-        metadata.put("dispatchClientBlocked", !properties.getClient().isEnabled() || !properties.getExecutionPolicy().autoExecutes());
-        metadata.put("defaultGatewayBaseUrl", properties.getClient().getDefaultGatewayBaseUrl());
-        metadata.put("gatewayBaseUrls", properties.getClient().getGatewayBaseUrls());
+        metadata.put("autoExecutionActive", properties.getClient().isEnabled() && runtimeConfiguration.executionPolicy().autoExecutes());
+        metadata.put("dispatchClientBlocked", !properties.getClient().isEnabled() || !runtimeConfiguration.executionPolicy().autoExecutes());
+        metadata.put("defaultGatewayBaseUrl", runtimeConfiguration.defaultGatewayBaseUrl());
+        metadata.put("gatewayBaseUrls", runtimeConfiguration.gatewayBaseUrls());
         metadata.put("internalTokenHeader", properties.getClient().getInternalTokenHeader());
-        metadata.put("maxBatchSize", properties.getClient().getMaxBatchSize());
+        metadata.put("maxBatchSize", runtimeConfiguration.maxBatchSize());
+        metadata.put("autoExecuteIntervalMs", runtimeConfiguration.autoExecuteInterval().toMillis());
+        metadata.put("connectTimeout", runtimeConfiguration.connectTimeout().toString());
+        metadata.put("requestTimeout", runtimeConfiguration.requestTimeout().toString());
+        metadata.put("claimLease", runtimeConfiguration.claimLease().toString());
+        metadata.put("workerId", runtimeConfiguration.workerId());
+        metadata.put("effectiveSource", runtimeConfiguration.runtimeBacked() ? "RUNTIME_SNAPSHOT" : "STARTUP_FALLBACK");
         return metadata;
     }
 }

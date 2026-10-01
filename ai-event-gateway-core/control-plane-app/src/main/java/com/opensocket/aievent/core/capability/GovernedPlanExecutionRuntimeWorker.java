@@ -10,8 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import com.opensocket.aievent.core.capability.runtime.A2ADelegationRuntimeConfigurationView;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -25,24 +25,23 @@ public class GovernedPlanExecutionRuntimeWorker {
     private final GovernedPlanExecutionService plans;
     private final TransactionTemplate transactions;
     private final String workerId;
-    private final int batchSize;
+    private final A2ADelegationRuntimeConfigurationView runtimeConfiguration;
 
     public GovernedPlanExecutionRuntimeWorker(
             JdbcTemplate plain,
             NamedParameterJdbcTemplate jdbc,
             GovernedPlanExecutionService plans,
             PlatformTransactionManager transactionManager,
-            @Value("${opendispatch.plan-runtime.worker-id:plan-runtime-worker}") String workerId,
-            @Value("${opendispatch.plan-runtime.batch-size:20}") int batchSize) {
+            A2ADelegationRuntimeConfigurationView runtimeConfiguration,
+            @Value("${opendispatch.plan-runtime.worker-id:plan-runtime-worker}") String workerId) {
         this.plain = plain;
         this.jdbc = jdbc;
         this.plans = plans;
         this.transactions = new TransactionTemplate(transactionManager);
         this.workerId = workerId;
-        this.batchSize = Math.max(1, Math.min(batchSize, 100));
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
-    @Scheduled(fixedDelayString = "${opendispatch.plan-runtime.poll-ms:1500}")
     public void run() {
         for (String tenant : plain.queryForList(
                 "select tenant_id from tenants where status='ACTIVE' order by tenant_id", String.class)) {
@@ -107,7 +106,7 @@ public class GovernedPlanExecutionRuntimeWorker {
                         .addValue("worker", workerId)
                         .addValue("until", until)
                         .addValue("now", now)
-                        .addValue("limit", batchSize),
+                        .addValue("limit", runtimeConfiguration.planRuntimeBatchSize()),
                 (rs, n) -> new Item(rs.getString(1), rs.getString(2), rs.getInt(3)));
     }
 

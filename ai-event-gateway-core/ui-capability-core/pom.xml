@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.opensocket</groupId><artifactId>control-plane-parent</artifactId>
-    <version>0.8.2-SNAPSHOT</version><relativePath>../pom.xml</relativePath>
+    <version>0.9.3-SNAPSHOT</version><relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>ui-capability-core</artifactId>
   <name>ui-capability-core</name>

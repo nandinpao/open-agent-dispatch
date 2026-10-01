@@ -13,6 +13,7 @@ import com.opensocket.aievent.core.dedup.DedupState;
 import com.opensocket.aievent.core.dedup.DedupStateStore;
 import com.opensocket.aievent.core.dedup.InMemoryDedupStateStore;
 import com.opensocket.aievent.core.dedup.cache.DedupStateCache;
+import com.opensocket.aievent.core.dedup.cache.NoopDedupStateCache;
 import com.opensocket.aievent.core.dedup.snapshot.DedupStateSnapshotRepository;
 import com.opensocket.aievent.core.dedup.snapshot.NoopDedupStateSnapshotRepository;
 import com.opensocket.aievent.core.event.EventIntakeRequest;
@@ -33,11 +34,12 @@ class DefaultEventProcessingFacadeTest {
                 new FingerprintGenerator(),
                 new InMemoryDedupStateStore(),
                 new NoopDedupStateSnapshotRepository(),
+                new NoopDedupStateCache(),
                 new DefaultIncidentFacade(
                         new IncidentManager(incidents),
                         incidents,
                         new InMemoryIncidentOccurrenceSummaryRepository()),
-                new EventProcessingProperties());
+                new EventDecisionRuntimeConfigurationView(new EventProcessingProperties()));
 
         EventProcessingResult first = facade.process(request("Order SO202606110001 failed at 10:01:00"));
         EventProcessingResult second = facade.process(request("Order SO202606110999 failed at 10:02:00"));
@@ -60,11 +62,12 @@ class DefaultEventProcessingFacadeTest {
                 new FingerprintGenerator(),
                 dedup,
                 snapshots,
+                new NoopDedupStateCache(),
                 new DefaultIncidentFacade(
                         new IncidentManager(incidents),
                         incidents,
                         new InMemoryIncidentOccurrenceSummaryRepository()),
-                new EventProcessingProperties());
+                new EventDecisionRuntimeConfigurationView(new EventProcessingProperties()));
 
         TransactionSynchronizationManager.initSynchronization();
         try {
@@ -98,7 +101,7 @@ class DefaultEventProcessingFacadeTest {
                         new IncidentManager(incidents),
                         incidents,
                         new InMemoryIncidentOccurrenceSummaryRepository()),
-                new EventProcessingProperties());
+                new EventDecisionRuntimeConfigurationView(new EventProcessingProperties()));
 
         TransactionSynchronizationManager.initSynchronization();
         try {

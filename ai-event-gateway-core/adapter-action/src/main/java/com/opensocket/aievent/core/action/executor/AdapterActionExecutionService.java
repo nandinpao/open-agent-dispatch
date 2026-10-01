@@ -37,12 +37,17 @@ public class AdapterActionExecutionService {
     private final AdapterExecutorAuditService auditService;
     private final IncidentFacade incidentFacade;
     private final AdapterExecutionAuthorityPolicy authorityPolicy;
+    @Autowired(required = false)
+    private AdapterExecutionAuthorityPolicy runtimeAuthorityPolicy;
 
     @Autowired(required = false)
     private TaskIssueLinkRepository taskIssueLinkRepository = TaskIssueLinkRepository.noop();
 
     @Autowired(required = false)
     private IssueProviderExecutionResultRepository issueProviderResultRepository = IssueProviderExecutionResultRepository.noop();
+
+    @Autowired(required = false)
+    private AdapterExecutorRuntimeConfigurationView runtimeConfigurationView;
 
     @Autowired
     public AdapterActionExecutionService(AdapterActionRepository repository,
@@ -65,9 +70,9 @@ public class AdapterActionExecutionService {
                 properties.getIssue().getExecutionAuthority(),
                 properties.getIssue().isAutoExecutePending(),
                 properties.getIssue().isConnectorRuntimeEnabled(),
-                properties.getIssue().isLinkProjectionReconciliationEnabled(),
-                properties.getIssue().getLinkProjectionMaxAttempts(),
-                properties.getBatchSize(),
+                runtimeIssueLinkProjectionReconciliationEnabled(),
+                runtimeIssueLinkProjectionMaxAttempts(),
+                runtimeBatchSize(),
                 this.executors.size(),
                 properties.getMock().isEnabled(),
                 properties.getIssue().getDefaultVendor());
@@ -101,18 +106,18 @@ public class AdapterActionExecutionService {
 
     public boolean hasAutoExecutableAuthority() {
         for (AdapterType adapterType : AdapterType.values()) {
-            if (authorityPolicy.shouldAutoExecuteInCore(adapterType)) return true;
+            if (effectiveAuthorityPolicy().shouldAutoExecuteInCore(adapterType)) return true;
         }
         return false;
     }
 
     private AdapterActionExecutionSummary executePending(int limit, boolean autoOnly) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        int effectiveLimit = Math.max(1, Math.min(limit, properties.getBatchSize()));
+        int effectiveLimit = Math.max(1, Math.min(limit, runtimeBatchSize()));
         List<AdapterAction> pending = new ArrayList<>();
         for (AdapterType adapterType : AdapterType.values()) {
-            if (!authorityPolicy.canCoreExecute(adapterType)) continue;
-            if (autoOnly && !authorityPolicy.shouldAutoExecuteInCore(adapterType)) continue;
+            if (!effectiveAuthorityPolicy().canCoreExecute(adapterType)) continue;
+            if (autoOnly && !effectiveAuthorityPolicy().shouldAutoExecuteInCore(adapterType)) continue;
             pending.addAll(repository.findExecutablePendingByAdapterType(adapterType, now, effectiveLimit));
         }
         pending = pending.stream()
@@ -121,7 +126,7 @@ public class AdapterActionExecutionService {
                 .toList();
         log.info("adapter_action_execute_pending_scan requestedLimit={} effectiveBatchSize={} autoOnly={} claimableCount={} issueAuthority={} mcpAuthority={}",
                 limit, effectiveLimit, autoOnly, pending.size(),
-                authorityPolicy.authorityFor(AdapterType.ISSUE_TRACKING), authorityPolicy.authorityFor(AdapterType.MCP));
+                effectiveAuthorityPolicy().authorityFor(AdapterType.ISSUE_TRACKING), effectiveAuthorityPolicy().authorityFor(AdapterType.MCP));
         AdapterActionExecutionSummary summary = new AdapterActionExecutionSummary();
         summary.setRequested(pending.size());
         List<AdapterAction> processed = new ArrayList<>();
@@ -251,14 +256,14 @@ public class AdapterActionExecutionService {
     private AdapterAction executeAction(AdapterAction action) {
         log.info("adapter_action_execution_started actionId={} taskId={} incidentId={} adapterType={} actionType={} status={} attemptCount={}",
                 action.getActionId(), action.getTaskId(), action.getIncidentId(), action.getAdapterType(), action.getActionType(), action.getStatus(), action.getAttemptCount());
-        if (!authorityPolicy.canCoreExecute(action.getAdapterType())) {
-            AdapterExecutionAuthority authority = authorityPolicy.authorityFor(action.getAdapterType());
+        if (!effectiveAuthorityPolicy().canCoreExecute(action.getAdapterType())) {
+            AdapterExecutionAuthority authority = effectiveAuthorityPolicy().authorityFor(action.getAdapterType());
             log.warn("adapter_action_execution_skipped actionId={} taskId={} adapterType={} authority={} reason={}",
                     action.getActionId(), action.getTaskId(), action.getAdapterType(), authority,
                     action.getAdapterType() == AdapterType.ISSUE_TRACKING
                             ? AdapterExecutionAuthorityPolicy.ISSUE_EXECUTOR_NOT_AVAILABLE
                             : AdapterExecutionAuthorityPolicy.CORE_EXECUTION_NOT_AUTHORIZED);
-            authorityPolicy.requireCoreExecution(action.getAdapterType());
+            effectiveAuthorityPolicy().requireCoreExecution(action.getAdapterType());
         }
         if (action.getStatus() != AdapterActionStatus.PENDING && action.getStatus() != AdapterActionStatus.RETRY_WAITING && action.getStatus() != AdapterActionStatus.EXECUTOR_UNAVAILABLE) {
             throw new IllegalStateException("Adapter action must be executable to execute: " + action.getActionId() + " status=" + action.getStatus());
@@ -287,7 +292,7 @@ public class AdapterActionExecutionService {
         action.setExecutingAt(now);
         action.setUpdatedAt(now);
         action.setAttemptCount(action.getAttemptCount() + 1);
-        action.setMaxAttempts(properties.getMaxAttempts());
+        action.setMaxAttempts(runtimeMaxAttempts());
         action.setExecutorName(executor.name());
         action = repository.save(action);
         recordIssueReadModel(action, null, now);
@@ -300,11 +305,11 @@ public class AdapterActionExecutionService {
             long start = System.nanoTime();
             result = executor.execute(action);
             long elapsedMs = Duration.ofNanos(System.nanoTime() - start).toMillis();
-            if (elapsedMs > properties.getExecutionTimeout().toMillis()) {
+            if (elapsedMs > runtimeExecutionTimeout().toMillis()) {
                 // The executor already returned a concrete provider result. Do not overwrite a known
                 // outcome with a synthetic timeout and accidentally make a mutating operation retryable.
                 log.warn("adapter_action_executor_slow_result actionId={} taskId={} executor={} elapsedMs={} configuredTimeoutMs={} outcome={} providerOutcomeCertainty={}",
-                        action.getActionId(), action.getTaskId(), executor.name(), elapsedMs, properties.getExecutionTimeout().toMillis(),
+                        action.getActionId(), action.getTaskId(), executor.name(), elapsedMs, runtimeExecutionTimeout().toMillis(),
                         result == null ? null : result.getOutcome(), result == null ? null : result.getProviderOutcomeCertainty());
             }
         } catch (AdapterExecutorUnavailableException ex) {
@@ -447,7 +452,7 @@ public class AdapterActionExecutionService {
             return new ProviderEvidenceObservation(result, null);
         }
         IssueProviderExecutionResult evidence = IssueProviderExecutionResult.observed(
-                action, result, observedAt, properties.getIssue().getLinkProjectionMaxAttempts());
+                action, result, observedAt, runtimeIssueLinkProjectionMaxAttempts());
         evidence.setNextProjectionAttemptAt(observedAt.plus(properties.getIssue().getLinkProjectionReconciliationDelay()));
         if (evidence.getTenantId() == null || evidence.getTenantId().isBlank()) {
             log.warn("issue_provider_result_not_persisted actionId={} taskId={} attemptNo={} reason=TENANT_ID_MISSING",
@@ -491,7 +496,7 @@ public class AdapterActionExecutionService {
         if (action == null || result == null || action.getAdapterType() != AdapterType.ISSUE_TRACKING) return null;
         try {
             IssueProviderExecutionResult evidence = IssueProviderExecutionResult.reconciled(
-                    action, result, observationKind, observedAt, properties.getIssue().getLinkProjectionMaxAttempts());
+                    action, result, observationKind, observedAt, runtimeIssueLinkProjectionMaxAttempts());
             evidence.setNextProjectionAttemptAt(observedAt.plus(properties.getIssue().getLinkProjectionReconciliationDelay()));
             if (notApplied) {
                 evidence.setDisposition(IssueProviderExecutionDisposition.CONFIRMED_FAILURE);
@@ -522,8 +527,8 @@ public class AdapterActionExecutionService {
      * a newer provider attempt exists, preventing stale failure evidence from overwriting success.
      */
     public int reconcileIssueLinkProjections(int requestedLimit) {
-        if (!properties.getIssue().isLinkProjectionReconciliationEnabled()) return 0;
-        int limit = Math.max(1, Math.min(requestedLimit, properties.getIssue().getLinkProjectionBatchSize()));
+        if (!runtimeIssueLinkProjectionReconciliationEnabled()) return 0;
+        int limit = Math.max(1, Math.min(requestedLimit, runtimeIssueLinkProjectionBatchSize()));
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         List<IssueProviderExecutionResult> due = issueProviderResultRepository.findProjectionDue(now, limit);
         int projected = 0;
@@ -694,8 +699,8 @@ public class AdapterActionExecutionService {
     }
 
     private Duration issueProjectionBackoff(int attempt) {
-        long initial = Math.max(1, properties.getIssue().getLinkProjectionInitialBackoff().toMillis());
-        long max = Math.max(initial, properties.getIssue().getLinkProjectionMaxBackoff().toMillis());
+        long initial = Math.max(1, runtimeIssueLinkProjectionInitialBackoff().toMillis());
+        long max = Math.max(initial, runtimeIssueLinkProjectionMaxBackoff().toMillis());
         long multiplier = 1L << Math.max(0, Math.min(attempt - 1, 20));
         return Duration.ofMillis(Math.min(initial * multiplier, max));
     }
@@ -843,8 +848,8 @@ public class AdapterActionExecutionService {
         action.setUpdatedAt(now);
         action.setLastError(error);
         action.setAttemptCount(action.getAttemptCount() + 1);
-        action.setMaxAttempts(properties.getMaxAttempts());
-        if (properties.isMarkUnavailableWhenNoExecutor() && action.getAttemptCount() < properties.getMaxAttempts()) {
+        action.setMaxAttempts(runtimeMaxAttempts());
+        if (runtimeMarkUnavailableWhenNoExecutor() && action.getAttemptCount() < runtimeMaxAttempts()) {
             action.setStatus(AdapterActionStatus.EXECUTOR_UNAVAILABLE);
             action.setExecutorUnavailableAt(now);
             action.setNextAttemptAt(now.plus(backoff(action.getAttemptCount())));
@@ -867,7 +872,7 @@ public class AdapterActionExecutionService {
             action.setNextAttemptAt(null);
             return repository.save(action);
         }
-        if (action.getAttemptCount() < properties.getMaxAttempts()) {
+        if (action.getAttemptCount() < runtimeMaxAttempts()) {
             if (result.getOutcome() == AdapterExecutionOutcome.EXECUTOR_UNAVAILABLE) {
                 action.setStatus(AdapterActionStatus.EXECUTOR_UNAVAILABLE);
                 action.setExecutorUnavailableAt(finishedAt);
@@ -897,10 +902,23 @@ public class AdapterActionExecutionService {
     }
 
     private Duration backoff(int attemptCount) {
-        long initial = Math.max(1, properties.getInitialBackoff().toMillis());
-        long max = Math.max(initial, properties.getMaxBackoff().toMillis());
+        long initial = Math.max(1, runtimeInitialBackoff().toMillis());
+        long max = Math.max(initial, runtimeMaxBackoff().toMillis());
         long multiplier = 1L << Math.max(0, Math.min(attemptCount - 1, 20));
         long calculated = initial * multiplier;
         return Duration.ofMillis(Math.min(calculated, max));
     }
+    private AdapterExecutionAuthorityPolicy effectiveAuthorityPolicy(){return runtimeAuthorityPolicy==null?authorityPolicy:runtimeAuthorityPolicy;}
+    private boolean runtimeMarkUnavailableWhenNoExecutor(){return runtimeConfigurationView==null?properties.isMarkUnavailableWhenNoExecutor():runtimeConfigurationView.markUnavailableWhenNoExecutor();}
+    private boolean runtimeIssueLinkProjectionReconciliationEnabled(){return runtimeConfigurationView==null?properties.getIssue().isLinkProjectionReconciliationEnabled():runtimeConfigurationView.issueLinkProjectionReconciliationEnabled();}
+    private int runtimeIssueLinkProjectionBatchSize(){return runtimeConfigurationView==null?properties.getIssue().getLinkProjectionBatchSize():runtimeConfigurationView.issueLinkProjectionBatchSize();}
+    private int runtimeIssueLinkProjectionMaxAttempts(){return runtimeConfigurationView==null?properties.getIssue().getLinkProjectionMaxAttempts():runtimeConfigurationView.issueLinkProjectionMaxAttempts();}
+    private Duration runtimeIssueLinkProjectionInitialBackoff(){return runtimeConfigurationView==null?properties.getIssue().getLinkProjectionInitialBackoff():runtimeConfigurationView.issueLinkProjectionInitialBackoff();}
+    private Duration runtimeIssueLinkProjectionMaxBackoff(){return runtimeConfigurationView==null?properties.getIssue().getLinkProjectionMaxBackoff():runtimeConfigurationView.issueLinkProjectionMaxBackoff();}
+    private int runtimeBatchSize(){return runtimeConfigurationView==null?properties.getBatchSize():runtimeConfigurationView.batchSize();}
+    private Duration runtimeExecutionTimeout(){return runtimeConfigurationView==null?properties.getExecutionTimeout():runtimeConfigurationView.executionTimeout();}
+    private Duration runtimeInitialBackoff(){return runtimeConfigurationView==null?properties.getInitialBackoff():runtimeConfigurationView.initialBackoff();}
+    private int runtimeMaxAttempts(){return runtimeConfigurationView==null?properties.getMaxAttempts():runtimeConfigurationView.maxAttempts();}
+    private Duration runtimeMaxBackoff(){return runtimeConfigurationView==null?properties.getMaxBackoff():runtimeConfigurationView.maxBackoff();}
+
 }

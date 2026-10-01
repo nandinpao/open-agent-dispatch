@@ -1,6 +1,7 @@
 package com.opensocket.aievent.gateway.netty.cluster.sync;
 
 import com.opensocket.aievent.gateway.netty.config.ClusterSyncProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -19,11 +20,21 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class ClusterRemoteStateRegistry {
 
-    private final ClusterSyncProperties clusterSyncProperties;
+    private final ClusterSyncRuntimeConfigurationView runtimeConfiguration;
     private final Map<String, RemoteClusterStateSnapshot> remoteStates = new ConcurrentHashMap<>();
 
+    @Autowired
+    public ClusterRemoteStateRegistry(
+            ClusterSyncProperties clusterSyncProperties,
+            ClusterSyncRuntimeConfigurationView runtimeConfiguration) {
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new ClusterSyncRuntimeConfigurationView(clusterSyncProperties)
+                : runtimeConfiguration;
+    }
+
+    /** Backward-compatible constructor retained for focused tests. */
     public ClusterRemoteStateRegistry(ClusterSyncProperties clusterSyncProperties) {
-        this.clusterSyncProperties = clusterSyncProperties;
+        this(clusterSyncProperties, new ClusterSyncRuntimeConfigurationView(clusterSyncProperties));
     }
 
     public RemoteClusterStateSnapshot upsertSuccess(ClusterStateSnapshotResponse state) {
@@ -85,7 +96,7 @@ public class ClusterRemoteStateRegistry {
                 continue;
             }
             var age = Duration.between(state.lastSyncAt(), now).toMillis();
-            if (age > clusterSyncProperties.safeRemoteStateTtlMs()) {
+            if (age > runtimeConfiguration.remoteStateTtlMs()) {
                 remoteStates.put(entry.getKey(), state.markStale(now));
             }
         }

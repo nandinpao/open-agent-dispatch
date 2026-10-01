@@ -41,6 +41,7 @@ public class AgentLifecycleService {
 
     private final AgentRegistry agentRegistry;
     private final AgentProperties agentProperties;
+    private final AgentRuntimeConfigurationView runtimeConfiguration;
     private final AdminEventPublisher adminBroadcaster;
     private final CoreDirectorySyncPublisher directorySyncPublisher;
     private final AgentConnectionAuthorizationClient authorizationClient;
@@ -54,6 +55,7 @@ public class AgentLifecycleService {
     public AgentLifecycleService(
             AgentRegistry agentRegistry,
             AgentProperties agentProperties,
+            AgentRuntimeConfigurationView runtimeConfiguration,
             AdminEventPublisher adminBroadcaster,
             CoreDirectorySyncPublisher directorySyncPublisher,
             AgentConnectionAuthorizationClient authorizationClient,
@@ -62,6 +64,7 @@ public class AgentLifecycleService {
     ) {
         this.agentRegistry = agentRegistry;
         this.agentProperties = agentProperties;
+        this.runtimeConfiguration = runtimeConfiguration == null ? new AgentRuntimeConfigurationView(agentProperties) : runtimeConfiguration;
         this.adminBroadcaster = adminBroadcaster;
         this.directorySyncPublisher = directorySyncPublisher == null ? CoreDirectorySyncPublisher.noop() : directorySyncPublisher;
         this.authorizationClient = authorizationClient == null ? request -> com.opensocket.aievent.gateway.netty.authorization.AgentConnectionAuthorizationResponse.allow(request.agentId()) : authorizationClient;
@@ -75,7 +78,22 @@ public class AgentLifecycleService {
             AgentProperties agentProperties,
             AdminEventPublisher adminBroadcaster
     ) {
-        this(agentRegistry, agentProperties, adminBroadcaster, CoreDirectorySyncPublisher.noop(), null, null, AgentSecurityEventPublisher.noop());
+        this(agentRegistry, agentProperties, new AgentRuntimeConfigurationView(agentProperties), adminBroadcaster,
+                CoreDirectorySyncPublisher.noop(), null, null, AgentSecurityEventPublisher.noop());
+    }
+
+    /** Backward-compatible constructor retained for tests that provide governance collaborators. */
+    public AgentLifecycleService(
+            AgentRegistry agentRegistry,
+            AgentProperties agentProperties,
+            AdminEventPublisher adminBroadcaster,
+            CoreDirectorySyncPublisher directorySyncPublisher,
+            AgentConnectionAuthorizationClient authorizationClient,
+            AgentAuthorizationRuntimeRegistry authorizationRuntimeRegistry,
+            AgentSecurityEventPublisher securityEventPublisher
+    ) {
+        this(agentRegistry, agentProperties, new AgentRuntimeConfigurationView(agentProperties), adminBroadcaster,
+                directorySyncPublisher, authorizationClient, authorizationRuntimeRegistry, securityEventPublisher);
     }
 
     /**
@@ -298,7 +316,7 @@ public class AgentLifecycleService {
      * transport observation only; task recovery belongs to the future Core / Control Plane.
      */
     public int markTimeoutAgents() {
-        var timeout = Duration.ofSeconds(agentProperties.heartbeatTimeoutSeconds());
+        var timeout = runtimeConfiguration.heartbeatTimeout();
         var timedOutAgents = agentRegistry.markTimeouts(timeout);
         for (AgentSnapshot agent : timedOutAgents) {
             adminBroadcaster.broadcast(

@@ -70,7 +70,7 @@ export function TaskIssueOperationalSummary({
       : diagnosisStage?.stage === 'PROVIDER' || diagnosisStage?.stage === 'RESULT'
         ? '/source-systems'
         : diagnosisStage?.stage === 'POLICY' || diagnosisStage?.stage === 'ACTION'
-          ? '/dispatch'
+          ? '/dispatch-flows'
           : '/operations/integration-sync';
   const remediationLabel = diagnosisStage?.stage === 'BINDING'
     ? 'Open Source System setup'

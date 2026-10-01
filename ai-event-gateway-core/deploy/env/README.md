@@ -1,5 +1,8 @@
 # ai-event-gateway-core env layout
 
+> V40 environment identity: deployment templates MUST declare `OPENDISPATCH_ENVIRONMENT` as one of `PRD`, `UAT`, `SIT`, `QA`, `DEV`, or `LOCAL`. Spring profiles such as `docker`, `hybrid-worker`, `enforce`, `postgres`, and `redis` are auxiliary profiles and MUST NOT be interpreted as environment identity.
+
+
 Runtime env files are organized by environment, not by historical phase.
 
 ```text

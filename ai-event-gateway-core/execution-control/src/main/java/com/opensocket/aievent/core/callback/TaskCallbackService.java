@@ -47,6 +47,7 @@ public class TaskCallbackService {
     private final TaskCallbackRepository callbackRepository;
     private final DispatchRequestRepository dispatchRepository;
     private final TaskCallbackProperties properties;
+    private final TaskCallbackRuntimeConfigurationView runtimeConfiguration;
     private final TaskTerminalActionPort terminalActionPort;
     private final ModuleEventPublisher eventPublisher;
     private final boolean eventDrivenTerminalFlow;
@@ -73,7 +74,7 @@ public class TaskCallbackService {
                                TaskOrchestrationFacade taskOrchestrationFacade,
                                TaskCallbackProperties properties,
                                TaskTerminalActionPort terminalActionPort) {
-        this(callbackRepository, dispatchRepository, taskOrchestrationFacade, properties,
+        this(callbackRepository, dispatchRepository, taskOrchestrationFacade, properties, null,
                 terminalActionPort, ModuleEventPublisher.noop(), false, ExecutionMetricsPort.noop());
     }
 
@@ -82,9 +83,10 @@ public class TaskCallbackService {
                                DispatchRequestRepository dispatchRepository,
                                TaskOrchestrationFacade taskOrchestrationFacade,
                                TaskCallbackProperties properties,
+                               TaskCallbackRuntimeConfigurationView runtimeConfiguration,
                                ObjectProvider<ModuleEventPublisher> eventPublisherProvider,
                                ObjectProvider<ExecutionMetricsPort> metricsProvider) {
-        this(callbackRepository, dispatchRepository, taskOrchestrationFacade, properties,
+        this(callbackRepository, dispatchRepository, taskOrchestrationFacade, properties, runtimeConfiguration,
                 TaskTerminalActionPort.noop(),
                 eventPublisherProvider.getIfAvailable(ModuleEventPublisher::noop),
                 true,
@@ -95,6 +97,7 @@ public class TaskCallbackService {
                                 DispatchRequestRepository dispatchRepository,
                                 TaskOrchestrationFacade taskOrchestrationFacade,
                                 TaskCallbackProperties properties,
+                                TaskCallbackRuntimeConfigurationView runtimeConfiguration,
                                 TaskTerminalActionPort terminalActionPort,
                                 ModuleEventPublisher eventPublisher,
                                 boolean eventDrivenTerminalFlow,
@@ -103,11 +106,12 @@ public class TaskCallbackService {
         this.dispatchRepository = dispatchRepository;
         this.taskOrchestrationFacade = taskOrchestrationFacade;
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
         this.terminalActionPort = terminalActionPort == null ? TaskTerminalActionPort.noop() : terminalActionPort;
         this.eventPublisher = eventPublisher == null ? ModuleEventPublisher.noop() : eventPublisher;
         this.eventDrivenTerminalFlow = eventDrivenTerminalFlow;
         this.metrics = metrics == null ? ExecutionMetricsPort.noop() : metrics;
-        this.callbackIdentity = new TaskCallbackIdentity(properties);
+        this.callbackIdentity = new TaskCallbackIdentity(properties, runtimeConfiguration);
     }
 
     @Transactional
@@ -150,7 +154,7 @@ public class TaskCallbackService {
                 request.getAttemptNo(), callbackIdentity.idempotencyKey(type, request));
 
         TaskCallbackRecord record = recordFrom(type, request, now);
-        if (properties.isIdempotencyEnabled() && !callbackRepository.tryReserve(record)) {
+        if (runtimeIdempotencyEnabled() && !callbackRepository.tryReserve(record)) {
             TaskCallbackRecord previous = callbackRepository.findByCallbackId(callbackId).orElse(record);
             if (callbackIdentity.replayMismatch(record, previous)) {
                 if (previous.isAccepted() && isTerminalCallback(type)) {
@@ -182,7 +186,7 @@ public class TaskCallbackService {
                 taskId, type, callbackId, request.getDispatchRequestId(),
                 dispatchRequest == null ? null : dispatchRequest.getDispatchRequestId(),
                 dispatchRequest == null ? null : dispatchRequest.getStatus());
-        if (dispatchRequest == null && !properties.isAllowMissingDispatchRequestId()) {
+        if (dispatchRequest == null && !runtimeAllowMissingDispatchRequestId()) {
             return ignore(record, null, null, "MISSING_DISPATCH_REQUEST", "dispatchRequestId is required and no active dispatch could be resolved");
         }
 
@@ -210,7 +214,7 @@ public class TaskCallbackService {
         }
 
         String rejection = TaskCallbackAcceptancePolicy.validate(
-                type, request, dispatchRequest, task, properties, assignmentRepository, assignmentFencingTokenPolicy);
+                type, request, dispatchRequest, task, properties, runtimeConfiguration, assignmentRepository, assignmentFencingTokenPolicy);
         if (rejection == null) {
             rejection = validateAcceptanceGuards(type, request, dispatchRequest, task);
         }
@@ -391,11 +395,11 @@ public class TaskCallbackService {
     }
 
     public List<TaskCallbackRecord> recent(int limit) {
-        return callbackRepository.recent(Math.max(1, Math.min(limit, properties.getMaxRecent())));
+        return callbackRepository.recent(Math.max(1, Math.min(limit, runtimeMaxRecent())));
     }
 
     public List<TaskCallbackRecord> byTask(String taskId, int limit) {
-        return callbackRepository.findByTaskId(taskId, Math.max(1, Math.min(limit, properties.getMaxRecent())));
+        return callbackRepository.findByTaskId(taskId, Math.max(1, Math.min(limit, runtimeMaxRecent())));
     }
 
     private DispatchRequest resolveDispatchRequest(String taskId, TaskCallbackRequest request) {
@@ -780,6 +784,18 @@ public class TaskCallbackService {
 
     private boolean isTerminalCallback(TaskCallbackType type) {
         return type == TaskCallbackType.RESULT || type == TaskCallbackType.ERROR;
+    }
+
+    private boolean runtimeIdempotencyEnabled() {
+        return runtimeConfiguration == null ? properties.isIdempotencyEnabled() : runtimeConfiguration.idempotencyEnabled();
+    }
+
+    private boolean runtimeAllowMissingDispatchRequestId() {
+        return runtimeConfiguration == null ? properties.isAllowMissingDispatchRequestId() : runtimeConfiguration.allowMissingDispatchRequestId();
+    }
+
+    private int runtimeMaxRecent() {
+        return runtimeConfiguration == null ? properties.getMaxRecent() : runtimeConfiguration.maxRecent();
     }
 
     private String firstNonBlank(String... values) {

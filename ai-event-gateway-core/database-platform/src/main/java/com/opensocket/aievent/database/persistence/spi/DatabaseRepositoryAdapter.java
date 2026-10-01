@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 
 import org.springframework.stereotype.Repository;
 
-/** Marks a MyBatis implementation of a domain Repository port. */
+/** Marks an approved database persistence adapter implementing a domain repository/store port. */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented

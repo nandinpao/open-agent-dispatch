@@ -62,6 +62,9 @@ spring:
 # PC-S6 isolated scheduler topology and operational SLO telemetry. Defaults are conservative
 # starting points; runtime certification must tune them from observed saturation/backlog evidence.
 opendispatch:
+  # Canonical deployment identity for Runtime Configuration. Profiles are auxiliary, not environment authority.
+  environment: ${OPENDISPATCH_ENVIRONMENT:LOCAL}
+  environment-profile-validation-enabled: ${OPENDISPATCH_ENVIRONMENT_PROFILE_VALIDATION_ENABLED:false}
   operational:
     schedulers:
       dispatch:
@@ -80,6 +83,26 @@ opendispatch:
       dispatch-oldest-age-seconds: ${CORE_SLO_DISPATCH_OLDEST_AGE_SECONDS:30}
       reconciliation-oldest-age-seconds: ${CORE_SLO_RECONCILIATION_OLDEST_AGE_SECONDS:120}
       remote-tracking-oldest-age-seconds: ${CORE_SLO_REMOTE_TRACKING_OLDEST_AGE_SECONDS:30}
+  # V40-4 bootstrap-only distribution infrastructure; not Runtime Config authority.
+  runtime-configuration:
+    distribution:
+      enabled: ${OPENDISPATCH_RUNTIME_CONFIG_DISTRIBUTION_ENABLED:false}
+      hmac-key: ${OPENDISPATCH_CONFIG_SNAPSHOT_HMAC_KEY:}
+      redis-key-prefix: ${OPENDISPATCH_RUNTIME_CONFIG_REDIS_KEY_PREFIX:opendispatch:runtime-config}
+      redis-channel: ${OPENDISPATCH_RUNTIME_CONFIG_REDIS_CHANNEL:opendispatch:runtime-config:updates}
+      worker-id: ${OPENDISPATCH_RUNTIME_CONFIG_DISTRIBUTOR_ID:core-config-distributor}
+      core-node-id: ${OPENDISPATCH_CORE_NODE_ID:core}
+      core-node-instance-id: ${OPENDISPATCH_CORE_NODE_INSTANCE_ID:${HOSTNAME:core-local}}
+      batch-size: ${OPENDISPATCH_RUNTIME_CONFIG_DISTRIBUTION_BATCH_SIZE:50}
+      lease-seconds: ${OPENDISPATCH_RUNTIME_CONFIG_DISTRIBUTION_LEASE_SECONDS:30}
+      retry-seconds: ${OPENDISPATCH_RUNTIME_CONFIG_DISTRIBUTION_RETRY_SECONDS:10}
+      snapshot-ttl-seconds: ${OPENDISPATCH_RUNTIME_CONFIG_SNAPSHOT_TTL_SECONDS:300}
+      poll-ms: ${OPENDISPATCH_RUNTIME_CONFIG_DISTRIBUTION_POLL_MS:2000}
+      reconcile-ms: ${OPENDISPATCH_RUNTIME_CONFIG_RECONCILE_MS:5000}
+      required-targets: ${OPENDISPATCH_RUNTIME_CONFIG_REQUIRED_TARGETS:}
+      topology-reconcile-ms: ${OPENDISPATCH_RUNTIME_CONFIG_TOPOLOGY_RECONCILE_MS:10000}
+      node-stale-seconds: ${OPENDISPATCH_RUNTIME_CONFIG_NODE_STALE_SECONDS:90}
+      authority-contract-version: ${OPENDISPATCH_RUNTIME_CONFIG_AUTHORITY_CONTRACT_VERSION:2}
 
 runtime-capabilities:
   fail-fast: ${AEG_RUNTIME_CAPABILITIES_FAIL_FAST:true}
@@ -945,4 +968,3 @@ phase3:
     cross-provider-relay-certified: ${PHASE3_CROSS_PROVIDER_RELAY_CERTIFIED:false}
     evidence-ledger-persisted: ${PHASE3_EVIDENCE_LEDGER_PERSISTED:false}
     signed-evidence: ${PHASE3_SIGNED_EVIDENCE:false}
-

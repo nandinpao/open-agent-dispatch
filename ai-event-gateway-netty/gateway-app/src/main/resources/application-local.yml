@@ -1,8 +1,5 @@
 # Configuration notes: values here are safe defaults. Production and Docker deployments
 # should override ports, node identifiers, discovery mode, and security-related options by .env.
-gateway:
-  environment: local
-
 logging:
   level:
     root: INFO
@@ -16,3 +13,9 @@ admin:
   cors-allowed-origin-patterns: ${ADMIN_CORS_ALLOWED_ORIGIN_PATTERNS:http://*:[3000],http://*:[3001],https://*:[3000],https://*:[3001]}
   cors-allow-credentials: ${ADMIN_CORS_ALLOW_CREDENTIALS:false}
   cors-max-age-seconds: ${ADMIN_CORS_MAX_AGE_SECONDS:3600}
+
+# C3R3 pre-cutover LOCAL authority mode: Runtime Configuration is still DUAL_READ_MIGRATION.
+# Startup must remain available before any governed revision has been published.
+gateway:
+  runtime-configuration:
+    fail-closed-on-cold-start: false

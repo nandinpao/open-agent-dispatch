@@ -1,6 +1,6 @@
 {
   "name": "ai-event-gateway-admin-ui",
-  "version": "0.8.2-snapshot.0",
+  "version": "0.9.3-snapshot.0",
   "private": true,
   "scripts": {
     "verify:phase12": "python3 ../scripts/verify/verify-phase12-enterprise-release-hardening.py",
@@ -294,8 +294,8 @@
     "npm": ">=9.0.0"
   },
   "packageManager": "npm@10.9.0",
-  "opendispatchReleaseVersion": "0.8.2-SNAPSHOT",
-  "opendispatchReleaseLabel": "v39",
-  "opendispatchArtifactRevision": "V39_6C_FAILURE_SCENARIO_AUTOMATION",
-  "opendispatchArtifactName": "OpenDispatch_v39-6c-failure-scenario-automation.zip"
+  "opendispatchReleaseVersion": "0.9.3-SNAPSHOT",
+  "opendispatchReleaseLabel": "v41",
+  "opendispatchArtifactRevision": "V41_C3R3G_HF5_17_C3R2H_GOVERNANCE_LIFECYCLE_TRANSITION_CLOSURE",
+  "opendispatchArtifactName": "OpenDispatch_v41-C3R3G-HF5-17-c3r2h-governance-lifecycle-transition-closure.zip"
 }

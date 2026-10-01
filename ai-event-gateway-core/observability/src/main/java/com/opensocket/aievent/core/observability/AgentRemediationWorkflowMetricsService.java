@@ -22,10 +22,18 @@ import io.micrometer.core.instrument.Timer;
 public class AgentRemediationWorkflowMetricsService {
     private final MeterRegistry meterRegistry;
     private final ObservabilityProperties properties;
+    private final AgentRemediationMetricsRuntimeConfigurationView runtimeConfiguration;
+    private final CoreObservabilityRuntimeConfigurationView coreRuntimeConfiguration;
 
-    public AgentRemediationWorkflowMetricsService(MeterRegistry meterRegistry, ObservabilityProperties properties) {
+    public AgentRemediationWorkflowMetricsService(
+            MeterRegistry meterRegistry,
+            ObservabilityProperties properties,
+            AgentRemediationMetricsRuntimeConfigurationView runtimeConfiguration,
+            CoreObservabilityRuntimeConfigurationView coreRuntimeConfiguration) {
         this.meterRegistry = meterRegistry;
         this.properties = properties == null ? new ObservabilityProperties() : properties;
+        this.runtimeConfiguration = runtimeConfiguration;
+        this.coreRuntimeConfiguration = coreRuntimeConfiguration;
     }
 
     public void recordWorkflowCreated(String status, String severity, boolean approvalRequired, int actionCount) {
@@ -109,9 +117,13 @@ public class AgentRemediationWorkflowMetricsService {
     }
 
     private boolean enabled() {
-        return properties.isEnabled()
-                && properties.isBusinessMetricsEnabled()
-                && properties.getRemediationWorkflowMetrics().isEnabled();
+        boolean coreEnabled = coreRuntimeConfiguration == null ? properties.isEnabled() : coreRuntimeConfiguration.enabled();
+        boolean businessEnabled = coreRuntimeConfiguration == null ? properties.isBusinessMetricsEnabled() : coreRuntimeConfiguration.businessMetricsEnabled();
+        return coreEnabled
+                && businessEnabled
+                && (runtimeConfiguration == null
+                    ? properties.getRemediationWorkflowMetrics().isEnabled()
+                    : runtimeConfiguration.enabled());
     }
 
     private Counter counter(String name, Iterable<io.micrometer.core.instrument.Tag> tags) {

@@ -15,6 +15,7 @@ import com.opensocket.aievent.gateway.netty.delivery.CommandDeliveryRequest;
 import com.opensocket.aievent.gateway.netty.delivery.CommandDeliveryResponse;
 import com.opensocket.aievent.gateway.netty.delivery.CommandDeliveryService;
 import com.opensocket.aievent.gateway.netty.delivery.DeliveryStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -44,13 +45,36 @@ import java.util.UUID;
 public class ClusterDeliveryRouterService {
 
     private final GatewayProperties gatewayProperties;
-    private final DeliveryRouterProperties deliveryRouterProperties;
+    private final ClusterDeliveryRouterRuntimeConfigurationView runtimeConfiguration;
     private final AdminProperties adminProperties;
     private final AgentRegistry agentRegistry;
     private final ClusterRemoteStateRegistry clusterRemoteStateRegistry;
     private final CommandDeliveryService localDeliveryService;
     private final ObjectMapper objectMapper;
 
+    @Autowired
+    public ClusterDeliveryRouterService(
+            GatewayProperties gatewayProperties,
+            DeliveryRouterProperties deliveryRouterProperties,
+            ClusterDeliveryRouterRuntimeConfigurationView runtimeConfiguration,
+            AdminProperties adminProperties,
+            AgentRegistry agentRegistry,
+            ClusterRemoteStateRegistry clusterRemoteStateRegistry,
+            CommandDeliveryService localDeliveryService,
+            ObjectMapper objectMapper
+    ) {
+        this.gatewayProperties = gatewayProperties;
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new ClusterDeliveryRouterRuntimeConfigurationView(deliveryRouterProperties)
+                : runtimeConfiguration;
+        this.adminProperties = adminProperties;
+        this.agentRegistry = agentRegistry;
+        this.clusterRemoteStateRegistry = clusterRemoteStateRegistry;
+        this.localDeliveryService = localDeliveryService;
+        this.objectMapper = objectMapper;
+    }
+
+    /** Backward-compatible constructor retained for focused unit tests. */
     public ClusterDeliveryRouterService(
             GatewayProperties gatewayProperties,
             DeliveryRouterProperties deliveryRouterProperties,
@@ -60,13 +84,9 @@ public class ClusterDeliveryRouterService {
             CommandDeliveryService localDeliveryService,
             ObjectMapper objectMapper
     ) {
-        this.gatewayProperties = gatewayProperties;
-        this.deliveryRouterProperties = deliveryRouterProperties;
-        this.adminProperties = adminProperties;
-        this.agentRegistry = agentRegistry;
-        this.clusterRemoteStateRegistry = clusterRemoteStateRegistry;
-        this.localDeliveryService = localDeliveryService;
-        this.objectMapper = objectMapper;
+        this(gatewayProperties, deliveryRouterProperties,
+                new ClusterDeliveryRouterRuntimeConfigurationView(deliveryRouterProperties),
+                adminProperties, agentRegistry, clusterRemoteStateRegistry, localDeliveryService, objectMapper);
     }
 
     public CommandDeliveryResponse deliver(String agentId, CommandDeliveryRequest request) {
@@ -75,11 +95,11 @@ public class ClusterDeliveryRouterService {
         }
 
         var localAgent = agentRegistry.findById(agentId).filter(this::connected).orElse(null);
-        if (localAgent != null && deliveryRouterProperties.safePreferLocal()) {
+        if (localAgent != null && runtimeConfiguration.preferLocal()) {
             return localDeliveryService.deliverToAgent(agentId, request);
         }
 
-        if (!deliveryRouterProperties.enabled()) {
+        if (!runtimeConfiguration.enabled()) {
             return localDeliveryService.deliverToAgent(agentId, request);
         }
 
@@ -87,7 +107,7 @@ public class ClusterDeliveryRouterService {
         if (localAgent != null && remoteCandidates.isEmpty()) {
             return localDeliveryService.deliverToAgent(agentId, request);
         }
-        if (localAgent != null && !deliveryRouterProperties.safePreferLocal()) {
+        if (localAgent != null && !runtimeConfiguration.preferLocal()) {
             remoteCandidates.add(0, RemoteAgentRoute.local(localAgent, gatewayProperties.nodeId()));
         }
 
@@ -95,7 +115,7 @@ public class ClusterDeliveryRouterService {
             return failure(agentId, DeliveryStatus.AGENT_NOT_CONNECTED,
                     "Agent is not connected to any synced gateway node");
         }
-        if (deliveryRouterProperties.safeRejectDuplicateAgents() && remoteCandidates.size() > 1) {
+        if (runtimeConfiguration.rejectDuplicateAgents() && remoteCandidates.size() > 1) {
             return failure(agentId, DeliveryStatus.INVALID_COMMAND,
                     "Duplicate connected Agent detected across gateway nodes: " + candidateNodeIds(remoteCandidates));
         }
@@ -135,7 +155,7 @@ public class ClusterDeliveryRouterService {
         }
         try {
             var endpoint = target.adminEndpoint() + "/internal/delivery/agents/" + encodePathSegment(agentId) + "/commands";
-            var timeout = Duration.ofMillis(deliveryRouterProperties.safeRequestTimeoutMs());
+            var timeout = Duration.ofMillis(runtimeConfiguration.requestTimeoutMs());
             var body = objectMapper.writeValueAsString(request == null ? new CommandDeliveryRequest(null, null, Map.of(), null, "cluster-router") : request);
             var requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint))
@@ -168,7 +188,7 @@ public class ClusterDeliveryRouterService {
     private List<RemoteAgentRoute> remoteCandidates(String agentId) {
         var candidates = new ArrayList<RemoteAgentRoute>();
         for (var state : clusterRemoteStateRegistry.list()) {
-            if (deliveryRouterProperties.safeRequireSyncedRemoteState() && state.syncStatus() != ClusterNodeSyncStatus.SYNCED) {
+            if (runtimeConfiguration.requireSyncedRemoteState() && state.syncStatus() != ClusterNodeSyncStatus.SYNCED) {
                 continue;
             }
             if (state.agents() == null || state.node() == null || blank(state.node().host()) || state.node().adminPort() <= 0) {

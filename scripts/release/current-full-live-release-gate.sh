@@ -92,7 +92,7 @@ collect_evidence() {
     compose logs --no-color --tail=1000 netty > "${RUN_DIR}/logs/netty.log" 2>/dev/null || true
     compose logs --no-color --tail=1000 mock-agent > "${RUN_DIR}/logs/mock-agent.log" 2>/dev/null || true
     compose logs --no-color --tail=1000 admin-ui > "${RUN_DIR}/logs/admin-ui.log" 2>/dev/null || true
-    compose logs --no-color --tail=1000 core-db-migrate postgres > "${RUN_DIR}/logs/migration-postgres.log" 2>/dev/null || true
+    compose logs --no-color --tail=1000 core-db-role-bootstrap core-db-migrate postgres > "${RUN_DIR}/logs/migration-postgres.log" 2>/dev/null || true
     compose exec -T postgres sh -lc 'pg_dump -U "${POSTGRES_USER:-ai_event}" "${POSTGRES_DB:-ai_event_gateway}"' > "${RUN_DIR}/db/postgres-dump.sql" 2>"${RUN_DIR}/db/postgres-dump.err" || true
   fi
   if [[ -d "${CI_OUTPUT_DIR_FOR_STACK}/logs" ]]; then

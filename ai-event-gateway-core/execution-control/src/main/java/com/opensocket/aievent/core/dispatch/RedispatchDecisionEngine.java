@@ -3,6 +3,7 @@ package com.opensocket.aievent.core.dispatch;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Service;
 public class RedispatchDecisionEngine {
     private final DispatchProperties properties;
     private final TaskRetryBackoffPolicy backoffPolicy;
+    @Autowired(required = false)
+    private DispatchRuntimeConfigurationView runtimeConfigurationView;
 
     public RedispatchDecisionEngine(DispatchProperties properties, TaskRetryBackoffPolicy backoffPolicy) {
         this.properties = properties == null ? new DispatchProperties() : properties;
@@ -22,7 +25,7 @@ public class RedispatchDecisionEngine {
         OffsetDateTime at = now == null ? OffsetDateTime.now(ZoneOffset.UTC) : now;
         RedispatchFailureType type = failureType == null ? RedispatchFailureType.UNKNOWN : failureType;
         int nextAttempt = Math.max(1, currentAttemptNo + 1);
-        int maxAttempts = properties.getRetry().getMaxAttempts();
+        int maxAttempts = runtimeConfigurationView == null ? properties.getRetry().getMaxAttempts() : runtimeConfigurationView.maxAttempts();
         if (type == RedispatchFailureType.MAX_RETRY_EXCEEDED || nextAttempt > maxAttempts) {
             return new RedispatchDecision(RedispatchAction.DEAD_LETTER, type, false, false, nextAttempt, null,
                     "Max retry attempts exceeded; move task to dead letter");

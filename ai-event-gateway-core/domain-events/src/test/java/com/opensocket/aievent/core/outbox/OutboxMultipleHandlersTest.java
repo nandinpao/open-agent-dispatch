@@ -23,7 +23,8 @@ class OutboxMultipleHandlersTest {
 
         ModuleEventHandler<IncidentEscalatedEvent> first = handler(calls);
         ModuleEventHandler<IncidentEscalatedEvent> second = handler(calls);
-        OutboxEventDispatcher dispatcher = new OutboxEventDispatcher(repository, mapper, properties, List.of(first, second));
+        OutboxRuntimeConfigurationView runtime = OutboxRuntimeConfigurationTestFixtures.startupBacked(properties, mapper);
+        OutboxEventDispatcher dispatcher = new OutboxEventDispatcher(repository, mapper, runtime, List.of(first, second));
         TransactionalOutboxPublisher publisher = new TransactionalOutboxPublisher(repository, mapper);
 
         publisher.publish(new IncidentEscalatedEvent(

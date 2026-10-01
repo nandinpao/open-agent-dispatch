@@ -3,16 +3,14 @@ package com.opensocket.aievent.core.capability;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import com.opensocket.aievent.core.capability.runtime.A2ADelegationRuntimeConfigurationView;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 /** Stage 7 initial A2A SendMessage worker. C0-B6 canonicalizes peer errors before failure handling. */
 @Component
-@ConditionalOnProperty(name="opendispatch.a2a-read.enabled",havingValue="true",matchIfMissing=true)
 public class A2ARemoteReadExecutionWorker {
     private final JdbcTemplate jdbc;
     private final A2ARemoteReadExecutionQueueService queue;
@@ -26,16 +24,15 @@ public class A2ARemoteReadExecutionWorker {
     private final A2APeerErrorMappingService errors;
     private final A2AExternalF0SecurityService security;
     private final String workerId;
-    private final int batchSize;
+    private final A2ADelegationRuntimeConfigurationView runtimeConfiguration;
 
     public A2ARemoteReadExecutionWorker(JdbcTemplate jdbc,A2ARemoteReadExecutionQueueService queue,CapabilityRemoteExecutionSafetyService safety,A2AHttpJsonClient client,ObjectMapper json,
-            ProviderNeutralExecutionCompletionRouter completion,A2ARemoteTaskTrackingService tracking,A2ARemoteInterfaceRuntimeService interfaces,A2APushNotificationConfigurationService push,A2APeerErrorMappingService errors,A2AExternalF0SecurityService security,
-            @Value("${opendispatch.a2a-read.worker-id:a2a-read-worker}") String workerId,@Value("${opendispatch.a2a-read.batch-size:20}") int batchSize){
-        this.jdbc=jdbc;this.queue=queue;this.safety=safety;this.client=client;this.json=json;this.completion=completion;this.tracking=tracking;this.interfaces=interfaces;this.push=push;this.errors=errors;this.security=security;this.workerId=workerId;this.batchSize=Math.max(1,Math.min(batchSize,50));
+            ProviderNeutralExecutionCompletionRouter completion,A2ARemoteTaskTrackingService tracking,A2ARemoteInterfaceRuntimeService interfaces,A2APushNotificationConfigurationService push,A2APeerErrorMappingService errors,A2AExternalF0SecurityService security, A2ADelegationRuntimeConfigurationView runtimeConfiguration,
+            @Value("${opendispatch.a2a-read.worker-id:a2a-read-worker}") String workerId){
+        this.jdbc=jdbc;this.queue=queue;this.safety=safety;this.client=client;this.json=json;this.completion=completion;this.tracking=tracking;this.interfaces=interfaces;this.push=push;this.errors=errors;this.security=security;this.workerId=workerId;this.runtimeConfiguration=runtimeConfiguration;
     }
 
-    @Scheduled(fixedDelayString="${opendispatch.a2a-read.poll-ms:2000}", scheduler="a2aRemoteOperationalScheduler")
-    public void run(){for(String tenant:jdbc.queryForList("select tenant_id from tenants where status='ACTIVE' order by tenant_id",String.class)){for(A2ARemoteReadExecutionQueueService.Item item:queue.claimDue(tenant,workerId,batchSize))process(tenant,item);}}
+    public void run(){if(!runtimeConfiguration.readEnabled())return;int batchSize=runtimeConfiguration.readBatchSize();for(String tenant:jdbc.queryForList("select tenant_id from tenants where status='ACTIVE' order by tenant_id",String.class)){for(A2ARemoteReadExecutionQueueService.Item item:queue.claimDue(tenant,workerId,batchSize))process(tenant,item);}}
 
     private void process(String tenant,A2ARemoteReadExecutionQueueService.Item item){
         try{

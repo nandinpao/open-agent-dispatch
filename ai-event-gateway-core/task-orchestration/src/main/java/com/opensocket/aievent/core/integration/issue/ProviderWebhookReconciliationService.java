@@ -2,7 +2,6 @@ package com.opensocket.aievent.core.integration.issue;
 
 import java.time.*;
 import java.util.*;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.opensocket.aievent.core.integration.identity.*;
 import com.opensocket.aievent.core.integration.issue.webhook.*;
@@ -16,21 +15,15 @@ public class ProviderWebhookReconciliationService {
     private final ProviderWebhookStateApplicationService stateApplication;
     private final ProviderWebhookConflictResolutionService conflictResolution;
     private final ExternalObservationNormalizer normalizer;
-    private final long replayWindowSeconds;
-    private final int maxAttempts;
-    private final long claimLeaseSeconds;
+    private final ProviderWebhookReconciliationRuntimeConfigurationView runtimeConfiguration;
     private final String workerId;
 
     public ProviderWebhookReconciliationService(ProviderWebhookReliabilityRepository repository,IntegrationIdentityRepository identities,
             ProviderWebhookDurableTransactionService durable,ProviderWebhookStateApplicationService stateApplication,
             ProviderWebhookConflictResolutionService conflictResolution,ExternalObservationNormalizer normalizer,
-            @Value("${integration-sync.webhook-replay-window-seconds:300}") long replayWindowSeconds,
-            @Value("${integration-sync.webhook-max-attempts:5}") int maxAttempts,
-            @Value("${integration-sync.webhook-claim-lease-seconds:60}") long claimLeaseSeconds) {
+            ProviderWebhookReconciliationRuntimeConfigurationView runtimeConfiguration) {
         this.repository=repository; this.identities=identities; this.durable=durable; this.stateApplication=stateApplication;
-        this.conflictResolution=conflictResolution; this.normalizer=normalizer;
-        this.replayWindowSeconds=Math.max(30,replayWindowSeconds); this.maxAttempts=Math.max(1,maxAttempts);
-        this.claimLeaseSeconds=Math.max(15,claimLeaseSeconds);
+        this.conflictResolution=conflictResolution; this.normalizer=normalizer; this.runtimeConfiguration=runtimeConfiguration;
         this.workerId=System.getenv().getOrDefault("HOSTNAME","provider-webhook-reconciler-local");
     }
 
@@ -41,7 +34,7 @@ public class ProviderWebhookReconciliationService {
         String tenant=required(tenantId,"tenantId"),connection=required(connectionId,"connectionId"),event=required(providerEventId,"providerEventId");
         String payload=safeJson(payloadJson),payloadHash=ExternalObservationNormalizer.sha256(payload); OffsetDateTime now=now();
         OffsetDateTime timestamp=parseTimestamp(providerTimestamp);
-        boolean timestampVerified=timestamp!=null&&!timestamp.isBefore(now.minusSeconds(replayWindowSeconds))&&!timestamp.isAfter(now.plusSeconds(30));
+        boolean timestampVerified=timestamp!=null&&!timestamp.isBefore(now.minusSeconds(runtimeConfiguration.replayWindowSeconds()))&&!timestamp.isAfter(now.plusSeconds(30));
         Optional<IntegrationConnection> bound=identities.findConnection(tenant,connection);
         boolean connectionBound=bound.filter(v->v.enabled()&&providerMatches(v.providerType(),providerType)).isPresent();
         boolean tenantBound=bound.map(v->tenant.equals(v.tenantId())).orElse(false);
@@ -84,7 +77,7 @@ public class ProviderWebhookReconciliationService {
         } catch (RuntimeException ex) {
             ProviderWebhookInboxEntry current=repository.findInbox(tenant,committed.inboxId()).orElse(committed);
             if(current.status()!=ProviderWebhookInboxStatus.PROCESSED&&current.status()!=ProviderWebhookInboxStatus.DEAD_LETTER)
-                durable.markFailure(current,safeCode(ex.getMessage()),isRetryable(ex),maxAttempts);
+                durable.markFailure(current,safeCode(ex.getMessage()),isRetryable(ex),runtimeConfiguration.maxAttempts());
             throw ex;
         }
     }
@@ -111,7 +104,7 @@ public class ProviderWebhookReconciliationService {
     }
 
     public void reconcileDue() {
-        for(ProviderWebhookInboxEntry claimed:durable.claimDue(workerId,100,claimLeaseSeconds)) {
+        for(ProviderWebhookInboxEntry claimed:durable.claimDue(workerId,100,runtimeConfiguration.claimLeaseSeconds())) {
             try {
                 ExternalIssueObservation observation=repository.findObservationByInbox(claimed.tenantId(),claimed.inboxId())
                         .orElseThrow(()->new IllegalStateException("WEBHOOK_OBSERVATION_MISSING"));
@@ -122,7 +115,7 @@ public class ProviderWebhookReconciliationService {
             } catch (RuntimeException ex) {
                 ProviderWebhookInboxEntry current=repository.findInbox(claimed.tenantId(),claimed.inboxId()).orElse(claimed);
                 if(current.status()==ProviderWebhookInboxStatus.PROCESSING||current.status()==ProviderWebhookInboxStatus.STALE_CLAIM)
-                    durable.markFailure(current,safeCode(ex.getMessage()),true,maxAttempts);
+                    durable.markFailure(current,safeCode(ex.getMessage()),true,runtimeConfiguration.maxAttempts());
             }
         }
     }

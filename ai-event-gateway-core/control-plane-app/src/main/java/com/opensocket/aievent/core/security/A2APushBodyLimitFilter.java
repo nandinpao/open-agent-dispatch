@@ -12,22 +12,23 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.opensocket.aievent.core.capability.runtime.A2ADelegationRuntimeConfigurationView;
 
 /** PC-S4 hard request-body cap for the public remote A2A PUSH callback boundary. */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public final class A2APushBodyLimitFilter extends OncePerRequestFilter {
-    private final int maxBodyBytes;
-    public A2APushBodyLimitFilter(@Value("${a2a.push.ingress.max-body-bytes:1048576}") int maxBodyBytes){this.maxBodyBytes=Math.max(1024,maxBodyBytes);}
+    private final A2ADelegationRuntimeConfigurationView runtimeConfiguration;
+    public A2APushBodyLimitFilter(A2ADelegationRuntimeConfigurationView runtimeConfiguration){this.runtimeConfiguration=runtimeConfiguration;}
 
     @Override protected boolean shouldNotFilter(HttpServletRequest request){return !"POST".equalsIgnoreCase(request.getMethod())||!request.getRequestURI().startsWith("/internal/a2a/push/");}
 
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain) throws ServletException,IOException {
+        int maxBodyBytes=runtimeConfiguration.pushMaxBodyBytes();
         long declared=request.getContentLengthLong();
         if(declared>maxBodyBytes){reject(response);return;}
         byte[] body=readBounded(request,maxBodyBytes);

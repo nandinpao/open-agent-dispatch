@@ -11,7 +11,6 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -234,7 +233,6 @@ public class AgentDirectoryService implements AgentDirectoryFacade, AgentControl
         return repository.markByGatewayNodeId(gatewayNodeId, status == null ? AgentStatus.EXPIRED : status, at);
     }
 
-    @Scheduled(fixedDelayString = "${agent-directory.lease-reaper.fixed-delay:10000}")
     @Transactional
     public void expireLeases() {
         repository.expireLeases(OffsetDateTime.now(ZoneOffset.UTC));

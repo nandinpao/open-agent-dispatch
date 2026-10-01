@@ -32,6 +32,7 @@ import com.opensocket.aievent.core.routing.RoutingDecisionService;
 import com.opensocket.aievent.core.routing.RoutingDecisionStatus;
 import com.opensocket.aievent.core.routing.RoutingProperties;
 import com.opensocket.aievent.core.task.TaskDispatchRecoveryProperties;
+import com.opensocket.aievent.core.task.TaskDispatchRecoveryRuntimeConfigurationView;
 import com.opensocket.aievent.core.task.TaskRecord;
 import com.opensocket.aievent.core.task.TaskRepository;
 import com.opensocket.aievent.core.task.TaskStatus;
@@ -59,6 +60,9 @@ public class TaskAssignmentService {
 
     @Autowired(required = false)
     private TaskAuthorizationProjectionPort authorizationProjectionPort;
+
+    @Autowired
+    private TaskDispatchRecoveryRuntimeConfigurationView dispatchRecoveryRuntime;
 
     /** RS4 fail-closed only when the canonical Resource Access runtime is enabled. */
     @Value("${resource-access.enabled:false}")
@@ -722,15 +726,27 @@ public class TaskAssignmentService {
         assignment.setRoutingPath(task.getRoutingPath());
     }
 
+    private boolean runtimeDispatchRecoveryEnabled() {
+        return dispatchRecoveryRuntime == null ? dispatchRecoveryProperties.isEnabled() : dispatchRecoveryRuntime.enabled();
+    }
+
+    private int runtimeDispatchRecoveryMaxAttempts() {
+        return dispatchRecoveryRuntime == null ? dispatchRecoveryProperties.getMaxAttempts() : dispatchRecoveryRuntime.maxAttempts();
+    }
+
+    private java.time.Duration runtimeDispatchRecoveryDelayForAttempt(int attemptNo) {
+        return dispatchRecoveryRuntime == null ? dispatchRecoveryProperties.delayForAttempt(attemptNo) : dispatchRecoveryRuntime.delayForAttempt(attemptNo);
+    }
+
     private AssignmentDecisionResult deferAssignmentRetry(TaskRecord task, String routingDecisionId, String status, String reason) {
-        if (task == null || task.getTaskId() == null || !dispatchRecoveryProperties.isEnabled()) {
+        if (task == null || task.getTaskId() == null || !runtimeDispatchRecoveryEnabled()) {
             return AssignmentDecisionResult.withDispatch(false, null, null, null, null, null, routingDecisionId, status, reason,
                     DispatchDecisionResult.none("No assignment was created"));
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         int nextAttempt = task.getDispatchAttemptCount() + 1;
-        if (dispatchRecoveryProperties.getMaxAttempts() > 0
-                && nextAttempt > dispatchRecoveryProperties.getMaxAttempts()) {
+        if (runtimeDispatchRecoveryMaxAttempts() > 0
+                && nextAttempt > runtimeDispatchRecoveryMaxAttempts()) {
             task.setStatus(TaskStatus.FAILED);
             task.setTerminalAt(now);
             task.setUpdatedAt(now);
@@ -741,7 +757,7 @@ public class TaskAssignmentService {
             return AssignmentDecisionResult.withDispatch(false, null, null, null, null, null, routingDecisionId, status,
                     task.getDispatchRetryReason(), DispatchDecisionResult.none("No assignment was created; task dispatch recovery exhausted"));
         }
-        OffsetDateTime nextAttemptAt = now.plus(dispatchRecoveryProperties.delayForAttempt(nextAttempt));
+        OffsetDateTime nextAttemptAt = now.plus(runtimeDispatchRecoveryDelayForAttempt(nextAttempt));
         String recoveryReason = userFacingDelayedDispatchReason(nextAttemptAt, status, reason);
         taskRepository.deferDispatchAttempt(task.getTaskId(), nextAttemptAt, nextAttempt, recoveryReason, now);
         task.setNextDispatchAttemptAt(nextAttemptAt);

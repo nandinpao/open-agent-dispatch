@@ -51,6 +51,26 @@ class UiFeatureEntitlementServiceTest {
 
 
     @Test
+    void runtimeConfigurationCutoverActionsRemainAtomicInUiProjection() {
+        var viewer = service.project(session(Set.of("PLATFORM_OPERATOR"), Set.of(
+                "configuration.view", "configuration.cutover.view"), ""));
+        assertEquals("READ_ONLY", viewer.pages().get("runtime-configuration").displayMode());
+        assertEquals("ENABLED", viewer.actionEntitlements().get("runtime-configuration.cutover.view").displayMode());
+        assertEquals("HIDDEN", viewer.actionEntitlements().get("runtime-configuration.cutover.finalize").displayMode());
+
+        var operator = service.project(session(Set.of("PLATFORM_ADMIN"), Set.of(
+                "configuration.view", "configuration.cutover.view", "configuration.cutover.assess",
+                "configuration.cutover.prepare", "configuration.cutover.finalize",
+                "configuration.cutover.cancel", "configuration.cutover.certify"), ""));
+        assertEquals("ENABLED", operator.pages().get("runtime-configuration").displayMode());
+        assertEquals("ENABLED", operator.actionEntitlements().get("runtime-configuration.cutover.assess").displayMode());
+        assertEquals("ENABLED", operator.actionEntitlements().get("runtime-configuration.cutover.prepare").displayMode());
+        assertEquals("ENABLED", operator.actionEntitlements().get("runtime-configuration.cutover.finalize").displayMode());
+        assertEquals("ENABLED", operator.actionEntitlements().get("runtime-configuration.cutover.cancel").displayMode());
+        assertEquals("ENABLED", operator.actionEntitlements().get("runtime-configuration.cutover.certify").displayMode());
+    }
+
+    @Test
     void actionScopesPreserveCanonicalTenantAndDepartmentAuthority() {
         var result = service.project(session(
                 Set.of("DEPARTMENT_ADMIN"),

@@ -4,13 +4,17 @@
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>control-plane-parent</artifactId>
-        <version>0.8.2-SNAPSHOT</version>
+        <version>0.9.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>adapter-action</artifactId>
     <name>adapter-action</name>
     <description>Adapter action lifecycle, external worker lease, retry/backoff, embedded executors and executor audit boundary.</description>
     <dependencies>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>configuration-runtime</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>

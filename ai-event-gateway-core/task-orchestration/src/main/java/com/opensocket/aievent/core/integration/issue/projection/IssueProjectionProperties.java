@@ -10,6 +10,7 @@ public class IssueProjectionProperties {
     private int maxAttempts = 8;
     private int reconcileBatchSize = 100;
     private long retryDelaySeconds = 300;
+    private long reconcileDelayMs = 60000;
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -19,4 +20,6 @@ public class IssueProjectionProperties {
     public void setReconcileBatchSize(int value) { this.reconcileBatchSize = Math.max(1, value); }
     public long getRetryDelaySeconds() { return retryDelaySeconds; }
     public void setRetryDelaySeconds(long value) { this.retryDelaySeconds = Math.max(1, value); }
+    public long getReconcileDelayMs() { return reconcileDelayMs; }
+    public void setReconcileDelayMs(long value) { this.reconcileDelayMs = Math.max(250, value); }
 }

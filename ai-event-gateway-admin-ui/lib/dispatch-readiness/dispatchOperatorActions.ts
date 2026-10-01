@@ -209,7 +209,7 @@ export function buildDispatchOperatorActions(
         {
           id: "open-dispatch-monitoring",
           label: "Open Dispatch Monitoring",
-          href: "/enforce-observability",
+          href: "/settings/enforce-observability",
           tone: "secondary",
           description:
             "Check routing audit and production dispatch monitoring.",

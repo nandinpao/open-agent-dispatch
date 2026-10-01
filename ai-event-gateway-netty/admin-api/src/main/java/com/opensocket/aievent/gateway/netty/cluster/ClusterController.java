@@ -9,6 +9,7 @@ import com.opensocket.aievent.gateway.netty.cluster.sync.ClusterPeerRelationServ
 import com.opensocket.aievent.gateway.netty.cluster.sync.ClusterPeersResponse;
 import com.opensocket.aievent.gateway.netty.cluster.dto.ClusterSummaryResponse;
 import com.opensocket.aievent.gateway.netty.config.ClusterRuntimeProperties;
+import com.opensocket.aievent.gateway.netty.runtime.NettyOperationalRuntimeConfigurationView;
 import com.opensocket.aievent.gateway.netty.api.GatewayApiErrorCode;
 import com.opensocket.aievent.gateway.netty.api.GatewayApiException;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,17 +28,20 @@ import java.util.stream.Collectors;
 public class ClusterController {
 
     private final ClusterRuntimeProperties clusterRuntimeProperties;
+    private final NettyOperationalRuntimeConfigurationView nettyRuntime;
     private final ClusterNodeRegistry clusterNodeRegistry;
     private final ClusterOverviewService clusterOverviewService;
     private final ClusterPeerRelationService clusterPeerRelationService;
 
     public ClusterController(
             ClusterRuntimeProperties clusterRuntimeProperties,
+            NettyOperationalRuntimeConfigurationView nettyRuntime,
             ClusterNodeRegistry clusterNodeRegistry,
             ClusterOverviewService clusterOverviewService,
             ClusterPeerRelationService clusterPeerRelationService
     ) {
         this.clusterRuntimeProperties = clusterRuntimeProperties;
+        this.nettyRuntime = nettyRuntime;
         this.clusterNodeRegistry = clusterNodeRegistry;
         this.clusterOverviewService = clusterOverviewService;
         this.clusterPeerRelationService = clusterPeerRelationService;
@@ -143,9 +147,9 @@ public class ClusterController {
                 clusterRuntimeProperties.udpPort(),
                 clusterRuntimeProperties.broadcastHost(),
                 clusterRuntimeProperties.broadcastPort(),
-                clusterRuntimeProperties.heartbeatIntervalMs(),
-                clusterRuntimeProperties.suspectTimeoutMs(),
-                clusterRuntimeProperties.offlineTimeoutMs(),
+                nettyRuntime.clusterHeartbeatIntervalMs(),
+                nettyRuntime.clusterSuspectTimeoutMs(),
+                nettyRuntime.clusterOfflineTimeoutMs(),
                 byStatus
         );
     }

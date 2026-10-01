@@ -30,10 +30,17 @@ import io.micrometer.core.instrument.Timer;
 public class CoreMetricsService implements RoutingMetricsPort, ExecutionMetricsPort, AdapterActionMetricsPort, DispatchRecoveryMetricsPort {
     private final MeterRegistry meterRegistry;
     private final ObservabilityProperties properties;
+    private final CoreObservabilityRuntimeConfigurationView runtimeConfiguration;
 
     public CoreMetricsService(MeterRegistry meterRegistry, ObservabilityProperties properties) {
+        this(meterRegistry, properties, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CoreMetricsService(MeterRegistry meterRegistry, ObservabilityProperties properties, CoreObservabilityRuntimeConfigurationView runtimeConfiguration) {
         this.meterRegistry = meterRegistry;
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     public void recordIntake(NormalizedEvent event,
@@ -63,7 +70,7 @@ public class CoreMetricsService implements RoutingMetricsPort, ExecutionMetricsP
         }
         if (elapsed != null) {
             timer("aeg.core.events.intake.duration", tags("source_system", sourceSystem, "severity", severity)).record(elapsed);
-            if (elapsed.compareTo(properties.getSlowIntakeThreshold()) > 0) {
+            if (elapsed.compareTo((runtimeConfiguration == null ? properties.getSlowIntakeThreshold() : runtimeConfiguration.slowIntakeThreshold())) > 0) {
                 counter("aeg.core.events.intake.slow.total", tags("source_system", sourceSystem, "severity", severity)).increment();
             }
         }
@@ -123,7 +130,7 @@ public class CoreMetricsService implements RoutingMetricsPort, ExecutionMetricsP
                 tags("event_type", tag(record.getEventType()),
                         "status", tag(record.getStatus()),
                         "error_code", tag(record.getErrorCode()),
-                        "site_id", tag(properties.isIncludeSiteTag() ? record.getSiteId() : null))).increment();
+                        "site_id", tag((runtimeConfiguration == null ? properties.isIncludeSiteTag() : runtimeConfiguration.includeSiteTag()) ? record.getSiteId() : null))).increment();
     }
 
     public void recordLifecycleScan(String target, LifecycleScanResult result) {
@@ -142,7 +149,7 @@ public class CoreMetricsService implements RoutingMetricsPort, ExecutionMetricsP
     }
 
     private boolean enabled() {
-        return properties.isEnabled() && properties.isBusinessMetricsEnabled();
+        return runtimeConfiguration == null ? properties.isEnabled() && properties.isBusinessMetricsEnabled() : runtimeConfiguration.enabled() && runtimeConfiguration.businessMetricsEnabled();
     }
 
     private Counter counter(String name, String... tags) {
@@ -165,7 +172,7 @@ public class CoreMetricsService implements RoutingMetricsPort, ExecutionMetricsP
 
     private String[] withCommonTags(String... tags) {
         List<String> merged = new ArrayList<>();
-        properties.getCommonTags().forEach((key, value) -> {
+        (runtimeConfiguration == null ? properties.getCommonTags() : runtimeConfiguration.commonTags()).forEach((key, value) -> {
             if (key != null && !key.isBlank()) {
                 merged.add(key);
                 merged.add(tag(value));

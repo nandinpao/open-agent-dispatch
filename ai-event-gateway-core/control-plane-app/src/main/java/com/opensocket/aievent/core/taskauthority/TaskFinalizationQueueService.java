@@ -7,26 +7,24 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.opensocket.aievent.core.taskauthority.runtime.TaskAuthorityRuntimeConfigurationView;
 
 /** A0-R2 bounded SKIP LOCKED queue for canonical FINALIZING tasks. */
 @Service
 public class TaskFinalizationQueueService {
     private final NamedParameterJdbcTemplate jdbc;
     private final String workerId;
-    private final int batchSize;
-    private final int claimSeconds;
+    private final TaskAuthorityRuntimeConfigurationView runtime;
 
     public TaskFinalizationQueueService(NamedParameterJdbcTemplate jdbc,
             @Value("${opendispatch.a0-r2.finalization.worker-id:}") String workerId,
-            @Value("${opendispatch.a0-r2.finalization.batch-size:20}") int batchSize,
-            @Value("${opendispatch.a0-r2.finalization.claim-seconds:60}") int claimSeconds) {
-        this.jdbc=jdbc; this.workerId=(workerId==null||workerId.isBlank()) ? "a0-r2-finalizer-"+java.util.UUID.randomUUID().toString().substring(0,12) : workerId.trim(); this.batchSize=Math.max(1,Math.min(batchSize,100));
-        this.claimSeconds=Math.max(15,Math.min(claimSeconds,300));
+            TaskAuthorityRuntimeConfigurationView runtime) {
+        this.jdbc=jdbc; this.workerId=(workerId==null||workerId.isBlank()) ? "a0-r2-finalizer-"+java.util.UUID.randomUUID().toString().substring(0,12) : workerId.trim(); this.runtime=runtime;
     }
 
     @Transactional
     public List<Item> claimDue(String tenant) {
-        bind(tenant); OffsetDateTime now=OffsetDateTime.now(); OffsetDateTime until=now.plusSeconds(claimSeconds);
+        bind(tenant); int batchSize=runtime.finalizationBatchSize(); int claimSeconds=runtime.finalizationClaimSeconds(); OffsetDateTime now=OffsetDateTime.now(); OffsetDateTime until=now.plusSeconds(claimSeconds);
         return jdbc.query("""
           with due as (
             select task_id from tasks

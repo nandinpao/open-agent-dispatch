@@ -9,9 +9,12 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
+import com.opensocket.aievent.core.action.executor.AdapterExecutorRuntimeConfigurationView;
 import com.opensocket.aievent.core.action.executor.AdapterExecutionAuthority;
 import com.opensocket.aievent.core.dispatch.DispatchProperties;
+import com.opensocket.aievent.core.dispatch.DispatchRuntimeConfigurationView;
 import com.opensocket.aievent.core.integration.IntegrationEventProperties;
+import com.opensocket.aievent.core.integration.IntegrationEventsRuntimeConfigurationView;
 import com.opensocket.aievent.core.iam.runtime.config.EventIntakeSecurityProperties;
 import com.opensocket.aievent.core.security.CoreInternalSecurityProperties;
 import com.opensocket.aievent.core.security.CoreInternalSecurityRole;
@@ -44,6 +47,9 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
     private final CoreInternalSecurityProperties internalSecurity;
     private final DispatchProperties dispatchProperties;
     private final RecoveryGovernanceProperties recoveryGovernance;
+    private final AdapterExecutorRuntimeConfigurationView adapterRuntime;
+    private final IntegrationEventsRuntimeConfigurationView integrationEventsRuntime;
+    private final DispatchRuntimeConfigurationView dispatchRuntime;
     private final Environment environment;
 
     public CoreDeploymentModeValidator(CoreDeploymentProperties deployment,
@@ -53,6 +59,9 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
                                        CoreInternalSecurityProperties internalSecurity,
                                        DispatchProperties dispatchProperties,
                                        RecoveryGovernanceProperties recoveryGovernance,
+                                       AdapterExecutorRuntimeConfigurationView adapterRuntime,
+                                       IntegrationEventsRuntimeConfigurationView integrationEventsRuntime,
+                                       DispatchRuntimeConfigurationView dispatchRuntime,
                                        Environment environment) {
         this.deployment = deployment;
         this.adapterExecutor = adapterExecutor;
@@ -61,6 +70,9 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
         this.internalSecurity = internalSecurity;
         this.dispatchProperties = dispatchProperties == null ? new DispatchProperties() : dispatchProperties;
         this.recoveryGovernance = recoveryGovernance == null ? new RecoveryGovernanceProperties() : recoveryGovernance;
+        this.adapterRuntime = adapterRuntime;
+        this.integrationEventsRuntime = integrationEventsRuntime;
+        this.dispatchRuntime = dispatchRuntime;
         this.environment = environment;
     }
 
@@ -72,7 +84,7 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
                     "HYBRID_ADAPTER_WORKER requires adapter-executor.mode=external");
         }
         if (integrationEvents.isDeliveryEnabled()
-                && "NONE".equalsIgnoreCase(integrationEvents.getSink())) {
+                && integrationEventsRuntime.sink() == IntegrationEventsRuntimeConfigurationView.SinkType.NONE) {
             throw new IllegalStateException(
                     "Integration-event delivery is enabled but core.integration-events.sink=NONE");
         }
@@ -101,7 +113,7 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
             throw new IllegalStateException(
                     "Production profile must not enable adapter-executor.mcp.mock-compatible");
         }
-        String defaultVendor = adapterExecutor.getIssue().getDefaultVendor();
+        String defaultVendor = adapterRuntime.issueDefaultVendor();
         if (defaultVendor != null && defaultVendor.equalsIgnoreCase("MOCK")) {
             throw new IllegalStateException(
                     "Production profile must not use ISSUE_EXECUTOR_DEFAULT_VENDOR=MOCK");
@@ -117,7 +129,7 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
 
     private void validateProductionIssueExecutorReadiness() {
         AdapterActionExecutionProperties.Issue issue = adapterExecutor.getIssue();
-        if (!issue.isConnectorRuntimeEnabled()) {
+        if (!adapterRuntime.issueConnectorRuntimeEnabled()) {
             throw new IllegalStateException(
                     "Production profile requires the canonical Issue Connector Runtime.");
         }
@@ -129,21 +141,21 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
             throw new IllegalStateException(
                     "Production profile requires ISSUE_EXECUTION_AUTHORITY=CORE_GOVERNED");
         }
-        if (!issue.isAutoExecutePending()) {
+        if (!adapterRuntime.issueAutoExecutePending()) {
             throw new IllegalStateException(
                     "Production profile requires ISSUE_EXECUTOR_AUTO_EXECUTE_PENDING=true so canonical Issue actions cannot remain unexecuted");
         }
-        if (!issue.isLinkProjectionReconciliationEnabled()) {
+        if (!adapterRuntime.issueLinkProjectionReconciliationEnabled()) {
             throw new IllegalStateException(
                     "Production profile requires ISSUE_LINK_PROJECTION_RECONCILIATION_ENABLED=true so durable provider results can converge into TaskIssueLink without re-executing the provider operation");
         }
-        if (issue.getLinkProjectionMaxAttempts() < 1) {
+        if (adapterRuntime.issueLinkProjectionMaxAttempts() < 1) {
             throw new IllegalStateException(
                     "Production profile requires ISSUE_LINK_PROJECTION_MAX_ATTEMPTS>=1");
         }
-        if (adapterExecutor.getExecutionTimeout() == null
-                || adapterExecutor.getExecutionTimeout().isZero()
-                || adapterExecutor.getExecutionTimeout().isNegative()) {
+        if (adapterRuntime.executionTimeout() == null
+                || adapterRuntime.executionTimeout().isZero()
+                || adapterRuntime.executionTimeout().isNegative()) {
             throw new IllegalStateException(
                     "Production profile requires adapter-executor.execution-timeout to be positive");
         }
@@ -238,13 +250,13 @@ public class CoreDeploymentModeValidator implements ApplicationRunner {
                     "Production profile requires dispatch.client.internal-token/DISPATCH_INTERNAL_TOKEN "
                             + "to be non-empty and non-placeholder when dispatch client is enabled");
         }
-        String defaultGatewayBaseUrl = dispatchProperties.getClient().getDefaultGatewayBaseUrl();
+        String defaultGatewayBaseUrl = dispatchRuntime.defaultGatewayBaseUrl();
         if (isUnsafeProductionEndpoint(defaultGatewayBaseUrl)) {
             throw new IllegalStateException(
                     "Production profile requires dispatch.client.default-gateway-base-url "
                             + "to be an explicit non-local production endpoint");
         }
-        dispatchProperties.getClient().getGatewayBaseUrls().forEach((gatewayId, baseUrl) -> {
+        dispatchRuntime.gatewayBaseUrls().forEach((gatewayId, baseUrl) -> {
             if (isUnsafeProductionEndpoint(baseUrl)) {
                 throw new IllegalStateException(
                         "Production profile requires dispatch.client.gateway-base-urls[" + gatewayId

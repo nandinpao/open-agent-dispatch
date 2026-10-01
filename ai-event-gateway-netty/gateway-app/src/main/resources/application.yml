@@ -22,6 +22,10 @@ spring:
         await-termination: true
         await-termination-period: 30s
 
+opendispatch:
+  environment: ${OPENDISPATCH_ENVIRONMENT:LOCAL}
+  environment-profile-validation-enabled: ${OPENDISPATCH_ENVIRONMENT_PROFILE_VALIDATION_ENABLED:false}
+
 server:
   port: ${SERVER_PORT:18081}
 
@@ -88,15 +92,33 @@ management:
 info:
   app:
     name: ai-event-gateway-netty
-    version: ${GATEWAY_VERSION:0.8.2-SNAPSHOT}
+    version: ${GATEWAY_VERSION:0.9.3-SNAPSHOT}
     phase: P9
 
 gateway:
   node-id: ${GATEWAY_NODE_ID:gateway-node-001}
-  environment: ${GATEWAY_ENVIRONMENT:local}
-  version: ${GATEWAY_VERSION:0.8.2-SNAPSHOT}
-  release-label: ${OPENDISPATCH_RELEASE_LABEL:v38}
-  artifact-revision: ${OPENDISPATCH_ARTIFACT_REVISION:V38_7B1_HF10_RUNTIME_CERTIFICATION_MATRIX}
+  environment: ${OPENDISPATCH_ENVIRONMENT:LOCAL}
+  version: ${GATEWAY_VERSION:0.9.3-SNAPSHOT}
+  release-label: ${OPENDISPATCH_RELEASE_LABEL:v41}
+  artifact-revision: ${OPENDISPATCH_ARTIFACT_REVISION:V41_C3R3G_HF5_24_LOCAL_DUAL_READ_COLD_START_POLICY_ALIGNMENT}
+  # V40-4 bootstrap-only configuration reconcile. No DB/Redis credential is required by Gateway.
+  runtime-configuration:
+    enabled: ${GATEWAY_RUNTIME_CONFIG_ENABLED:false}
+    base-url: ${GATEWAY_RUNTIME_CONFIG_CORE_BASE_URL:http://localhost:18080}
+    auth-token: ${GATEWAY_RUNTIME_CONFIG_AUTH_TOKEN:${CLUSTER_INTERNAL_TOKEN:}}
+    auth-header-name: ${GATEWAY_RUNTIME_CONFIG_AUTH_HEADER_NAME:X-Cluster-Token}
+    hmac-key: ${OPENDISPATCH_CONFIG_SNAPSHOT_HMAC_KEY:}
+    node-instance-id: ${GATEWAY_RUNTIME_CONFIG_NODE_INSTANCE_ID:${HOSTNAME:gateway-local}}
+    config-set-ids: ${GATEWAY_RUNTIME_CONFIG_SET_IDS:}
+    reconcile-ms: ${GATEWAY_RUNTIME_CONFIG_RECONCILE_MS:5000}
+    pubsub-enabled: ${GATEWAY_RUNTIME_CONFIG_PUBSUB_ENABLED:false}
+    redis-channel: ${OPENDISPATCH_RUNTIME_CONFIG_REDIS_CHANNEL:opendispatch:runtime-config:updates}
+    fail-closed-on-cold-start: ${GATEWAY_RUNTIME_CONFIG_FAIL_CLOSED_ON_COLD_START:true}
+    lkg-enabled: ${GATEWAY_RUNTIME_CONFIG_LKG_ENABLED:true}
+    lkg-directory: ${GATEWAY_RUNTIME_CONFIG_LKG_DIRECTORY:./data/runtime-config/gateway}
+    max-stale-ms: ${GATEWAY_RUNTIME_CONFIG_MAX_STALE_MS:300000}
+    cold-start-wait-ms: ${GATEWAY_RUNTIME_CONFIG_COLD_START_WAIT_MS:60000}
+    cold-start-retry-ms: ${GATEWAY_RUNTIME_CONFIG_COLD_START_RETRY_MS:1000}
   description: AI Event Gateway Netty P9 Modular JDK25 Mainline
   site-id: ${GATEWAY_SITE_ID:LOCAL}
   site-name: ${GATEWAY_SITE_NAME:Local Site}

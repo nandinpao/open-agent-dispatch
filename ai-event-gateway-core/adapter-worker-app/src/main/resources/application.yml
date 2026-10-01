@@ -1,3 +1,6 @@
+opendispatch:
+  environment: ${OPENDISPATCH_ENVIRONMENT:LOCAL}
+  environment-profile-validation-enabled: ${OPENDISPATCH_ENVIRONMENT_PROFILE_VALIDATION_ENABLED:false}
 server:
   port: ${ADAPTER_WORKER_PORT:18090}
 spring:
@@ -87,3 +90,15 @@ adapter-worker:
   token: ${ADAPTER_WORKER_TOKEN:}
   mcp-endpoint-url: ${ADAPTER_WORKER_MCP_ENDPOINT_URL:}
   mock-success-enabled: ${ADAPTER_WORKER_MOCK_SUCCESS_ENABLED:false}
+  runtime-configuration:
+    enabled: ${ADAPTER_WORKER_RUNTIME_CONFIG_ENABLED:false}
+    hmac-key: ${OPENDISPATCH_CONFIG_SNAPSHOT_HMAC_KEY:}
+    node-instance-id: ${ADAPTER_WORKER_RUNTIME_CONFIG_NODE_INSTANCE_ID:${HOSTNAME:worker-local}}
+    config-set-ids: ${ADAPTER_WORKER_RUNTIME_CONFIG_SET_IDS:}
+    reconcile-ms: ${ADAPTER_WORKER_RUNTIME_CONFIG_RECONCILE_MS:5000}
+    pubsub-enabled: ${ADAPTER_WORKER_RUNTIME_CONFIG_PUBSUB_ENABLED:false}
+    redis-channel: ${OPENDISPATCH_RUNTIME_CONFIG_REDIS_CHANNEL:opendispatch:runtime-config:updates}
+    fail-closed-on-cold-start: ${ADAPTER_WORKER_RUNTIME_CONFIG_FAIL_CLOSED_ON_COLD_START:true}
+    lkg-enabled: ${ADAPTER_WORKER_RUNTIME_CONFIG_LKG_ENABLED:true}
+    lkg-directory: ${ADAPTER_WORKER_RUNTIME_CONFIG_LKG_DIRECTORY:./data/runtime-config/worker}
+    max-stale-ms: ${ADAPTER_WORKER_RUNTIME_CONFIG_MAX_STALE_MS:300000}

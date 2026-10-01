@@ -62,6 +62,7 @@ public class TaskCallbackProperties {
 
     public static class Recovery {
         private boolean timeoutEnabled = true;
+        private long scanIntervalMs = 30000;
         private boolean autoFailTimedOut = true;
         private boolean retryEnabled = true;
         private int maxAttempts = 3;
@@ -73,6 +74,8 @@ public class TaskCallbackProperties {
 
         public boolean isTimeoutEnabled() { return timeoutEnabled; }
         public void setTimeoutEnabled(boolean timeoutEnabled) { this.timeoutEnabled = timeoutEnabled; }
+        public long getScanIntervalMs() { return scanIntervalMs; }
+        public void setScanIntervalMs(long scanIntervalMs) { this.scanIntervalMs = Math.max(1000, Math.min(scanIntervalMs, 3_600_000)); }
         public boolean isAutoFailTimedOut() { return autoFailTimedOut; }
         public void setAutoFailTimedOut(boolean autoFailTimedOut) { this.autoFailTimedOut = autoFailTimedOut; }
         public boolean isRetryEnabled() { return retryEnabled; }

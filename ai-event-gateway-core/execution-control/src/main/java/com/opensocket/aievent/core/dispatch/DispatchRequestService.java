@@ -32,6 +32,9 @@ public class DispatchRequestService implements TaskDispatchPort {
     @Autowired(required = false)
     private DispatchAttemptHistoryService attemptHistoryService;
 
+    @Autowired(required = false)
+    private DispatchRuntimeConfigurationView runtimeConfigurationView;
+
     public DispatchRequestService(DispatchRequestRepository repository,
                                   DispatchEligibilityService eligibilityService,
                                   DispatchProperties properties) {
@@ -111,7 +114,7 @@ public class DispatchRequestService implements TaskDispatchPort {
             request.setApprovedAt(now);
         } else {
             request.setRetryWaitingAt(now);
-            request.setNextRetryAt(now.plus(properties.getRetry().getInitialBackoff()));
+            request.setNextRetryAt(now.plus(retryInitialBackoff()));
         }
         if (request.getCommand() != null) {
             request.getCommand().setAttemptNo(request.getAttemptCount() + 1);
@@ -161,6 +164,17 @@ public class DispatchRequestService implements TaskDispatchPort {
         return repository.save(request);
     }
 
+    private DispatchReviewMode runtimeReviewMode() { return runtimeConfigurationView == null ? properties.getReviewMode() : runtimeConfigurationView.reviewMode(); }
+    private DispatchExecutionPolicy runtimeExecutionPolicy() { return runtimeConfigurationView == null ? properties.getExecutionPolicy() : runtimeConfigurationView.executionPolicy(); }
+    private String runtimeGatewayDispatchPath() { return runtimeConfigurationView == null ? properties.getGatewayDispatchPath() : runtimeConfigurationView.gatewayDispatchPath(); }
+    private String runtimeSourceNodeId() { return runtimeConfigurationView == null ? properties.getSourceNodeId() : runtimeConfigurationView.sourceNodeId(); }
+    private String runtimeDefaultGatewayBaseUrl() { return runtimeConfigurationView == null ? properties.getClient().getDefaultGatewayBaseUrl() : runtimeConfigurationView.defaultGatewayBaseUrl(); }
+    private java.time.Duration runtimeAutoExecuteInterval() { return runtimeConfigurationView == null ? java.time.Duration.ofMillis(properties.getClient().getAutoExecuteIntervalMs()) : runtimeConfigurationView.autoExecuteInterval(); }
+
+    private java.time.Duration retryInitialBackoff() {
+        return runtimeConfigurationView == null ? properties.getRetry().getInitialBackoff() : runtimeConfigurationView.initialBackoff();
+    }
+
     private DispatchDecisionResult createNew(TaskAssignment assignment, TaskRecord task) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         DispatchEligibilityService.EligibilityResult eligibility = eligibilityService.check(assignment, task);
@@ -178,10 +192,10 @@ public class DispatchRequestService implements TaskDispatchPort {
         request.setOwnerGatewayNodeId(assignment.getOwnerGatewayNodeId());
         request.setAgentSessionId(assignment.getAgentSessionId());
         request.setSiteId(assignment.getSiteId());
-        request.setReviewMode(properties.getReviewMode());
+        request.setReviewMode(runtimeReviewMode());
         request.setEligibilityStatus(eligibility.eligible() ? DispatchEligibilityStatus.ELIGIBLE : DispatchEligibilityStatus.NOT_ELIGIBLE);
         request.setDispatchMethod(DispatchMethod.INTERNAL_GATEWAY_HTTP);
-        request.setGatewayDispatchPath(properties.getGatewayDispatchPath());
+        request.setGatewayDispatchPath(runtimeGatewayDispatchPath());
         request.setDispatchToken("dispatch-token-" + UUID.randomUUID());
         request.setDispatchTokenHash(DispatchAssignmentEvidenceService.hash(request.getDispatchToken()));
         request.setFencingTokenHash(DispatchAssignmentEvidenceService.hash(assignment.getFencingToken()));
@@ -205,8 +219,8 @@ public class DispatchRequestService implements TaskDispatchPort {
         DispatchRequest saved = repository.save(request);
         log.info("dispatch_request_created dispatchRequestId={} taskId={} assignmentId={} agentId={} status={} reviewMode={} eligibility={} executionPolicy={} clientEnabled={} autoExecuteIntervalMs={} gatewayBaseUrl={} gatewayNode={} gatewayPath={} reason={}",
                 safe(saved.getDispatchRequestId()), safe(saved.getTaskId()), safe(saved.getAssignmentId()), safe(saved.getAgentId()),
-                saved.getStatus(), saved.getReviewMode(), saved.getEligibilityStatus(), properties.getExecutionPolicy(),
-                properties.getClient().isEnabled(), properties.getClient().getMaxBatchSize(), safe(properties.getClient().getDefaultGatewayBaseUrl()),
+                saved.getStatus(), saved.getReviewMode(), saved.getEligibilityStatus(), runtimeExecutionPolicy(),
+                properties.getClient().isEnabled(), runtimeAutoExecuteInterval().toMillis(), safe(runtimeDefaultGatewayBaseUrl()),
                 safe(saved.getOwnerGatewayNodeId()), safe(saved.getGatewayDispatchPath()), safe(saved.getReason()));
         recordDispatchRequestCreated(saved);
         return new DispatchDecisionResult(true,
@@ -220,7 +234,7 @@ public class DispatchRequestService implements TaskDispatchPort {
 
 
     private boolean autoQueueDispatch() {
-        DispatchReviewMode reviewMode = properties.getReviewMode();
+        DispatchReviewMode reviewMode = runtimeReviewMode();
         return reviewMode == DispatchReviewMode.NOT_REQUIRED || reviewMode == DispatchReviewMode.AUTO_APPROVE;
     }
 
@@ -228,10 +242,10 @@ public class DispatchRequestService implements TaskDispatchPort {
         if (!properties.getClient().isEnabled()) {
             return "Dispatch request is approved but gateway delivery is blocked because dispatch client is disabled";
         }
-        if (properties.getExecutionPolicy() == DispatchExecutionPolicy.PAUSED) {
+        if (runtimeExecutionPolicy() == DispatchExecutionPolicy.PAUSED) {
             return "Dispatch request is approved but gateway delivery is paused by dispatch execution policy";
         }
-        if (properties.getExecutionPolicy() == DispatchExecutionPolicy.MANUAL_HOLD) {
+        if (runtimeExecutionPolicy() == DispatchExecutionPolicy.MANUAL_HOLD) {
             return "Dispatch request is approved and waiting for an explicit operator execution trigger";
         }
         return "Dispatch request queued for automatic gateway delivery";
@@ -256,7 +270,7 @@ public class DispatchRequestService implements TaskDispatchPort {
         command.setTargetAgentId(request.getAgentId());
         command.setOwnerGatewayNodeId(request.getOwnerGatewayNodeId());
         command.setAgentSessionId(request.getAgentSessionId());
-        command.setSourceNodeId(properties.getSourceNodeId());
+        command.setSourceNodeId(runtimeSourceNodeId());
         command.setDispatchToken(request.getDispatchToken());
         // Assignment fencing is separate from the dispatch token. Agents must echo
         // this token on ACK/RESULT callbacks so Core can prove the callback belongs

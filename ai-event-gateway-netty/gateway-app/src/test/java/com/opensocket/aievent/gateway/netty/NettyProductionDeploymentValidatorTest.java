@@ -13,11 +13,29 @@ import com.opensocket.aievent.gateway.netty.config.AuditLogProperties;
 import com.opensocket.aievent.gateway.netty.config.ConnectionProtectionProperties;
 import com.opensocket.aievent.gateway.netty.config.CoreDirectorySyncProperties;
 import com.opensocket.aievent.gateway.netty.config.CoreForwardProperties;
+import com.opensocket.aievent.gateway.netty.config.CoreOutboundProperties;
 import com.opensocket.aievent.gateway.netty.config.CoreTaskCallbackRelayProperties;
 import com.opensocket.aievent.gateway.netty.config.TaskAssignmentProperties;
 import com.opensocket.aievent.gateway.netty.authorization.CoreAgentAuthorizationProperties;
+import com.opensocket.aievent.gateway.netty.configuration.GatewayRuntimeConfigurationProperties;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
 
 class NettyProductionDeploymentValidatorTest {
+
+
+    @Test
+    void shouldRejectDisabledRuntimeConfigurationAuthorityInProdProfile() {
+        TestFixture fixture = productionFixture();
+        fixture.runtimeConfiguration.setEnabled(false);
+        assertThrows(IllegalStateException.class, () -> fixture.validator().run(new DefaultApplicationArguments(new String[0])));
+    }
+
+    @Test
+    void shouldRejectNonFailClosedRuntimeConfigurationInProdProfile() {
+        TestFixture fixture = productionFixture();
+        fixture.runtimeConfiguration.setFailClosedOnColdStart(false);
+        assertThrows(IllegalStateException.class, () -> fixture.validator().run(new DefaultApplicationArguments(new String[0])));
+    }
 
     @Test
     void shouldRejectDisabledMachineAdminAuthInProdProfile() {
@@ -179,12 +197,18 @@ class NettyProductionDeploymentValidatorTest {
         TaskAssignmentProperties taskAssignment = new TaskAssignmentProperties();
         taskAssignment.setRejectExternalTaskDispatch(true);
 
+
+        GatewayRuntimeConfigurationProperties runtimeConfiguration = new GatewayRuntimeConfigurationProperties();
+        runtimeConfiguration.setEnabled(true);
+        runtimeConfiguration.setFailClosedOnColdStart(true);
+        runtimeConfiguration.setHmacKey("0123456789abcdef0123456789abcdef");
+
         CoreAgentAuthorizationProperties agentAuthorization = new CoreAgentAuthorizationProperties();
         agentAuthorization.setEnabled(true);
         agentAuthorization.setFailClosed(true);
         agentAuthorization.setAuthToken("cluster-token-123");
 
-        return new TestFixture(environment, admin, agent, protection, audit, directory, callback, coreForward, taskAssignment, agentAuthorization);
+        return new TestFixture(environment, admin, agent, protection, audit, directory, callback, coreForward, taskAssignment, agentAuthorization, runtimeConfiguration);
     }
 
     private record TestFixture(MockEnvironment environment,
@@ -196,7 +220,8 @@ class NettyProductionDeploymentValidatorTest {
                                CoreTaskCallbackRelayProperties callback,
                                CoreForwardProperties coreForward,
                                TaskAssignmentProperties taskAssignment,
-                               CoreAgentAuthorizationProperties agentAuthorization) {
+                               CoreAgentAuthorizationProperties agentAuthorization,
+                               GatewayRuntimeConfigurationProperties runtimeConfiguration) {
         NettyProductionDeploymentValidator validator() {
             return new NettyProductionDeploymentValidator(
                     environment,
@@ -208,7 +233,14 @@ class NettyProductionDeploymentValidatorTest {
                     callback,
                     coreForward,
                     taskAssignment,
-                    agentAuthorization
+                    agentAuthorization,
+                    new GatewayOperationalRuntimeConfigurationView(
+                            agentAuthorization,
+                            directory,
+                            coreForward,
+                            new CoreOutboundProperties(),
+                            callback),
+                    runtimeConfiguration
             );
         }
     }

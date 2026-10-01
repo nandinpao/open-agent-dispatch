@@ -1,8 +1,5 @@
 # Configuration notes: values here are safe defaults. Production and Docker deployments
 # should override ports, node identifiers, discovery mode, and security-related options by .env.
-gateway:
-  environment: docker
-
 logging:
   level:
     root: INFO

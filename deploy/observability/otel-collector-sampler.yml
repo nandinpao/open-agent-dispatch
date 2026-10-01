@@ -100,7 +100,7 @@ processors:
         type: string_attribute
         string_attribute:
           key: http.route
-          values: ["/api/auth/.*", "/internal/agents/security-events"]
+          values: ["/api/session.*", "/internal/agents/security-events"]
           enabled_regex_matching: true
           cache_max_size: 1000
       - name: baseline-probabilistic

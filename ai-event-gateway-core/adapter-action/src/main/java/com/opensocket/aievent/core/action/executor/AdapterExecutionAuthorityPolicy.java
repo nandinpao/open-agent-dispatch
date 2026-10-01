@@ -1,5 +1,6 @@
 package com.opensocket.aievent.core.action.executor;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.opensocket.aievent.core.action.AdapterType;
@@ -13,16 +14,24 @@ public class AdapterExecutionAuthorityPolicy {
     public static final String CORE_EXECUTION_NOT_AUTHORIZED = "CORE_EXECUTION_NOT_AUTHORIZED";
 
     private final AdapterActionExecutionProperties properties;
+    private final AdapterExecutorRuntimeConfigurationView runtimeConfiguration;
+
+    @Autowired
+    public AdapterExecutionAuthorityPolicy(AdapterActionExecutionProperties properties, AdapterExecutorRuntimeConfigurationView runtimeConfiguration) {
+        this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
 
     public AdapterExecutionAuthorityPolicy(AdapterActionExecutionProperties properties) {
         this.properties = properties;
+        this.runtimeConfiguration = null;
     }
 
     public AdapterExecutionAuthority authorityFor(AdapterType adapterType) {
         if (adapterType == null) return AdapterExecutionAuthority.DISABLED;
         if (adapterType == AdapterType.ISSUE_TRACKING) {
             if (properties.getIssue().getExecutionAuthority() != AdapterExecutionAuthority.CORE_GOVERNED
-                    || !properties.getIssue().isConnectorRuntimeEnabled()) {
+                    || !issueConnectorRuntimeEnabled()) {
                 return AdapterExecutionAuthority.DISABLED;
             }
             return AdapterExecutionAuthority.CORE_GOVERNED;
@@ -47,10 +56,13 @@ public class AdapterExecutionAuthorityPolicy {
     public boolean shouldAutoExecuteInCore(AdapterType adapterType) {
         if (!canCoreExecute(adapterType)) return false;
         if (adapterType == AdapterType.ISSUE_TRACKING) {
-            return properties.getIssue().isAutoExecutePending();
+            return issueAutoExecutePending();
         }
         return properties.isAutoExecutePending();
     }
+
+    private boolean issueConnectorRuntimeEnabled() { return runtimeConfiguration == null ? properties.getIssue().isConnectorRuntimeEnabled() : runtimeConfiguration.issueConnectorRuntimeEnabled(); }
+    private boolean issueAutoExecutePending() { return runtimeConfiguration == null ? properties.getIssue().isAutoExecutePending() : runtimeConfiguration.issueAutoExecutePending(); }
 
     public void requireCoreExecution(AdapterType adapterType) {
         if (canCoreExecute(adapterType)) return;

@@ -39,6 +39,9 @@ public class CoreInternalSecurityRequestClassifier {
                 || path.startsWith("/internal/agents/enrollments")) {
             return Optional.of(CoreInternalSecurityRole.GATEWAY);
         }
+        if (path.startsWith("/internal/runtime-configuration")) {
+            return Optional.of(runtimeConfigurationRole(request, path, method));
+        }
         if (path.startsWith("/internal/adapter-actions")) {
             if (path.contains("/recover-expired-lease") || path.endsWith("/recover-expired-leases")) {
                 return Optional.of(CoreInternalSecurityRole.OPERATOR);
@@ -96,6 +99,21 @@ public class CoreInternalSecurityRequestClassifier {
     }
 
 
+
+
+    private CoreInternalSecurityRole runtimeConfigurationRole(HttpServletRequest request, String path, String method) {
+        if (("GET".equals(method) && path.endsWith("/apply-states")) || path.endsWith("/required-targets")) {
+            return CoreInternalSecurityRole.OPERATOR;
+        }
+        String requested = request.getParameter("nodeRole");
+        String role = requested == null ? "" : requested.trim().toUpperCase(Locale.ROOT);
+        return switch (role) {
+            case "GATEWAY" -> CoreInternalSecurityRole.GATEWAY;
+            case "WORKER" -> CoreInternalSecurityRole.ADAPTER_WORKER;
+            case "CORE" -> CoreInternalSecurityRole.OPERATOR;
+            default -> CoreInternalSecurityRole.OPERATOR;
+        };
+    }
 
     private boolean isCapabilityDelegationClosureRead(String path, String method) {
         return "GET".equals(method)

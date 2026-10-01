@@ -1,5 +1,6 @@
 package com.opensocket.aievent.core.runtime.capability;
 
+import com.opensocket.aievent.core.integration.issue.projection.IssueProjectionRuntimeConfigurationView;
 import com.opensocket.aievent.core.resourceaccess.contract.ResourceAccessEnforcementMode;
 import java.time.Clock;
 import java.time.Instant;
@@ -10,10 +11,15 @@ import org.springframework.stereotype.Service;
 public final class RuntimeCapabilityService {
     private final Environment environment;
     private final Clock clock;
+    private final IssueProjectionRuntimeConfigurationView issueProjectionRuntime;
 
-    public RuntimeCapabilityService(Environment environment, Clock clock) {
+    public RuntimeCapabilityService(
+            Environment environment,
+            Clock clock,
+            IssueProjectionRuntimeConfigurationView issueProjectionRuntime) {
         this.environment = environment;
         this.clock = clock;
+        this.issueProjectionRuntime = issueProjectionRuntime;
     }
 
     public RuntimeCapabilitySnapshot snapshot() {
@@ -82,7 +88,7 @@ public final class RuntimeCapabilityService {
 
     private RuntimeCapabilityState issueTrackingState() {
         boolean tracking = enabled("issue-tracking.enabled");
-        boolean projection = enabled("issue-projection.enabled");
+        boolean projection = issueProjectionRuntime.enabled();
         if (tracking && projection) return RuntimeCapabilityState.ENABLED;
         if (tracking || projection) return RuntimeCapabilityState.PILOT;
         return RuntimeCapabilityState.DISABLED;

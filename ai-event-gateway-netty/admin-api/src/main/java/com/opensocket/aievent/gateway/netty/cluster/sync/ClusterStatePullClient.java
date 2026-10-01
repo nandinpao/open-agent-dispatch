@@ -5,6 +5,7 @@ import com.opensocket.aievent.gateway.netty.cluster.ClusterNodeSnapshot;
 import com.opensocket.aievent.gateway.netty.cluster.ClusterNodeStatus;
 import com.opensocket.aievent.gateway.netty.config.AdminProperties;
 import com.opensocket.aievent.gateway.netty.config.ClusterSyncProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -21,18 +22,31 @@ import java.time.Duration;
 @Component
 public class ClusterStatePullClient {
 
-    private final ClusterSyncProperties clusterSyncProperties;
+    private final ClusterSyncRuntimeConfigurationView runtimeConfiguration;
     private final AdminProperties adminProperties;
     private final ObjectMapper objectMapper;
 
+    @Autowired
+    public ClusterStatePullClient(
+            ClusterSyncProperties clusterSyncProperties,
+            ClusterSyncRuntimeConfigurationView runtimeConfiguration,
+            AdminProperties adminProperties,
+            ObjectMapper objectMapper
+    ) {
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new ClusterSyncRuntimeConfigurationView(clusterSyncProperties)
+                : runtimeConfiguration;
+        this.adminProperties = adminProperties;
+        this.objectMapper = objectMapper;
+    }
+
+    /** Backward-compatible constructor retained for focused tests. */
     public ClusterStatePullClient(
             ClusterSyncProperties clusterSyncProperties,
             AdminProperties adminProperties,
             ObjectMapper objectMapper
     ) {
-        this.clusterSyncProperties = clusterSyncProperties;
-        this.adminProperties = adminProperties;
-        this.objectMapper = objectMapper;
+        this(clusterSyncProperties, new ClusterSyncRuntimeConfigurationView(clusterSyncProperties), adminProperties, objectMapper);
     }
 
     public ClusterStateSnapshotResponse pull(ClusterNodeSnapshot node) {
@@ -46,7 +60,7 @@ public class ClusterStatePullClient {
             throw new IllegalStateException("Cluster node has no reachable admin endpoint: " + node.nodeId());
         }
 
-        var timeout = Duration.ofMillis(clusterSyncProperties.safeRequestTimeoutMs());
+        var timeout = Duration.ofMillis(runtimeConfiguration.requestTimeoutMs());
         var client = HttpClient.newBuilder()
                 .connectTimeout(timeout)
                 .build();

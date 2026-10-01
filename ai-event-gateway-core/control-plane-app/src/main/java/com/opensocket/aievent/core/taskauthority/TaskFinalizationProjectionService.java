@@ -5,9 +5,9 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import com.opensocket.aievent.core.taskauthority.runtime.TaskAuthorityRuntimeConfigurationView;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -32,8 +32,7 @@ public class TaskFinalizationProjectionService {
     private final JdbcTemplate jdbc;
     private final TaskRepository tasks;
     private final IssuePolicyOrchestrationService issues;
-    private final int maxAttempts;
-    private final int claimSeconds;
+    private final TaskAuthorityRuntimeConfigurationView runtime;
     private final TransactionTemplate requiresNew;
 
     public TaskFinalizationProjectionService(
@@ -41,13 +40,11 @@ public class TaskFinalizationProjectionService {
             TaskRepository tasks,
             IssuePolicyOrchestrationService issues,
             PlatformTransactionManager transactionManager,
-            @Value("${opendispatch.a0-r2.finalization.projection-max-attempts:20}") int maxAttempts,
-            @Value("${opendispatch.a0-r2.finalization.projection-claim-seconds:60}") int claimSeconds) {
+            TaskAuthorityRuntimeConfigurationView runtime) {
         this.jdbc = jdbc;
         this.tasks = tasks;
         this.issues = issues;
-        this.maxAttempts = Math.max(1, Math.min(maxAttempts, 100));
-        this.claimSeconds = Math.max(15, Math.min(claimSeconds, 300));
+        this.runtime = runtime;
         this.requiresNew = new TransactionTemplate(transactionManager);
         this.requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -93,10 +90,10 @@ public class TaskFinalizationProjectionService {
           update task_finalization_projection_outbox
              set status='DISPATCHED',attempt_count=?,next_attempt_at=now()+(? * interval '1 second'),updated_at=now()
            where tenant_id=? and outbox_id=?
-          """, item.attempt(), claimSeconds, tenant, item.outboxId());
+          """, item.attempt(), runtime.projectionClaimSeconds(), tenant, item.outboxId());
         if (updated != 1) throw new IllegalStateException("TASK_FINALIZATION_PROJECTION_CLAIM_CAS_FAILED:" + item.outboxId());
         log.info("task_finalization_issue_projection_claimed tenantId={} taskId={} outboxId={} attempt={} claimSeconds={}",
-                tenant, item.taskId(), item.outboxId(), item.attempt(), claimSeconds);
+                tenant, item.taskId(), item.outboxId(), item.attempt(), runtime.projectionClaimSeconds());
         return item;
     }
 
@@ -142,7 +139,7 @@ public class TaskFinalizationProjectionService {
 
     private void retry(String tenant, Item item, String error) {
         int attempt = item.attempt();
-        if (attempt >= maxAttempts) {
+        if (attempt >= runtime.projectionMaxAttempts()) {
             int updated = jdbc.update("""
               update task_finalization_projection_outbox
                  set status='SUPERSEDED',updated_at=now(),payload_json=payload_json||jsonb_build_object('lastError',?)
@@ -150,7 +147,7 @@ public class TaskFinalizationProjectionService {
               """, error, tenant, item.outboxId());
             if (updated != 1) throw new IllegalStateException("TASK_FINALIZATION_PROJECTION_DEAD_LETTER_CAS_FAILED:" + item.outboxId());
             log.error("task_finalization_issue_projection_retry_exhausted tenantId={} taskId={} outboxId={} attempt={} maxAttempts={} error={}",
-                    tenant, item.taskId(), item.outboxId(), attempt, maxAttempts, error);
+                    tenant, item.taskId(), item.outboxId(), attempt, runtime.projectionMaxAttempts(), error);
             return;
         }
         long seconds = Math.min(900L, 5L << Math.min(7, Math.max(0, attempt - 1)));
@@ -162,7 +159,7 @@ public class TaskFinalizationProjectionService {
           """, seconds, error, tenant, item.outboxId());
         if (updated != 1) throw new IllegalStateException("TASK_FINALIZATION_PROJECTION_RETRY_CAS_FAILED:" + item.outboxId());
         log.warn("task_finalization_issue_projection_retry_scheduled tenantId={} taskId={} outboxId={} attempt={} maxAttempts={} backoffSeconds={} error={}",
-                tenant, item.taskId(), item.outboxId(), attempt, maxAttempts, seconds, error);
+                tenant, item.taskId(), item.outboxId(), attempt, runtime.projectionMaxAttempts(), seconds, error);
     }
 
     private TaskTerminalEvent event(TaskRecord t) {

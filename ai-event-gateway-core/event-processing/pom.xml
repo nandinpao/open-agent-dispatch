@@ -4,13 +4,21 @@
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>control-plane-parent</artifactId>
-        <version>0.8.2-SNAPSHOT</version>
+        <version>0.9.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>event-processing</artifactId>
     <name>event-processing</name>
     <description>Normalize, fingerprint, dedup and incident observation pipeline.</description>
     <dependencies>
+        <dependency>
+            <groupId>com.opensocket</groupId>
+            <artifactId>configuration-runtime</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>

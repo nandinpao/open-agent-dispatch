@@ -1,6 +1,8 @@
 package com.opensocket.aievent.gateway.netty.authorization;
 
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,7 @@ public class CoreAgentSecurityEventPublisher implements AgentSecurityEventPublis
     private final GatewayProperties gatewayProperties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    private GatewayOperationalRuntimeConfigurationView runtimeConfiguration;
 
     public CoreAgentSecurityEventPublisher(
             CoreAgentAuthorizationProperties properties,
@@ -30,6 +33,15 @@ public class CoreAgentSecurityEventPublisher implements AgentSecurityEventPublis
         this.properties = properties;
         this.gatewayProperties = gatewayProperties;
         this.objectMapper = objectMapper;
+    }
+
+    @Autowired(required = false)
+    void setRuntimeConfiguration(GatewayOperationalRuntimeConfigurationView runtimeConfiguration) {
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
+    private long requestTimeoutMs() {
+        return runtimeConfiguration == null ? properties.timeoutMs() : runtimeConfiguration.agentAuthorizationTimeoutMs();
     }
 
     @Override
@@ -94,7 +106,7 @@ public class CoreAgentSecurityEventPublisher implements AgentSecurityEventPublis
             body.put("occurredAt", occurredAt);
             body.put("metadata", metadata == null ? Map.of() : metadata);
             var builder = HttpRequest.newBuilder(URI.create(properties.securityEventUrl()))
-                    .timeout(Duration.ofMillis(properties.timeoutMs()))
+                    .timeout(Duration.ofMillis(requestTimeoutMs()))
                     .header("Content-Type", "application/json")
                     .header("X-Gateway-Node-Id", gatewayProperties.nodeId())
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)));

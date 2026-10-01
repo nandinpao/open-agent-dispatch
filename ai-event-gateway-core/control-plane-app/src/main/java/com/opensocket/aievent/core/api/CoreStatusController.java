@@ -11,26 +11,35 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.opensocket.aievent.core.action.AdapterActionFacade;
-import com.opensocket.aievent.core.action.AdapterActionProperties;
+import com.opensocket.aievent.core.action.AdapterActionMcpRuntimeConfigurationView;
+import com.opensocket.aievent.core.action.AdapterActionPolicyRuntimeConfigurationView;
+import com.opensocket.aievent.core.action.AdapterActionWorkerRuntimeConfigurationView;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionProperties;
+import com.opensocket.aievent.core.action.executor.AdapterExecutorRuntimeConfigurationView;
 import com.opensocket.aievent.core.agent.AgentControlOperationalQuery;
 import com.opensocket.aievent.core.config.CoreDecisionProperties;
 import com.opensocket.aievent.core.config.CoreDeploymentProperties;
 import com.opensocket.aievent.core.callback.TaskCallbackProperties;
+import com.opensocket.aievent.core.callback.TaskCallbackRuntimeConfigurationView;
 import com.opensocket.aievent.core.dispatch.DispatchProperties;
+import com.opensocket.aievent.core.dispatch.DispatchRuntimeConfigurationView;
 import com.opensocket.aievent.core.dispatch.ExecutionOperationalQuery;
-import com.opensocket.aievent.core.fingerprint.FingerprintPolicyProperties;
+import com.opensocket.aievent.core.fingerprint.FingerprintRuntimeConfigurationView;
 import com.opensocket.aievent.core.incident.IncidentOperationalQuery;
+import com.opensocket.aievent.core.incident.IncidentRuntimeConfigurationView;
 import com.opensocket.aievent.core.integration.IntegrationEventOperationalQuery;
 import com.opensocket.aievent.core.integration.IntegrationEventProperties;
 import com.opensocket.aievent.core.kernel.CoreVersion;
 import com.opensocket.aievent.core.lifecycle.LifecycleProperties;
+import com.opensocket.aievent.core.lifecycle.TaskLifecycleRuntimeConfigurationView;
 import com.opensocket.aievent.core.observability.ObservabilityProperties;
+import com.opensocket.aievent.core.observability.CoreObservabilityRuntimeConfigurationView;
+import com.opensocket.aievent.core.observability.AgentRemediationMetricsRuntimeConfigurationView;
 import com.opensocket.aievent.core.processing.EventProcessingOperationalQuery;
 import com.opensocket.aievent.core.routing.RoutingProperties;
 import com.opensocket.aievent.core.task.TaskOperationalQuery;
-import com.opensocket.aievent.core.task.TaskOrchestrationProperties;
-import com.opensocket.aievent.core.task.TaskDispatchRecoveryProperties;
+import com.opensocket.aievent.core.task.TaskDecisionRuntimeConfigurationView;
+import com.opensocket.aievent.core.task.TaskDispatchRecoveryRuntimeConfigurationView;
 
 @RestController
 @RequestMapping("/api/core")
@@ -45,16 +54,25 @@ public class CoreStatusController {
     private final CoreDeploymentProperties deploymentProperties;
     private final IntegrationEventOperationalQuery integrationEvents;
     private final IntegrationEventProperties integrationEventProperties;
-    private final TaskOrchestrationProperties taskProperties;
-    private final TaskDispatchRecoveryProperties taskDispatchRecoveryProperties;
+    private final TaskDecisionRuntimeConfigurationView taskDecisionRuntimeConfiguration;
+    private final TaskDispatchRecoveryRuntimeConfigurationView taskDispatchRecoveryRuntimeConfiguration;
     private final RoutingProperties routingProperties;
     private final DispatchProperties dispatchProperties;
+    private final DispatchRuntimeConfigurationView dispatchRuntimeConfiguration;
     private final TaskCallbackProperties taskCallbackProperties;
-    private final AdapterActionProperties adapterActionProperties;
+    private final TaskCallbackRuntimeConfigurationView taskCallbackRuntimeConfiguration;
+    private final AdapterActionWorkerRuntimeConfigurationView adapterActionWorkerRuntimeConfiguration;
+    private final AdapterActionMcpRuntimeConfigurationView adapterActionMcpRuntimeConfiguration;
+    private final AdapterActionPolicyRuntimeConfigurationView adapterActionPolicyRuntimeConfiguration;
     private final AdapterActionExecutionProperties adapterActionExecutionProperties;
-    private final FingerprintPolicyProperties fingerprintPolicyProperties;
+    private final AdapterExecutorRuntimeConfigurationView adapterExecutorRuntimeConfiguration;
+    private final FingerprintRuntimeConfigurationView fingerprintRuntimeConfiguration;
     private final LifecycleProperties lifecycleProperties;
+    private final TaskLifecycleRuntimeConfigurationView taskLifecycleRuntimeConfiguration;
+    private final IncidentRuntimeConfigurationView incidentRuntimeConfiguration;
     private final ObservabilityProperties observabilityProperties;
+    private final CoreObservabilityRuntimeConfigurationView observabilityRuntimeConfiguration;
+    private final AgentRemediationMetricsRuntimeConfigurationView remediationMetricsRuntimeConfiguration;
 
     public CoreStatusController(EventProcessingOperationalQuery eventProcessing,
                                 IncidentOperationalQuery incidents,
@@ -66,16 +84,25 @@ public class CoreStatusController {
                                 CoreDeploymentProperties deploymentProperties,
                                 IntegrationEventOperationalQuery integrationEvents,
                                 IntegrationEventProperties integrationEventProperties,
-                                TaskOrchestrationProperties taskProperties,
-                                TaskDispatchRecoveryProperties taskDispatchRecoveryProperties,
+                                TaskDecisionRuntimeConfigurationView taskDecisionRuntimeConfiguration,
+                                TaskDispatchRecoveryRuntimeConfigurationView taskDispatchRecoveryRuntimeConfiguration,
                                 RoutingProperties routingProperties,
                                 DispatchProperties dispatchProperties,
+                                DispatchRuntimeConfigurationView dispatchRuntimeConfiguration,
                                 TaskCallbackProperties taskCallbackProperties,
-                                AdapterActionProperties adapterActionProperties,
+                                TaskCallbackRuntimeConfigurationView taskCallbackRuntimeConfiguration,
+                                AdapterActionWorkerRuntimeConfigurationView adapterActionWorkerRuntimeConfiguration,
+                                AdapterActionMcpRuntimeConfigurationView adapterActionMcpRuntimeConfiguration,
+                                AdapterActionPolicyRuntimeConfigurationView adapterActionPolicyRuntimeConfiguration,
                                 AdapterActionExecutionProperties adapterActionExecutionProperties,
-                                FingerprintPolicyProperties fingerprintPolicyProperties,
+                                AdapterExecutorRuntimeConfigurationView adapterExecutorRuntimeConfiguration,
+                                FingerprintRuntimeConfigurationView fingerprintRuntimeConfiguration,
                                 LifecycleProperties lifecycleProperties,
-                                ObservabilityProperties observabilityProperties) {
+                                TaskLifecycleRuntimeConfigurationView taskLifecycleRuntimeConfiguration,
+                                IncidentRuntimeConfigurationView incidentRuntimeConfiguration,
+                                ObservabilityProperties observabilityProperties,
+                                CoreObservabilityRuntimeConfigurationView observabilityRuntimeConfiguration,
+                                AgentRemediationMetricsRuntimeConfigurationView remediationMetricsRuntimeConfiguration) {
         this.eventProcessing = eventProcessing;
         this.incidents = incidents;
         this.tasks = tasks;
@@ -86,16 +113,25 @@ public class CoreStatusController {
         this.deploymentProperties = deploymentProperties;
         this.integrationEvents = integrationEvents;
         this.integrationEventProperties = integrationEventProperties;
-        this.taskProperties = taskProperties;
-        this.taskDispatchRecoveryProperties = taskDispatchRecoveryProperties;
+        this.taskDecisionRuntimeConfiguration = taskDecisionRuntimeConfiguration;
+        this.taskDispatchRecoveryRuntimeConfiguration = taskDispatchRecoveryRuntimeConfiguration;
         this.routingProperties = routingProperties;
         this.dispatchProperties = dispatchProperties;
+        this.dispatchRuntimeConfiguration = dispatchRuntimeConfiguration;
         this.taskCallbackProperties = taskCallbackProperties;
-        this.adapterActionProperties = adapterActionProperties;
+        this.taskCallbackRuntimeConfiguration = taskCallbackRuntimeConfiguration;
+        this.adapterActionWorkerRuntimeConfiguration = adapterActionWorkerRuntimeConfiguration;
+        this.adapterActionMcpRuntimeConfiguration = adapterActionMcpRuntimeConfiguration;
+        this.adapterActionPolicyRuntimeConfiguration = adapterActionPolicyRuntimeConfiguration;
         this.adapterActionExecutionProperties = adapterActionExecutionProperties;
-        this.fingerprintPolicyProperties = fingerprintPolicyProperties;
+        this.adapterExecutorRuntimeConfiguration = adapterExecutorRuntimeConfiguration;
+        this.fingerprintRuntimeConfiguration = fingerprintRuntimeConfiguration;
         this.lifecycleProperties = lifecycleProperties;
+        this.taskLifecycleRuntimeConfiguration = taskLifecycleRuntimeConfiguration;
+        this.incidentRuntimeConfiguration = incidentRuntimeConfiguration;
         this.observabilityProperties = observabilityProperties;
+        this.observabilityRuntimeConfiguration = observabilityRuntimeConfiguration;
+        this.remediationMetricsRuntimeConfiguration = remediationMetricsRuntimeConfiguration;
     }
 
     @GetMapping("/status")
@@ -156,7 +192,7 @@ public class CoreStatusController {
                 "GET /admin/remediation/workflow-leases/stale",
                 "GET /admin/remediation/workflow-leases/recovered",
                 "POST /admin/remediation/workflow-leases/recover-stale"));
-        status.put("agentRemediationWorkflowMetricsEnabled", observabilityProperties.getRemediationWorkflowMetrics().isEnabled());
+        status.put("agentRemediationWorkflowMetricsEnabled", remediationMetricsRuntimeConfiguration == null ? observabilityProperties.getRemediationWorkflowMetrics().isEnabled() : remediationMetricsRuntimeConfiguration.enabled());
         status.put("agentRemediationWorkflowMetricsMode", "P12_MICROMETER_PROMETHEUS_ALERTING");
         status.put("agentRemediationWorkflowMetricNames", List.of(
                 "aeg.core.remediation.workflows.created.total",
@@ -176,73 +212,120 @@ public class CoreStatusController {
         status.put("agentRemediationExecutableActions", List.of("CLEAR_RUNTIME_BACKOFF", "DISCONNECT_ALL_RUNTIME_SESSIONS", "SUSPEND_AGENT", "SYNC_APPROVED_SKILLS_AND_CAPABILITIES"));
         status.put("dispatchRequestStore", execution.dispatchStoreMode());
         status.put("dispatchRequestCreationEnabled", dispatchProperties.isRequestCreationEnabled());
-        status.put("dispatchReviewMode", dispatchProperties.getReviewMode());
-        status.put("dispatchRequireAssignableAgent", dispatchProperties.isRequireAssignableAgent());
+        status.put("dispatchReviewMode", dispatchRuntimeConfiguration.reviewMode());
+        status.put("dispatchRequireAssignableAgent", dispatchRuntimeConfiguration.requireAssignableAgent());
         status.put("dispatchClientEnabled", dispatchProperties.getClient().isEnabled());
         status.put("dispatchClientAutoExecuteApproved", dispatchProperties.getClient().isAutoExecuteApproved());
-        status.put("dispatchClientDefaultGatewayBaseUrl", dispatchProperties.getClient().getDefaultGatewayBaseUrl());
+        status.put("dispatchClientDefaultGatewayBaseUrl", dispatchRuntimeConfiguration.defaultGatewayBaseUrl());
+        status.put("dispatchExecutionPolicy", dispatchRuntimeConfiguration.executionPolicy());
+        status.put("dispatchSourceNodeId", dispatchRuntimeConfiguration.sourceNodeId());
+        status.put("dispatchWorkerId", dispatchRuntimeConfiguration.workerId());
+        status.put("dispatchGatewayDispatchPath", dispatchRuntimeConfiguration.gatewayDispatchPath());
+        status.put("dispatchGatewayBaseUrls", dispatchRuntimeConfiguration.gatewayBaseUrls());
+        status.put("dispatchClientConnectTimeout", dispatchRuntimeConfiguration.connectTimeout().toString());
+        status.put("dispatchClientRequestTimeout", dispatchRuntimeConfiguration.requestTimeout().toString());
+        status.put("dispatchClientMaxBatchSize", dispatchRuntimeConfiguration.maxBatchSize());
+        status.put("dispatchAutoExecuteIntervalMs", dispatchRuntimeConfiguration.autoExecuteInterval().toMillis());
+        status.put("dispatchClaimLease", dispatchRuntimeConfiguration.claimLease().toString());
         status.put("taskCallbackStore", execution.callbackStoreMode());
-        status.put("taskCallbackIdempotencyEnabled", taskCallbackProperties.isIdempotencyEnabled());
+        status.put("taskCallbackIdempotencyEnabled", taskCallbackRuntimeConfiguration.idempotencyEnabled());
         status.put("taskCallbackRequireDispatchToken", taskCallbackProperties.isRequireDispatchToken());
-        status.put("taskCallbackEnforceStateTransition", taskCallbackProperties.isEnforceStateTransition());
-        status.put("taskCallbackRejectOldAttemptCallbacks", taskCallbackProperties.isRejectOldAttemptCallbacks());
-        status.put("taskCallbackRequireAttemptNo", taskCallbackProperties.isRequireAttemptNo());
-        status.put("taskCallbackEnforceGatewayAndAgentIdentity", taskCallbackProperties.isEnforceGatewayAndAgentIdentity());
-        status.put("dispatchRecoveryTimeoutEnabled", taskCallbackProperties.getRecovery().isTimeoutEnabled());
-        status.put("dispatchRecoveryRetryEnabled", taskCallbackProperties.getRecovery().isRetryEnabled());
-        status.put("dispatchRetryEnabled", dispatchProperties.getRetry().isEnabled());
-        status.put("dispatchRetryMaxAttempts", dispatchProperties.getRetry().getMaxAttempts());
-        status.put("dispatchRecoveryDispatchTimeout", taskCallbackProperties.getRecovery().getDispatchTimeout().toString());
-        status.put("taskDispatchRecoveryEnabled", taskDispatchRecoveryProperties.isEnabled());
-        status.put("taskDispatchRecoveryScannerEnabled", taskDispatchRecoveryProperties.isScannerEnabled());
-        status.put("taskDispatchRecoveryMaxBatchSize", taskDispatchRecoveryProperties.getMaxBatchSize());
-        status.put("taskDispatchRecoveryInitialDelay", taskDispatchRecoveryProperties.getInitialDelay().toString());
-        status.put("taskDispatchRecoveryMaxDelay", taskDispatchRecoveryProperties.getMaxDelay().toString());
+        status.put("taskCallbackEnforceStateTransition", taskCallbackRuntimeConfiguration.enforceStateTransition());
+        status.put("taskCallbackRejectOldAttemptCallbacks", taskCallbackRuntimeConfiguration.rejectOldAttemptCallbacks());
+        status.put("taskCallbackRequireAttemptNo", taskCallbackRuntimeConfiguration.requireAttemptNo());
+        status.put("taskCallbackEnforceGatewayAndAgentIdentity", taskCallbackRuntimeConfiguration.enforceGatewayAndAgentIdentity());
+        status.put("dispatchRecoveryTimeoutEnabled", taskCallbackRuntimeConfiguration.recoveryTimeoutEnabled());
+        status.put("dispatchRecoveryRetryEnabled", taskCallbackRuntimeConfiguration.recoveryRetryEnabled());
+        status.put("dispatchRetryEnabled", dispatchRuntimeConfiguration.retryEnabled());
+        status.put("dispatchRetryMaxAttempts", dispatchRuntimeConfiguration.maxAttempts());
+        status.put("dispatchRuntimeConfigBacked", dispatchRuntimeConfiguration.runtimeBacked());
+        status.put("dispatchRuntimeConfigRevision", dispatchRuntimeConfiguration.revisionId());
+        status.put("dispatchRecoveryDispatchTimeout", taskCallbackRuntimeConfiguration.recoveryDispatchTimeout().toString());
+        status.put("taskDispatchRecoveryEnabled", taskDispatchRecoveryRuntimeConfiguration.enabled());
+        status.put("taskDispatchRecoveryScannerEnabled", taskDispatchRecoveryRuntimeConfiguration.scannerEnabled());
+        status.put("taskDispatchRecoveryMaxBatchSize", taskDispatchRecoveryRuntimeConfiguration.maxBatchSize());
+        status.put("taskDispatchRecoveryInitialDelay", taskDispatchRecoveryRuntimeConfiguration.initialDelay().toString());
+        status.put("taskDispatchRecoveryMaxDelay", taskDispatchRecoveryRuntimeConfiguration.maxDelay().toString());
         status.put("callbackErrorContractEnabled", true);
         status.put("adapterActionStore", adapterActions.storeMode());
         status.put("adapterExecutorAuditStore", adapterActions.executorAuditStoreMode());
-        status.put("adapterWorkerRetryEnabled", adapterActionProperties.getWorker().isRetryEnabled());
-        status.put("adapterWorkerMaxAttempts", adapterActionProperties.getWorker().getMaxAttempts());
-        status.put("adapterWorkerExpiredLeaseScanBatchSize", adapterActionProperties.getWorker().getExpiredLeaseScanBatchSize());
+        status.put("adapterWorkerRetryEnabled", adapterActionWorkerRuntimeConfiguration.retryEnabled());
+        status.put("adapterWorkerMaxAttempts", adapterActionWorkerRuntimeConfiguration.maxAttempts());
+        status.put("adapterWorkerExpiredLeaseScanBatchSize", adapterActionWorkerRuntimeConfiguration.expiredLeaseScanBatchSize());
+        status.put("adapterWorkerExpiredLeaseScanIntervalMs", adapterActionWorkerRuntimeConfiguration.expiredLeaseScanInterval().toMillis());
+        status.put("adapterWorkerRuntimeConfigBacked", adapterActionWorkerRuntimeConfiguration.runtimeBacked());
+        status.put("adapterWorkerRuntimeConfigRevision", adapterActionWorkerRuntimeConfiguration.revisionId());
+        status.put("adapterMcpEnabled", adapterActionMcpRuntimeConfiguration.enabled());
+        status.put("adapterMcpAdapterName", adapterActionMcpRuntimeConfiguration.adapterName());
+        status.put("adapterActionCreateSuppressedRecords", adapterActionPolicyRuntimeConfiguration.createSuppressedRecords());
+        status.put("adapterIssueAdapterName", adapterActionPolicyRuntimeConfiguration.issueAdapterName());
+        status.put("adapterMcpRunOnCompletedTask", adapterActionMcpRuntimeConfiguration.runOnCompletedTask());
+        status.put("adapterMcpRunOnFailedTask", adapterActionMcpRuntimeConfiguration.runOnFailedTask());
+        status.put("adapterMcpOnePerTask", adapterActionMcpRuntimeConfiguration.onePerTask());
+        status.put("adapterMcpRuntimeConfigBacked", adapterActionMcpRuntimeConfiguration.runtimeBacked());
+        status.put("adapterMcpRuntimeConfigRevision", adapterActionMcpRuntimeConfiguration.revisionId());
         status.put("adapterExecutorMode", adapterActionExecutionProperties.getMode());
         status.put("adapterExecutorEmbeddedMode", adapterActionExecutionProperties.isEmbeddedMode());
         status.put("adapterExecutorExternalMode", adapterActionExecutionProperties.isExternalMode());
+        status.put("adapterExecutorCircuitBreakerEnabled", adapterExecutorRuntimeConfiguration.circuitBreakerEnabled());
+        status.put("adapterExecutorCircuitBreakerFailureThreshold", adapterExecutorRuntimeConfiguration.circuitBreakerFailureThreshold());
+        status.put("adapterExecutorCircuitBreakerOpenDuration", adapterExecutorRuntimeConfiguration.circuitBreakerOpenDuration().toString());
+        status.put("adapterExecutorCircuitBreakerRuntimeConfigBacked", adapterExecutorRuntimeConfiguration.circuitBreakerRuntimeBacked());
+        status.put("adapterExecutorCircuitBreakerRuntimeConfigRevision", adapterExecutorRuntimeConfiguration.revisionId());
         status.put("issueExecutionAuthority", adapterActionExecutionProperties.getIssue().getExecutionAuthority().name());
-        status.put("issueConnectorRuntimeEnabled", adapterActionExecutionProperties.getIssue().isConnectorRuntimeEnabled());
+        status.put("issueConnectorRuntimeEnabled", adapterExecutorRuntimeConfiguration.issueConnectorRuntimeEnabled());
         status.put("issueConnectorRuntimeRequired", adapterActionExecutionProperties.getIssue().isConnectorRuntimeRequired());
-        status.put("issueAutoExecutePending", adapterActionExecutionProperties.getIssue().isAutoExecutePending());
-        status.put("issueLinkProjectionReconciliationEnabled", adapterActionExecutionProperties.getIssue().isLinkProjectionReconciliationEnabled());
-        status.put("issueLinkProjectionMaxAttempts", adapterActionExecutionProperties.getIssue().getLinkProjectionMaxAttempts());
+        status.put("issueAutoExecutePending", adapterExecutorRuntimeConfiguration.issueAutoExecutePending());
+        status.put("issueLinkProjectionReconciliationEnabled", adapterExecutorRuntimeConfiguration.issueLinkProjectionReconciliationEnabled());
+        status.put("issueLinkProjectionMaxAttempts", adapterExecutorRuntimeConfiguration.issueLinkProjectionMaxAttempts());
+        status.put("adapterExecutorAutoExecuteInterval", adapterExecutorRuntimeConfiguration.autoExecuteInterval().toString());
+        status.put("adapterExecutorAuditPayloadSnapshotEnabled", adapterExecutorRuntimeConfiguration.auditPayloadSnapshotEnabled());
+        status.put("adapterExecutorMarkUnavailableWhenNoExecutor", adapterExecutorRuntimeConfiguration.markUnavailableWhenNoExecutor());
+        status.put("adapterExecutorMcpHttpEnabled", adapterExecutorRuntimeConfiguration.mcpHttpEnabled());
+        status.put("adapterExecutorMcpEndpointConfigured", !adapterExecutorRuntimeConfiguration.mcpEndpointUrl().isBlank());
+        status.put("adapterExecutorMcpExecutorName", adapterExecutorRuntimeConfiguration.mcpExecutorName());
+        status.put("adapterExecutorMcpTimeout", adapterExecutorRuntimeConfiguration.mcpTimeout().toString());
+        status.put("issueDefaultVendor", adapterExecutorRuntimeConfiguration.issueDefaultVendor());
+        status.put("issueLinkProjectionBatchSize", adapterExecutorRuntimeConfiguration.issueLinkProjectionBatchSize());
         status.put("issueExternalWorkerAllowed", false);
         status.put("integrationEventStore", integrationEvents.storeMode());
         status.put("integrationEventProjectionEnabled", integrationEventProperties.isProjectionEnabled());
         status.put("integrationEventDeliveryEnabled", integrationEventProperties.isDeliveryEnabled());
         status.put("integrationEventSink", integrationEventProperties.getSink());
-        status.put("fingerprintEnabled", fingerprintPolicyProperties.isEnabled());
-        status.put("fingerprintPolicyVersion", fingerprintPolicyProperties.getPolicyVersion());
-        status.put("fingerprintDefaultFields", fingerprintPolicyProperties.getDefaultFields());
-        status.put("fingerprintPolicyCount", fingerprintPolicyProperties.getPolicies() == null ? 0 : fingerprintPolicyProperties.getPolicies().size());
-        status.put("fingerprintMessageMaskingEnabled", fingerprintPolicyProperties.getMasking() != null && fingerprintPolicyProperties.getMasking().isEnabled());
+        status.put("fingerprintEnabled", fingerprintRuntimeConfiguration.enabled());
+        status.put("fingerprintPolicyVersion", fingerprintRuntimeConfiguration.policyVersion());
+        status.put("fingerprintDefaultFields", fingerprintRuntimeConfiguration.defaultFields());
+        status.put("fingerprintPolicyCount", fingerprintRuntimeConfiguration.policies().size());
+        status.put("fingerprintMessageMaskingEnabled", fingerprintRuntimeConfiguration.maskingEnabled());
+        status.put("fingerprintRuntimeConfigBacked", fingerprintRuntimeConfiguration.runtimeBacked());
+        status.put("fingerprintRuntimeConfigVersion", fingerprintRuntimeConfiguration.snapshotVersionToken());
         status.put("incidentAutoResolveEnabled", lifecycleProperties.getIncident().isAutoResolveEnabled());
-        status.put("incidentInactiveThreshold", lifecycleProperties.getIncident().getInactiveThreshold().toString());
-        status.put("incidentReopenPolicy", lifecycleProperties.getIncident().getReopenPolicy().name());
-        status.put("incidentReopenWindow", lifecycleProperties.getIncident().getReopenWindow().toString());
-        status.put("taskTimeoutEnabled", lifecycleProperties.getTask().isTimeoutEnabled());
-        status.put("taskAutoReassignEnabled", lifecycleProperties.getTask().isAutoReassignEnabled());
-        status.put("taskCreatedTimeout", lifecycleProperties.getTask().getCreatedTimeout().toString());
-        status.put("taskAssignedTimeout", lifecycleProperties.getTask().getAssignedTimeout().toString());
-        status.put("taskDispatchedTimeout", lifecycleProperties.getTask().getDispatchedTimeout().toString());
-        status.put("taskRunningTimeout", lifecycleProperties.getTask().getRunningTimeout().toString());
-        status.put("taskMaxReassignments", lifecycleProperties.getTask().getMaxReassignments());
-        status.put("observabilityEnabled", observabilityProperties.isEnabled());
-        status.put("businessMetricsEnabled", observabilityProperties.isBusinessMetricsEnabled());
+        status.put("incidentInactiveThreshold", incidentRuntimeConfiguration.inactiveThreshold().toString());
+        status.put("incidentReopenPolicy", incidentRuntimeConfiguration.reopenPolicy().name());
+        status.put("incidentReopenWindow", incidentRuntimeConfiguration.reopenWindow().toString());
+        status.put("incidentRuntimeConfigBacked", incidentRuntimeConfiguration.runtimeBacked());
+        status.put("incidentRuntimeConfigRevision", incidentRuntimeConfiguration.revisionId());
+        status.put("taskTimeoutEnabled", taskLifecycleRuntimeConfiguration.timeoutEnabled());
+        status.put("taskAutoReassignEnabled", taskLifecycleRuntimeConfiguration.autoReassignEnabled());
+        status.put("taskCreatedTimeout", taskLifecycleRuntimeConfiguration.createdTimeout().toString());
+        status.put("taskAssignedTimeout", taskLifecycleRuntimeConfiguration.assignedTimeout().toString());
+        status.put("taskDispatchedTimeout", taskLifecycleRuntimeConfiguration.dispatchedTimeout().toString());
+        status.put("taskRunningTimeout", taskLifecycleRuntimeConfiguration.runningTimeout().toString());
+        status.put("taskMaxReassignments", taskLifecycleRuntimeConfiguration.maxReassignments());
+        status.put("taskRuntimeConfigBacked", taskLifecycleRuntimeConfiguration.runtimeBacked());
+        status.put("taskRuntimeConfigRevision", taskLifecycleRuntimeConfiguration.revisionId());
+        status.put("observabilityEnabled", observabilityRuntimeConfiguration.enabled());
+        status.put("businessMetricsEnabled", observabilityRuntimeConfiguration.businessMetricsEnabled());
         status.put("repositorySummaryEnabled", observabilityProperties.isRepositorySummaryEnabled());
-        status.put("healthIndicatorEnabled", observabilityProperties.isHealthIndicatorEnabled());
-        status.put("opsSummarySampleLimit", observabilityProperties.getSummarySampleLimit());
-        status.put("taskCreationEnabled", taskProperties.isTaskCreationEnabled());
-        status.put("taskEscalationEnabled", taskProperties.isTaskEscalationEnabled());
-        status.put("taskMinOccurrences", taskProperties.getTaskMinOccurrences());
-        status.put("immediateTaskSeverities", taskProperties.getImmediateTaskSeverities());
+        status.put("healthIndicatorEnabled", observabilityRuntimeConfiguration.healthIndicatorEnabled());
+        status.put("opsSummarySampleLimit", observabilityRuntimeConfiguration.summarySampleLimit());
+        status.put("observabilityRuntimeConfigBacked", observabilityRuntimeConfiguration.runtimeBacked());
+        status.put("observabilityRuntimeConfigRevision", observabilityRuntimeConfiguration.revisionId());
+        status.put("taskCreationEnabled", taskDecisionRuntimeConfiguration.taskCreationEnabled());
+        status.put("taskEscalationEnabled", taskDecisionRuntimeConfiguration.taskEscalationEnabled());
+        status.put("taskMinOccurrences", taskDecisionRuntimeConfiguration.taskMinOccurrences());
+        status.put("immediateTaskSeverities", taskDecisionRuntimeConfiguration.immediateTaskSeverities());
+        status.put("taskDefaultRoutingPolicy", taskDecisionRuntimeConfiguration.defaultRoutingPolicy());
         status.put("mcpActionEnabled", properties.isMcpActionEnabled());
         status.put("issueActionEnabled", properties.isIssueActionEnabled());
         status.put("now", OffsetDateTime.now(ZoneOffset.UTC).toString());

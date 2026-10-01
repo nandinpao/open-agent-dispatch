@@ -28,6 +28,8 @@ import com.opensocket.aievent.core.security.CoreInternalSecurityProperties;
 import com.opensocket.aievent.core.identity.AdminIdentityProperties;
 import com.opensocket.aievent.core.runtime.RuntimeDisconnectProperties;
 import com.opensocket.aievent.core.config.RecoveryGovernanceProperties;
+import com.opensocket.aievent.core.configuration.distribution.RuntimeConfigurationDistributionProperties;
+import com.opensocket.aievent.core.api.AgentRemediationWorkflowRuntimeProperties;
 import com.opensocket.aievent.database.config.DatabasePlatformApplicationFailureCleanupListener;
 
 @SpringBootApplication(excludeName = {
@@ -36,7 +38,7 @@ import com.opensocket.aievent.database.config.DatabasePlatformApplicationFailure
 })
 @EnableAsync
 @EnableScheduling
-@EnableConfigurationProperties({CoreDecisionProperties.class, CoreDeploymentProperties.class, EventDedupRedisProperties.class, IncidentSummaryProperties.class, RoutingProperties.class, DispatchProperties.class, TaskCallbackProperties.class, AdapterActionProperties.class, AdapterActionExecutionProperties.class, FingerprintPolicyProperties.class, LifecycleProperties.class, ObservabilityProperties.class, EventProcessingProperties.class, IncidentModuleProperties.class, TaskOrchestrationProperties.class, TaskDispatchRecoveryProperties.class, OutboxProperties.class, IntegrationEventProperties.class, CoreInternalSecurityProperties.class, AdminIdentityProperties.class, RuntimeDisconnectProperties.class, RecoveryGovernanceProperties.class})
+@EnableConfigurationProperties({CoreDecisionProperties.class, CoreDeploymentProperties.class, EventDedupRedisProperties.class, IncidentSummaryProperties.class, RoutingProperties.class, DispatchProperties.class, TaskCallbackProperties.class, AdapterActionProperties.class, AdapterActionExecutionProperties.class, FingerprintPolicyProperties.class, LifecycleProperties.class, ObservabilityProperties.class, EventProcessingProperties.class, IncidentModuleProperties.class, TaskOrchestrationProperties.class, TaskDispatchRecoveryProperties.class, OutboxProperties.class, IntegrationEventProperties.class, CoreInternalSecurityProperties.class, AdminIdentityProperties.class, RuntimeDisconnectProperties.class, RecoveryGovernanceProperties.class, RuntimeConfigurationDistributionProperties.class, AgentRemediationWorkflowRuntimeProperties.class})
 public class AiEventGatewayCoreApplication {
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(AiEventGatewayCoreApplication.class);

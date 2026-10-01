@@ -6,12 +6,14 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -28,14 +30,22 @@ public class HttpGatewayDispatchClient implements GatewayDispatchClient {
 
     private final DispatchProperties properties;
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
+    private final DispatchRuntimeConfigurationView runtimeConfiguration;
+    private volatile HttpClient httpClient;
+    private volatile Duration httpClientConnectTimeout;
 
+    @Autowired
+    public HttpGatewayDispatchClient(DispatchProperties properties, ObjectMapper objectMapper, DispatchRuntimeConfigurationView runtimeConfiguration) {
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
+    /** Compatibility constructor for focused tests. */
     public HttpGatewayDispatchClient(DispatchProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(properties.getClient().getConnectTimeout())
-                .build();
+        this.runtimeConfiguration = null;
     }
 
     @Override
@@ -52,15 +62,15 @@ public class HttpGatewayDispatchClient implements GatewayDispatchClient {
             String body = objectMapper.writeValueAsString(toGatewayRequest(request));
             log.info("gateway_dispatch_http_started dispatchRequestId={} taskId={} agentId={} gatewayNode={} uri={} timeoutMs={} tokenPresent={}",
                     safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(targetAgentId(request)), safe(request.getOwnerGatewayNodeId()),
-                    uri, properties.getClient().getRequestTimeout().toMillis(), !blank(properties.getClient().getInternalToken()));
+                    uri, runtimeRequestTimeout().toMillis(), !blank(properties.getClient().getInternalToken()));
             HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
-                    .timeout(properties.getClient().getRequestTimeout())
+                    .timeout(runtimeRequestTimeout())
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body));
             if (!blank(properties.getClient().getInternalToken())) {
                 builder.header(properties.getClient().getInternalTokenHeader(), properties.getClient().getInternalToken());
             }
-            HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString());
             log.info("gateway_dispatch_http_response dispatchRequestId={} taskId={} agentId={} httpStatus={} bodyPreview={}",
                     safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(targetAgentId(request)), response.statusCode(), preview(response.body()));
             GatewayDispatchResponse gatewayResponse = parse(response.body(), request);
@@ -78,15 +88,15 @@ public class HttpGatewayDispatchClient implements GatewayDispatchClient {
     }
 
     private String baseUrl(String ownerGatewayNodeId) {
-        String configured = properties.getClient().getGatewayBaseUrls().get(ownerGatewayNodeId);
-        String base = configured == null || configured.isBlank() ? properties.getClient().getDefaultGatewayBaseUrl() : configured;
-        return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return runtimeConfiguration == null
+                ? normalizeBaseUrl(startupBaseUrl(ownerGatewayNodeId))
+                : runtimeConfiguration.gatewayBaseUrl(ownerGatewayNodeId);
     }
 
     private String dispatchPath(DispatchRequest request) {
-        String path = firstNonBlank(request.getGatewayDispatchPath(), properties.getGatewayDispatchPath(), DEFAULT_NETTY_DELIVERY_PATH);
+        String path = firstNonBlank(request.getGatewayDispatchPath(), runtimeGatewayDispatchPath(), DEFAULT_NETTY_DELIVERY_PATH);
         if (LEGACY_CORE_DISPATCH_PATH.equals(path)) {
-            path = firstNonBlank(properties.getGatewayDispatchPath(), DEFAULT_NETTY_DELIVERY_PATH);
+            path = firstNonBlank(runtimeGatewayDispatchPath(), DEFAULT_NETTY_DELIVERY_PATH);
         }
         if (LEGACY_CORE_DISPATCH_PATH.equals(path)) {
             path = DEFAULT_NETTY_DELIVERY_PATH;
@@ -120,7 +130,7 @@ public class HttpGatewayDispatchClient implements GatewayDispatchClient {
         payload.put("targetAgentId", targetAgentId(request));
         payload.put("ownerGatewayNodeId", firstNonBlank(command.getOwnerGatewayNodeId(), request.getOwnerGatewayNodeId()));
         payload.put("agentSessionId", firstNonBlank(command.getAgentSessionId(), request.getAgentSessionId()));
-        payload.put("sourceNodeId", firstNonBlank(command.getSourceNodeId(), properties.getSourceNodeId()));
+        payload.put("sourceNodeId", firstNonBlank(command.getSourceNodeId(), runtimeSourceNodeId()));
         payload.put("dispatchToken", firstNonBlank(request.getDispatchToken(), command.getDispatchToken()));
         payload.put("fencingToken", command.getFencingToken());
         payload.put("incidentId", firstNonBlank(command.getIncidentId(), request.getIncidentId()));
@@ -138,9 +148,47 @@ public class HttpGatewayDispatchClient implements GatewayDispatchClient {
         // Business correlation is carried explicitly in payload.correlationId; keep the legacy
         // traceId compatibility behavior unchanged for existing Gateway diagnostics.
         envelope.put("traceId", firstNonBlank(command.getTaskId(), request.getTaskId(), command.getDispatchRequestId(), request.getDispatchRequestId()));
-        envelope.put("issuedBy", firstNonBlank(command.getSourceNodeId(), properties.getSourceNodeId()));
-        envelope.put("timeoutMs", Math.max(100L, properties.getClient().getRequestTimeout().toMillis()));
+        envelope.put("issuedBy", firstNonBlank(command.getSourceNodeId(), runtimeSourceNodeId()));
+        envelope.put("timeoutMs", Math.max(100L, runtimeRequestTimeout().toMillis()));
         return envelope;
+    }
+
+    private HttpClient httpClient() {
+        Duration desired = runtimeConnectTimeout();
+        HttpClient current = httpClient;
+        if (current != null && desired.equals(httpClientConnectTimeout)) return current;
+        synchronized (this) {
+            if (httpClient == null || !desired.equals(httpClientConnectTimeout)) {
+                httpClient = HttpClient.newBuilder().connectTimeout(desired).build();
+                httpClientConnectTimeout = desired;
+            }
+            return httpClient;
+        }
+    }
+
+    private Duration runtimeConnectTimeout() {
+        return runtimeConfiguration == null ? properties.getClient().getConnectTimeout() : runtimeConfiguration.connectTimeout();
+    }
+
+    private Duration runtimeRequestTimeout() {
+        return runtimeConfiguration == null ? properties.getClient().getRequestTimeout() : runtimeConfiguration.requestTimeout();
+    }
+
+    private String runtimeGatewayDispatchPath() {
+        return runtimeConfiguration == null ? properties.getGatewayDispatchPath() : runtimeConfiguration.gatewayDispatchPath();
+    }
+
+    private String runtimeSourceNodeId() {
+        return runtimeConfiguration == null ? properties.getSourceNodeId() : runtimeConfiguration.sourceNodeId();
+    }
+
+    private String startupBaseUrl(String ownerGatewayNodeId) {
+        String configured = properties.getClient().getGatewayBaseUrls().get(ownerGatewayNodeId);
+        return configured == null || configured.isBlank() ? properties.getClient().getDefaultGatewayBaseUrl() : configured;
+    }
+
+    private String normalizeBaseUrl(String base) {
+        return base != null && base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
     }
 
     private GatewayDispatchResponse parse(String body, DispatchRequest request) {

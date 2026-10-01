@@ -15,9 +15,11 @@ import java.util.Objects;
  */
 final class TaskCallbackIdentity {
     private final TaskCallbackProperties properties;
+    private final TaskCallbackRuntimeConfigurationView runtime;
 
-    TaskCallbackIdentity(TaskCallbackProperties properties) {
+    TaskCallbackIdentity(TaskCallbackProperties properties, TaskCallbackRuntimeConfigurationView runtime) {
         this.properties = properties;
+        this.runtime = runtime;
     }
 
     String generatedCallbackId(TaskCallbackType type, TaskCallbackRequest request) {
@@ -77,7 +79,7 @@ final class TaskCallbackIdentity {
     }
 
     boolean replayMismatch(TaskCallbackRecord current, TaskCallbackRecord previous) {
-        if (!properties.isReplayProtectionEnabled() || !properties.isRejectCallbackIdReplayMismatch()) {
+        if (!replayProtectionEnabled() || !rejectCallbackIdReplayMismatch()) {
             return false;
         }
         String currentFingerprint = current == null ? null : current.getCallbackFingerprint();
@@ -87,6 +89,14 @@ final class TaskCallbackIdentity {
             return false;
         }
         return !Objects.equals(currentFingerprint, previousFingerprint);
+    }
+
+    private boolean replayProtectionEnabled() {
+        return runtime == null ? properties.isReplayProtectionEnabled() : runtime.replayProtectionEnabled();
+    }
+
+    private boolean rejectCallbackIdReplayMismatch() {
+        return runtime == null ? properties.isRejectCallbackIdReplayMismatch() : runtime.rejectCallbackIdReplayMismatch();
     }
 
     String secretFingerprint(String secret) {

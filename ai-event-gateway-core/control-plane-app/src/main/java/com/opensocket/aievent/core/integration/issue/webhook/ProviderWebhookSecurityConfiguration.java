@@ -5,8 +5,8 @@ import com.opensocket.aievent.core.integration.identity.*; import tools.jackson.
 @Configuration @EnableConfigurationProperties(ProviderWebhookSecurityProperties.class)
 public class ProviderWebhookSecurityConfiguration {
  @Bean ProviderWebhookRateLimiter providerWebhookRateLimiter(){return new ProviderWebhookRateLimiter();}
- @Bean @Order(2) SecurityFilterChain providerWebhookSecurityFilterChain(HttpSecurity http,IntegrationWebhookEndpointRepository endpoints,IntegrationIdentityRepository identities,ProviderWebhookSignatureVerifier signatures,ProviderWebhookRateLimiter limiter,ProviderWebhookSecurityProperties properties,ObjectMapper json)throws Exception{
-  ProviderWebhookAuthenticationFilter filter=new ProviderWebhookAuthenticationFilter(endpoints,identities,signatures,limiter,properties,json);
+ @Bean @Order(2) SecurityFilterChain providerWebhookSecurityFilterChain(HttpSecurity http,IntegrationWebhookEndpointRepository endpoints,IntegrationIdentityRepository identities,ProviderWebhookSignatureVerifier signatures,ProviderWebhookRateLimiter limiter,ProviderWebhookSecurityRuntimeConfigurationView runtimeConfiguration,ObjectMapper json)throws Exception{
+  ProviderWebhookAuthenticationFilter filter=new ProviderWebhookAuthenticationFilter(endpoints,identities,signatures,limiter,runtimeConfiguration,json);
   return http.securityMatcher("/api/external/provider-webhooks/**").csrf(AbstractHttpConfigurer::disable).httpBasic(AbstractHttpConfigurer::disable).formLogin(AbstractHttpConfigurer::disable).logout(AbstractHttpConfigurer::disable).requestCache(AbstractHttpConfigurer::disable).sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).addFilterBefore(filter,AnonymousAuthenticationFilter.class).authorizeHttpRequests(a->a.requestMatchers(HttpMethod.POST,"/api/external/provider-webhooks/*").authenticated().anyRequest().denyAll()).build();
  }
 }

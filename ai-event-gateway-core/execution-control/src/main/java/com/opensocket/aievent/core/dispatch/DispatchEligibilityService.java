@@ -1,5 +1,6 @@
 package com.opensocket.aievent.core.dispatch;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.opensocket.aievent.core.agent.AgentDirectoryFacade;
@@ -24,6 +25,9 @@ public class DispatchEligibilityService {
     private final AgentDirectoryFacade agentDirectory;
     private final DispatchProperties properties;
 
+    @Autowired(required = false)
+    private DispatchRuntimeConfigurationView runtimeConfigurationView;
+
     public DispatchEligibilityService(AgentDirectoryFacade agentDirectory, DispatchProperties properties) {
         this.agentDirectory = agentDirectory;
         this.properties = properties;
@@ -33,7 +37,7 @@ public class DispatchEligibilityService {
         if (!properties.isRequestCreationEnabled()) {
             return new EligibilityResult(false, "Dispatch request creation disabled by DISPATCH_REQUEST_CREATION_ENABLED=false");
         }
-        if (properties.getReviewMode() == DispatchReviewMode.DISABLED) {
+        if (runtimeReviewMode() == DispatchReviewMode.DISABLED) {
             return new EligibilityResult(false, "Dispatch review mode DISABLED suppresses dispatch request creation");
         }
         if (assignment == null) {
@@ -51,7 +55,7 @@ public class DispatchEligibilityService {
         if (task == null) {
             return new EligibilityResult(false, "Task is missing");
         }
-        if (properties.isRequireAssignableAgent()) {
+        if (runtimeRequireAssignableAgent()) {
             EligibilityResult assignable = agentDirectory.findById(assignment.getAgentId())
                     .map(agent -> {
                         boolean online = agent.getStatus() != AgentStatus.OFFLINE
@@ -72,6 +76,14 @@ public class DispatchEligibilityService {
         }
         return new EligibilityResult(true,
                 "Assignment is structurally eligible; authority=FLOW_RULE_AGENT_CAPABILITY_RUNTIME; candidateDispatchAccessGate=DECOMMISSIONED; executionAuthorization=RESOURCE_ACCESS_DISPATCH_ACCESS");
+    }
+
+    private DispatchReviewMode runtimeReviewMode() {
+        return runtimeConfigurationView == null ? properties.getReviewMode() : runtimeConfigurationView.reviewMode();
+    }
+
+    private boolean runtimeRequireAssignableAgent() {
+        return runtimeConfigurationView == null ? properties.isRequireAssignableAgent() : runtimeConfigurationView.requireAssignableAgent();
     }
 
     private boolean isBlank(String value) {

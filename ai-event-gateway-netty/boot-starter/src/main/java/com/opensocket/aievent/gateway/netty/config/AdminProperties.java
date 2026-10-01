@@ -34,6 +34,12 @@ public class AdminProperties {
     /** Enables or disables periodic metrics push events over the Admin WebSocket channel. */
     private boolean metricsPushEnabled = true;
 
+    /** Startup fallback for the periodic metrics push cadence. */
+    private long metricsPushIntervalMs = 5000;
+
+    /** Startup-only initial delay before the first Admin metrics push. */
+    private long metricsPushInitialDelayMs = 5000;
+
     /** Enables machine-to-machine authentication for Netty Admin and cluster APIs. */
     private boolean machineAuthEnabled = false;
 
@@ -134,6 +140,11 @@ public class AdminProperties {
         this.metricsPushEnabled = metricsPushEnabled;
     }
 
+    public long getMetricsPushIntervalMs() { return metricsPushIntervalMs; }
+    public void setMetricsPushIntervalMs(long value) { this.metricsPushIntervalMs = value <= 0 ? 5000 : value; }
+    public long getMetricsPushInitialDelayMs() { return metricsPushInitialDelayMs; }
+    public void setMetricsPushInitialDelayMs(long value) { this.metricsPushInitialDelayMs = value < 0 ? 5000 : value; }
+
     public boolean isMachineAuthEnabled() { return machineAuthEnabled; }
     public void setMachineAuthEnabled(boolean machineAuthEnabled) { this.machineAuthEnabled = machineAuthEnabled; }
     public String getMachineToken() { return machineToken; }
@@ -168,10 +179,10 @@ public class AdminProperties {
         return corsMaxAgeSeconds;
     }
 
-    /** Record-style accessor kept for the metrics scheduler. */
-    public boolean metricsPushEnabled() {
-        return metricsPushEnabled;
-    }
+    /** Record-style accessors kept for the metrics scheduler. */
+    public boolean metricsPushEnabled() { return metricsPushEnabled; }
+    public long metricsPushIntervalMs() { return metricsPushIntervalMs; }
+    public long metricsPushInitialDelayMs() { return metricsPushInitialDelayMs; }
 
     /** Record-style accessor used by the machine API token filter. */
     public boolean machineAuthEnabled() { return machineAuthEnabled; }

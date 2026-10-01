@@ -4,6 +4,7 @@ import com.opensocket.aievent.gateway.netty.config.ClusterRuntimeProperties;
 import com.opensocket.aievent.gateway.netty.config.ClusterSyncProperties;
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
 import com.opensocket.aievent.gateway.netty.config.NettyServerProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -27,17 +28,30 @@ public class ClusterPeerRelationRegistry {
 
     private final GatewayProperties gatewayProperties;
     private final ClusterRuntimeProperties clusterRuntimeProperties;
-    private final ClusterSyncProperties clusterSyncProperties;
+    private final ClusterSyncRuntimeConfigurationView runtimeConfiguration;
     private final Map<String, ClusterPeerRelationRecord> peers = new ConcurrentHashMap<>();
+
+    @Autowired
+    public ClusterPeerRelationRegistry(
+            GatewayProperties gatewayProperties,
+            ClusterRuntimeProperties clusterRuntimeProperties,
+            ClusterSyncProperties clusterSyncProperties,
+            ClusterSyncRuntimeConfigurationView runtimeConfiguration
+    ) {
+        this.gatewayProperties = gatewayProperties;
+        this.clusterRuntimeProperties = clusterRuntimeProperties;
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new ClusterSyncRuntimeConfigurationView(clusterSyncProperties)
+                : runtimeConfiguration;
+    }
 
     public ClusterPeerRelationRegistry(
             GatewayProperties gatewayProperties,
             ClusterRuntimeProperties clusterRuntimeProperties,
             ClusterSyncProperties clusterSyncProperties
     ) {
-        this.gatewayProperties = gatewayProperties;
-        this.clusterRuntimeProperties = clusterRuntimeProperties;
-        this.clusterSyncProperties = clusterSyncProperties;
+        this(gatewayProperties, clusterRuntimeProperties, clusterSyncProperties,
+                new ClusterSyncRuntimeConfigurationView(clusterSyncProperties));
     }
 
     public void refreshConfiguredPeers() {
@@ -119,7 +133,7 @@ public class ClusterPeerRelationRegistry {
         if (!clusterRuntimeProperties.enabled()) {
             syncStatus = ClusterPeerSyncStatus.DISABLED;
             heartbeatStatus = ClusterPeerHeartbeatStatus.DISABLED;
-        } else if (!clusterSyncProperties.enabled()) {
+        } else if (!runtimeConfiguration.enabled()) {
             syncStatus = ClusterPeerSyncStatus.DISABLED;
             heartbeatStatus = ClusterPeerHeartbeatStatus.DISABLED;
         }
@@ -138,11 +152,11 @@ public class ClusterPeerRelationRegistry {
     }
 
     private void markStaleStates() {
-        if (!clusterRuntimeProperties.enabled() || !clusterSyncProperties.enabled()) {
+        if (!clusterRuntimeProperties.enabled() || !runtimeConfiguration.enabled()) {
             return;
         }
         var now = OffsetDateTime.now();
-        var staleAfterMs = clusterSyncProperties.safeRemoteStateTtlMs();
+        var staleAfterMs = runtimeConfiguration.remoteStateTtlMs();
         for (var entry : peers.entrySet()) {
             var record = entry.getValue();
             if (record.lastHeartbeatAt() == null || record.syncStatus() != ClusterPeerSyncStatus.SYNCED) {

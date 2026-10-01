@@ -5,11 +5,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import com.opensocket.aievent.worker.configuration.WorkerRuntimeConfigurationProperties;
 
 @SpringBootApplication
 @EnableAsync
 @EnableScheduling
-@EnableConfigurationProperties(AdapterWorkerProperties.class)
+@EnableConfigurationProperties({AdapterWorkerProperties.class,WorkerRuntimeConfigurationProperties.class})
 public class AdapterWorkerApplication {
     public static void main(String[] args) {
         SpringApplication.run(AdapterWorkerApplication.class, args);

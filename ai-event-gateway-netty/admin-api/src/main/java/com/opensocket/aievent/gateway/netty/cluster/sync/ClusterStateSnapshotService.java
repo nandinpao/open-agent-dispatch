@@ -10,6 +10,7 @@ import com.opensocket.aievent.gateway.netty.cluster.ClusterNodeRegistry;
 import com.opensocket.aievent.gateway.netty.cluster.dto.ClusterNodeResponse;
 import com.opensocket.aievent.gateway.netty.config.ClusterSyncProperties;
 import com.opensocket.aievent.gateway.netty.config.GatewayProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -21,22 +22,26 @@ import java.util.stream.Collectors;
 public class ClusterStateSnapshotService {
 
     private final GatewayProperties gatewayProperties;
-    private final ClusterSyncProperties clusterSyncProperties;
+    private final ClusterSyncRuntimeConfigurationView runtimeConfiguration;
     private final ClusterNodeRegistry clusterNodeRegistry;
     private final AgentRegistry agentRegistry;
     private final AdminRuntimeMetricsService adminRuntimeMetricsService;
     private final AdminEventStore adminEventStore;
 
+    @Autowired
     public ClusterStateSnapshotService(
             GatewayProperties gatewayProperties,
             ClusterSyncProperties clusterSyncProperties,
+            ClusterSyncRuntimeConfigurationView runtimeConfiguration,
             ClusterNodeRegistry clusterNodeRegistry,
             AgentRegistry agentRegistry,
             AdminRuntimeMetricsService adminRuntimeMetricsService,
             AdminEventStore adminEventStore
     ) {
         this.gatewayProperties = gatewayProperties;
-        this.clusterSyncProperties = clusterSyncProperties;
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new ClusterSyncRuntimeConfigurationView(clusterSyncProperties)
+                : runtimeConfiguration;
         this.clusterNodeRegistry = clusterNodeRegistry;
         this.agentRegistry = agentRegistry;
         this.adminRuntimeMetricsService = adminRuntimeMetricsService;
@@ -58,9 +63,9 @@ public class ClusterStateSnapshotService {
                 metrics,
                 agentRegistry.list().stream()
                         .map(AgentResponse::from)
-                        .limit(clusterSyncProperties.safeMaxAgentsPerNode())
+                        .limit(runtimeConfiguration.maxAgentsPerNode())
                         .toList(),
-                adminEventStore.recent(clusterSyncProperties.safeMaxEventsPerNode()),
+                adminEventStore.recent(runtimeConfiguration.maxEventsPerNode()),
                 OffsetDateTime.now()
         );
     }

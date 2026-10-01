@@ -14,17 +14,21 @@ import org.springframework.stereotype.Component;
 /** Normalizes dynamic tokens in messages before they are used for fingerprinting. */
 @Component
 public class DynamicTokenMasker {
-    private final FingerprintPolicyProperties properties;
-    private final List<CompiledRule> compiledRules;
+    private final FingerprintRuntimeConfigurationView runtimeConfiguration;
+    private volatile String compiledVersion = "";
+    private volatile List<CompiledRule> compiledRules = List.of();
 
     @Autowired
+    public DynamicTokenMasker(FingerprintRuntimeConfigurationView runtimeConfiguration) {
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
     public DynamicTokenMasker(FingerprintPolicyProperties properties) {
-        this.properties = properties;
-        this.compiledRules = compile(properties);
+        this(new FingerprintRuntimeConfigurationView(properties));
     }
 
     public DynamicTokenMasker() {
-        this(new FingerprintPolicyProperties());
+        this(new FingerprintRuntimeConfigurationView(new FingerprintPolicyProperties()));
     }
 
     public String mask(String normalizedMessage) {
@@ -32,30 +36,35 @@ public class DynamicTokenMasker {
             return "";
         }
         String value = normalizedMessage.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
-        FingerprintPolicyProperties.MessageMasking masking = properties.getMasking();
-        if (masking == null || !masking.isEnabled()) {
+        if (!runtimeConfiguration.maskingEnabled()) {
             return value;
         }
-        for (CompiledRule rule : compiledRules) {
+        for (CompiledRule rule : compiledRules()) {
             value = rule.pattern().matcher(value).replaceAll(Matcher.quoteReplacement(rule.replacement()));
         }
         return value.trim().replaceAll("\\s+", " ");
     }
 
-    private List<CompiledRule> compile(FingerprintPolicyProperties properties) {
-        List<CompiledRule> rules = new ArrayList<>();
-        FingerprintPolicyProperties.MessageMasking masking = properties.getMasking();
-        if (masking == null || masking.getRules() == null) {
-            return List.of();
+    private List<CompiledRule> compiledRules() {
+        String version = runtimeConfiguration.snapshotVersionToken();
+        List<CompiledRule> local = compiledRules;
+        if (version.equals(compiledVersion) && !local.isEmpty()) return local;
+        synchronized (this) {
+            if (!version.equals(compiledVersion) || compiledRules.isEmpty()) {
+                compiledRules = compile(runtimeConfiguration.maskingRules(), runtimeConfiguration.replacementToken());
+                compiledVersion = version;
+            }
+            return compiledRules;
         }
-        for (FingerprintPolicyProperties.MaskRule rule : masking.getRules()) {
-            if (rule == null || rule.getRegex() == null || rule.getRegex().isBlank()) {
-                continue;
-            }
+    }
+
+    private List<CompiledRule> compile(List<FingerprintPolicyProperties.MaskRule> configuredRules, String replacementToken) {
+        List<CompiledRule> rules = new ArrayList<>();
+        if (configuredRules == null) return List.of();
+        for (FingerprintPolicyProperties.MaskRule rule : configuredRules) {
+            if (rule == null || rule.getRegex() == null || rule.getRegex().isBlank()) continue;
             String replacement = rule.getReplacement();
-            if (replacement == null || replacement.isBlank()) {
-                replacement = masking.getReplacementToken() == null ? "<var>" : masking.getReplacementToken();
-            }
+            if (replacement == null || replacement.isBlank()) replacement = replacementToken == null ? "<var>" : replacementToken;
             try {
                 rules.add(new CompiledRule(Pattern.compile(rule.getRegex(), Pattern.CASE_INSENSITIVE), replacement));
             } catch (PatternSyntaxException ex) {

@@ -1,6 +1,9 @@
 # Prod profile: production baseline.
 # Database and Redis are configured through SharedUtility database pg.single and redisson-client packages.
 # Required environment variables intentionally do not provide unsafe defaults.
+opendispatch:
+  environment: ${OPENDISPATCH_ENVIRONMENT}
+
 management:
   endpoints:
     web:

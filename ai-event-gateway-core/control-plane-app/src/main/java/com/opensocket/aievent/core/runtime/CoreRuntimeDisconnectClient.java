@@ -27,18 +27,16 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Component
 public class CoreRuntimeDisconnectClient {
-    private final RuntimeDisconnectProperties properties;
+    private final RuntimeDisconnectRuntimeConfigurationView runtimeConfiguration;
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
 
-    public CoreRuntimeDisconnectClient(RuntimeDisconnectProperties properties, ObjectMapper objectMapper) {
-        this.properties = properties;
+    public CoreRuntimeDisconnectClient(RuntimeDisconnectRuntimeConfigurationView runtimeConfiguration, ObjectMapper objectMapper) {
+        this.runtimeConfiguration = runtimeConfiguration;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder().connectTimeout(properties.getRequestTimeout()).build();
     }
 
     public RuntimeDisconnectResult disconnectAgent(String agentId, String gatewayNodeId, String reason, String operatorId) {
-        if (!properties.isEnabled()) {
+        if (!runtimeConfiguration.enabled()) {
             return RuntimeDisconnectResult.disabled(agentId, "Core runtime disconnect enforcement is disabled.");
         }
         List<String> candidates = candidateBaseUrlsFor(gatewayNodeId);
@@ -58,11 +56,11 @@ public class CoreRuntimeDisconnectClient {
                 payload.put("gatewayNodeId", gatewayNodeId == null ? "" : gatewayNodeId);
                 String body = objectMapper.writeValueAsString(payload);
                 HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(endpoint))
-                        .timeout(properties.getRequestTimeout())
+                        .timeout(runtimeConfiguration.requestTimeout())
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(body));
                 addTokenHeader(builder);
-                HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+                HttpResponse<String> response = httpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString());
                 Map<String, Object> data = parseData(response.body());
                 data.putIfAbsent("endpoint", endpoint);
                 data.putIfAbsent("requestedGatewayNodeId", gatewayNodeId == null ? "" : gatewayNodeId);
@@ -125,25 +123,25 @@ public class CoreRuntimeDisconnectClient {
 
     private List<String> candidateBaseUrlsFor(String gatewayNodeId) {
         List<String> candidates = new ArrayList<>();
-        if (properties.isGatewayRegistryEnabled()) {
+        if (runtimeConfiguration.gatewayRegistryEnabled()) {
             addCandidates(candidates, discoverGatewayRegistryBaseUrls(gatewayNodeId));
         }
-        addCandidates(candidates, properties.candidateBaseUrlsFor(gatewayNodeId));
+        addCandidates(candidates, runtimeConfiguration.candidateBaseUrlsFor(gatewayNodeId));
         return List.copyOf(candidates);
     }
 
     @SuppressWarnings("unchecked")
     private List<String> discoverGatewayRegistryBaseUrls(String gatewayNodeId) {
-        String registryUrl = properties.getGatewayRegistryUrl();
+        String registryUrl = runtimeConfiguration.gatewayRegistryUrl();
         if (registryUrl == null || registryUrl.isBlank()) {
             return List.of();
         }
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(registryUrl.trim()))
-                    .timeout(properties.getRequestTimeout())
+                    .timeout(runtimeConfiguration.requestTimeout())
                     .GET();
             addTokenHeader(builder);
-            HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = httpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300 || response.body() == null || response.body().isBlank()) {
                 return List.of();
             }
@@ -194,19 +192,23 @@ public class CoreRuntimeDisconnectClient {
     }
 
     private void addTokenHeader(HttpRequest.Builder builder) {
-        String token = properties.getAdminToken();
+        String token = runtimeConfiguration.adminToken();
         if (token == null || token.isBlank()) return;
-        String header = properties.getAdminTokenHeader() == null || properties.getAdminTokenHeader().isBlank()
+        String header = runtimeConfiguration.adminTokenHeader() == null || runtimeConfiguration.adminTokenHeader().isBlank()
                 ? "Authorization"
-                : properties.getAdminTokenHeader();
+                : runtimeConfiguration.adminTokenHeader();
         if ("Authorization".equalsIgnoreCase(header)) {
-            String scheme = properties.getAuthorizationScheme() == null || properties.getAuthorizationScheme().isBlank()
+            String scheme = runtimeConfiguration.authorizationScheme() == null || runtimeConfiguration.authorizationScheme().isBlank()
                     ? "Bearer"
-                    : properties.getAuthorizationScheme().trim();
+                    : runtimeConfiguration.authorizationScheme().trim();
             builder.header(header, scheme + " " + token);
         } else {
             builder.header(header, token);
         }
+    }
+
+    private HttpClient httpClient() {
+        return HttpClient.newBuilder().connectTimeout(runtimeConfiguration.requestTimeout()).build();
     }
 
     @SuppressWarnings("unchecked")

@@ -52,6 +52,9 @@ public class DispatchExecutionService {
     @Autowired(required = false)
     private DispatchAssignmentEvidenceService assignmentEvidenceService;
 
+    @Autowired(required = false)
+    private DispatchRuntimeConfigurationView runtimeConfigurationView;
+
     public DispatchExecutionService(
             DispatchRequestRepository dispatchRepository,
             TaskOrchestrationFacade taskOrchestrationFacade,
@@ -144,16 +147,16 @@ public class DispatchExecutionService {
     }
 
     public List<DispatchExecutionResult> executeApproved(int limit) {
-        int capped = Math.max(1, Math.min(limit, properties.getClient().getMaxBatchSize()));
+        int capped = Math.max(1, Math.min(limit, runtimeMaxBatchSize()));
         log.debug("dispatch_execute_approved_scan_started limit={} capped={} clientEnabled={} executionPolicy={} gatewayBaseUrl={} workerId={}",
-                limit, capped, properties.getClient().isEnabled(), properties.getExecutionPolicy(), safe(properties.getClient().getDefaultGatewayBaseUrl()), safe(properties.getWorkerId()));
+                limit, capped, properties.getClient().isEnabled(), runtimeExecutionPolicy(), safe(runtimeDefaultGatewayBaseUrl()), safe(runtimeWorkerId()));
         List<DispatchExecutionResult> results = new ArrayList<>(capped);
         for (int index = 0; index < capped; index++) {
             ClaimRequest claimRequest = claimRequest(OffsetDateTime.now(ZoneOffset.UTC), 1);
             List<DispatchRequest> claimed = dispatchRepository.claimExecutable(claimRequest);
             if (claimed.isEmpty()) {
                 if (index == 0) {
-                    log.debug("dispatch_execute_approved_no_claimable workerId={} limit={}", safe(properties.getWorkerId()), capped);
+                    log.debug("dispatch_execute_approved_no_claimable workerId={} limit={}", safe(runtimeWorkerId()), capped);
                 }
                 break;
             }
@@ -188,7 +191,7 @@ public class DispatchExecutionService {
         log.info("dispatch_delivery_attempt_started dispatchRequestId={} taskId={} assignmentId={} agentId={} attemptCount={} gatewayNode={} gatewayPath={} clientEnabled={} gatewayBaseUrl={}",
                 safe(request.getDispatchRequestId()), safe(request.getTaskId()), safe(request.getAssignmentId()), safe(request.getAgentId()),
                 request.getAttemptCount(), safe(request.getOwnerGatewayNodeId()), safe(request.getGatewayDispatchPath()), properties.getClient().isEnabled(),
-                safe(properties.getClient().getDefaultGatewayBaseUrl()));
+                safe(runtimeDefaultGatewayBaseUrl()));
 
         GatewayDispatchResult gatewayResult;
         try {
@@ -275,8 +278,8 @@ public class DispatchExecutionService {
         if (shouldRequeueAfterRuntimeFailure(request, gatewayResult)) {
             return requeueAfterRuntimeFailure(request, ownership, gatewayResult, completedAt, error, startedAt);
         }
-        if (properties.getRetry().isEnabled()
-                && request.getAttemptCount() < properties.getRetry().getMaxAttempts()) {
+        if (retryEnabled()
+                && request.getAttemptCount() < retryMaxAttempts()) {
             scheduleRetry(request, completedAt, error);
             request.setOutboxStatus(DispatchOutboxStatus.FAILED_RETRYABLE);
             recordRetryWaiting(request, gatewayResult, completedAt);
@@ -444,7 +447,7 @@ public class DispatchExecutionService {
     private DispatchExecutionResult retryInfrastructureFailure(DispatchRequest request, ClaimOwnership ownership,
             DispatchExecutionSafetyDecision decision, OffsetDateTime now, long startedAt) {
         String reason = failureReason(decision);
-        if (properties.getRetry().isEnabled() && request.getAttemptCount() < properties.getRetry().getMaxAttempts()) {
+        if (retryEnabled() && request.getAttemptCount() < retryMaxAttempts()) {
             scheduleRetry(request, now, reason);
             request.setOutboxStatus(DispatchOutboxStatus.FAILED_RETRYABLE);
             request.setRecoveryClassification(DispatchRecoveryClassification.INFRASTRUCTURE_RETRY);
@@ -565,7 +568,7 @@ public class DispatchExecutionService {
 
     private ClaimRequest claimRequest(OffsetDateTime now, int limit) {
         return ClaimRequest.forLease(
-                properties.getWorkerId(),
+                runtimeWorkerId(),
                 now,
                 effectiveClaimLease(),
                 limit);
@@ -573,9 +576,9 @@ public class DispatchExecutionService {
 
 
     private Duration effectiveClaimLease() {
-        Duration configured = properties.getClaimLease();
-        Duration minimum = properties.getClient().getConnectTimeout()
-                .plus(properties.getClient().getRequestTimeout())
+        Duration configured = runtimeClaimLease();
+        Duration minimum = runtimeConnectTimeout()
+                .plus(runtimeRequestTimeout())
                 .plusSeconds(5);
         return configured.compareTo(minimum) >= 0 ? configured : minimum;
     }
@@ -647,7 +650,7 @@ public class DispatchExecutionService {
     }
 
     private boolean shouldRequeueAfterRuntimeFailure(DispatchRequest request, GatewayDispatchResult gatewayResult) {
-        if (!properties.getFailureRequeue().isEnabled()
+        if (!failureRequeueEnabled()
                 || agentDirectory == null
                 || taskOrchestrationFacade == null
                 || request == null
@@ -660,7 +663,7 @@ public class DispatchExecutionService {
         if (task == null || isTerminalTask(task.getStatus())) {
             return false;
         }
-        return task.getReassignmentCount() < properties.getFailureRequeue().getMaxReassignments();
+        return task.getReassignmentCount() < failureRequeueMaxReassignments();
     }
 
     private DispatchExecutionResult holdDeliveryUnknown(
@@ -815,7 +818,7 @@ public class DispatchExecutionService {
         int nextFailureCount = agentDirectory.findById(request.getAgentId())
                 .map(AgentSnapshot::getRuntimeFailureCount)
                 .orElse(0) + 1;
-        boolean poisonAgent = nextFailureCount >= properties.getFailureRequeue().getPoisonAgentFailureThreshold();
+        boolean poisonAgent = nextFailureCount >= poisonAgentFailureThreshold();
         Duration backoff = computeRuntimeBackoff(nextFailureCount, request.getAgentId());
         OffsetDateTime backoffUntil = now.plus(backoff);
         agentDirectory.applyRuntimeBackoff(
@@ -854,11 +857,11 @@ public class DispatchExecutionService {
 
     private Duration computeRuntimeBackoff(int failureCount, String stableJitterKey) {
         long multiplier = 1L << Math.max(0, Math.min(failureCount - 1, 10));
-        Duration initial = properties.getFailureRequeue().getRuntimeInitialBackoff();
-        Duration max = properties.getFailureRequeue().getRuntimeMaxBackoff();
+        Duration initial = runtimeInitialBackoff();
+        Duration max = runtimeMaxBackoff();
         Duration candidate = initial.multipliedBy(multiplier);
         Duration capped = candidate.compareTo(max) > 0 ? max : candidate;
-        return applyDeterministicJitter(capped, stableJitterKey, properties.getFailureRequeue().getRuntimeJitterPercent());
+        return applyDeterministicJitter(capped, stableJitterKey, runtimeJitterPercent());
     }
 
     private boolean blank(String value) {
@@ -964,11 +967,11 @@ public class DispatchExecutionService {
 
     private Duration computeBackoff(int attemptCount, String stableJitterKey) {
         long multiplier = 1L << Math.max(0, Math.min(attemptCount - 1, 10));
-        Duration initial = properties.getRetry().getInitialBackoff();
-        Duration max = properties.getRetry().getMaxBackoff();
+        Duration initial = retryInitialBackoff();
+        Duration max = retryMaxBackoff();
         Duration candidate = initial.multipliedBy(multiplier);
         Duration capped = candidate.compareTo(max) > 0 ? max : candidate;
-        return applyDeterministicJitter(capped, stableJitterKey, properties.getRetry().getJitterPercent());
+        return applyDeterministicJitter(capped, stableJitterKey, retryJitterPercent());
     }
 
     private Duration applyDeterministicJitter(Duration base, String stableJitterKey, int jitterPercent) {
@@ -1011,4 +1014,24 @@ public class DispatchExecutionService {
     private String safe(String value) {
         return value == null ? "" : value;
     }
+
+    private Duration runtimeClaimLease() { return runtimeConfigurationView == null ? properties.getClaimLease() : runtimeConfigurationView.claimLease(); }
+    private Duration runtimeConnectTimeout() { return runtimeConfigurationView == null ? properties.getClient().getConnectTimeout() : runtimeConfigurationView.connectTimeout(); }
+    private Duration runtimeRequestTimeout() { return runtimeConfigurationView == null ? properties.getClient().getRequestTimeout() : runtimeConfigurationView.requestTimeout(); }
+    private int runtimeMaxBatchSize() { return runtimeConfigurationView == null ? properties.getClient().getMaxBatchSize() : runtimeConfigurationView.maxBatchSize(); }
+    private DispatchExecutionPolicy runtimeExecutionPolicy() { return runtimeConfigurationView == null ? properties.getExecutionPolicy() : runtimeConfigurationView.executionPolicy(); }
+    private String runtimeDefaultGatewayBaseUrl() { return runtimeConfigurationView == null ? properties.getClient().getDefaultGatewayBaseUrl() : runtimeConfigurationView.defaultGatewayBaseUrl(); }
+    private String runtimeWorkerId() { return runtimeConfigurationView == null ? properties.getWorkerId() : runtimeConfigurationView.workerId(); }
+    private boolean retryEnabled() { return runtimeConfigurationView == null ? properties.getRetry().isEnabled() : runtimeConfigurationView.retryEnabled(); }
+    private int retryMaxAttempts() { return runtimeConfigurationView == null ? properties.getRetry().getMaxAttempts() : runtimeConfigurationView.maxAttempts(); }
+    private Duration retryInitialBackoff() { return runtimeConfigurationView == null ? properties.getRetry().getInitialBackoff() : runtimeConfigurationView.initialBackoff(); }
+    private Duration retryMaxBackoff() { return runtimeConfigurationView == null ? properties.getRetry().getMaxBackoff() : runtimeConfigurationView.maxBackoff(); }
+    private int retryJitterPercent() { return runtimeConfigurationView == null ? properties.getRetry().getJitterPercent() : runtimeConfigurationView.jitterPercent(); }
+    private boolean failureRequeueEnabled() { return runtimeConfigurationView == null ? properties.getFailureRequeue().isEnabled() : runtimeConfigurationView.failureRequeueEnabled(); }
+    private int failureRequeueMaxReassignments() { return runtimeConfigurationView == null ? properties.getFailureRequeue().getMaxReassignments() : runtimeConfigurationView.failureRequeueMaxReassignments(); }
+    private Duration runtimeInitialBackoff() { return runtimeConfigurationView == null ? properties.getFailureRequeue().getRuntimeInitialBackoff() : runtimeConfigurationView.runtimeInitialBackoff(); }
+    private Duration runtimeMaxBackoff() { return runtimeConfigurationView == null ? properties.getFailureRequeue().getRuntimeMaxBackoff() : runtimeConfigurationView.runtimeMaxBackoff(); }
+    private int runtimeJitterPercent() { return runtimeConfigurationView == null ? properties.getFailureRequeue().getRuntimeJitterPercent() : runtimeConfigurationView.runtimeJitterPercent(); }
+    private int poisonAgentFailureThreshold() { return runtimeConfigurationView == null ? properties.getFailureRequeue().getPoisonAgentFailureThreshold() : runtimeConfigurationView.poisonAgentFailureThreshold(); }
+
 }

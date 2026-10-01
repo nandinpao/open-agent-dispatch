@@ -129,6 +129,9 @@ public class CoreInternalSecurityConfiguration {
             }
             auth.requestMatchers("/actuator/**").hasAuthority(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.ACTUATOR))
                     .requestMatchers("/internal/gateway-nodes/**").hasAuthority(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.GATEWAY))
+                    .requestMatchers(HttpMethod.GET, "/internal/runtime-configuration/config-sets/*/apply-states").hasAuthority(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.OPERATOR))
+                    .requestMatchers("/internal/runtime-configuration/config-sets/*/required-targets").hasAuthority(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.OPERATOR))
+                    .requestMatchers("/internal/runtime-configuration/**").hasAnyAuthority(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.GATEWAY), CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.ADAPTER_WORKER), CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.OPERATOR))
                     .requestMatchers(AGENT_AUTHORIZE_CONNECTION_PATTERN, AGENT_SECURITY_EVENTS_PATTERN, AGENT_ENROLLMENTS_PATTERN).hasAuthority(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.GATEWAY))
                     .requestMatchers(HttpMethod.POST, "/internal/control-plane/tasks/*/ack", "/internal/control-plane/tasks/*/progress", "/internal/control-plane/tasks/*/result", "/internal/control-plane/tasks/*/error", "/internal/control-plane/tasks/*/capability-delegations").hasAuthority(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.GATEWAY))
                     .requestMatchers(HttpMethod.GET, "/internal/control-plane/tasks/*/capability-delegations/*/closure-evidence").hasAuthority(CoreInternalSecurityProperties.authority(CoreInternalSecurityRole.GATEWAY))

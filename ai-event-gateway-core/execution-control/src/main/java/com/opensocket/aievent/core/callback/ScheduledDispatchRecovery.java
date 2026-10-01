@@ -1,22 +1,52 @@
 package com.opensocket.aievent.core.callback;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
-@Component
-@ConditionalOnProperty(prefix = "task.callback.recovery", name = "timeout-enabled", havingValue = "true")
-public class ScheduledDispatchRecovery {
-    private final DispatchRecoveryService recoveryService;
-    private final TaskCallbackProperties properties;
+import com.opensocket.aievent.core.configuration.runtime.DynamicFixedDelayTask;
 
-    public ScheduledDispatchRecovery(DispatchRecoveryService recoveryService, TaskCallbackProperties properties) {
+/**
+ * Runtime-reschedulable dispatch timeout recovery loop.
+ *
+ * <p>The bean is always present. Runtime configuration decides whether a cycle performs work,
+ * which avoids the previous startup-only {@code @ConditionalOnProperty} authority leak.</p>
+ */
+@Component
+public class ScheduledDispatchRecovery implements InitializingBean, DisposableBean {
+    private final DispatchRecoveryService recoveryService;
+    private final TaskCallbackRuntimeConfigurationView runtimeConfiguration;
+    private final DynamicFixedDelayTask dynamicTask;
+
+    public ScheduledDispatchRecovery(
+            DispatchRecoveryService recoveryService,
+            TaskCallbackRuntimeConfigurationView runtimeConfiguration,
+            @Qualifier("dispatchOperationalScheduler") TaskScheduler scheduler) {
         this.recoveryService = recoveryService;
-        this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
+        this.dynamicTask = new DynamicFixedDelayTask(
+                scheduler,
+                "task-callback-dispatch-recovery",
+                this::recoverTimedOutDispatches,
+                runtimeConfiguration::recoveryScanInterval);
     }
 
-    @Scheduled(fixedDelayString = "${task.callback.recovery.scan-interval-ms:30000}", scheduler = "dispatchOperationalScheduler")
+    @Override
+    public void afterPropertiesSet() {
+        dynamicTask.start();
+    }
+
+    @Override
+    public void destroy() {
+        dynamicTask.stop();
+    }
+
     public void recoverTimedOutDispatches() {
-        recoveryService.scanAndRecoverTimedOut(properties.getRecovery().getMaxBatchSize());
+        if (!runtimeConfiguration.recoveryTimeoutEnabled()) {
+            return;
+        }
+        recoveryService.scanAndRecoverTimedOut(runtimeConfiguration.recoveryMaxBatchSize());
     }
 }

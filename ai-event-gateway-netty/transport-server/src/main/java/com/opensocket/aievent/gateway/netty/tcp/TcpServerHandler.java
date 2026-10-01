@@ -3,6 +3,7 @@ package com.opensocket.aievent.gateway.netty.tcp;
 import com.opensocket.aievent.gateway.netty.agent.AgentLifecycleService;
 import com.opensocket.aievent.gateway.netty.config.ConnectionProtectionProperties;
 import com.opensocket.aievent.gateway.netty.protection.ConnectionRateLimiter;
+import com.opensocket.aievent.gateway.netty.runtime.ConnectionProtectionRuntimeConfigurationView;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -27,19 +28,22 @@ public class TcpServerHandler extends SimpleChannelInboundHandler<String> {
     private final AgentLifecycleService agentLifecycleService;
     private final ConnectionProtectionProperties protectionProperties;
     private final ConnectionRateLimiter rateLimiter;
+    private final ConnectionProtectionRuntimeConfigurationView runtimeProtection;
 
     public TcpServerHandler(
             TcpConnectionRegistry connectionRegistry,
             TcpMessageProcessor messageProcessor,
             AgentLifecycleService agentLifecycleService,
             ConnectionProtectionProperties protectionProperties,
-            ConnectionRateLimiter rateLimiter
+            ConnectionRateLimiter rateLimiter,
+            ConnectionProtectionRuntimeConfigurationView runtimeProtection
     ) {
         this.connectionRegistry = connectionRegistry;
         this.messageProcessor = messageProcessor;
         this.agentLifecycleService = agentLifecycleService;
         this.protectionProperties = protectionProperties;
         this.rateLimiter = rateLimiter;
+        this.runtimeProtection = runtimeProtection == null ? new ConnectionProtectionRuntimeConfigurationView(protectionProperties) : runtimeProtection;
     }
 
     @Override
@@ -63,7 +67,7 @@ public class TcpServerHandler extends SimpleChannelInboundHandler<String> {
         var remoteAddress = connectionRegistry.getRemoteAddress(connectionId);
         if (!messageQuotaAvailable(remoteAddress)) {
             log.warn("TCP message rejected by rate limit. connectionId={}, remoteAddress={}", connectionId, remoteAddress);
-            if (protectionProperties.closeOnRateLimit()) {
+            if (runtimeProtection.closeOnRateLimit()) {
                 ctx.close();
             }
             return;
@@ -93,11 +97,11 @@ public class TcpServerHandler extends SimpleChannelInboundHandler<String> {
         if (!protectionProperties.enabled()) {
             return true;
         }
-        if (connectionRegistry.countActive() >= protectionProperties.maxTcpConnections()) {
+        if (connectionRegistry.countActive() >= runtimeProtection.maxTcpConnections()) {
             return false;
         }
         return connectionRegistry.countActiveByRemoteAddress(remoteAddress)
-                < protectionProperties.maxTcpConnectionsPerRemoteAddress();
+                < runtimeProtection.maxTcpConnectionsPerRemoteAddress();
     }
 
     private boolean messageQuotaAvailable(String remoteAddress) {
@@ -106,7 +110,7 @@ public class TcpServerHandler extends SimpleChannelInboundHandler<String> {
         }
         return rateLimiter.tryAcquire(
                 "tcp:" + (remoteAddress == null ? "unknown" : remoteAddress),
-                protectionProperties.maxTcpMessagesPerMinutePerRemoteAddress()
+                runtimeProtection.maxTcpMessagesPerMinutePerRemoteAddress()
         );
     }
 

@@ -78,6 +78,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -z "${VERSION}" && -f "${ROOT_DIR}/VERSION" ]]; then
+  VERSION="$(tr -d '\r\n[:space:]' < "${ROOT_DIR}/VERSION")"
+fi
 if [[ -z "${VERSION}" ]]; then
   if git -C "${ROOT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     short_sha="$(git -C "${ROOT_DIR}" rev-parse --short HEAD 2>/dev/null || true)"
@@ -86,6 +89,13 @@ if [[ -z "${VERSION}" ]]; then
   fi
   VERSION="$(date +%Y%m%d)-${short_sha:-local}"
 fi
+
+BUILD_GIT_COMMIT="${OPENDISPATCH_BUILD_GIT_COMMIT:-}"
+if [[ -z "${BUILD_GIT_COMMIT}" ]] && git -C "${ROOT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  BUILD_GIT_COMMIT="$(git -C "${ROOT_DIR}" rev-parse HEAD 2>/dev/null || true)"
+fi
+BUILD_GIT_COMMIT="${BUILD_GIT_COMMIT:-unknown}"
+BUILD_ID="${OPENDISPATCH_BUILD_ID:-release-${VERSION}-${BUILD_GIT_COMMIT:0:12}}"
 
 RELEASE_NAME="OpenDispatch-${VERSION}"
 STAGING_DIR="${OUTPUT_DIR}/${RELEASE_NAME}"
@@ -153,8 +163,23 @@ fi
 
 info "Build Core and Netty executable jars"
 if [[ "${SKIP_JAVA_BUILD}" != "true" ]]; then
-  mvn -U -f "${ROOT_DIR}/ai-event-gateway-core/pom.xml" -pl control-plane-app,adapter-worker-app -am package -DskipTests="${SKIP_TESTS}"
-  mvn -U -f "${ROOT_DIR}/ai-event-gateway-netty/pom.xml" -pl gateway-app -am package -DskipTests="${SKIP_TESTS}"
+  python3 "${ROOT_DIR}/scripts/verify/verify-jdk25-lombok-compile-contract.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-spring-component-bean-names.py"
+python3 "${ROOT_DIR}/scripts/verify/verify-database-persistence-wiring.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-maven-reactor-dependency-management.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-java-text-block-delimiters.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-java-source-syntax.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-v24-v172-task-issue-link-upgrade-safety.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-v24-iam-outbox-envelope-compatibility.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-v24-agent-governance-tenant-context.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-v24-dispatch-runtime-authority-p0.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-v24-task-operations-a2a-p1.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-v24-agent-a2a-result-reliability-p2.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-v24-agent-bootstrap-existing-governance-p21.py"
+  python3 "${ROOT_DIR}/scripts/verify/verify-v24-agent-credential-rotation-isolation-p22.py"
+  mvn -U -f "${ROOT_DIR}/ai-event-gateway-core/pom.xml" -pl control-plane-app,adapter-worker-app -am clean package -DskipTests="${SKIP_TESTS}" \
+    -Dopendispatch.build.gitCommit="${BUILD_GIT_COMMIT}" -Dopendispatch.build.id="${BUILD_ID}"
+  mvn -U -f "${ROOT_DIR}/ai-event-gateway-netty/pom.xml" -pl gateway-app -am clean package -DskipTests="${SKIP_TESTS}"
 else
   echo "Skipping Java build; existing target jars will be packaged."
 fi
@@ -168,7 +193,7 @@ netty_jar="$(find "${ROOT_DIR}/ai-event-gateway-netty/gateway-app/target" -maxde
 
 info "Build Admin UI production assets"
 if [[ "${SKIP_ADMIN_BUILD}" != "true" ]]; then
-  (cd "${ROOT_DIR}/ai-event-gateway-admin-ui" && npm ci && NEXT_DIST_DIR="${ADMIN_UI_RELEASE_DIST_DIR}" npm run build)
+  (cd "${ROOT_DIR}/ai-event-gateway-admin-ui" && npm ci && npm run typecheck && NEXT_DIST_DIR="${ADMIN_UI_RELEASE_DIST_DIR}" npm run build)
 else
   echo "Skipping Admin UI build; existing ${ADMIN_UI_RELEASE_DIST_DIR} build will be packaged."
 fi
@@ -217,6 +242,15 @@ if [[ "${INCLUDE_ADMIN_RUNTIME_DEPS}" == "true" ]]; then
 fi
 
 copy_if_exists "${ROOT_DIR}/ai-event-gateway-core/database-platform/src/main/resources/db/migration" "${STAGING_DIR}/db/migration"
+cp -a "${ROOT_DIR}/ai-event-gateway-core/iam-persistence/src/main/resources/db/migration/"V*.sql "${STAGING_DIR}/db/migration/"
+python3 "${ROOT_DIR}/scripts/db/canonical-flyway-inventory.py" \
+  --root "${ROOT_DIR}/ai-event-gateway-core/database-platform/src/main/resources/db/migration" \
+  --root "${ROOT_DIR}/ai-event-gateway-core/iam-persistence/src/main/resources/db/migration" \
+  --manifest "${STAGING_DIR}/db/migration-manifest.sha256" \
+  --verify-directory "${STAGING_DIR}/db/migration" \
+  --quiet
+copy_file_required "${ROOT_DIR}/deploy/postgresql/phase1a2-iam-role-bootstrap.sh" "${STAGING_DIR}/deploy/postgresql/phase1a2-iam-role-bootstrap.sh"
+chmod +x "${STAGING_DIR}/deploy/postgresql/phase1a2-iam-role-bootstrap.sh"
 copy_file_required "${ROOT_DIR}/deploy/docker-compose.release.yml" "${STAGING_DIR}/deploy/docker-compose.release.yml"
 copy_file_required "${ROOT_DIR}/deploy/env/.env.release.example" "${STAGING_DIR}/deploy/env/.env.release.example"
 copy_file_required "${ROOT_DIR}/deploy/docker-compose.observability.release.yml" "${STAGING_DIR}/deploy/docker-compose.observability.release.yml"
@@ -236,12 +270,7 @@ copy_file_required "${ROOT_DIR}/scripts/release/release-rollback.sh" "${STAGING_
 copy_file_required "${ROOT_DIR}/scripts/ci/local-smoke.sh" "${STAGING_DIR}/bin/local-smoke.sh"
 copy_file_required "${ROOT_DIR}/scripts/ci/env-utils.sh" "${STAGING_DIR}/bin/env-utils.sh"
 
-cp -a "${ROOT_DIR}"/P*_DELIVERY_SUMMARY.md "${STAGING_DIR}/reports/" 2>/dev/null || true
-copy_if_exists "${ROOT_DIR}/P14_DELIVERY_SUMMARY.md" "${STAGING_DIR}/reports/P14_DELIVERY_SUMMARY.md"
-copy_if_exists "${ROOT_DIR}/docs/P15_RELEASE_AND_EXTERNAL_CICD.md" "${STAGING_DIR}/docs/P15_RELEASE_AND_EXTERNAL_CICD.md"
-copy_if_exists "${ROOT_DIR}/docs/P16_ONPREM_OFFLINE_RELEASE_READINESS.md" "${STAGING_DIR}/docs/P16_ONPREM_OFFLINE_RELEASE_READINESS.md"
-copy_if_exists "${ROOT_DIR}/docs/P17_RELEASE_OPERATIONS_SAFETY.md" "${STAGING_DIR}/docs/P17_RELEASE_OPERATIONS_SAFETY.md"
-copy_file_required "${ROOT_DIR}/docs/architecture/P5-A_PRODUCTION_OTEL_HARDENING.md" "${STAGING_DIR}/docs/P5-A_PRODUCTION_OTEL_HARDENING.md"
+copy_file_required "${ROOT_DIR}/VERSION" "${STAGING_DIR}/VERSION"
 copy_file_required "${ROOT_DIR}/README.md" "${STAGING_DIR}/README-project.md"
 
 cat > "${STAGING_DIR}/README.md" <<EOF_README

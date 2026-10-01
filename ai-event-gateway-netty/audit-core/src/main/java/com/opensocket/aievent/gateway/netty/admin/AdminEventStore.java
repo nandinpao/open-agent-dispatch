@@ -28,6 +28,7 @@ public class AdminEventStore {
     private final AdminProperties adminProperties;
     private final AuditLogProperties auditLogProperties;
     private final AuditEventPersistencePort auditEventPersistencePort;
+    private final AdminRuntimeConfigurationView runtimeConfiguration;
     private final ArrayDeque<AdminEventPayload> events = new ArrayDeque<>();
 
     public AdminEventStore(
@@ -36,10 +37,24 @@ public class AdminEventStore {
             AuditLogProperties auditLogProperties,
             AuditEventPersistencePort auditEventPersistencePort
     ) {
+        this(gatewayProperties, adminProperties, auditLogProperties, auditEventPersistencePort,
+                new AdminRuntimeConfigurationView(adminProperties));
+    }
+
+    public AdminEventStore(
+            GatewayProperties gatewayProperties,
+            AdminProperties adminProperties,
+            AuditLogProperties auditLogProperties,
+            AuditEventPersistencePort auditEventPersistencePort,
+            AdminRuntimeConfigurationView runtimeConfiguration
+    ) {
         this.gatewayProperties = gatewayProperties;
         this.adminProperties = adminProperties;
         this.auditLogProperties = auditLogProperties;
         this.auditEventPersistencePort = auditEventPersistencePort;
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new AdminRuntimeConfigurationView(adminProperties)
+                : runtimeConfiguration;
     }
 
     public synchronized AdminEventPayload append(String eventType, String message, Map<String, Object> data) {
@@ -58,7 +73,7 @@ public class AdminEventStore {
     }
 
     public synchronized List<AdminEventPayload> recent(int limit) {
-        int safeLimit = limit <= 0 ? adminProperties.recentEventLimit() : Math.min(limit, adminProperties.recentEventLimit());
+        int safeLimit = limit <= 0 ? runtimeConfiguration.recentEventLimit() : Math.min(limit, runtimeConfiguration.recentEventLimit());
         var result = new ArrayList<AdminEventPayload>(safeLimit);
         int count = 0;
         for (AdminEventPayload event : events) {
@@ -82,11 +97,11 @@ public class AdminEventStore {
     }
 
     public int limit() {
-        return adminProperties.recentEventLimit();
+        return runtimeConfiguration.recentEventLimit();
     }
 
     private void trim() {
-        while (events.size() > adminProperties.recentEventLimit()) {
+        while (events.size() > runtimeConfiguration.recentEventLimit()) {
             events.removeLast();
         }
     }

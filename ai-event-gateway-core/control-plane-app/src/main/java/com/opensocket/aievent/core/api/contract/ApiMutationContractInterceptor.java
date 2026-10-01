@@ -34,14 +34,14 @@ public class ApiMutationContractInterceptor implements HandlerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(ApiMutationContractInterceptor.class);
     public static final String RECEIPT_ATTR = ApiMutationContractInterceptor.class.getName() + ".receipt";
 
-    private final ApiContractProperties properties;
+    private final ApiContractRuntimeConfigurationView runtimeConfiguration;
     private final ApiPermissionPointResolver permissions;
     private final AuditEvidenceService audit;
 
-    public ApiMutationContractInterceptor(ApiContractProperties properties,
+    public ApiMutationContractInterceptor(ApiContractRuntimeConfigurationView runtimeConfiguration,
                                           ApiPermissionPointResolver permissions,
                                           AuditEvidenceService audit) {
-        this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
         this.permissions = permissions;
         this.audit = audit;
     }
@@ -68,26 +68,26 @@ public class ApiMutationContractInterceptor implements HandlerInterceptor {
 
         List<String> missing = new ArrayList<>();
         if (blank(tenantId)) missing.add("TENANT_CONTEXT");
-        if (properties.isRequireIdempotency() && blank(idempotencyKey) && !idempotencyExempt(path)) {
+        if (runtimeConfiguration.requireIdempotency() && blank(idempotencyKey) && !idempotencyExempt(path)) {
             missing.add("IDEMPOTENCY_KEY");
         }
-        if (properties.isRequireCorrelationId() && blank(correlationId)) {
+        if (runtimeConfiguration.requireCorrelationId() && blank(correlationId)) {
             missing.add("CORRELATION_ID");
         }
-        if (properties.isRequireExpectedVersion() && expectedVersionRequired(method, path) && blank(ifMatch)) {
+        if (runtimeConfiguration.requireExpectedVersion() && expectedVersionRequired(method, path) && blank(ifMatch)) {
             missing.add("EXPECTED_VERSION");
         }
-        if (properties.isRequireActorIdentity() && blank(actorId)) {
+        if (runtimeConfiguration.requireActorIdentity() && blank(actorId)) {
             missing.add("ACTOR_IDENTITY");
         }
-        if (properties.isRequireAuditReason() && auditReasonRequired(path) && blank(auditReason)) {
+        if (runtimeConfiguration.requireAuditReason() && auditReasonRequired(path) && blank(auditReason)) {
             missing.add("AUDIT_REASON");
         }
 
         VersionParse version = parseVersion(ifMatch);
         if (!blank(ifMatch) && !version.valid()) missing.add("EXPECTED_VERSION_INVALID");
 
-        if (!missing.isEmpty() && properties.getEnforcement() == ApiContractEnforcementMode.STRICT) {
+        if (!missing.isEmpty() && runtimeConfiguration.enforcement() == ApiContractEnforcementMode.STRICT) {
             writeContractFailure(response, correlationId, missing);
             return false;
         }
@@ -290,11 +290,11 @@ public class ApiMutationContractInterceptor implements HandlerInterceptor {
 
     private boolean expectedVersionRequired(String method, String path) {
         if (Set.of("PUT", "PATCH", "DELETE").contains(method)) return true;
-        return properties.getExpectedVersionPathFragments().stream().anyMatch(path::contains);
+        return runtimeConfiguration.expectedVersionPathFragments().stream().anyMatch(path::contains);
     }
 
     private boolean auditReasonRequired(String path) {
-        return properties.getAuditReasonExemptPathPrefixes().stream().noneMatch(path::startsWith);
+        return runtimeConfiguration.auditReasonExemptPathPrefixes().stream().noneMatch(path::startsWith);
     }
 
     private String resourceType(String path) {

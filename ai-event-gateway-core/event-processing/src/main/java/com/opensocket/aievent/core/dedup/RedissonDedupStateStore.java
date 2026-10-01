@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.redisson.api.RLock;
 import org.redisson.api.RMap;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -31,10 +32,21 @@ import com.opensocket.aievent.core.event.NormalizedEvent;
 public class RedissonDedupStateStore implements DedupStateStore {
     private final RedissonAccess redissonAccess;
     private final EventDedupRedisProperties properties;
+    private final EventDedupOperationalRuntimeConfigurationView runtimeConfiguration;
 
-    public RedissonDedupStateStore(RedissonAccess redissonAccess, EventDedupRedisProperties properties) {
+    @Autowired
+    public RedissonDedupStateStore(RedissonAccess redissonAccess, EventDedupRedisProperties properties,
+                                   EventDedupOperationalRuntimeConfigurationView runtimeConfiguration) {
         this.redissonAccess = redissonAccess;
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration == null
+                ? new EventDedupOperationalRuntimeConfigurationView(properties)
+                : runtimeConfiguration;
+    }
+
+    /** Backward-compatible constructor for focused tests. */
+    public RedissonDedupStateStore(RedissonAccess redissonAccess, EventDedupRedisProperties properties) {
+        this(redissonAccess, properties, new EventDedupOperationalRuntimeConfigurationView(properties));
     }
 
     @Override
@@ -43,7 +55,7 @@ public class RedissonDedupStateStore implements DedupStateStore {
         RLock lock = redissonAccess.getLock(lockKey(fingerprint));
         boolean locked = false;
         try {
-            locked = lock.tryLock(properties.getLockWaitSeconds(), properties.getLockLeaseSeconds(), TimeUnit.SECONDS);
+            locked = lock.tryLock(runtimeConfiguration.lockWaitSeconds(), runtimeConfiguration.lockLeaseSeconds(), TimeUnit.SECONDS);
             if (!locked) {
                 throw new IllegalStateException("Unable to acquire Redisson dedup lock for fingerprint=" + fingerprint);
             }
@@ -110,7 +122,7 @@ public class RedissonDedupStateStore implements DedupStateStore {
         RLock lock = redissonAccess.getLock(lockKey(fingerprint));
         boolean locked = false;
         try {
-            locked = lock.tryLock(properties.getLockWaitSeconds(), properties.getLockLeaseSeconds(), TimeUnit.SECONDS);
+            locked = lock.tryLock(runtimeConfiguration.lockWaitSeconds(), runtimeConfiguration.lockLeaseSeconds(), TimeUnit.SECONDS);
             if (!locked) {
                 throw new IllegalStateException("Unable to acquire Redisson dedup lock for fingerprint=" + fingerprint);
             }

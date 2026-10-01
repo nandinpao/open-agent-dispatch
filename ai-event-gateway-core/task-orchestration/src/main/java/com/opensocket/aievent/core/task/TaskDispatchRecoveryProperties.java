@@ -19,6 +19,7 @@ public class TaskDispatchRecoveryProperties {
     private Duration initialDelay = Duration.ofSeconds(30);
     private Duration maxDelay = Duration.ofMinutes(10);
     private Duration claimLease = Duration.ofSeconds(30);
+    private long intervalMs = 5000;
     private String workerId = "core-task-dispatch-recovery";
 
     public boolean isEnabled() { return enabled; }
@@ -34,6 +35,8 @@ public class TaskDispatchRecoveryProperties {
     public Duration getMaxDelay() { return maxDelay; }
     public void setMaxDelay(Duration maxDelay) { this.maxDelay = sane(maxDelay, Duration.ofMinutes(10)); }
     public Duration getClaimLease() { return claimLease; }
+    public long getIntervalMs() { return intervalMs; }
+    public void setIntervalMs(long intervalMs) { this.intervalMs = Math.max(250, intervalMs); }
     public void setClaimLease(Duration claimLease) { this.claimLease = sane(claimLease, Duration.ofSeconds(30)); }
     public String getWorkerId() { return workerId; }
     public void setWorkerId(String workerId) { this.workerId = workerId == null || workerId.isBlank() ? "core-task-dispatch-recovery" : workerId.trim(); }

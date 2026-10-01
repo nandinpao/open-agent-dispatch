@@ -33,6 +33,7 @@ public class OperationalSummaryService {
     private final OutboxOperationalQuery outboxQuery;
     private final IntegrationEventOperationalQuery integrationEventQuery;
     private final ObservabilityProperties properties;
+    private final CoreObservabilityRuntimeConfigurationView runtimeConfiguration;
 
     public OperationalSummaryService(IncidentOperationalQuery incidentQuery,
                                      TaskOperationalQuery taskQuery,
@@ -42,6 +43,19 @@ public class OperationalSummaryService {
                                      OutboxOperationalQuery outboxQuery,
                                      IntegrationEventOperationalQuery integrationEventQuery,
                                      ObservabilityProperties properties) {
+        this(incidentQuery, taskQuery, executionQuery, adapterActionQuery, agentQuery, outboxQuery, integrationEventQuery, properties, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public OperationalSummaryService(IncidentOperationalQuery incidentQuery,
+                                     TaskOperationalQuery taskQuery,
+                                     ExecutionOperationalQuery executionQuery,
+                                     AdapterActionFacade adapterActionQuery,
+                                     AgentControlOperationalQuery agentQuery,
+                                     OutboxOperationalQuery outboxQuery,
+                                     IntegrationEventOperationalQuery integrationEventQuery,
+                                     ObservabilityProperties properties,
+                                     CoreObservabilityRuntimeConfigurationView runtimeConfiguration) {
         this.incidentQuery = incidentQuery;
         this.taskQuery = taskQuery;
         this.executionQuery = executionQuery;
@@ -50,15 +64,16 @@ public class OperationalSummaryService {
         this.outboxQuery = outboxQuery;
         this.integrationEventQuery = integrationEventQuery;
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     public OperationalSummary summary() {
         OperationalSummary summary = new OperationalSummary();
-        int limit = properties.getSummarySampleLimit();
+        int limit = runtimeConfiguration == null ? properties.getSummarySampleLimit() : runtimeConfiguration.summarySampleLimit();
         summary.setGeneratedAt(OffsetDateTime.now(ZoneOffset.UTC));
         summary.setSampleLimit(limit);
         summary.setStores(stores());
-        if (!properties.isEnabled() || !properties.isRepositorySummaryEnabled()) {
+        if (!(runtimeConfiguration == null ? properties.isEnabled() : runtimeConfiguration.enabled()) || !properties.isRepositorySummaryEnabled()) {
             Map<String, Object> risks = new LinkedHashMap<>();
             risks.put("requiresAttention", false);
             risks.put("disabled", true);

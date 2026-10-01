@@ -1,41 +1,48 @@
 package com.opensocket.aievent.gateway.netty.admin;
 
-import com.opensocket.aievent.gateway.netty.config.AdminProperties;
+import com.opensocket.aievent.gateway.netty.configuration.GatewayDynamicFixedDelayTask;
 import com.opensocket.aievent.gateway.netty.websocket.WebSocketAdminBroadcaster;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 /**
  * Periodically pushes node and gateway metrics to connected Admin WebSocket clients.
- *
- * <p>The default interval is five seconds. It can be tuned to three seconds for a more real-time
- * dashboard by setting ADMIN_METRICS_PUSH_INTERVAL_MS=3000.</p>
+ * V41-C3R2N uses the authenticated local Runtime Configuration snapshot for enablement and cadence.
  */
 @Component
-public class AdminMetricsPushScheduler {
+public class AdminMetricsPushScheduler implements DisposableBean {
 
-    private final AdminProperties adminProperties;
+    private final AdminRuntimeConfigurationView runtimeConfiguration;
     private final AdminRuntimeMetricsService metricsService;
     private final WebSocketAdminBroadcaster adminBroadcaster;
+    private final GatewayDynamicFixedDelayTask dynamicTask;
 
     public AdminMetricsPushScheduler(
-            AdminProperties adminProperties,
+            AdminRuntimeConfigurationView runtimeConfiguration,
             AdminRuntimeMetricsService metricsService,
-            WebSocketAdminBroadcaster adminBroadcaster
+            WebSocketAdminBroadcaster adminBroadcaster,
+            TaskScheduler taskScheduler
     ) {
-        this.adminProperties = adminProperties;
+        this.runtimeConfiguration = runtimeConfiguration;
         this.metricsService = metricsService;
         this.adminBroadcaster = adminBroadcaster;
+        this.dynamicTask = new GatewayDynamicFixedDelayTask(
+                taskScheduler,
+                "admin-metrics-push",
+                this::pushMetrics,
+                runtimeConfiguration::metricsPushInitialDelay,
+                runtimeConfiguration::metricsPushInterval);
     }
 
-    @Scheduled(
-            fixedDelayString = "${admin.metrics-push-interval-ms:5000}",
-            initialDelayString = "${admin.metrics-push-initial-delay-ms:5000}"
-    )
+    @EventListener(ApplicationReadyEvent.class)
+    public void startAfterApplicationReady() { dynamicTask.start(); }
+    @Override public void destroy() { dynamicTask.stop(); }
+
     public void pushMetrics() {
-        if (!adminProperties.metricsPushEnabled() || adminBroadcaster.adminChannelCount() <= 0) {
-            return;
-        }
+        if (!runtimeConfiguration.metricsPushEnabled() || adminBroadcaster.adminChannelCount() <= 0) return;
         adminBroadcaster.broadcastRealtime("NODE_METRICS_UPDATED", metricsService.nodeMetrics());
         adminBroadcaster.broadcastRealtime("GATEWAY_METRICS_UPDATED", metricsService.gatewayMetrics());
     }

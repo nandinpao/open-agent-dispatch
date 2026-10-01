@@ -4,12 +4,15 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /** TODO 15-D task-level retry backoff policy with bounded exponential backoff. */
 @Component
 public class TaskRetryBackoffPolicy {
     private final DispatchProperties properties;
+    @Autowired(required = false)
+    private DispatchRuntimeConfigurationView runtimeConfigurationView;
 
     public TaskRetryBackoffPolicy(DispatchProperties properties) {
         this.properties = properties == null ? new DispatchProperties() : properties;
@@ -31,11 +34,11 @@ public class TaskRetryBackoffPolicy {
     public Duration delayForAttempt(int nextAttemptNo, String stableJitterKey) {
         int attempt = Math.max(1, nextAttemptNo);
         long multiplier = 1L << Math.max(0, Math.min(attempt - 1, 10));
-        Duration initial = properties.getRetry().getInitialBackoff();
-        Duration max = properties.getRetry().getMaxBackoff();
+        Duration initial = runtimeConfigurationView == null ? properties.getRetry().getInitialBackoff() : runtimeConfigurationView.initialBackoff();
+        Duration max = runtimeConfigurationView == null ? properties.getRetry().getMaxBackoff() : runtimeConfigurationView.maxBackoff();
         Duration candidate = initial.multipliedBy(multiplier);
         Duration capped = candidate.compareTo(max) > 0 ? max : candidate;
-        return applyDeterministicJitter(capped, stableJitterKey, properties.getRetry().getJitterPercent());
+        return applyDeterministicJitter(capped, stableJitterKey, runtimeConfigurationView == null ? properties.getRetry().getJitterPercent() : runtimeConfigurationView.jitterPercent());
     }
 
     public Duration applyDeterministicJitter(Duration base, String stableJitterKey, int jitterPercent) {

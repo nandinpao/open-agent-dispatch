@@ -95,6 +95,18 @@ for op_script in \
   require_file "${op_script}"
 done
 require_file "deploy/docker-compose.release.yml"
+require_file "deploy/postgresql/phase1a2-iam-role-bootstrap.sh"
+require_file "db/migration/V25__phase1a2_iam_persistence_expand.sql"
+require_file "db/migration/V26__phase1a2_iam_persistence_enforcement.sql"
+require_file "db/migration/V67__p4ra_a_resource_catalog_descriptor_baseline.sql"
+require_file "db/migration/V68__p4ra_b_ownership_participant_projection.sql"
+require_file "db/migration/V72__p4ra_f_issue_integration_enforcement.sql"
+require_file "db/migration/V73__p4ra_f_provider_write_identity_and_integration_ownership.sql"
+require_file "db/migration/V77__p4ra_i_shadow_release_gate_certification.sql"
+require_file "db/migration/V78__p4ra_j_runtime_scope_cache_hardening.sql"
+require_file "db/migration/V79__p4ra_j_scale_certification_evidence.sql"
+require_file "db/migration/V96__phase5j_observation_storage_async_pipeline_expand.sql"
+require_file "db/migration/V97__phase5j_observation_storage_async_pipeline_enforcement.sql"
 require_file "deploy/env/.env.release.example"
 require_file "deploy/docker-compose.observability.release.yml"
 require_file "deploy/env/.env.observability.release.example"
@@ -104,13 +116,53 @@ require_file "deploy/observability/haproxy/otel-lb.cfg"
 require_file "deploy/observability/secrets/README.md"
 require_file "deploy/observability/prometheus/alerts/opendispatch-observability-slo.rules.yml"
 require_file "deploy/observability/grafana/dashboards/opendispatch-observability-overview.json"
-require_file "docs/P5-A_PRODUCTION_OTEL_HARDENING.md"
 require_file "bin/generate-otel-pki.sh"
 require_file "bin/validate-production-otel.sh"
 require_file "release-manifest.txt"
+require_file "VERSION"
 require_dir "runtime/admin-ui/.next"
 require_dir "db/migration"
+require_file "db/migration-manifest.sha256"
 require_dir "bin"
+
+migration_manifest="${PACKAGE_DIR}/db/migration-manifest.sha256"
+expected_migration_count="$(wc -l < "${migration_manifest}" | tr -d ' ')"
+migration_count="$(find "${PACKAGE_DIR}/db/migration" -maxdepth 1 -type f -name 'V*__*.sql' | wc -l | tr -d ' ')"
+[[ "${migration_count}" == "${expected_migration_count}" ]] \
+  || fail "Release package migration count differs from its canonical manifest: expected=${expected_migration_count} actual=${migration_count}"
+if command -v sha256sum >/dev/null 2>&1; then
+  (
+    cd "${PACKAGE_DIR}/db/migration"
+    sha256sum -c ../migration-manifest.sha256 >/dev/null
+  ) || fail "Release package Flyway migration checksum verification failed"
+elif command -v shasum >/dev/null 2>&1; then
+  while read -r expected_hash migration_name; do
+    actual_hash="$(shasum -a 256 "${PACKAGE_DIR}/db/migration/${migration_name}" | awk '{print $1}')"
+    [[ "${actual_hash}" == "${expected_hash}" ]] \
+      || fail "Release package Flyway migration checksum mismatch: ${migration_name}"
+  done < "${migration_manifest}"
+else
+  fail "Neither sha256sum nor shasum is available for Flyway migration verification"
+fi
+
+latest_migration_version=0
+expected_version=1
+while IFS= read -r migration_name; do
+  version="${migration_name#V}"
+  version="${version%%__*}"
+  [[ "${version}" =~ ^[0-9]+$ ]] || fail "Invalid Flyway migration filename in release package: ${migration_name}"
+  [[ "${version}" -eq "${expected_version}" ]] \
+    || fail "Release package Flyway namespace is not continuous: expected V${expected_version}, found V${version}"
+  latest_migration_version="${version}"
+  expected_version=$((expected_version + 1))
+done < <(
+  find "${PACKAGE_DIR}/db/migration" -maxdepth 1 -type f -name 'V*__*.sql' -exec basename {} \; \
+    | sed -E 's/^V([0-9]+)__.*$/\1 &/' \
+    | sort -n \
+    | awk '{print $2}'
+)
+[[ "${latest_migration_version}" -gt 0 ]] || fail "Release package Flyway migration bundle is empty"
+echo "Verified exact continuous Flyway release bundle: V1-V${latest_migration_version} (${migration_count} files)"
 
 validate_jar_like_zip "runtime/core/ai-event-gateway-core.jar"
 validate_jar_like_zip "runtime/adapter-worker/ai-event-gateway-adapter-worker.jar"
@@ -144,6 +196,9 @@ require_text "deploy/docker-compose.release.yml" "eclipse-temurin:25-jre"
 require_text "deploy/docker-compose.release.yml" "node:22-bookworm-slim"
 require_text "deploy/docker-compose.release.yml" "postgres:18-alpine"
 require_text "deploy/docker-compose.release.yml" "redis:8-alpine"
+require_text "deploy/docker-compose.release.yml" "core-db-role-bootstrap"
+require_text "deploy/docker-compose.release.yml" "IAM_MIGRATION_DB_USER"
+require_text "deploy/docker-compose.release.yml" "IAM_RUNTIME_DB_USER"
 require_text "deploy/docker-compose.release.yml" "/var/lib/postgresql"
 reject_text "deploy/docker-compose.release.yml" "/var/lib/postgresql/data"
 
@@ -154,8 +209,8 @@ for required in \
   "SPRING_PROFILES_ACTIVE: \${CORE_PROFILES:-prod}" \
   "PG_ENABLED: \"true\"" \
   "PG_SINGLE_URL: jdbc:postgresql://postgres:5432/\${POSTGRES_DB:-ai_event_gateway_release}" \
-  "PG_SINGLE_USERNAME: \${POSTGRES_USER:-ai_event_release}" \
-  "PG_SINGLE_PASSWORD: \${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}" \
+  "PG_SINGLE_USERNAME: \${IAM_RUNTIME_DB_USER:-opendispatch_runtime}" \
+  "PG_SINGLE_PASSWORD: \${IAM_RUNTIME_DB_PASSWORD:?IAM_RUNTIME_DB_PASSWORD is required}" \
   "PG_MYBATIS_ENABLED: \"true\"" \
   "REDIS_ENABLED: \"true\"" \
   "REDIS_MODE: single" \
@@ -205,6 +260,8 @@ for forbidden in \
   reject_text "deploy/docker-compose.release.yml" "$forbidden"
 done
 require_text "deploy/env/.env.release.example" "REPLACE_WITH_STRONG_POSTGRES_PASSWORD"
+require_text "deploy/env/.env.release.example" "REPLACE_WITH_STRONG_IAM_MIGRATION_PASSWORD"
+require_text "deploy/env/.env.release.example" "REPLACE_WITH_STRONG_IAM_RUNTIME_PASSWORD"
 require_text "deploy/env/.env.release.example" "REPLACE_WITH_STRONG_REDIS_PASSWORD"
 require_text "deploy/env/.env.release.example" "ADMIN_UI_SECURITY_PROFILE=prod"
 require_text "deploy/env/.env.release.example" "NEXT_PUBLIC_AUTH_ENABLED=true"
@@ -229,6 +286,10 @@ if [[ "${OFFLINE}" == "true" ]]; then
   fi
   require_text "release-manifest.txt" "offline_admin_ui_supported=true"
 fi
+
+manifest_version="$(sed -n 's/^version=//p' "${PACKAGE_DIR}/release-manifest.txt" | head -n 1)"
+canonical_version="$(tr -d '\r\n[:space:]' < "${PACKAGE_DIR}/VERSION")"
+[[ -n "${manifest_version}" && "${manifest_version}" == "${canonical_version}" ]] || fail "VERSION does not match release-manifest.txt"
 
 require_text "release-manifest.txt" "application_images_built=false"
 require_text "release-manifest.txt" "admin_runtime_entrypoint=scripts/opendispatch-admin-ui-runtime-entrypoint.sh"

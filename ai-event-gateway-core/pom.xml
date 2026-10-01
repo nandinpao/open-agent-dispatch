@@ -9,7 +9,7 @@
     </parent>
     <groupId>com.opensocket</groupId>
     <artifactId>control-plane-parent</artifactId>
-    <version>0.8.2-SNAPSHOT</version>
+    <version>0.9.3-SNAPSHOT</version>
     <name>control-plane-parent</name>
     <description>AI Event Gateway Core modular monolith parent.</description>
     <packaging>pom</packaging>
@@ -58,6 +58,7 @@
         <module>incident</module>
         <module>event-processing</module>
         <module>agent-control</module>
+        <module>configuration-runtime</module>
         <module>task-orchestration</module>
         <module>execution-control</module>
         <module>adapter-action</module>
@@ -87,6 +88,11 @@
             <dependency>
                 <groupId>com.opensocket</groupId>
                 <artifactId>kernel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opensocket</groupId>
+                <artifactId>configuration-runtime</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

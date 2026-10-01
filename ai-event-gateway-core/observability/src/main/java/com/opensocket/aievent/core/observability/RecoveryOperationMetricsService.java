@@ -41,22 +41,30 @@ public class RecoveryOperationMetricsService {
     );
 
     private final DispatchAttemptHistoryService attemptHistoryService;
-    private final ObservabilityProperties properties;
+    private final CoreObservabilityRuntimeConfigurationView runtimeConfiguration;
+    private final ObservabilityProperties startupProperties;
 
-    public RecoveryOperationMetricsService(DispatchAttemptHistoryService attemptHistoryService,
-                                           ObservabilityProperties properties) {
+    public RecoveryOperationMetricsService(DispatchAttemptHistoryService attemptHistoryService, ObservabilityProperties properties) {
         this.attemptHistoryService = attemptHistoryService;
-        this.properties = properties == null ? new ObservabilityProperties() : properties;
+        this.runtimeConfiguration = null;
+        this.startupProperties = properties == null ? new ObservabilityProperties() : properties;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RecoveryOperationMetricsService(DispatchAttemptHistoryService attemptHistoryService,
+                                           CoreObservabilityRuntimeConfigurationView runtimeConfiguration) {
+        this.attemptHistoryService = attemptHistoryService;
+        this.runtimeConfiguration = runtimeConfiguration;
+        this.startupProperties = new ObservabilityProperties();
     }
 
     public RecoveryOperationMetricsSnapshot snapshot(Duration requestedWindow, Integer requestedLimit) {
-        ObservabilityProperties.RecoveryMetrics recovery = properties.getRecoveryMetrics();
-        Duration window = normalizeWindow(requestedWindow == null ? recovery.getWindow() : requestedWindow);
-        int limit = cap(requestedLimit == null ? recovery.getHistoryLimit() : requestedLimit);
+        Duration window = normalizeWindow(requestedWindow == null ? recoveryWindow() : requestedWindow);
+        int limit = cap(requestedLimit == null ? recoveryHistoryLimit() : requestedLimit);
         OffsetDateTime generatedAt = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime windowStart = generatedAt.minus(window);
 
-        List<DispatchAttemptHistoryRecord> records = recovery.isEnabled()
+        List<DispatchAttemptHistoryRecord> records = recoveryEnabled()
                 ? attemptHistoryService.findSince(windowStart, limit)
                 : List.of();
 
@@ -78,8 +86,8 @@ public class RecoveryOperationMetricsService {
                 count(byEvent, EVENT_DEAD_LETTERED)
         );
 
-        List<RecoveryAlertEvaluation> alerts = evaluateAlerts(totals, recovery);
-        String status = recovery.isEnabled() ? worstStatus(alerts) : "DISABLED";
+        List<RecoveryAlertEvaluation> alerts = evaluateAlerts(totals);
+        String status = recoveryEnabled() ? worstStatus(alerts) : "DISABLED";
 
         return new RecoveryOperationMetricsSnapshot(
                 status,
@@ -93,27 +101,26 @@ public class RecoveryOperationMetricsService {
                 buckets(byAgent, latestByAgent, 50),
                 alerts,
                 recentCritical(records, 20),
-                policyView(recovery, window, limit)
+                policyView(window, limit)
         );
     }
 
-    private List<RecoveryAlertEvaluation> evaluateAlerts(RecoveryOperationTotals totals,
-                                                         ObservabilityProperties.RecoveryMetrics recovery) {
+    private List<RecoveryAlertEvaluation> evaluateAlerts(RecoveryOperationTotals totals) {
         return List.of(
                 evaluate("runtime-delivery-failures", "runtimeDeliveryFailed", totals.runtimeDeliveryFailed(),
-                        recovery.getRuntimeFailureWarningThreshold(), recovery.getRuntimeFailureCriticalThreshold(),
+                        runtimeFailureWarningThreshold(), runtimeFailureCriticalThreshold(),
                         "Netty/runtime delivery failures are causing same-task requeue and agent runtime backoff."),
                 evaluate("delayed-requeue-volume", "delayedRequeueScheduled", totals.delayedRequeueScheduled(),
-                        recovery.getDelayedRequeueWarningThreshold(), recovery.getDelayedRequeueCriticalThreshold(),
+                        delayedRequeueWarningThreshold(), delayedRequeueCriticalThreshold(),
                         "Tasks are being delayed because no assignable agent was available."),
                 evaluate("dead-letter-volume", "deadLettered", totals.deadLettered(),
-                        recovery.getDeadLetterWarningThreshold(), recovery.getDeadLetterCriticalThreshold(),
+                        deadLetterWarningThreshold(), deadLetterCriticalThreshold(),
                         "Dispatch requests reached dead-letter and need operator recovery."),
                 evaluate("scanner-failures", "delayedRequeueFailed", totals.delayedRequeueFailed(),
-                        recovery.getScannerFailureWarningThreshold(), recovery.getScannerFailureCriticalThreshold(),
+                        scannerFailureWarningThreshold(), scannerFailureCriticalThreshold(),
                         "Delayed dispatch recovery scanner failed while processing claimed tasks."),
                 evaluate("recovery-exhausted", "recoveryExhausted", totals.recoveryExhausted(),
-                        recovery.getRecoveryExhaustedWarningThreshold(), recovery.getRecoveryExhaustedCriticalThreshold(),
+                        recoveryExhaustedWarningThreshold(), recoveryExhaustedCriticalThreshold(),
                         "Task-level delayed recovery exhausted its configured attempts.")
         );
     }
@@ -133,23 +140,37 @@ public class RecoveryOperationMetricsService {
         return new RecoveryAlertEvaluation(code, severity, metric, observed, warningThreshold, criticalThreshold, message);
     }
 
-    private RecoveryAlertPolicyView policyView(ObservabilityProperties.RecoveryMetrics recovery, Duration window, int limit) {
+    private RecoveryAlertPolicyView policyView(Duration window, int limit) {
         return new RecoveryAlertPolicyView(
-                recovery.isEnabled(),
+                recoveryEnabled(),
                 window.toString(),
                 limit,
-                recovery.getRuntimeFailureWarningThreshold(),
-                recovery.getRuntimeFailureCriticalThreshold(),
-                recovery.getDelayedRequeueWarningThreshold(),
-                recovery.getDelayedRequeueCriticalThreshold(),
-                recovery.getDeadLetterWarningThreshold(),
-                recovery.getDeadLetterCriticalThreshold(),
-                recovery.getScannerFailureWarningThreshold(),
-                recovery.getScannerFailureCriticalThreshold(),
-                recovery.getRecoveryExhaustedWarningThreshold(),
-                recovery.getRecoveryExhaustedCriticalThreshold()
+                runtimeFailureWarningThreshold(),
+                runtimeFailureCriticalThreshold(),
+                delayedRequeueWarningThreshold(),
+                delayedRequeueCriticalThreshold(),
+                deadLetterWarningThreshold(),
+                deadLetterCriticalThreshold(),
+                scannerFailureWarningThreshold(),
+                scannerFailureCriticalThreshold(),
+                recoveryExhaustedWarningThreshold(),
+                recoveryExhaustedCriticalThreshold()
         );
     }
+
+    private boolean recoveryEnabled(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().isEnabled():runtimeConfiguration.recoveryEnabled();}
+    private Duration recoveryWindow(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getWindow():runtimeConfiguration.recoveryWindow();}
+    private int recoveryHistoryLimit(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getHistoryLimit():runtimeConfiguration.recoveryHistoryLimit();}
+    private int runtimeFailureWarningThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getRuntimeFailureWarningThreshold():runtimeConfiguration.runtimeFailureWarningThreshold();}
+    private int runtimeFailureCriticalThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getRuntimeFailureCriticalThreshold():runtimeConfiguration.runtimeFailureCriticalThreshold();}
+    private int delayedRequeueWarningThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getDelayedRequeueWarningThreshold():runtimeConfiguration.delayedRequeueWarningThreshold();}
+    private int delayedRequeueCriticalThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getDelayedRequeueCriticalThreshold():runtimeConfiguration.delayedRequeueCriticalThreshold();}
+    private int deadLetterWarningThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getDeadLetterWarningThreshold():runtimeConfiguration.deadLetterWarningThreshold();}
+    private int deadLetterCriticalThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getDeadLetterCriticalThreshold():runtimeConfiguration.deadLetterCriticalThreshold();}
+    private int scannerFailureWarningThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getScannerFailureWarningThreshold():runtimeConfiguration.scannerFailureWarningThreshold();}
+    private int scannerFailureCriticalThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getScannerFailureCriticalThreshold():runtimeConfiguration.scannerFailureCriticalThreshold();}
+    private int recoveryExhaustedWarningThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getRecoveryExhaustedWarningThreshold():runtimeConfiguration.recoveryExhaustedWarningThreshold();}
+    private int recoveryExhaustedCriticalThreshold(){return runtimeConfiguration==null?startupProperties.getRecoveryMetrics().getRecoveryExhaustedCriticalThreshold():runtimeConfiguration.recoveryExhaustedCriticalThreshold();}
 
     private String worstStatus(List<RecoveryAlertEvaluation> alerts) {
         if (alerts.stream().anyMatch(alert -> "CRITICAL".equals(alert.severity()))) return "CRITICAL";

@@ -5,7 +5,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,7 +69,6 @@ public class GatewayDirectoryService {
                 .orElseThrow(() -> new IllegalArgumentException("Gateway node not found: " + gatewayNodeId));
     }
 
-    @Scheduled(fixedDelayString = "${gateway-nodes.lease-reaper.fixed-delay:10000}")
     @Transactional
     public void expireLeases() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);

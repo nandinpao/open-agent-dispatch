@@ -37,11 +37,13 @@ public class IssueProjectionStateService {
             HandoffDomainEventType.HANDOFF_SNAPSHOT_SUPERSEDED);
 
     private final IssueProjectionStateRepository repository;
-    private final IssueProjectionProperties properties;
+    private final IssueProjectionRuntimeConfigurationView runtimeConfiguration;
 
-    public IssueProjectionStateService(IssueProjectionStateRepository repository, IssueProjectionProperties properties) {
+    public IssueProjectionStateService(
+            IssueProjectionStateRepository repository,
+            IssueProjectionRuntimeConfigurationView runtimeConfiguration) {
         this.repository = repository;
-        this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
     @Transactional
@@ -63,7 +65,7 @@ public class IssueProjectionStateService {
                 2,null,IssueProjectionDesiredState.ACTIVE,IssueProjectionObservedState.UNKNOWN,
                 ProjectionLifecycleStatus.READY,ProjectionFailureClassification.NONE,
                 ProjectionRecoveryStrategy.NONE,IssueProjectionConflictPolicy.MANUAL_REVIEW,
-                null,null,event,1,1,null,0,properties.getMaxAttempts(),null,null,null,1,now,now,null,
+                null,null,event,1,1,null,0,runtimeConfiguration.maxAttempts(),null,null,null,1,now,now,null,
                 correlationId==null||correlationId.isBlank()?"corr-"+UUID.randomUUID():correlationId.trim());
         repository.save(created);
         repository.tryRecordDomainEvent(tenant,created.projectionId(),event,1,null,now);
@@ -72,7 +74,7 @@ public class IssueProjectionStateService {
 
     @Transactional
     public void onA2AEvent(A2ADomainModuleEvent event) {
-        if (!properties.isEnabled() || event == null || !A2A_EVENTS.contains(event.domainEventType())) return;
+        if (!runtimeConfiguration.enabled() || event == null || !A2A_EVENTS.contains(event.domainEventType())) return;
         String taskId=text(event.payload().get("childTaskId"));
         if(taskId==null||taskId.isBlank()) return;
         IssueProjectionDesiredState desired="A2A_FAILED".equals(event.domainEventType())
@@ -82,7 +84,7 @@ public class IssueProjectionStateService {
 
     @Transactional
     public void onHandoffEvent(HandoffDomainModuleEvent event) {
-        if (!properties.isEnabled() || event == null || !HANDOFF_EVENTS.contains(event.domainEventType())) return;
+        if (!runtimeConfiguration.enabled() || event == null || !HANDOFF_EVENTS.contains(event.domainEventType())) return;
         IssueProjectionDesiredState desired=switch(event.domainEventType()) {
             case HANDOFF_SNAPSHOT_REJECTED,HANDOFF_SNAPSHOT_SUPERSEDED -> IssueProjectionDesiredState.SUSPENDED;
             default -> IssueProjectionDesiredState.ACTIVE;
@@ -217,7 +219,7 @@ public class IssueProjectionStateService {
         ProjectionRecoveryStrategy recovery=exhausted?ProjectionRecoveryStrategy.DEAD_LETTER:ProjectionRecoveryStrategy.RETRY;
         ProjectionLifecycleStatus lifecycle=exhausted?ProjectionLifecycleStatus.DEAD_LETTER:ProjectionLifecycleStatus.FAILED;
         IssueProjectionState updated=repository.save(copy(current,current.desiredState(),IssueProjectionObservedState.FAILED,
-                lifecycle,classification,recovery,attempts,exhausted?null:now.plusSeconds(properties.getRetryDelaySeconds()),
+                lifecycle,classification,recovery,attempts,exhausted?null:now.plusSeconds(runtimeConfiguration.retryDelaySeconds()),
                 code,message,current.version()+1,current.projectionVersion()+1,now,exhausted?now:null,
                 current.lastAppliedDomainEventId(),current.operationSequence(),current.supersededBy(),
                 current.desiredPayloadHash(),current.observedPayloadHash(),current.canonicalDocumentHash()));
@@ -245,7 +247,7 @@ public class IssueProjectionStateService {
     public List<IssueProjectionReconciliationCase> cases(String tenantId,IssueProjectionReconciliationStatus status,int limit){return repository.listCases(required(tenantId,"tenantId"),status,bounded(limit));}
 
     @Transactional public IssueProjectionReconciliationCase resolveCase(String tenantId,String caseId,String actorId,String reason){IssueProjectionReconciliationCase c=repository.findCase(required(tenantId,"tenantId"),required(caseId,"caseId")).orElseThrow(()->new IllegalArgumentException("Issue Projection reconciliation case not found: "+caseId));OffsetDateTime n=now();return repository.saveCase(new IssueProjectionReconciliationCase(c.tenantId(),c.caseId(),c.projectionId(),c.reasonCode(),c.evidenceReference(),IssueProjectionReconciliationStatus.RESOLVED,null,c.attemptCount(),c.lastError(),required(actorId,"actorId"),required(reason,"reason"),c.createdAt(),n,n,c.correlationId()));}
-    @Transactional public void reconcileDue(){if(!properties.isEnabled())return;for(IssueProjectionState s:repository.listDue(now(),properties.getReconcileBatchSize())){if(s.retryCount()>=s.maxAttempts())recordFailure(s.tenantId(),s.projectionId(),IssueProjectionReasonCode.ISSUE_PROJECTION_RETRY_EXHAUSTED.name(),"Projection retry budget is exhausted.",false);else retry(s.tenantId(),s.projectionId(),"Reconciler scheduled another projection evaluation.");}}
+    @Transactional public void reconcileDue(){if(!runtimeConfiguration.enabled())return;for(IssueProjectionState s:repository.listDue(now(),runtimeConfiguration.reconcileBatchSize())){if(s.retryCount()>=s.maxAttempts())recordFailure(s.tenantId(),s.projectionId(),IssueProjectionReasonCode.ISSUE_PROJECTION_RETRY_EXHAUSTED.name(),"Projection retry budget is exhausted.",false);else retry(s.tenantId(),s.projectionId(),"Reconciler scheduled another projection evaluation.");}}
 
     private void openCase(IssueProjectionState state,String reason,String message){if(repository.findOpenCaseByProjection(state.tenantId(),state.projectionId()).isPresent())return;OffsetDateTime n=now();repository.saveCase(new IssueProjectionReconciliationCase(state.tenantId(),"issue-projection-case-"+UUID.randomUUID(),state.projectionId(),reason,"projection:"+state.projectionId(),IssueProjectionReconciliationStatus.WAIT_HUMAN,null,state.retryCount(),message,null,null,n,n,null,state.correlationId()));}
 

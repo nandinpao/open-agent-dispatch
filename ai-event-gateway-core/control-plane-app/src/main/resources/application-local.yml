@@ -3,6 +3,9 @@
 #   - pg.single for PostgreSQL single DataSource and MyBatis XML mapper scan
 #   - redis.* for SharedUtility RedissonAccess
 # Docker local overrides the JDBC/Redis addresses to postgres/redis service names through .env.core-local.example.
+opendispatch:
+  environment: ${OPENDISPATCH_ENVIRONMENT:LOCAL}
+
 spring:
   flyway:
     enabled: ${FLYWAY_ENABLED:true}

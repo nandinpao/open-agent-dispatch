@@ -14,6 +14,7 @@ import com.opensocket.aievent.gateway.netty.config.DeliveryRouterProperties;
 import com.opensocket.aievent.gateway.netty.config.NettyServerProperties;
 import com.opensocket.aievent.gateway.netty.config.TaskAssignmentProperties;
 import com.opensocket.aievent.gateway.netty.authorization.CoreAgentAuthorizationProperties;
+import com.opensocket.aievent.gateway.netty.configuration.GatewayRuntimeConfigurationProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -28,7 +29,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableAsync
 @EnableScheduling
-@EnableConfigurationProperties({GatewayProperties.class, NettyServerProperties.class, AgentProperties.class, AdminProperties.class, ClusterSyncProperties.class, AuditLogProperties.class, ConnectionProtectionProperties.class, CoreForwardProperties.class, CoreOutboundProperties.class, CoreDirectorySyncProperties.class, CoreTaskCallbackRelayProperties.class, TaskAssignmentProperties.class, DeliveryRouterProperties.class, CoreAgentAuthorizationProperties.class})
+@EnableConfigurationProperties({GatewayProperties.class, NettyServerProperties.class, AgentProperties.class, AdminProperties.class, ClusterSyncProperties.class, AuditLogProperties.class, ConnectionProtectionProperties.class, CoreForwardProperties.class, CoreOutboundProperties.class, CoreDirectorySyncProperties.class, CoreTaskCallbackRelayProperties.class, TaskAssignmentProperties.class, DeliveryRouterProperties.class, CoreAgentAuthorizationProperties.class, GatewayRuntimeConfigurationProperties.class})
 public class AiEventGatewayNettyApplication {
 
     public static void main(String[] args) {

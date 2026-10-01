@@ -1,0 +1,8 @@
+adapter-worker:
+  runtime-configuration:
+    # HF2: PRD remote nodes must not silently reactivate startup YAML/ENV authority.
+    enabled: ${ADAPTER_WORKER_RUNTIME_CONFIG_ENABLED:true}
+    fail-closed-on-cold-start: ${ADAPTER_WORKER_RUNTIME_CONFIG_FAIL_CLOSED_ON_COLD_START:true}
+    lkg-enabled: ${ADAPTER_WORKER_RUNTIME_CONFIG_LKG_ENABLED:true}
+    lkg-directory: ${ADAPTER_WORKER_RUNTIME_CONFIG_LKG_DIRECTORY:./data/runtime-config/worker}
+    max-stale-ms: ${ADAPTER_WORKER_RUNTIME_CONFIG_MAX_STALE_MS:300000}

@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.opensocket</groupId>
         <artifactId>control-plane-parent</artifactId>
-        <version>0.8.2-SNAPSHOT</version>
+        <version>0.9.3-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>observability</artifactId>
@@ -26,6 +26,7 @@
             <artifactId>integration-events</artifactId>
         </dependency>
         <dependency><groupId>com.opensocket</groupId><artifactId>kernel</artifactId></dependency>
+        <dependency><groupId>com.opensocket</groupId><artifactId>configuration-runtime</artifactId></dependency>
         <dependency><groupId>com.opensocket</groupId><artifactId>contracts</artifactId></dependency>
         <dependency><groupId>com.opensocket</groupId><artifactId>incident</artifactId></dependency>
         <dependency><groupId>com.opensocket</groupId><artifactId>event-processing</artifactId></dependency>

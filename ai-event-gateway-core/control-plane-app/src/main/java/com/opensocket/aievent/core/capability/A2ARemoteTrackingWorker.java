@@ -2,14 +2,12 @@ package com.opensocket.aievent.core.capability;
 
 import java.util.List;
 import java.util.Map;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import com.opensocket.aievent.core.capability.runtime.A2ADelegationRuntimeConfigurationView;
 
 /** C0-C1/C0-C2 single-authority remote lifecycle worker with fenced renewal and convergence. */
 @Component
-@ConditionalOnProperty(name = "opendispatch.a2a-async.enabled", havingValue = "true", matchIfMissing = true)
 public class A2ARemoteTrackingWorker {
     private final JdbcTemplate tenantJdbc;
     private final A2ARemoteTaskTrackingService tracking;
@@ -23,7 +21,7 @@ public class A2ARemoteTrackingWorker {
     private final ProviderNeutralExecutionCompletionRouter completion;
     private final A2AExternalF0SecurityService security;
     private final A2ARemoteAuthorityService authority;
-    private final int batchSize;
+    private final A2ADelegationRuntimeConfigurationView runtimeConfiguration;
 
     public A2ARemoteTrackingWorker(
             JdbcTemplate tenantJdbc,
@@ -38,7 +36,7 @@ public class A2ARemoteTrackingWorker {
             ProviderNeutralExecutionCompletionRouter completion,
             A2AExternalF0SecurityService security,
             A2ARemoteAuthorityService authority,
-            @org.springframework.beans.factory.annotation.Value("${opendispatch.a2a-async.batch-size:20}") int batchSize) {
+            A2ADelegationRuntimeConfigurationView runtimeConfiguration) {
         this.tenantJdbc = tenantJdbc;
         this.tracking = tracking;
         this.runtime = runtime;
@@ -51,11 +49,12 @@ public class A2ARemoteTrackingWorker {
         this.completion = completion;
         this.security = security;
         this.authority = authority;
-        this.batchSize = Math.max(1, Math.min(batchSize, 50));
+        this.runtimeConfiguration = runtimeConfiguration;
     }
 
-    @Scheduled(fixedDelayString = "${opendispatch.a2a-async.poll-ms:3000}", scheduler = "a2aRemoteOperationalScheduler")
     public void run() {
+        if (!runtimeConfiguration.asyncEnabled()) return;
+        int batchSize = runtimeConfiguration.asyncBatchSize();
         for (String tenant : tenantJdbc.queryForList("select tenant_id from tenants where status='ACTIVE' order by tenant_id", String.class)) {
             for (A2ARemoteTaskTrackingService.RemoteTrackingLease lease : tracking.claimDue(tenant, authority.instanceId(), batchSize)) {
                 process(tenant, lease);

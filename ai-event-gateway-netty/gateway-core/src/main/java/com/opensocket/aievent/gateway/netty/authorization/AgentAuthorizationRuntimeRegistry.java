@@ -1,6 +1,8 @@
 package com.opensocket.aievent.gateway.netty.authorization;
 
 import com.opensocket.aievent.gateway.netty.agent.ConnectionType;
+import com.opensocket.aievent.gateway.netty.runtime.GatewayOperationalRuntimeConfigurationView;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
@@ -15,12 +17,21 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class AgentAuthorizationRuntimeRegistry {
     private final CoreAgentAuthorizationProperties properties;
+    private final GatewayOperationalRuntimeConfigurationView runtimeConfiguration;
     private final Map<String, AgentAuthorizationContext> authorizedByAgentId = new ConcurrentHashMap<>();
     private final Map<String, AgentConnectionAuthorizationRequest> unverifiedByEndpoint = new ConcurrentHashMap<>();
     private final Map<String, RejectedAgentConnectionSnapshot> rejectedById = new ConcurrentHashMap<>();
 
-    public AgentAuthorizationRuntimeRegistry(CoreAgentAuthorizationProperties properties) {
+    @Autowired
+    public AgentAuthorizationRuntimeRegistry(
+            CoreAgentAuthorizationProperties properties,
+            GatewayOperationalRuntimeConfigurationView runtimeConfiguration) {
         this.properties = properties;
+        this.runtimeConfiguration = runtimeConfiguration;
+    }
+
+    public AgentAuthorizationRuntimeRegistry(CoreAgentAuthorizationProperties properties) {
+        this(properties, null);
     }
 
     public void markUnverified(AgentConnectionAuthorizationRequest request) {
@@ -122,7 +133,7 @@ public class AgentAuthorizationRuntimeRegistry {
     }
 
     private void trimRejectedHistory() {
-        var limit = properties.rejectedHistoryLimit();
+        var limit = runtimeConfiguration == null ? properties.rejectedHistoryLimit() : runtimeConfiguration.rejectedHistoryLimit();
         if (rejectedById.size() <= limit) return;
         var ordered = new ArrayList<>(rejectedById.values());
         ordered.sort(Comparator.comparing(RejectedAgentConnectionSnapshot::rejectedAt).reversed());
