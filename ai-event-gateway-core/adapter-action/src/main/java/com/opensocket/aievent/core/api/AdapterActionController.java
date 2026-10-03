@@ -23,6 +23,9 @@ import com.opensocket.aievent.core.action.executor.AdapterActionExecutionPropert
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionService;
 import com.opensocket.aievent.core.action.executor.AdapterActionExecutionSummary;
 import com.opensocket.aievent.core.action.executor.AdapterExecutorCircuitBreaker;
+import com.opensocket.aievent.core.action.executor.IntegrationRecoveryService;
+import com.opensocket.aievent.core.action.executor.IntegrationRecoveryService.IntegrationRecoveryPreflight;
+import com.opensocket.aievent.core.action.executor.IntegrationRecoveryService.IntegrationRecoverySnapshot;
 import com.opensocket.aievent.core.action.executor.AdapterExecutorRuntimeConfigurationView;
 import com.opensocket.aievent.core.action.executor.audit.AdapterExecutorAuditRecord;
 
@@ -38,6 +41,7 @@ public class AdapterActionController {
     private final AdapterActionExecutionProperties executionProperties;
     private final AdapterExecutorRuntimeConfigurationView executorRuntimeConfiguration;
     private final AdapterExecutorCircuitBreaker circuitBreaker;
+    private final IntegrationRecoveryService integrationRecovery;
 
     public AdapterActionController(
             AdapterActionFacade service,
@@ -48,7 +52,8 @@ public class AdapterActionController {
             AdapterActionExecutionService executionService,
             AdapterActionExecutionProperties executionProperties,
             AdapterExecutorRuntimeConfigurationView executorRuntimeConfiguration,
-            AdapterExecutorCircuitBreaker circuitBreaker) {
+            AdapterExecutorCircuitBreaker circuitBreaker,
+            IntegrationRecoveryService integrationRecovery) {
         this.service = service;
         this.properties = properties;
         this.workerRuntimeConfiguration = workerRuntimeConfiguration;
@@ -58,6 +63,7 @@ public class AdapterActionController {
         this.executionProperties = executionProperties;
         this.executorRuntimeConfiguration = executorRuntimeConfiguration;
         this.circuitBreaker = circuitBreaker;
+        this.integrationRecovery = integrationRecovery;
     }
 
     @GetMapping
@@ -164,6 +170,24 @@ public class AdapterActionController {
         return service.recentExecutorAudit(limit);
     }
 
+    @GetMapping("/integration-recovery")
+    public IntegrationRecoverySnapshot integrationRecovery(@RequestParam(defaultValue = "200") int limit) {
+        return integrationRecovery.snapshot(limit);
+    }
+
+    @PostMapping("/{actionId}/recovery-preflight")
+    public IntegrationRecoveryPreflight recoveryPreflight(@PathVariable String actionId) {
+        return integrationRecovery.preflight(actionId);
+    }
+
+    @PostMapping("/{actionId}/recovery-retry")
+    public AdapterAction recoveryRetry(
+            @PathVariable String actionId,
+            @RequestBody RecoveryRetryRequest body) {
+        if (body == null) throw new IllegalArgumentException("recovery retry body is required");
+        return integrationRecovery.governedRetry(actionId, body.reason());
+    }
+
     @GetMapping("/metadata")
     public Map<String, Object> metadata() {
         Map<String, Object> map = new LinkedHashMap<>();
@@ -241,4 +265,6 @@ public class AdapterActionController {
     public record RetryRequest(String reason, Boolean resetAttempts) {}
     public record ProviderOutcomeReconciliationRequest(String resolution, String reason, String issueId,
                                                        String issueUrl, String issueStatus, String responseRef) {}
+    public record RecoveryRetryRequest(String reason) {}
+
 }

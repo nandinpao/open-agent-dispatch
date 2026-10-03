@@ -1,3 +1,5 @@
-import { RuntimeAcceptanceConsole } from '@/components/runtime/RuntimeAcceptanceConsole';
+import { redirect } from 'next/navigation';
 
-export default function RuntimeAcceptancePage() { return <main className="mx-auto max-w-7xl p-6"><RuntimeAcceptanceConsole /></main>; }
+export default function RuntimeAcceptancePage() {
+  redirect('/settings/release-certification?view=runtime-proof');
+}

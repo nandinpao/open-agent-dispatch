@@ -9,14 +9,12 @@ test('Issue Tracking workspace separates connection, principal, credentials, map
   await expect(page.locator('body')).not.toContainText(/private key|copy secret/i);
 });
 
-test('Sync Operations exposes queue, Dead Letter and conflict authority guidance', async ({ page }) => {
+test('Sync Operations exposes canonical failure and governed recovery guidance', async ({ page }) => {
   await page.goto('/operations/integration-sync');
-  await page.getByRole('button', { name: /Projection Queue/i }).click();
-  await expect(page.getByText('Sync queue operational states')).toBeVisible();
-  await expect(page.getByText('WAITING_FOR_INDEX')).toBeVisible();
-  await page.getByRole('button', { name: /External Conflicts/i }).click();
-  await expect(page.getByText('OpenDispatch / external issue conflict resolution')).toBeVisible();
-  await expect(page.getByText(/external provider never becomes Task authority/i)).toBeVisible();
+  await page.getByRole('button', { name: /Failures/i }).click();
+  await expect(page.getByText(/Failure evidence|No failures in the current audit window/i).first()).toBeVisible();
+  await page.getByRole('button', { name: /Recovery/i }).click();
+  await expect(page.getByText(/Detect.*Diagnose.*Repair.*Validate.*Retry.*Verify|No failures in the current audit window/i).first()).toBeVisible();
 });
 
 test('Agent list supports blocking filters and actionable blocking cards', async ({ page }) => {

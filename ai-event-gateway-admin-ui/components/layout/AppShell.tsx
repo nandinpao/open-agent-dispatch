@@ -11,6 +11,7 @@ import { ToastViewport } from '@/components/common/ToastViewport';
 import { UiEntitlementProvider } from '@/lib/navigation/useUiEntitlements';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { AdminUiModeRouteBoundary } from './AdminUiModeRouteBoundary';
 
 const CAPABILITY_INDEPENDENT_ROUTES = ['/login', '/setup', '/forgot-password', '/reset-password', '/change-password'] as const;
 
@@ -37,7 +38,7 @@ function ProtectedShell({ children }: Readonly<{ children: ReactNode }>) {
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="min-h-screen lg:pl-72">
           <Topbar onMenuClick={() => setSidebarOpen(true)} />
-          <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+          <div className="p-4 sm:p-6 lg:p-8"><AdminUiModeRouteBoundary>{children}</AdminUiModeRouteBoundary></div>
         </div>
         <ToastViewport />
       </div>

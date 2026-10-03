@@ -10,6 +10,7 @@ import { bootstrapApi } from '@/lib/api/bootstrapApi';
 import { useAuth } from '@/components/auth/AuthProvider';
 import type { BootstrapStatus, MfaEnrollment } from '@/lib/iam/types';
 import { TotpQrCode } from '@/components/iam/TotpQrCode';
+import { Button } from '@/components/ui/Button';
 
 const steps = [
   'Set up MFA',
@@ -166,12 +167,12 @@ export function FirstRunSetupWizard() {
           administrator are configured. The restricted bootstrap session must now be
           replaced by a normal MFA-verified Root session.
         </p>
-        <button
+        <Button
           onClick={() => void logout()}
-          className="mt-6 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-black text-white"
+          tone="success" size="md" className="mt-6"
         >
           Sign in again with MFA
-        </button>
+        </Button>
       </section>
     );
   }
@@ -233,12 +234,12 @@ export function FirstRunSetupWizard() {
               >
                 <Field label="Authenticator account label" name="accountLabel" defaultValue="root" />
                 <Field label="Issuer" name="issuer" defaultValue="OpenDispatch" />
-                <button
+                <Button
                   disabled={busy}
-                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300"
+                  tone="primary" size="md"
                 >
                   Generate MFA enrollment
-                </button>
+                </Button>
               </form>
             ) : (
               <>
@@ -270,20 +271,20 @@ export function FirstRunSetupWizard() {
                         {mfa.recoveryCodes.join('\n')}
                       </pre>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button
+                        <Button
                           type="button"
                           onClick={() => void copyRecoveryCodes()}
-                          className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-black text-amber-950"
+                          tone="warning" size="xs"
                         >
                           Copy recovery codes
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={downloadRecoveryCodes}
-                          className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-black text-amber-950"
+                          tone="warning" size="xs"
                         >
                           Download recovery codes
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -333,20 +334,20 @@ export function FirstRunSetupWizard() {
                     <span>I saved the recovery codes in an approved secure location.</span>
                   </label>
                   <div className="flex flex-wrap gap-3">
-                    <button
+                    <Button
                       disabled={busy || !recoveryCodesSaved}
-                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300"
+                      tone="primary" size="md"
                     >
                       Confirm MFA
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       disabled={busy}
                       onClick={() => void generateMfaEnrollment(mfaAccountLabel, mfaIssuer)}
-                      className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-black text-slate-700 disabled:text-slate-300"
+                      tone="secondary" size="md"
                     >
                       Regenerate enrollment
-                    </button>
+                    </Button>
                   </div>
                 </form>
               </>
@@ -384,9 +385,9 @@ export function FirstRunSetupWizard() {
             <Field label="Locale" name="locale" defaultValue="en-US" />
             <Field label="Data region" name="dataRegion" defaultValue="TW" />
             <div className="md:col-span-2">
-              <button disabled={busy} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300">
+              <Button disabled={busy} tone="primary" size="md">
                 Create first Tenant
-              </button>
+              </Button>
             </div>
           </form>
         ) : null}
@@ -416,9 +417,9 @@ export function FirstRunSetupWizard() {
             <Field label="Display name" name="displayName" />
             <Field label="Email" name="email" type="email" autoComplete="email" inputMode="email" />
             <div className="md:col-span-2">
-              <button disabled={busy} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300">
+              <Button disabled={busy} tone="primary" size="md">
                 Create Tenant administrator
-              </button>
+              </Button>
             </div>
           </form>
         ) : null}
@@ -432,13 +433,13 @@ export function FirstRunSetupWizard() {
               and a named daily Tenant administrator has been created. Completing setup closes
               the bootstrap mutation surface.
             </div>
-            <button
+            <Button
               disabled={busy}
               onClick={() => void execute(() => bootstrapApi.complete(status?.version ?? 0))}
-              className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300"
+              tone="success" size="md"
             >
               Complete setup and close bootstrap
-            </button>
+            </Button>
           </div>
         ) : null}
       </section>

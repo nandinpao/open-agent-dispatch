@@ -154,10 +154,7 @@ public class RedmineConnectorRuntimeService {
             case ISSUE_READ -> connector.read(new IssueReadCommand(requiredIssueId(payload)));
             case ISSUE_CREATE -> {
                 Map<String,Object> providerFields = providerFields(payload);
-                String priorityId = firstNonBlank(
-                        text(payload, "priorityId", "priority_id"),
-                        text(providerFields, "priority_id", "priorityId"),
-                        connector.resolveDefaultPriorityId());
+                String priorityId = connector.resolveCreatePriorityId(payload, providerFields);
                 if (priorityId == null) {
                     throw new IllegalArgumentException("ISSUE_PROVIDER_REQUIRED_FIELD_UNMAPPED:priority_id");
                 }

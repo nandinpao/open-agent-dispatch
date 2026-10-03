@@ -99,8 +99,8 @@ gateway:
   node-id: ${GATEWAY_NODE_ID:gateway-node-001}
   environment: ${OPENDISPATCH_ENVIRONMENT:LOCAL}
   version: ${GATEWAY_VERSION:0.9.3-SNAPSHOT}
-  release-label: ${OPENDISPATCH_RELEASE_LABEL:v41}
-  artifact-revision: ${OPENDISPATCH_ARTIFACT_REVISION:V41_C3R3G_HF5_24_LOCAL_DUAL_READ_COLD_START_POLICY_ALIGNMENT}
+  release-label: ${OPENDISPATCH_RELEASE_LABEL:v42}
+  artifact-revision: ${OPENDISPATCH_ARTIFACT_REVISION:V42_U12_LEGACY_INTERACTION_ACCESSIBILITY_BURN_DOWN}
   # V40-4 bootstrap-only configuration reconcile. No DB/Redis credential is required by Gateway.
   runtime-configuration:
     enabled: ${GATEWAY_RUNTIME_CONFIG_ENABLED:false}

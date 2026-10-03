@@ -29,6 +29,7 @@ import {
   WizardProgress,
   type WizardStepDefinition,
 } from '../shared/beginnerUi';
+import { Button } from '@/components/ui/Button';
 
 const STEPS: WizardStepDefinition[] = [
   { key: 'who', label: 'Who', description: 'Person, Department, Group or Service Account' },
@@ -235,7 +236,7 @@ export function AssignAccessWizard({
         <p className="mt-2 text-sm leading-6 text-slate-600">
           {selectedPrincipal} now has the {selectedRole?.roleName ?? 'selected'} responsibility for {selectedScope}.
         </p>
-        <button type="button" onClick={onCancel} className="mt-5 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white">Return to Access</button>
+        <Button type="button" onClick={onCancel} tone="primary" size="md" className="mt-5">Return to Access</Button>
       </section>
     );
   }
@@ -248,7 +249,7 @@ export function AssignAccessWizard({
           <h2 id="assign-access-title" className="mt-1 text-xl font-black text-slate-950">Who needs to do what, where, and for how long?</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">The UI uses business responsibilities. Principal IDs, Scope IDs, Binding IDs and permission codes remain technical evidence.</p>
         </div>
-        <button type="button" onClick={onCancel} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-black text-slate-700">Close</button>
+        <Button type="button" onClick={onCancel} tone="secondary" size="sm">Close</Button>
       </div>
 
       <div className="mt-5"><WizardProgress steps={STEPS} currentIndex={step} /></div>
@@ -388,7 +389,7 @@ export function AssignAccessWizard({
                     </FieldLabel>
                   </div>
                 ) : (
-                  <button type="button" disabled={busy || blocked} onClick={() => { void requestApproval(); }} className="mt-3 rounded-xl bg-amber-700 px-4 py-2.5 text-sm font-black text-white disabled:bg-slate-300">Request approval</button>
+                  <Button type="button" disabled={busy || blocked} onClick={() => { void requestApproval(); }} tone="warning" size="sm" className="mt-3">Request approval</Button>
                 )}
               </section>
             ) : (
@@ -406,17 +407,17 @@ export function AssignAccessWizard({
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <button type="button" onClick={step === 0 ? onCancel : () => { setStep((current) => Math.max(0, current - 1)); setError(''); }} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700">
+        <Button type="button" onClick={step === 0 ? onCancel : () => { setStep((current) => Math.max(0, current - 1)); setError(''); }} tone="secondary" size="sm">
           {step === 0 ? 'Cancel' : 'Back'}
-        </button>
+        </Button>
         {step < 4 ? (
-          <button type="button" disabled={busy} onClick={() => { void next(); }} className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300">
+          <Button type="button" disabled={busy} onClick={() => { void next(); }} tone="primary" size="md">
             {step === 3 ? busy ? 'Reviewing…' : 'Review access' : 'Continue'}
-          </button>
+          </Button>
         ) : (
-          <button type="button" disabled={busy || blocked || needsApproval} onClick={() => { void confirm(); }} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300">
+          <Button type="button" disabled={busy || blocked || needsApproval} onClick={() => { void confirm(); }} tone="primary" size="md">
             {busy ? 'Assigning…' : 'Assign responsibility'}
-          </button>
+          </Button>
         )}
       </div>
     </section>

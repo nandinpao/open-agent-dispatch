@@ -379,6 +379,10 @@ export function coreTenantApiGet<T>(path: string, query?: ApiRequestOptions['que
   return apiRequestFor<T>('core', path, { ...options, method: 'GET', query, tenantScoped: true });
 }
 
+export function coreTenantApiRequest<T>(path: string, options: Omit<ApiRequestOptions, 'tenantScoped'> = {}): Promise<T> {
+  return apiRequestFor<T>('core', path, { ...options, tenantScoped: true });
+}
+
 export function coreTenantApiPost<T>(path: string, body?: unknown, options?: Omit<ApiRequestOptions, 'method' | 'body' | 'tenantScoped'>): Promise<T> {
   return apiRequestFor<T>('core', path, { ...options, method: 'POST', body, tenantScoped: true });
 }

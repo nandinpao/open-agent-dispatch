@@ -6,13 +6,11 @@ import { EntitlementPageGuard } from '@/components/auth/EntitlementPageGuard';
 import { settingsFeatureForPath } from '@/lib/navigation/routeFamilyEntitlements';
 
 /**
- * Settings is not one homogeneous entitlement family: Integrations has its own
- * Core feature while governance/runtime settings are projected as administration.
- * The route-aware layout keeps that distinction without duplicating guards across
- * every settings page or inventing frontend authorization.
+ * Settings is a presentation shell, not one homogeneous authority family.
+ * The route is projected to the same Core-owned feature used by Settings Hub
+ * visibility and action entitlements. Backend authorization remains authoritative.
  */
 export function SettingsRouteEntitlementGuard({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname();
-  const featureId = settingsFeatureForPath(pathname);
-  return <EntitlementPageGuard featureId={featureId}>{children}</EntitlementPageGuard>;
+  return <EntitlementPageGuard featureId={settingsFeatureForPath(pathname)}>{children}</EntitlementPageGuard>;
 }

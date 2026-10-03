@@ -16,6 +16,7 @@ import { parseDispatchUserFacingError } from '@/lib/dispatch-readiness/dispatchU
 import { buildDispatchOperatorActions, type DispatchOperatorCommand } from '@/lib/dispatch-readiness/dispatchOperatorActions';
 import type { CoreAdminFailureQueueItem, CoreAdminFailureQueueResponse } from '@/lib/types/core';
 import { formatDateTime } from '@/lib/utils/format';
+import { Button } from '@/components/ui/Button';
 
 interface QueueDispatchErrorGroup {
   code: string;
@@ -174,10 +175,10 @@ export function TaskFailureQueuePanel() {
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
           {Object.entries(data.counts ?? {}).map(([status, count]) => <span key={status} className="rounded-full bg-white px-2.5 py-1 font-semibold text-amber-800">{status}: {count}</span>)}
           {Object.entries(data.reasonCategoryCounts ?? {}).map(([category, count]) => (
-            <button key={category} type="button" onClick={() => setSelectedCategory(category)} className="rounded-full bg-white px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-100">{reasonCategoryLabel(category)}: {count}</button>
+            <Button key={category} type="button" onClick={() => setSelectedCategory(category)} tone="warning" size="xs">{reasonCategoryLabel(category)}: {count}</Button>
           ))}
           {selectedCategory !== 'ALL' || selectedCode !== 'ALL' ? (
-            <button type="button" onClick={() => { setSelectedCategory('ALL'); setSelectedCode('ALL'); }} className="rounded-full bg-amber-900 px-2.5 py-1 font-bold text-white"> queue </button>
+            <Button type="button" onClick={() => { setSelectedCategory('ALL'); setSelectedCode('ALL'); }} tone="warning" size="xs"> queue </Button>
           ) : null}
           {data.generatedAt ? <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-amber-800">Generated: {formatDateTime(data.generatedAt)}</span> : null}
         </div>
@@ -242,9 +243,9 @@ export function TaskFailureQueuePanel() {
                 <div className="flex flex-wrap items-center gap-2">
                   {item.status ? <StatusBadge status={String(item.status)} /> : null}
                   <Link href={`/tasks/${encodeURIComponent(item.taskId)}`} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Timeline</Link>
-                  {Boolean(item.actions?.manualRetry) ? <button type="button" onClick={() => setPendingAction({ action: 'manualRetry', taskId: item.taskId })} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700">Run Recovery Now</button> : null}
-                  {Boolean(item.actions?.escalate) ? <button type="button" onClick={() => setPendingAction({ action: 'escalate', taskId: item.taskId })} className="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-50">Escalate</button> : null}
-                  {Boolean(item.actions?.deadLetter) ? <button type="button" onClick={() => setPendingAction({ action: 'deadLetter', taskId: item.taskId })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50">Move to Dead Letter</button> : null}
+                  {Boolean(item.actions?.manualRetry) ? <Button type="button" onClick={() => setPendingAction({ action: 'manualRetry', taskId: item.taskId })} tone="primary" size="xs">Run Recovery Now</Button> : null}
+                  {Boolean(item.actions?.escalate) ? <Button type="button" onClick={() => setPendingAction({ action: 'escalate', taskId: item.taskId })} tone="warning" size="xs">Escalate</Button> : null}
+                  {Boolean(item.actions?.deadLetter) ? <Button type="button" onClick={() => setPendingAction({ action: 'deadLetter', taskId: item.taskId })} tone="danger" size="xs">Move to Dead Letter</Button> : null}
                 </div>
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-4">

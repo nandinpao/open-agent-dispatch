@@ -12,6 +12,12 @@ test('C10 centralizes route-family feature projections without inventing role au
   assert.equal(ROUTE_FAMILY_FEATURES.delegations, 'a2a-operations');
   assert.equal(ROUTE_FAMILY_FEATURES.resourceAccess, 'resource-access');
   assert.equal(settingsFeatureForPath('/settings/integrations'), 'integrations');
+  assert.equal(settingsFeatureForPath('/settings/delegation-governance'), 'delegation-governance');
+  assert.equal(settingsFeatureForPath('/settings/provider-routing'), 'provider-routing');
+  assert.equal(settingsFeatureForPath('/settings/release-certification'), 'release-certification');
+  assert.equal(settingsFeatureForPath('/settings/release-cutover'), 'release-certification');
+  assert.equal(settingsFeatureForPath('/settings/runtime-configuration'), 'runtime-configuration');
+  assert.equal(settingsFeatureForPath('/settings/runtime-configuration/migration-governance'), 'runtime-configuration');
   assert.equal(settingsFeatureForPath('/settings/capabilities'), 'administration');
   assert.equal(settingsFeatureForPath('/settings/runtime-resources'), 'administration');
 });

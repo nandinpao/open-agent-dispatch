@@ -4,7 +4,7 @@ import { SyncOperationsWorkspace } from '@/components/integrations/SyncOperation
 
 export default function IntegrationSyncOperationsPage(){
   return <EntitlementPageGuard featureId="sync-operations"><main className="space-y-5">
-    <PageHeader title="Integration Sync Operations" description="Operate projection queues, verified Webhooks, external conflicts, Human Action Candidates, relay, reconciliation and Dead Letters."/>
+    <PageHeader title="Integration Sync Operations" description="Diagnose Issue Tracking execution failures, repair governed Integration Configuration, run live Recovery Preflight, schedule governed retries, and inspect verified provider observations."/>
     <SyncOperationsWorkspace/>
   </main></EntitlementPageGuard>;
 }

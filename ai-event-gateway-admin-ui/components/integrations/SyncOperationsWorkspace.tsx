@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { ProviderWebhookConflictGovernancePanel } from '@/components/integrations/ProviderWebhookConflictGovernancePanel';
+import { IntegrationRecoveryPanel } from '@/components/integrations/IntegrationRecoveryPanel';
 import { SyncOperationsOverviewPanel } from '@/components/integrations/SyncOperationsOverviewPanel';
 
 const sections = [
-  { id: 'overview', label: 'Connector Overview', description: 'Current ISSUE_TRACKING AdapterAction execution and Redmine Provider health.' },
+  { id: 'overview', label: 'Overview', description: 'Current ISSUE_TRACKING AdapterAction state and canonical executor-audit health evidence.' },
+  { id: 'failures', label: 'Failures', description: 'Timestamp-ordered provider execution failures with structured category, HTTP and correlation evidence.' },
+  { id: 'recovery', label: 'Recovery', description: 'Repair guidance, live Recovery Preflight and governed retry. Configuration remains owned by Integration Configuration.' },
   { id: 'webhooks', label: 'Provider Observations', description: 'Verified Webhook ingress, observation replay and read-only historical evidence.' },
 ] as const;
 
@@ -18,8 +21,8 @@ export function SyncOperationsWorkspace() {
     <div className="space-y-5">
       <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
         <div className="text-xs font-black uppercase tracking-[.2em] text-indigo-700">Integration Operations</div>
-        <h2 className="mt-2 text-xl font-black text-indigo-950">Redmine Connector Operations</h2>
-        <p className="mt-2 max-w-4xl text-sm leading-6 text-indigo-900">Operate the current Redmine Connector without changing Task, Dispatch, A2A or Redmine Issue authority. Legacy desired-state projection, conflict arbitration, cross-project relay and bidirectional Issue governance are retired from normal operations.</p>
+        <h2 className="mt-2 text-xl font-black text-indigo-950">Issue Tracking Connector Operations</h2>
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-indigo-900">Operate external Issue Tracking connectors without changing Task, Dispatch or execution-routing authority. Provider connections, credentials and Source/Task mappings remain governed in Integration Configuration; this workspace is operational and recovery focused.</p>
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(15rem,0.28fr)_minmax(0,0.72fr)]">
@@ -29,6 +32,8 @@ export function SyncOperationsWorkspace() {
         <section aria-labelledby="sync-workspace-section-title" className="min-w-0 space-y-5">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h3 id="sync-workspace-section-title" className="font-black text-slate-950">{current.label}</h3><p className="mt-1 text-sm text-slate-600">{current.description}</p></div>
           {active === 'overview' ? <SyncOperationsOverviewPanel/> : null}
+          {active === 'failures' ? <IntegrationRecoveryPanel mode="failures"/> : null}
+          {active === 'recovery' ? <IntegrationRecoveryPanel mode="recovery"/> : null}
           {active === 'webhooks' ? <ProviderWebhookConflictGovernancePanel/> : null}
         </section>
       </div>

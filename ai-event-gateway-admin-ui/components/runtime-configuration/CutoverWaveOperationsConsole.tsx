@@ -12,6 +12,7 @@ import {
 } from '@/lib/api/runtimeConfigurationApi';
 import { actionAllowed } from '@/lib/navigation/uiEntitlements';
 import { useUiEntitlements } from '@/lib/navigation/useUiEntitlements';
+import { Button } from '@/components/ui/Button';
 
 type ActionKind = 'ASSESS' | 'PREPARE' | 'FINALIZE' | 'CANCEL' | 'CERTIFY';
 type EvidenceItem = { key: string; label: string; passed: boolean | null; value: string; detail?: string };
@@ -259,7 +260,7 @@ export function CutoverWaveOperationsConsole({ onGovernanceReload }: Readonly<{ 
         <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div><div className="text-xs font-black uppercase tracking-wide text-violet-700">Cutover Wave Detail</div><h2 className="mt-1 text-xl font-black text-slate-950">{waveDetail?.waveId ?? selectedWaveId} · {waveDetail?.displayName ?? 'Loading…'}</h2></div>
-            <button type="button" onClick={() => setSelectedWaveId(null)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-black text-slate-700">Close</button>
+            <Button type="button" onClick={() => setSelectedWaveId(null)} tone="secondary" size="sm">Close</Button>
           </div>
         </div>
         <div className="space-y-4 p-5">
@@ -277,7 +278,7 @@ export function CutoverWaveOperationsConsole({ onGovernanceReload }: Readonly<{ 
             {waveDetail.safetyAttestationRequired && <section className={`rounded-2xl border p-4 ${safetyFresh ? 'border-emerald-200 bg-emerald-50' : 'border-amber-300 bg-amber-50'}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><div className="text-xs font-black uppercase tracking-wide">Platform readiness</div><div className="mt-2 flex flex-wrap items-center gap-2"><Badge tone={safetyFresh ? 'emerald' : 'rose'}>{safetyFresh ? 'PASS' : (waveDetail.safetyAttestationStatus === 'PASS' ? 'EXPIRED' : waveDetail.safetyAttestationStatus ?? 'MISSING')}</Badge>{waveDetail.safetyAttestationExpiresAt && <span className={`font-mono text-sm font-black ${safetyRemainingMs < 60_000 ? 'text-amber-900' : ''}`}>{durationLabel(safetyRemainingMs)}</span>}</div></div>
-                {canAssess && waveDetail.phase !== 'FINALIZED' && <button type="button" onClick={() => openAction('ASSESS', waveDetail)} className="rounded-lg border border-amber-400 bg-white px-3 py-2 text-xs font-black text-amber-900">Re-assess safety</button>}
+                {canAssess && waveDetail.phase !== 'FINALIZED' && <Button type="button" onClick={() => openAction('ASSESS', waveDetail)} tone="warning" size="xs">Re-assess safety</Button>}
               </div>
               {safety?.latestAttestation && <div className="mt-3 text-xs text-slate-700">Captured {new Date(safety.latestAttestation.capturedAt).toLocaleString()} by <b>{safety.latestAttestation.attestedBy}</b> · attestation <span className="font-mono">{safety.latestAttestation.attestationId}</span></div>}
               {evidence.length > 0 && <div className="mt-4 grid gap-2 md:grid-cols-2">{evidence.map(item => <div key={item.key} className="flex items-start justify-between gap-3 rounded-xl border border-white/70 bg-white/80 p-3"><div><div className="text-xs font-black text-slate-900">{item.label}</div><div className="mt-1 text-[11px] text-slate-600">{item.value}</div></div><Badge tone={item.passed === true ? 'emerald' : item.passed === false ? 'rose' : 'slate'}>{item.passed === true ? 'PASS' : item.passed === false ? 'FAIL' : 'UNKNOWN'}</Badge></div>)}</div>}
@@ -301,11 +302,11 @@ export function CutoverWaveOperationsConsole({ onGovernanceReload }: Readonly<{ 
             <section className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
               <div className="text-xs font-black uppercase tracking-wide text-violet-700">Available actions</div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {canAssess && waveDetail.safetyAttestationRequired && waveDetail.phase !== 'FINALIZED' && <button type="button" onClick={() => openAction('ASSESS', waveDetail)} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-black text-amber-900">Assess safety</button>}
-                {canPrepare && waveDetail.phase === 'READY_TO_PREPARE' && <button type="button" onClick={() => openAction('PREPARE', waveDetail)} className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-black text-white">Prepare wave</button>}
-                {canFinalize && waveDetail.phase === 'READY_TO_FINALIZE' && safetyFresh && <button type="button" onClick={() => openAction('FINALIZE', waveDetail)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-black text-white">Finalize wave</button>}
-                {canCancel && (waveDetail.phase === 'PREPARED_AWAITING_CONVERGENCE' || waveDetail.phase === 'READY_TO_FINALIZE') && <button type="button" onClick={() => openAction('CANCEL', waveDetail)} className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-black text-rose-700">Cancel prepared wave</button>}
-                {canCertify && waveDetail.phase === 'FINALIZED' && <button type="button" onClick={() => openAction('CERTIFY', waveDetail)} className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-black text-emerald-700">Certify convergence</button>}
+                {canAssess && waveDetail.safetyAttestationRequired && waveDetail.phase !== 'FINALIZED' && <Button type="button" onClick={() => openAction('ASSESS', waveDetail)} tone="warning" size="xs">Assess safety</Button>}
+                {canPrepare && waveDetail.phase === 'READY_TO_PREPARE' && <Button type="button" onClick={() => openAction('PREPARE', waveDetail)} tone="secondary" size="xs">Prepare wave</Button>}
+                {canFinalize && waveDetail.phase === 'READY_TO_FINALIZE' && safetyFresh && <Button type="button" onClick={() => openAction('FINALIZE', waveDetail)} tone="success" size="xs">Finalize wave</Button>}
+                {canCancel && (waveDetail.phase === 'PREPARED_AWAITING_CONVERGENCE' || waveDetail.phase === 'READY_TO_FINALIZE') && <Button type="button" onClick={() => openAction('CANCEL', waveDetail)} tone="danger" size="xs">Cancel prepared wave</Button>}
+                {canCertify && waveDetail.phase === 'FINALIZED' && <Button type="button" onClick={() => openAction('CERTIFY', waveDetail)} tone="success" size="xs">Certify convergence</Button>}
               </div>
               {!canAssess && !canPrepare && !canFinalize && !canCancel && !canCertify && <div className="mt-2 text-xs text-slate-600">Read-only. This session has cutover view permission but no cutover mutation authority.</div>}
               {canFinalize && waveDetail.phase !== 'READY_TO_FINALIZE' && <div className="mt-3 text-xs text-slate-600">Finalize is unavailable until the server reports <b>READY_TO_FINALIZE</b>; blockers above explain why.</div>}
@@ -319,13 +320,13 @@ export function CutoverWaveOperationsConsole({ onGovernanceReload }: Readonly<{ 
 
     {pendingAction && actionWave && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-label={`${pendingAction} cutover wave`}>
       <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
-        <div className="flex items-start justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-wide text-violet-700">{pendingAction} cutover wave</div><h3 className="mt-1 text-xl font-black text-slate-950">{actionWave.waveId} · {actionWave.displayName}</h3></div><button type="button" onClick={closeAction} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black">Close</button></div>
+        <div className="flex items-start justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-wide text-violet-700">{pendingAction} cutover wave</div><h3 className="mt-1 text-xl font-black text-slate-950">{actionWave.waveId} · {actionWave.displayName}</h3></div><Button type="button" onClick={closeAction} tone="secondary" size="xs">Close</Button></div>
         {pendingAction === 'FINALIZE' && <div className="mt-4 rounded-2xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-950"><div className="font-black">Critical authority transition</div><div className="mt-1">Finalization changes {actionWave.runtimeKeyCount} Runtime Configuration keys across {actionWave.configSetCount} Config Sets to Single Runtime Authority. YAML / ENV is no longer a valid runtime fallback for migrated keys.</div><div className="mt-3 grid gap-2 sm:grid-cols-3"><div className="rounded-lg bg-white p-2"><div className="text-[10px] text-slate-500">Nodes</div><b>{actionWave.convergedNodeCount}/{actionWave.requiredNodeCount}</b></div><div className="rounded-lg bg-white p-2"><div className="text-[10px] text-slate-500">Safety</div><b>{safetyFresh ? `PASS ${durationLabel(safetyRemainingMs)}` : 'NOT FRESH'}</b></div><div className="rounded-lg bg-white p-2"><div className="text-[10px] text-slate-500">Contract</div><b>v{actionWave.requiredAuthorityContractVersion}</b></div></div></div>}
         <label className="mt-4 block text-xs font-black uppercase tracking-wide text-slate-600">Audit reason</label>
         <textarea value={actionReason} onChange={event => setActionReason(event.target.value)} rows={3} placeholder="Describe the operational evidence and reason for this action." className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
         {pendingAction === 'FINALIZE' && <><label className="mt-4 block text-xs font-black uppercase tracking-wide text-rose-700">Type {actionWave.waveId} to confirm</label><input value={confirmation} onChange={event => setConfirmation(event.target.value)} className="mt-2 w-full rounded-xl border border-rose-300 px-3 py-2 font-mono text-sm" /></>}
         {failure && <div className="mt-4"><ActionError failure={failure} /></div>}
-        <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={closeAction} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-black">Cancel</button><button type="button" disabled={loading || !actionReason.trim() || (pendingAction === 'FINALIZE' && confirmation.trim() !== actionWave.waveId)} onClick={() => void executeAction()} className={`rounded-lg px-4 py-2 text-sm font-black text-white disabled:bg-slate-300 ${pendingAction === 'FINALIZE' ? 'bg-rose-700' : 'bg-violet-700'}`}>{loading ? 'Working…' : pendingAction}</button></div>
+        <div className="mt-5 flex justify-end gap-2"><Button type="button" onClick={closeAction} tone="secondary" size="sm">Cancel</Button><Button type="button" disabled={loading || !actionReason.trim() || (pendingAction === 'FINALIZE' && confirmation.trim() !== actionWave.waveId)} onClick={() => void executeAction()} tone={pendingAction === 'FINALIZE' ? 'danger' : 'warning'} size="sm" busy={loading} busyLabel="Working…">{pendingAction}</Button></div>
       </div>
     </div>}
   </>;

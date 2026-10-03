@@ -77,6 +77,8 @@ import type {
   CoreExecutionSafetyPrepareResult,
   CoreRuntimeAcceptanceSummary,
   CoreProductionFoundationSummary,
+  CoreReleaseCandidateEvidence,
+  CoreReleasePreflight,
   CoreRebindingAdmissionDecision,
   CoreFlowRoutingMigrationState,
   CoreExecutionAdapterRegistration,
@@ -1144,6 +1146,26 @@ export const coreAdminApi = {
     const query = new URLSearchParams({ tenantId });
     return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCutoverRuns}?${query.toString()}`, body);
   },
+  getProductionReleaseTrustedExecutors(tenantId: string): Promise<Array<Record<string, unknown>>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiGet<Array<Record<string, unknown>>>(`${coreAdminEndpoints.productionFoundationTrustedExecutors}?${query.toString()}`);
+  },
+  registerProductionReleaseTrustedExecutor(tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationTrustedExecutors}?${query.toString()}`, body);
+  },
+  revokeProductionReleaseTrustedExecutor(executorId: string, keyId: string, tenantId: string, reason: string): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationTrustedExecutorRevoke(executorId, keyId)}?${query.toString()}`, { reason });
+  },
+  ingestProductionReleaseSignedAttestation(tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationSignedAttestations}?${query.toString()}`, body);
+  },
+  getProductionReleaseCandidateEvidence(candidateId: string, tenantId: string): Promise<CoreReleaseCandidateEvidence> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiGet<CoreReleaseCandidateEvidence>(`${coreAdminEndpoints.productionFoundationCandidateEvidence(candidateId)}?${query.toString()}`);
+  },
   createProductionReleaseCandidate(tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
     const query = new URLSearchParams({ tenantId });
     return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCandidates}?${query.toString()}`, body);
@@ -1151,6 +1173,10 @@ export const coreAdminApi = {
   certifyProductionReleaseCandidate(candidateId: string, tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
     const query = new URLSearchParams({ tenantId });
     return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCandidateCertify(candidateId)}?${query.toString()}`, body);
+  },
+  preflightProductionReleaseCandidate(candidateId: string, tenantId: string, action: 'ACTIVATE' | 'REVOKE'): Promise<CoreReleasePreflight> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<CoreReleasePreflight>(`${coreAdminEndpoints.productionFoundationCandidatePreflight(candidateId)}?${query.toString()}`, { action });
   },
   activateProductionReleaseCandidate(candidateId: string, tenantId: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
     const query = new URLSearchParams({ tenantId });
@@ -1160,6 +1186,19 @@ export const coreAdminApi = {
     const query = new URLSearchParams({ tenantId });
     return coreApiPost<Record<string, unknown>>(`${coreAdminEndpoints.productionFoundationCandidateRevoke(candidateId)}?${query.toString()}`, body);
   },
+  preflightProductionFoundationFlow(flowId: string, tenantId: string, body: Record<string, unknown>): Promise<CoreReleasePreflight> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<CoreReleasePreflight>(`${coreAdminEndpoints.productionFoundationFlowPreflight(flowId)}?${query.toString()}`, body);
+  },
+  promoteProductionFoundationFlow(flowId: string, tenantId: string, body: Record<string, unknown>): Promise<CoreFlowRoutingMigrationState> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<CoreFlowRoutingMigrationState>(`${coreAdminEndpoints.productionFoundationFlowPromote(flowId)}?${query.toString()}`, body);
+  },
+  rollbackProductionFoundationFlow(flowId: string, tenantId: string, body: Record<string, unknown>): Promise<CoreFlowRoutingMigrationState> {
+    const query = new URLSearchParams({ tenantId });
+    return coreApiPost<CoreFlowRoutingMigrationState>(`${coreAdminEndpoints.productionFoundationFlowRollback(flowId)}?${query.toString()}`, body);
+  },
+  /** @deprecated HF5.32C compatibility URI only. Server rejects authority mutation; use preflight + promote/rollback. */
   setProductionFoundationFlowAuthority(flowId: string, tenantId: string, body: CoreExecutionSafetyActivationRequest): Promise<CoreFlowRoutingMigrationState> {
     const query = new URLSearchParams({ tenantId });
     return coreApiPut<CoreFlowRoutingMigrationState>(`${coreAdminEndpoints.productionFoundationFlowAuthority(flowId)}?${query.toString()}`, body);

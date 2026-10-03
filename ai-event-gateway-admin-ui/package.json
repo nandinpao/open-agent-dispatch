@@ -210,7 +210,7 @@
     "verify:phase6-typescript-syntax": "node ../scripts/verify/verify-phase6-typescript-syntax.cjs",
     "test:phase6-live": "playwright test tests/e2e/phase6-rbac-access-live.spec.ts",
     "verify:phase7-security-audit": "python3 ../scripts/verify/verify-phase7-security-audit.py",
-    "verify:phase7-security-typescript-syntax": "NODE_PATH=/opt/nvm/versions/node/v22.16.0/lib/node_modules node ../scripts/verify/verify-phase7-security-typescript-syntax.cjs",
+    "verify:phase7-security-typescript-syntax": "node ../scripts/verify/verify-phase7-security-typescript-syntax.cjs",
     "test:phase7-security-live": "playwright test -c playwright.config.ts tests/e2e/phase7-security-audit-live.spec.ts",
     "verify:phase7-root-session-fix2": "python3 ../scripts/verify/verify-phase7-root-session-fix2.py",
     "verify:phase7-build-fix9-enforcement-control-plane-compatibility": "python3 ../scripts/verify/verify-phase7-build-fix9-enforcement-control-plane-compatibility.py",
@@ -295,7 +295,7 @@
   },
   "packageManager": "npm@10.9.0",
   "opendispatchReleaseVersion": "0.9.3-SNAPSHOT",
-  "opendispatchReleaseLabel": "v41",
-  "opendispatchArtifactRevision": "V41_C3R3G_HF5_17_C3R2H_GOVERNANCE_LIFECYCLE_TRANSITION_CLOSURE",
-  "opendispatchArtifactName": "OpenDispatch_v41-C3R3G-HF5-17-c3r2h-governance-lifecycle-transition-closure.zip"
+  "opendispatchReleaseLabel": "v42",
+  "opendispatchArtifactRevision": "V42_U12_LEGACY_INTERACTION_ACCESSIBILITY_BURN_DOWN",
+  "opendispatchArtifactName": "OpenDispatch_v42-U12-legacy-interaction-accessibility-burn-down.zip"
 }

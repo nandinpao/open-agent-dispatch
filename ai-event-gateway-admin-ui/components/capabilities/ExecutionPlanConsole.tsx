@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { coreAdminApi } from '@/lib/api/coreAdminApi';
 import type { CoreBindingAuthorizationEnvelope, CoreExecutionPlan, CoreExecutionPlanDecision, CoreExecutionPlanPolicy, CoreExecutionPlanRequest, CoreExecutionPlanStep, CorePlanAdmissionDecision, CorePlanAdmissionPolicy } from '@/lib/types/core';
+import { Button } from '@/components/ui/Button';
 
 
 const EMPTY_ADMISSION_POLICY: CorePlanAdmissionPolicy = {
@@ -206,7 +207,7 @@ export function ExecutionPlanConsole() {
           <label className="text-sm">Max Capability invocations<input type="number" className="mt-1 w-full rounded-xl border p-2" value={policy.maxCapabilityInvocations} onChange={(e)=>setPolicy({...policy,maxCapabilityInvocations:Number(e.target.value)})}/></label>
         </div>
         <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={policy.requireHumanReviewOnPlanChange} onChange={(e)=>setPolicy({...policy,requireHumanReviewOnPlanChange:e.target.checked})}/> Require Human review before Planner-proposed plan amendments are applied</label>
-        <button className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white" onClick={()=>void savePolicy()}>Save policy</button>
+        <Button tone="primary" size="sm" className="mt-4" onClick={()=>void savePolicy()}>Save policy</Button>
         <p className="mt-3 text-xs text-slate-500">Current ACTIVE policy: {activePolicy ? `${activePolicy.policyId} v${activePolicy.version ?? 1}` : 'none — fail closed'}</p>
       </div>
 
@@ -214,7 +215,7 @@ export function ExecutionPlanConsole() {
         <h3 className="font-black text-slate-950">Create planning request</h3>
         <label className="mt-3 block text-sm">Classification taxonomy<input className="mt-1 w-full rounded-xl border p-2" value={classificationCode} onChange={(e)=>setClassificationCode(e.target.value)} /></label>
         <label className="mt-3 block text-sm">Initial Canonical WHAT — one per line: <code>capability.code OPERATION</code><textarea className="mt-1 min-h-28 w-full rounded-xl border p-2 font-mono text-xs" value={initialRequirementsText} onChange={(e)=>setInitialRequirementsText(e.target.value)} placeholder={'fulfillment.root-cause.analyze ANALYZE\ninventory.availability.read READ'}/></label>
-        <button className="mt-4 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-black text-white" onClick={()=>void createPlanningRequest()}>Create planning request</button>
+        <Button tone="primary" size="sm" className="mt-4" onClick={()=>void createPlanningRequest()}>Create planning request</Button>
         <p className="mt-3 text-xs text-slate-500">This Admin preview does not invoke a live Planner Agent.</p>
       </div>
     </section>
@@ -226,7 +227,7 @@ export function ExecutionPlanConsole() {
         <label className="text-sm">Validated plan for amendment<select className="mt-1 w-full rounded-xl border p-2" value={selectedPlanId} onChange={(e)=>setSelectedPlanId(e.target.value)}><option value="">Select…</option>{plans.map((p)=><option key={p.planId} value={p.planId}>{p.planId} · r{p.currentRevision}</option>)}</select></label>
       </div>
       <label className="mt-3 block text-sm">Steps — one per line: <code>stepId | capability OPERATION | dep1,dep2 | purpose | SIDE_EFFECT | WRITE_SEMANTICS | compensationBindingId</code><textarea className="mt-1 min-h-40 w-full rounded-xl border p-2 font-mono text-xs" value={stepsText} onChange={(e)=>setStepsText(e.target.value)} placeholder={'order | sales.order.fulfillment-status.read READ | | Read order fulfillment state\nproduction | production.execution-status.read READ | | Read production state\ninventory | inventory.availability.read READ | | Read inventory\nsynthesis | fulfillment.root-cause.analyze ANALYZE | order,production,inventory | Synthesize evidence'}/></label>
-      <div className="mt-4 flex flex-wrap gap-2"><button className="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-black text-white" onClick={()=>void validateProposal()}>Validate initial plan</button><button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-black text-slate-800" onClick={()=>void amendPlan()}>Validate amendment</button></div>
+      <div className="mt-4 flex flex-wrap gap-2"><Button tone="secondary" size="sm" onClick={()=>void validateProposal()}>Validate initial plan</Button><Button tone="secondary" size="sm" onClick={()=>void amendPlan()}>Validate amendment</Button></div>
       <p className="mt-3 text-xs text-slate-500">Dependency cycles, unknown Capability/operation, excessive depth/branches/steps and policy limits fail closed. No Provider, authorization, ranking or execution adapter is selected.</p>
     </section>
 
@@ -241,7 +242,7 @@ export function ExecutionPlanConsole() {
         <label className="text-sm lg:col-span-2">Allowed Binding Classes<div className="mt-1 flex flex-wrap gap-3 rounded-xl border p-2">{['LOCAL_DETERMINISTIC','LOCAL_AGENT','EXTERNAL_TOOL','EXTERNAL_AGENT'].map((v)=><label key={v} className="flex items-center gap-1 text-xs"><input type="checkbox" checked={admissionPolicy.allowedBindingClasses.includes(v)} onChange={(e)=>setAdmissionPolicy({...admissionPolicy,allowedBindingClasses:e.target.checked?[...admissionPolicy.allowedBindingClasses,v]:admissionPolicy.allowedBindingClasses.filter(x=>x!==v)})}/>{v}</label>)}</div></label>
         <label className="flex items-end gap-2 text-sm"><input type="checkbox" checked={admissionPolicy.externalEgressAllowed} onChange={(e)=>setAdmissionPolicy({...admissionPolicy,externalEgressAllowed:e.target.checked})}/> Allow external egress</label>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2"><button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-black" onClick={()=>void saveAdmissionPolicy()}>Save admission policy</button><button className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-black text-white" onClick={()=>void admitPlan()}>Run formal Plan Admission</button><button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-black" onClick={()=>void loadAdmissionEvidence()}>Refresh evidence</button></div>
+      <div className="mt-4 flex flex-wrap gap-2"><Button tone="primary" size="sm" onClick={()=>void saveAdmissionPolicy()}>Save admission policy</Button><Button tone="warning" size="sm" onClick={()=>void admitPlan()}>Run formal Plan Admission</Button><Button tone="secondary" size="sm" onClick={()=>void loadAdmissionEvidence()}>Refresh evidence</Button></div>
       {admissionDecision ? <div className="mt-4 rounded-2xl bg-slate-50 p-4"><div className="grid gap-3 md:grid-cols-5 text-sm"><div><span className="text-xs text-slate-500">Result</span><div className="font-black">{admissionDecision.result}</div></div><div><span className="text-xs text-slate-500">Steps</span><div className="font-black">{admissionDecision.stepCount}</div></div><div><span className="text-xs text-slate-500">Admitted</span><div className="font-black">{admissionDecision.admittedStepCount}</div></div><div><span className="text-xs text-slate-500">Waiting</span><div className="font-black">{admissionDecision.waitingApprovalStepCount}</div></div><div><span className="text-xs text-slate-500">Bindings</span><div className="font-black">{admissionDecision.admittedBindingCount}/{admissionDecision.candidateBindingCount}</div></div></div><p className="mt-2 text-xs text-slate-500">{admissionDecision.reasonCodes.join(' · ')}</p></div> : null}
       {envelopes.length ? <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-xs"><thead><tr className="border-b"><th className="p-2">Step</th><th className="p-2">Capability</th><th className="p-2">Named bindings</th><th className="p-2">Classes</th><th className="p-2">Side effect</th><th className="p-2">Status / expiry</th></tr></thead><tbody>{envelopes.map((e)=><tr key={e.envelopeId} className="border-b align-top"><td className="p-2 font-bold">{e.stepId}</td><td className="p-2">{e.capabilityCode}@{e.capabilityVersion}</td><td className="p-2">{e.admittedBindingIds.join(', ') || 'none'}</td><td className="p-2">{e.admittedBindingClasses.join(', ') || 'named only'}</td><td className="p-2">{e.maxSideEffect}</td><td className="p-2">{e.status}<div className="text-slate-400">{e.validUntil}</div></td></tr>)}</tbody></table></div> : null}
       <p className="mt-3 text-xs font-medium text-amber-800">NON_COMPENSATABLE WRITE never receives blanket cross-trust Binding Class authority. Runtime Authorization is a child envelope and cannot widen these named bindings.</p>

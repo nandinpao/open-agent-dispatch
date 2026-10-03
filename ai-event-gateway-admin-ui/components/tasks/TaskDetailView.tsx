@@ -17,6 +17,7 @@ import { TaskRemediationActionsPanel } from "@/components/tasks/detail/TaskDiagn
 import { TaskVisibilitySummary } from "@/components/tasks/TaskVisibilitySummary";
 import { useCapabilityMutation } from "@/components/ui-capability/UiPageBootstrapProvider";
 import { useTaskDetail } from "@/hooks/useTaskDetail";
+import { useAdminUiMode } from "@/hooks/useAdminUiMode";
 import { taskAdminApi } from "@/lib/api/domains/taskAdminApi";
 import { coreAdminApi } from "@/lib/api/coreAdminApi";
 import type { SelectOption } from "@/components/forms";
@@ -64,6 +65,7 @@ function actionFailureMessage(error: unknown): string {
 }
 
 export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
+  const { mode, setMode } = useAdminUiMode();
   const {
     data,
     loading,
@@ -311,46 +313,60 @@ export function TaskDetailView({ taskId }: Readonly<{ taskId: string }>) {
         />
       </section>
 
-      <details
-        className="rounded-3xl border border-slate-200 bg-white shadow-sm"
-        open={advancedOpen}
-        onToggle={(event: { currentTarget: HTMLDetailsElement }) => {
-          const open = event.currentTarget.open;
-          setAdvancedOpen(open);
-          if (open) {
-            activateOperationsSection("relationships");
-            activateOperationsSection("issue");
-          }
-        }}
-      >
-        <summary className="cursor-pointer list-none px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      {mode === "basic" ? (
+        <section className="rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm" aria-label="Deeper task evidence">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Advanced Diagnostics</p>
-              <h2 className="mt-1 text-lg font-black text-slate-950">Routing, callback, A2A, recovery, issue, and raw authority evidence</h2>
-              <p className="mt-1 text-sm text-slate-600">Open this only when the investigation summary does not provide enough evidence.</p>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Need deeper evidence?</p>
+              <h2 className="mt-1 text-lg font-black text-blue-950">Keep the daily view focused unless the investigation summary is not enough.</h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-blue-900">Advanced adds authority, relationship and recovery evidence. Developer additionally exposes raw execution, routing, callback and issue payloads. Changing the UI level does not grant permissions.</p>
             </div>
-            <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">{advancedOpen ? "Hide diagnostics" : "Open diagnostics"}</span>
+            <button type="button" onClick={() => setMode("advanced")} className="shrink-0 rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-black text-white hover:bg-blue-900">Open Advanced evidence</button>
           </div>
-        </summary>
-        {advancedOpen ? (
-          <div className="border-t border-slate-200 p-5">
-            <TaskAdvancedDiagnostics
-              data={data}
-              diagnosis={diagnosis}
-              retrying={retrying}
-              retryingIssueSyncActionId={retryingIssueSyncActionId}
-              retryingHandoffSnapshotId={retryingHandoffSnapshotId}
-              reconcilingA2AResultId={reconcilingA2AResultId}
-              onRetryIssueSync={guardedRetryIssueSync}
-              onRetryHandoffRelease={guardedRetryHandoffRelease}
-              onReconcileA2AResult={guardedReconcileA2AResult}
-              onDispatchOperatorCommand={runDispatchOperatorCommand}
-              onActivateOperationsSection={activateOperationsSection}
-            />
-          </div>
-        ) : null}
-      </details>
+        </section>
+      ) : (
+        <details
+          className="rounded-3xl border border-slate-200 bg-white shadow-sm"
+          open={advancedOpen}
+          onToggle={(event: { currentTarget: HTMLDetailsElement }) => {
+            const open = event.currentTarget.open;
+            setAdvancedOpen(open);
+            if (open) {
+              activateOperationsSection("relationships");
+              activateOperationsSection("issue");
+            }
+          }}
+        >
+          <summary className="cursor-pointer list-none px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{mode === "developer" ? "Developer Diagnostics" : "Advanced Investigation"}</p>
+                <h2 className="mt-1 text-lg font-black text-slate-950">{mode === "developer" ? "Authority, relationship, recovery and raw execution evidence" : "Authority, relationship and recovery evidence"}</h2>
+                <p className="mt-1 text-sm text-slate-600">{mode === "developer" ? "Use raw payloads only when higher-level diagnosis is insufficient." : "Raw transport and internal payload evidence remains hidden until Developer level."}</p>
+              </div>
+              <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700">{advancedOpen ? "Hide diagnostics" : "Open diagnostics"}</span>
+            </div>
+          </summary>
+          {advancedOpen ? (
+            <div className="border-t border-slate-200 p-5">
+              <TaskAdvancedDiagnostics
+                mode={mode}
+                data={data}
+                diagnosis={diagnosis}
+                retrying={retrying}
+                retryingIssueSyncActionId={retryingIssueSyncActionId}
+                retryingHandoffSnapshotId={retryingHandoffSnapshotId}
+                reconcilingA2AResultId={reconcilingA2AResultId}
+                onRetryIssueSync={guardedRetryIssueSync}
+                onRetryHandoffRelease={guardedRetryHandoffRelease}
+                onReconcileA2AResult={guardedReconcileA2AResult}
+                onDispatchOperatorCommand={runDispatchOperatorCommand}
+                onActivateOperationsSection={activateOperationsSection}
+              />
+            </div>
+          ) : null}
+        </details>
+      )}
       <TaskActionDialog
         open={pendingAction !== null || pendingRemediationCommand !== null}
         title={

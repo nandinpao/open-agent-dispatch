@@ -30,10 +30,11 @@ export const tableDensityClasses: Record<TableDensity, TableDensityClasses> = {
 export interface DataTableShellProps {
   children: ReactNode;
   className?: string;
+  ariaLabel?: string;
 }
 
-export function DataTableShell({ children, className = '' }: Readonly<DataTableShellProps>) {
-  return <div className={`overflow-x-auto ${className}`}>{children}</div>;
+export function DataTableShell({ children, className = '', ariaLabel = 'Scrollable data table' }: Readonly<DataTableShellProps>) {
+  return <div role="region" aria-label={ariaLabel} tabIndex={0} className={`overflow-x-auto rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${className}`}>{children}</div>;
 }
 
 export interface TableEmptyRowProps {

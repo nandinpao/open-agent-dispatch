@@ -3,6 +3,7 @@
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { WorkspaceTenantSelector } from '@/components/auth/WorkspaceTenantSelector';
+import { AdminUiModeSwitcher } from '@/components/layout/AdminUiModeSwitcher';
 import { useAdminRealtime } from '@/hooks/useAdminRealtime';
 import { useI18n } from '@/hooks/useI18n';
 import { getPublicEnv } from '@/lib/constants/env';
@@ -36,6 +37,7 @@ export function Topbar({ onMenuClick }: Readonly<TopbarProps>) {
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <WorkspaceTenantSelector compact className="hidden md:flex" />
+          <AdminUiModeSwitcher />
           <StatusBadge status={connection.status} />
           <div className="hidden rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 xl:block">
             {user?.displayName ?? t('topbar.administrator')}

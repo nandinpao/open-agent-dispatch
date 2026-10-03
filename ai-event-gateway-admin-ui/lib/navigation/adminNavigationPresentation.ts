@@ -1,5 +1,6 @@
 import { translate as t } from '@/lib/i18n';
 import type { UiNavigationItem } from '@/lib/navigation/uiEntitlements';
+import { canAccessAdminUiMode, type AdminUiMode } from '@/lib/navigation/adminUiMode';
 
 export type AdminNavigationGroupId = 'daily' | 'configuration' | 'engineering' | 'platform' | 'account';
 
@@ -16,6 +17,7 @@ export interface PresentedNavigationItem {
   label: string;
   purpose: string;
   groupId: AdminNavigationGroupId;
+  requiredMode: AdminUiMode;
 }
 
 const GROUP_ORDER: AdminNavigationGroupId[] = ['daily', 'configuration', 'engineering', 'platform', 'account'];
@@ -53,12 +55,13 @@ const GROUPS: Record<AdminNavigationGroupId, Omit<AdminNavigationGroup, 'items'>
   },
 };
 
-const FEATURE_PRESENTATION: Record<string, Partial<Pick<PresentedNavigationItem, 'label' | 'purpose' | 'groupId'>>> = {
+const FEATURE_PRESENTATION: Record<string, Partial<Pick<PresentedNavigationItem, 'label' | 'purpose' | 'groupId' | 'requiredMode'>>> = {
   dashboard: { groupId: 'daily' },
   agents: { groupId: 'daily' },
   tasks: { groupId: 'daily' },
   'a2a-operations': {
     groupId: 'daily',
+    requiredMode: 'advanced',
     label: 'Delegations',
     purpose: 'Review governed delegated work, blockers, results and recovery actions.',
   },
@@ -69,18 +72,19 @@ const FEATURE_PRESENTATION: Record<string, Partial<Pick<PresentedNavigationItem,
   integrations: { groupId: 'configuration' },
   administration: { groupId: 'configuration', label: 'Configuration & Governance', purpose: 'Configure governed product behavior, runtime safety and administration without creating a second dispatch authority.' },
   'access-management': { groupId: 'configuration' },
-  'agent-enrollments': { groupId: 'configuration' },
+  'agent-enrollments': { groupId: 'configuration', requiredMode: 'advanced' },
 
   operations: {
     groupId: 'engineering',
+    requiredMode: 'developer',
     label: 'Operational Diagnostics',
     purpose: 'Review governed exports, background authorization and audit diagnostics.',
   },
-  'sync-operations': { groupId: 'engineering' },
-  'a2a-governance': { groupId: 'engineering' },
-  'resource-access': { groupId: 'engineering' },
+  'sync-operations': { groupId: 'engineering', requiredMode: 'advanced' },
+  'a2a-governance': { groupId: 'engineering', requiredMode: 'advanced' },
+  'resource-access': { groupId: 'engineering', requiredMode: 'developer' },
 
-  'instance-administration': { groupId: 'platform' },
+  'instance-administration': { groupId: 'platform', requiredMode: 'advanced' },
   'my-account': { groupId: 'account' },
 };
 
@@ -109,6 +113,7 @@ export function presentNavigationItem(item: UiNavigationItem): PresentedNavigati
     label: presentation.label ?? item.label,
     purpose: presentation.purpose ?? item.purpose,
     groupId: presentation.groupId ?? defaultGroup(item.section),
+    requiredMode: presentation.requiredMode ?? (item.section === 'INTERNAL' || item.section === 'INTERNAL_ENGINEERING' ? 'developer' : item.section === 'PLATFORM' ? 'advanced' : 'basic'),
   };
 }
 
@@ -120,8 +125,8 @@ export function presentNavigationItem(item: UiNavigationItem): PresentedNavigati
  * displayMode, featureId, route, children and ordering. The mapping changes only
  * user-facing grouping, labels and purpose text.
  */
-export function presentNavigation(items: UiNavigationItem[]): AdminNavigationGroup[] {
-  const presented = items.map(presentNavigationItem);
+export function presentNavigation(items: UiNavigationItem[], mode: AdminUiMode = 'basic'): AdminNavigationGroup[] {
+  const presented = items.map(presentNavigationItem).filter((entry) => canAccessAdminUiMode(mode, entry.requiredMode));
   return GROUP_ORDER.map((id) => ({
     ...GROUPS[id],
     items: presented.filter((entry) => entry.groupId === id),

@@ -10,7 +10,7 @@ export default function QualityMetricsSettingsPage() {
         title="Quality Requirements"
         description="Maintain quality metrics used by dispatch rules, such as success rate, recent failures, SLA status, and rolling performance windows."
       />
-      <AdminUiModeNotice requiredMode="advanced" title="Advanced administration area" description="This page supports source data, migration, release, or readiness management. It is hidden from Basic Mode navigation so normal Agent setup stays simple." />
+      <AdminUiModeNotice requiredMode="developer" title="Developer engineering evidence" description="This page supports source data, migration, release, or readiness management. It is hidden from Basic Mode navigation so normal Agent setup stays simple." />
       <InformationArchitectureGuide activeLayer="advanced" compact />
       <QualityMetricsSummaryPanel
         title="Agent and service quality metrics"

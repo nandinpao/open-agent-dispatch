@@ -29,6 +29,7 @@ const defaultPaths = [
   '/dispatch-policies',
   '/testing/dispatch-simulator',
   '/settings/migration-readiness',
+  '/settings/release-certification',
   '/settings/release-cutover',
   '/settings/enforce-observability',
   '/settings/dispatch-task-definitions',

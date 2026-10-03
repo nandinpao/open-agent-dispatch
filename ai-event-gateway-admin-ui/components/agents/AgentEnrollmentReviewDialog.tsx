@@ -25,6 +25,7 @@ import type {
   CoreAgentCapabilityCatalog,
   CoreAgentAuthorizationScope,
 } from "@/lib/types/core";
+import { Button } from '@/components/ui/Button';
 
 interface AgentApprovalDraft {
   agentId: string;
@@ -448,13 +449,13 @@ export function AgentEnrollmentReviewDialog({
                         : "Error, canuse Edit "}
                 </p>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+                tone="secondary" size="xs"
               >
                 Close
-              </button>
+              </Button>
             </div>
 
             {error ? (
@@ -557,39 +558,39 @@ export function AgentEnrollmentReviewDialog({
             </div>
 
             <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
-              <button
+              <Button
                 type="button"
                 onClick={() => setOpen(false)}
                 disabled={Boolean(submitting)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                tone="secondary" size="sm"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => void saveDraft()}
                 disabled={Boolean(submitting) || !draft.agentId.trim()}
-                className="rounded-xl border border-amber-200 px-4 py-2 text-sm font-bold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+                tone="warning" size="sm"
               >
                 {submitting === "save" ? "Saving..." : "Save Edit"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => void reject()}
                 disabled={Boolean(submitting)}
-                className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                tone="danger" size="sm"
               >
                 {submitting === "reject" ? "Rejecting..." : "Reject"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => void approve()}
                 disabled={Boolean(submitting) || approvalCompleted || !canApproveEnrollment || !draft.agentId.trim() || !draft.ownerDepartmentId || !draft.businessOwnerUserId || !businessOwnerEligible || !draft.responsibilityRoleId || !draft.credentialToken.trim()}
                 title={!canApproveEnrollment ? "Enrollment approval cannot restore a blocked Core Agent profile. Use Restore Approve with new credential material." : !businessOwnerEligible ? "Business Owner must be an active member of the selected Owner Department" : !draft.credentialToken.trim() ? "Credential Token is required before Approve" : undefined}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                tone="success" size="sm"
               >
                 {submitting === "approve" ? "Approving..." : isRejectedEnrollmentStatus(enrollment?.status) ? "Approve Again" : "Approve"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

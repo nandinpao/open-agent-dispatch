@@ -168,7 +168,7 @@ export function AgentDetailProductView({ agentId }: AgentDetailProductViewProps)
             {!contexts.length ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
                 <div className="font-black">No governed work context yet</div>
-                <p className="mt-1">Configure Allowed Work first so OpenDispatch knows which Source Systems this Agent may execute. Redmine itself is configured once on each Source System, never on the Agent.</p>
+                <p className="mt-1">Configure Allowed Work first so OpenDispatch knows which Source Systems this Agent may execute. Issue Tracking provider connections and credentials are governed centrally; Source/Task mappings decide which Redmine or Jira provider instance is used. Agents never own separate Issue credentials.</p>
                 <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => setActiveTab('dispatch-access')} className="rounded-xl bg-amber-800 px-4 py-2 text-sm font-black text-white hover:bg-amber-900">Configure Allowed Work</button><Link href="/source-systems" className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-black text-amber-900 hover:bg-amber-100">Open Source Systems</Link></div>
               </div>
             ) : null}

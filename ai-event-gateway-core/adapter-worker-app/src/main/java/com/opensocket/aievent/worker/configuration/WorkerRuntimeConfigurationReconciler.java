@@ -2,15 +2,23 @@ package com.opensocket.aievent.worker.configuration;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.concurrent.ScheduledFuture;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
 import com.opensocket.aievent.worker.AdapterWorkerProperties;
+import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -18,6 +26,7 @@ import org.springframework.web.client.RestClient;
 @Component
 @ConditionalOnProperty(prefix="adapter-worker.runtime-configuration",name="enabled",havingValue="true")
 public class WorkerRuntimeConfigurationReconciler {
+    private static final Logger log=LoggerFactory.getLogger(WorkerRuntimeConfigurationReconciler.class);
     private static final int AUTHORITY_CONTRACT_VERSION = 2;
     private final RestClient restClient;
     private final AdapterWorkerProperties worker;
@@ -27,19 +36,40 @@ public class WorkerRuntimeConfigurationReconciler {
     private final WorkerRuntimeConfigurationLkgStore lkgStore;
     private final WorkerRuntimeConfigurationRecoveryTracker recoveryTracker;
     private final String environment;
+    private final TaskScheduler taskScheduler;
+    private volatile ScheduledFuture<?> periodicReconcileTask;
 
     public WorkerRuntimeConfigurationReconciler(@Qualifier("adapterWorkerCoreRestClient") RestClient restClient,
             AdapterWorkerProperties worker,WorkerRuntimeConfigurationProperties properties,
             WorkerRuntimeConfigurationLocalRegistry registry,WorkerRuntimeConfigurationLkgStore lkgStore,
-            WorkerRuntimeConfigurationRecoveryTracker recoveryTracker,
+            WorkerRuntimeConfigurationRecoveryTracker recoveryTracker,TaskScheduler taskScheduler,
             @Value("${opendispatch.environment}") String environment) {
         this.restClient=restClient;this.worker=worker;this.properties=properties;this.registry=registry;
-        this.lkgStore=lkgStore;this.recoveryTracker=recoveryTracker;properties.requireSecureKey();
+        this.lkgStore=lkgStore;this.recoveryTracker=recoveryTracker;this.taskScheduler=taskScheduler;properties.requireSecureKey();
         this.verifier=new WorkerRuntimeConfigurationSnapshotVerifier(properties.hmacKey());this.environment=canonicalEnvironment(environment);
     }
 
-    @Scheduled(fixedDelayString="${adapter-worker.runtime-configuration.reconcile-ms:5000}")
+    @EventListener(ApplicationReadyEvent.class)
+    public synchronized void startPeriodicReconciliation(){
+        if(periodicReconcileTask!=null&&!periodicReconcileTask.isCancelled())return;
+        long delayMs=properties.reconcileMs();
+        periodicReconcileTask=taskScheduler.scheduleWithFixedDelay(this::reconcileSafely,Instant.now().plusMillis(delayMs),Duration.ofMillis(delayMs));
+    }
+
     public void reconcile(){for(String configSetId:activeConfigSetIds())reconcileOne(configSetId);}
+
+    private void reconcileSafely(){
+        try{reconcile();}
+        catch(RuntimeException authorityUnavailable){
+            log.warn("RUNTIME_CONFIGURATION_RECONCILE_DEFERRED coreAuthorityUnavailable={} message={}",authorityUnavailable.getClass().getSimpleName(),authorityUnavailable.getMessage());
+        }
+    }
+
+    @PreDestroy
+    public synchronized void stopPeriodicReconciliation(){
+        if(periodicReconcileTask!=null)periodicReconcileTask.cancel(false);
+        periodicReconcileTask=null;
+    }
 
     public List<String> activeConfigSetIds(){
         List<String> configured=properties.configSetIds();

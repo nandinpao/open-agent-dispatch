@@ -12,6 +12,7 @@ import {
 } from '@/lib/api/domains/a2aOperationsApi';
 import { A2AStatusBadge } from './A2AStatusBadge';
 import { CapabilityDelegationDetailView } from './CapabilityDelegationDetailView';
+import { Button } from '@/components/ui/Button';
 
 const STATUSES = ['', 'RECEIVED', 'WAITING_APPROVAL', 'NO_CANDIDATE', 'ROUTING_UNAVAILABLE', 'HOW_UNAVAILABLE', 'AUTHORIZED', 'CHILD_CREATED', 'DISPATCH_QUEUED', 'RESULT_SUCCEEDED', 'RESULT_FAILED', 'FAILED'];
 const PROVIDER_TYPES = ['', 'MANAGED_AGENT', 'MCP_TOOL', 'REMOTE_A2A_AGENT', 'INTERNAL_SERVICE'];
@@ -85,14 +86,14 @@ export function CapabilityDelegationWorkspace({ initialDelegationId, initialPare
 
       <div className="grid gap-5 xl:grid-cols-[410px_minmax(0,1fr)]">
         <aside className="self-start rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-20">
-          <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[.18em] text-slate-500">Delegation queue</p><h2 className="mt-1 text-lg font-black">Capability delegations</h2></div><button type="button" onClick={() => void loadList()} className="rounded-lg border px-3 py-2 text-xs font-black">Refresh</button></div>
+          <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[.18em] text-slate-500">Delegation queue</p><h2 className="mt-1 text-lg font-black">Capability delegations</h2></div><Button type="button" onClick={() => void loadList()} tone="secondary" size="xs">Refresh</Button></div>
           <form className="mt-4 space-y-3" onSubmit={(event) => { event.preventDefault(); setOffset(0); setAppliedQuery(query.trim()); }}>
             <label className="block text-xs font-black uppercase text-slate-500">Search<input value={query} onChange={(event) => setQuery(event.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm normal-case" placeholder="Capability, task, provider, delegation" /></label>
             <label className="block text-xs font-black uppercase text-slate-500">Operational status<select value={status} onChange={(event) => { setStatus(event.target.value); setOffset(0); }} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm normal-case">{STATUSES.map((value) => <option key={value || 'ALL'} value={value}>{value ? humanizeA2ACode(value) : 'All statuses'}</option>)}</select></label>
             <label className="block text-xs font-black uppercase text-slate-500">Parent Task ID<input value={parentTaskId} onChange={(event) => { setParentTaskId(event.target.value); setOffset(0); }} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm font-mono normal-case" placeholder="Exact Parent Task ID from lab:a2a" /></label>
             <label className="block text-xs font-black uppercase text-slate-500">Capability code<input value={capabilityCode} onChange={(event) => { setCapabilityCode(event.target.value); setOffset(0); }} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm normal-case" placeholder="Optional exact capability" /></label>
             <label className="block text-xs font-black uppercase text-slate-500">Provider type<select value={providerType} onChange={(event) => { setProviderType(event.target.value); setOffset(0); }} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm normal-case">{PROVIDER_TYPES.map((value) => <option key={value || 'ALL'} value={value}>{value ? humanizeA2ACode(value) : 'All provider types'}</option>)}</select></label>
-            <div className="flex flex-wrap gap-2"><button type="submit" className="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-black text-white">Search</button><button type="button" onClick={() => { setQuery(''); setAppliedQuery(''); setStatus(''); setParentTaskId(''); setCapabilityCode(''); setProviderType(''); setOffset(0); }} className="rounded-xl border px-4 py-2 text-sm font-black">Reset</button><button type="button" onClick={() => setSortDirection((value) => value === 'DESC' ? 'ASC' : 'DESC')} className="rounded-xl border px-3 py-2 text-xs font-black">{sortDirection === 'DESC' ? 'Newest' : 'Oldest'}</button></div>
+            <div className="flex flex-wrap gap-2"><Button type="submit" tone="primary" size="sm">Search</Button><Button type="button" onClick={() => { setQuery(''); setAppliedQuery(''); setStatus(''); setParentTaskId(''); setCapabilityCode(''); setProviderType(''); setOffset(0); }} tone="secondary" size="sm">Reset</Button><Button type="button" onClick={() => setSortDirection((value) => value === 'DESC' ? 'ASC' : 'DESC')} tone="secondary" size="xs">{sortDirection === 'DESC' ? 'Newest' : 'Oldest'}</Button></div>
           </form>
           <div className="mt-4 border-t pt-3 text-xs text-slate-500">Showing {rangeStart}–{rangeEnd} of {total}</div>
           <div className="mt-3 max-h-[54vh] space-y-2 overflow-y-auto pr-1">
@@ -106,7 +107,7 @@ export function CapabilityDelegationWorkspace({ initialDelegationId, initialPare
               </button>
             ))}
           </div>
-          <div className="mt-3 flex justify-between gap-2"><button type="button" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} className="rounded-lg border px-3 py-2 text-xs font-black disabled:opacity-40">Previous</button><button type="button" disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} className="rounded-lg border px-3 py-2 text-xs font-black disabled:opacity-40">Next</button></div>
+          <div className="mt-3 flex justify-between gap-2"><Button type="button" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} tone="secondary" size="xs">Previous</Button><Button type="button" disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} tone="secondary" size="xs">Next</Button></div>
         </aside>
 
         <section className="min-w-0">

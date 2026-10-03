@@ -5,6 +5,7 @@ import { AuditReasonSelector, FieldLabel, PopupMultiSelectField, SearchField, Se
 import { STEPS, useAddPersonWizardController, type AddPersonWizardProps, type WizardState } from './useAddPersonWizardController';
 import { generateTemporaryPassword } from '@/lib/iam/temporaryPassword';
 import { AccessPreviewPanel, ReviewCard, AddPersonWizardHeader } from './AddPersonWizardReview';
+import { Button } from '@/components/ui/Button';
 export function AddPersonWizard(props: Readonly<AddPersonWizardProps>) {
   const { tenantId, tenantName, onCancel } = props;
   const controller = useAddPersonWizardController(props);
@@ -52,7 +53,7 @@ export function AddPersonWizard(props: Readonly<AddPersonWizardProps>) {
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <div className="min-w-0 flex-1"><SearchField id="existing-person-search" value={existingSearch} onChange={setExistingSearch} placeholder="Name, username or email" /></div>
-                  <button type="button" disabled={searchingExisting || existingSearch.trim().length < 2} onClick={() => { void searchExistingPeople(); }} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white disabled:bg-slate-300">{searchingExisting ? 'Searching…' : 'Search'}</button>
+                  <Button type="button" disabled={searchingExisting || existingSearch.trim().length < 2} onClick={() => { void searchExistingPeople(); }} tone="primary" size="sm">{searchingExisting ? 'Searching…' : 'Search'}</Button>
                 </div>
                 <FieldLabel htmlFor="existing-person-select" label="Existing person" required>
                   <SearchSelectField
@@ -304,14 +305,14 @@ export function AddPersonWizard(props: Readonly<AddPersonWizardProps>) {
                   <FieldLabel htmlFor="person-initial-password" label="Initial password" help="At least 14 characters. Use Generate for a strong temporary value." required>
                     <div className="flex gap-2">
                       <input id="person-initial-password" type="password" autoComplete="new-password" value={state.initialPassword} onChange={(event) => update('initialPassword', event.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm" />
-                      <button type="button" onClick={() => { const generated = generateTemporaryPassword(); update('initialPassword', generated); update('confirmInitialPassword', generated); setError(''); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-800">Generate</button>
+                      <Button type="button" onClick={() => { const generated = generateTemporaryPassword(); update('initialPassword', generated); update('confirmInitialPassword', generated); setError(''); }} tone="secondary" size="xs">Generate</Button>
                     </div>
                   </FieldLabel>
                   <FieldLabel htmlFor="person-confirm-initial-password" label="Confirm initial password" required>
                     <input id="person-confirm-initial-password" type="password" autoComplete="new-password" value={state.confirmInitialPassword} onChange={(event) => update('confirmInitialPassword', event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm" />
                   </FieldLabel>
                 </div>
-                {state.initialPassword ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><span>Copy the temporary password before creating the Person. It will not be returned by the API.</span><button type="button" onClick={() => { void navigator.clipboard.writeText(state.initialPassword); }} className="rounded-lg border border-amber-400 bg-white px-3 py-2 text-xs font-black">Copy password</button></div> : null}
+                {state.initialPassword ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><span>Copy the temporary password before creating the Person. It will not be returned by the API.</span><Button type="button" onClick={() => { void navigator.clipboard.writeText(state.initialPassword); }} tone="warning" size="xs">Copy password</Button></div> : null}
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <p className="text-xs font-black uppercase tracking-wide text-slate-500">First sign-in sequence</p>
                   <ol className="mt-2 space-y-2 text-sm text-slate-700">
@@ -408,7 +409,7 @@ export function AddPersonWizard(props: Readonly<AddPersonWizardProps>) {
                 <p className="text-xs font-black uppercase tracking-wide text-amber-800">One-time manual setup link</p>
                 <p className="mt-2 break-all rounded-xl bg-white p-3 font-mono text-xs text-amber-950">{result.setupActionUrl}</p>
                 <p className="mt-2 text-xs leading-5 text-amber-900">Copy this link now and deliver it through a trusted company channel. OpenDispatch does not persist this URL and it will not be shown again.</p>
-                <button type="button" onClick={() => { void navigator.clipboard.writeText(result.setupActionUrl); }} className="mt-3 rounded-lg bg-amber-900 px-3 py-2 text-xs font-black text-white">Copy setup link</button>
+                <Button type="button" onClick={() => { void navigator.clipboard.writeText(result.setupActionUrl); }} tone="warning" size="xs" className="mt-3">Copy setup link</Button>
               </div>
             ) : null}
             {result ? <div className="mx-auto grid max-w-4xl gap-3 text-left sm:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Identity account status</p><p className="mt-2 text-sm font-black text-slate-950">{result.user.status.replaceAll('_',' ')}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Workspace membership status</p><p className="mt-2 text-sm font-black text-slate-950">{result.tenantMembership.status.replaceAll('_',' ')}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Sign-in home workspace</p><p className="mt-2 text-sm font-black text-slate-950">{result.tenantMembership.primary ? 'Configured' : 'Uses existing default'}</p></div><div className={`rounded-2xl border p-4 ${result.roleBindings.length ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><p className="text-xs font-black uppercase tracking-wide text-slate-500">Application access</p><p className="mt-2 text-sm font-black text-slate-950">{result.roleBindings.length ? `${selectedRole?.roleName ?? 'Responsibility'} · ${result.roleBindings[0]?.status ?? 'ACTIVE'}` : 'NO RESPONSIBILITY'}</p></div></div> : null}
@@ -424,22 +425,22 @@ export function AddPersonWizard(props: Readonly<AddPersonWizardProps>) {
               </ul>
               <p className="mt-3 text-xs font-semibold text-slate-500">Track sign-in readiness from the person record. A temporary password remains restricted until it is changed, and required MFA enrollment must complete before normal access is ready.</p>
             </div>
-            <button type="button" onClick={onCancel} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white">Open People workspace</button>
+            <Button type="button" onClick={onCancel} tone="primary" size="md">Open People workspace</Button>
           </div>
         ) : null}
       </div>
 
       {!result ? (
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-          <button type="button" onClick={step === 0 ? onCancel : goBack} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700">
+          <Button type="button" onClick={step === 0 ? onCancel : goBack} tone="secondary" size="sm">
             {step === 0 ? 'Cancel' : 'Back'}
-          </button>
+          </Button>
           {!result && step === 4 ? (
-            <button type="button" disabled={submitting} onClick={() => { void submit(); }} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300">
+            <Button type="button" disabled={submitting} onClick={() => { void submit(); }} tone="primary" size="md">
               {submitting ? 'Adding person…' : accountSource === 'EXISTING' ? 'Add existing person' : 'Add person'}
-            </button>
+            </Button>
           ) : (
-            <button type="button" disabled={searchingExisting} onClick={() => { void goNext(); }} className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300">{searchingExisting ? 'Checking identity…' : 'Continue'}</button>
+            <Button type="button" disabled={searchingExisting} onClick={() => { void goNext(); }} tone="primary" size="md">{searchingExisting ? 'Checking identity…' : 'Continue'}</Button>
           )}
         </div>
       ) : null}

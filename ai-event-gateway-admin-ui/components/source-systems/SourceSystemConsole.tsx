@@ -433,8 +433,11 @@ export function SourceSystemConsole() {
               <div className="mt-4">
                 <IssueTrackingContextCard
                   compact
-                  title="Issue Tracking"
+                  configure={false}
+                  title="Issue Tracking · governed mapping"
                   contexts={[{ sourceSystemId: source.sourceSystemId, taskType: null }]}
+                  managementHref={`/settings/integrations?sourceSystem=${encodeURIComponent(source.sourceSystemId)}`}
+                  managementLabel="Manage Issue Routing"
                 />
               </div>
               <SourceRegistrationManager tenantId={selectedTenantId} source={source} editable={canUpdateSource} />

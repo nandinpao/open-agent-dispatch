@@ -13,6 +13,7 @@ import { formatDateTime } from '@/lib/utils/format';
 import { InlineManageLink, Panel, StatCard, managementHref } from '@/components/agents/AgentDetailUi';
 import { isCredentialReady, runtimeIsConnected } from '@/components/agents/AgentOverviewWorkspace';
 import { RepairActionsGrid } from '@/components/agents/AgentRepairActions';
+import { Button } from '@/components/ui/Button';
 
 export function AdvancedAgentData({ data }: Readonly<{ data: AgentDetailBundle }>) {
   return (
@@ -55,7 +56,7 @@ function LatestAuthFailurePanel({ data, agentId, onRefresh }: Readonly<{ data: A
             <div className="text-sm font-black text-amber-950">Latest auth failure is unavailable</div>
             <p className="mt-1 text-xs leading-5 text-amber-800">Refresh the page or check Core Admin API availability before troubleshooting runtime credentials.</p>
           </div>
-          <button type="button" onClick={onRefresh} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs font-black text-amber-700 hover:bg-amber-100">Refresh</button>
+          <Button type="button" onClick={onRefresh} tone="warning" size="xs">Refresh</Button>
         </div>
       </Panel>
     );
@@ -143,7 +144,7 @@ function RuntimeBindingPanel({
     <Panel
       title="Runtime Binding"
       description="Core requires an ACTIVE Runtime Binding before an online runtime can receive dispatch assignments. Runtime online status alone is telemetry; the active binding grants dispatch authority."
-      action={<button type="button" onClick={onCreateOrActivate} disabled={!governanceReady} title={!governanceReady ? "Approve Agent Governance before activating dispatch authority" : undefined} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">Create / Activate Binding</button>}
+      action={<Button type="button" onClick={onCreateOrActivate} disabled={!governanceReady} title={!governanceReady ? "Approve Agent Governance before activating dispatch authority" : undefined} tone="success" size="xs">Create / Activate Binding</Button>}
     >
       {activeBinding ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
@@ -191,7 +192,7 @@ function RuntimeBindingPanel({
                     <td className="px-3 py-2 text-slate-500">{formatDateTime(binding.updatedAt ?? binding.approvedAt)}</td>
                     <td className="px-3 py-2">
                       {status !== 'ACTIVE' && binding.bindingId ? (
-                        <button type="button" onClick={() => onActivate(binding.bindingId ?? '')} className="rounded-lg border border-emerald-200 bg-white px-2 py-1 text-xs font-black text-emerald-700 hover:bg-emerald-50">Activate</button>
+                        <Button type="button" onClick={() => onActivate(binding.bindingId ?? '')} tone="success" size="xs">Activate</Button>
                       ) : <span className="text-xs font-bold text-slate-400">-</span>}
                     </td>
                   </tr>
@@ -264,10 +265,10 @@ export OPENSOCKET_AGENT_TOKEN=<issued-token>
           <StatCard label="Available Slots" value={descriptor?.availableSlots ?? data.runtimeLoad?.availableSlots ?? '-'} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" onClick={onPing} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-black text-white hover:bg-blue-700">Ping Agent</button>
-          <button type="button" onClick={onRefresh} disabled={refreshing} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50">Refresh Connection</button>
-          <button type="button" onClick={onDisconnect} className="rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs font-black text-amber-700 hover:bg-amber-50">Disconnect Session</button>
-          <button type="button" onClick={onDisconnectAll} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-700 hover:bg-rose-50">Disconnect All Sessions</button>
+          <Button type="button" onClick={onPing} tone="primary" size="xs">Ping Agent</Button>
+          <Button type="button" onClick={onRefresh} disabled={refreshing} tone="secondary" size="xs">Refresh Connection</Button>
+          <Button type="button" onClick={onDisconnect} tone="warning" size="xs">Disconnect Session</Button>
+          <Button type="button" onClick={onDisconnectAll} tone="danger" size="xs">Disconnect All Sessions</Button>
         </div>
         <p className="mt-3 text-xs font-semibold text-slate-500">After starting the runtime, use Refresh Connection to re-read the Core backend readiness contract and confirm RUNTIME_CONNECTED changed to ready.</p>
       </Panel>

@@ -17,8 +17,10 @@ import type { TaskDispatchDiagnosis } from '@/lib/tasks/dispatchLifecycle';
 import type { CommandResult } from '@/lib/types/admin';
 import type { HandoffSnapshotView } from '@/lib/handoffContextContract';
 import type { A2AResultProcessingView } from '@/lib/a2aResultReliabilityContract';
+import type { AdminUiMode } from '@/lib/navigation/adminUiMode';
 
 export function TaskAdvancedDiagnostics({
+  mode,
   data,
   diagnosis,
   retrying,
@@ -31,6 +33,7 @@ export function TaskAdvancedDiagnostics({
   onDispatchOperatorCommand,
   onActivateOperationsSection,
 }: Readonly<{
+  mode: Exclude<AdminUiMode, 'basic'>;
   data: TaskDispatchDetailResource;
   diagnosis: TaskDispatchDiagnosis;
   retrying: boolean;
@@ -73,8 +76,9 @@ export function TaskAdvancedDiagnostics({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Raw execution / routing / callback / issue evidence</p>
+      {mode === 'developer' ? <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Developer evidence · raw execution / routing / callback / issue</p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">This layer exposes implementation-level payload and authority evidence. It does not grant additional remediation permissions.</p>
         <div className="mt-4">
           <TaskControlConsoleTabs
             onTabChange={(tabId) => onActivateOperationsSection(tabId === 'issue-result' ? 'issue' : 'execution')}
@@ -119,7 +123,12 @@ export function TaskAdvancedDiagnostics({
             })}
           />
         </div>
-      </section>
+      </section> : (
+        <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Developer-only raw evidence</p>
+          <p className="mt-1 text-sm leading-6 text-blue-900">Advanced level intentionally stops at authority, relationship and recovery evidence. Switch to Developer only when raw dispatch, callback or issue payload evidence is required.</p>
+        </section>
+      )}
     </div>
   );
 }

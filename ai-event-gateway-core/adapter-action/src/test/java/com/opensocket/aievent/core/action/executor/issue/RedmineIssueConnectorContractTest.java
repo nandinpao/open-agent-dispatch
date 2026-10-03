@@ -130,6 +130,99 @@ class RedmineIssueConnectorContractTest {
     }
 
     @Test
+    void legacyCreateResolvesLiveDefaultPriorityBeforeCreate() throws Exception {
+        try (RoutingRecordingServer server = new RoutingRecordingServer()) {
+            server.respond("GET", "/enumerations/issue_priorities.json", 200,
+                    "{\"issue_priorities\":[{\"id\":2,\"name\":\"Low\"},{\"id\":3,\"name\":\"Normal\",\"is_default\":true}]}");
+            server.respond("POST", "/issues.json", 201, "{\"issue\":{\"id\":705}}");
+
+            AdapterAction action = new AdapterAction();
+            action.setActionId("legacy-create-default-priority");
+            action.setActionType(AdapterActionType.ISSUE_CREATE);
+            action.setPayload(Map.of("title", "Create through scoped compatibility route"));
+
+            IssueExecutorResponse result = connector(server.baseUrl()).execute(
+                    IssueExecutorRequest.from(action, IssueVendor.REDMINE));
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(server.requests()).hasSize(2);
+            assertThat(server.requests().get(0).method()).isEqualTo("GET");
+            assertThat(server.requests().get(0).rawPath()).isEqualTo("/enumerations/issue_priorities.json");
+            assertThat(server.requests().get(1).method()).isEqualTo("POST");
+            assertThat(server.requests().get(1).rawPath()).isEqualTo("/issues.json");
+            assertThat(server.requests().get(1).body()).contains("\"priority_id\":3");
+        }
+    }
+
+    @Test
+    void semanticHighPriorityResolvesProviderReferenceBeforeCreate() throws Exception {
+        try (RoutingRecordingServer server = new RoutingRecordingServer()) {
+            server.respond("GET", "/enumerations/issue_priorities.json", 200,
+                    "{\"issue_priorities\":[{\"id\":3,\"name\":\"Normal\",\"is_default\":true},{\"id\":4,\"name\":\"High\"}]}");
+            server.respond("POST", "/issues.json", 201, "{\"issue\":{\"id\":707}}");
+
+            AdapterAction action = new AdapterAction();
+            action.setActionId("legacy-create-semantic-priority");
+            action.setActionType(AdapterActionType.ISSUE_CREATE);
+            action.setPayload(Map.of(
+                    "title", "Create from semantic priority",
+                    "taskPriority", "HIGH"));
+
+            IssueExecutorResponse result = connector(server.baseUrl()).execute(
+                    IssueExecutorRequest.from(action, IssueVendor.REDMINE));
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(server.requests()).hasSize(2);
+            assertThat(server.requests().get(1).body()).contains("\"priority_id\":4");
+        }
+    }
+
+    @Test
+    void governedProviderFieldPriorityWinsWithoutLiveDefaultLookup() throws Exception {
+        try (RoutingRecordingServer server = new RoutingRecordingServer()) {
+            server.respond("POST", "/issues.json", 201, "{\"issue\":{\"id\":706}}");
+
+            AdapterAction action = new AdapterAction();
+            action.setActionId("legacy-create-provider-field-priority");
+            action.setActionType(AdapterActionType.ISSUE_CREATE);
+            action.setPayload(Map.of(
+                    "title", "Create with governed priority",
+                    "providerFields", Map.of("priority_id", "4")));
+
+            IssueExecutorResponse result = connector(server.baseUrl()).execute(
+                    IssueExecutorRequest.from(action, IssueVendor.REDMINE));
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(server.requests()).singleElement().satisfies(request -> {
+                assertThat(request.method()).isEqualTo("POST");
+                assertThat(request.rawPath()).isEqualTo("/issues.json");
+                assertThat(request.body()).contains("\"priority_id\":4");
+            });
+        }
+    }
+
+    @Test
+    void unresolvedRequiredPriorityFailsBeforeCreatePost() throws Exception {
+        try (RoutingRecordingServer server = new RoutingRecordingServer()) {
+            server.respond("GET", "/enumerations/issue_priorities.json", 200, "{\"issue_priorities\":[]}");
+
+            AdapterAction action = new AdapterAction();
+            action.setActionId("legacy-create-missing-priority");
+            action.setActionType(AdapterActionType.ISSUE_CREATE);
+            action.setPayload(Map.of("title", "Must fail before POST"));
+
+            IssueExecutorResponse result = connector(server.baseUrl()).execute(
+                    IssueExecutorRequest.from(action, IssueVendor.REDMINE));
+
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.isRetryable()).isFalse();
+            assertThat(result.getError()).isEqualTo("ISSUE_PROVIDER_REQUIRED_FIELD_UNMAPPED:priority_id");
+            assertThat(server.requests()).allSatisfy(request ->
+                    assertThat(request.rawPath()).isNotEqualTo("/issues.json"));
+        }
+    }
+
+    @Test
     void legacyBridgeRejectsGenericProxyFieldsBeforeAnyProviderCall() throws Exception {
         try (RecordingServer server = new RecordingServer(200, "{}")) {
             var connector = connector(server.baseUrl());
@@ -203,6 +296,47 @@ class RedmineIssueConnectorContractTest {
 
         @Override public void close() { server.stop(0); }
     }
+
+    private static final class RoutingRecordingServer implements AutoCloseable {
+        private final HttpServer server;
+        private final List<RecordedRequest> requests = new ArrayList<>();
+        private final Map<String, ProviderResponse> responses = new java.util.concurrent.ConcurrentHashMap<>();
+
+        private RoutingRecordingServer() throws IOException {
+            this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            this.server.createContext("/", this::handle);
+            this.server.start();
+        }
+
+        private void respond(String method, String path, int status, String body) {
+            responses.put(method + " " + path, new ProviderResponse(status, body == null ? "" : body));
+        }
+
+        private String baseUrl() { return "http://127.0.0.1:" + server.getAddress().getPort(); }
+        private synchronized List<RecordedRequest> requests() { return List.copyOf(requests); }
+
+        private void handle(HttpExchange exchange) throws IOException {
+            byte[] body = exchange.getRequestBody().readAllBytes();
+            RecordedRequest request = new RecordedRequest(
+                    exchange.getRequestMethod(),
+                    exchange.getRequestURI().getRawPath(),
+                    exchange.getRequestHeaders().getFirst("X-Redmine-API-Key"),
+                    exchange.getRequestHeaders().getFirst("X-OpenDispatch-Idempotency-Key"),
+                    new String(body, java.nio.charset.StandardCharsets.UTF_8));
+            synchronized (this) { requests.add(request); }
+            ProviderResponse response = responses.getOrDefault(
+                    request.method() + " " + request.rawPath(),
+                    new ProviderResponse(500, "unexpected request"));
+            byte[] responseBytes = response.body().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(response.status(), responseBytes.length);
+            if (responseBytes.length > 0) exchange.getResponseBody().write(responseBytes);
+            exchange.close();
+        }
+
+        @Override public void close() { server.stop(0); }
+    }
+
+    private record ProviderResponse(int status, String body) {}
 
     private record RecordedRequest(String method, String rawPath, String redmineApiKey, String idempotencyKey, String body) {}
 }

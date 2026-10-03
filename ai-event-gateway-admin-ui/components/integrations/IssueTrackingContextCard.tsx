@@ -35,11 +35,15 @@ export function IssueTrackingContextCard({
   title='Issue Tracking',
   compact=false,
   configure=true,
+  managementHref='/settings/integrations',
+  managementLabel='Manage Issue Tracking',
 }: Readonly<{
   contexts: IssueTrackingContextOption[];
   title?: string;
   compact?: boolean;
   configure?: boolean;
+  managementHref?: string;
+  managementLabel?: string;
 }>) {
   const [open, setOpen] = useState(false);
   const [readiness, setReadiness] = useState<IssueTrackingRuntimeReadiness[]>([]);
@@ -71,9 +75,9 @@ export function IssueTrackingContextCard({
           <h3 className="mt-1 font-black text-slate-950">{title}</h3>
           <p className="mt-1 text-sm font-black text-slate-900">{copy.title}</p>
           <p className="mt-1 text-sm leading-6 text-slate-700">{configure ? copy.body : 'Inherited from the Source System. Agents and Flows do not own separate Issue credentials or project mappings.'}</p>
-          {configure ? <p className="mt-2 text-xs leading-5 text-slate-600">OpenDispatch Task Issue Policy decides when an Issue operation is requested. This card only reports whether the governed provider path is ready to execute that request.</p> : null}
+          {configure ? <p className="mt-2 text-xs leading-5 text-slate-600">OpenDispatch Task Issue Policy decides when an Issue operation is requested. Provider connections and Source/Task mappings are governed centrally in Integration Configuration.</p> : <p className="mt-2 text-xs leading-5 text-slate-600">This view is read-only. Provider URL, credentials and project mappings are owned by Integration Configuration; this page only shows resolved readiness for the current work context.</p>}
         </div>
-        {configure ? <button type="button" onClick={()=>setOpen(true)} className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">{copy.button}</button> : <Link href="/source-systems" className="shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50">Open Source Systems →</Link>}
+        {configure ? <button type="button" onClick={()=>setOpen(true)} className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">{copy.button}</button> : <Link href={managementHref} className="shrink-0 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50">{managementLabel} →</Link>}
       </div>
 
       {loading ? <div className="mt-3 text-xs font-bold text-slate-500">Checking server-authoritative Issue Tracking readiness…</div> : null}

@@ -9,6 +9,8 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { resolveEntitlementRoute } from '@/lib/navigation/uiEntitlements';
 import { presentNavigation, type PresentedNavigationItem } from '@/lib/navigation/adminNavigationPresentation';
 import { releaseIdentity } from '@/lib/generated/releaseIdentity';
+import { useAdminUiMode } from '@/hooks/useAdminUiMode';
+import { getAdminUiModeOption } from '@/lib/navigation/adminUiMode';
 
 interface SidebarProps { open: boolean; onClose: () => void; }
 
@@ -39,11 +41,13 @@ function NavigationLink({ presented, tenantId, onNavigate }: Readonly<{ presente
 export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
   const { t } = useI18n();
   const pathname = usePathname();
+  const { mode } = useAdminUiMode();
+  const modeOption = getAdminUiModeOption(mode);
   const entitlements = useUiEntitlements();
   const { administrationTenantId } = useAuth();
   const root = entitlements.value?.workspaceKind === 'INSTANCE_ROOT';
   const items = entitlements.value?.navigation ?? [];
-  const groups = presentNavigation(items);
+  const groups = presentNavigation(items, mode);
 
   return (
     <>
@@ -81,7 +85,11 @@ export function Sidebar({ open, onClose }: Readonly<SidebarProps>) {
 
         <div className="flex-none border-t border-white/10 pt-4 text-xs leading-5 text-slate-400">
           <div className="font-black text-cyan-200">{root ? 'Platform workspace' : 'Current workspace'}</div>
-          <div className="mt-1">You only see areas available to your current workspace and responsibilities.</div>
+          <div className="mt-1">You only see areas available to your current workspace, responsibilities, and selected UI level.</div>
+          <div className="mt-3 rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-3 py-2">
+            <div className="font-black text-cyan-200">{modeOption.label}</div>
+            <div className="mt-1 text-[11px] leading-4 text-slate-400">{modeOption.description}</div>
+          </div>
           <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2" title={releaseIdentity.artifactName}>
             <div className="font-bold text-slate-200">OpenDispatch {releaseIdentity.releaseLabel}</div>
             <div>{releaseIdentity.productVersion} · {releaseIdentity.artifactRevision}</div>

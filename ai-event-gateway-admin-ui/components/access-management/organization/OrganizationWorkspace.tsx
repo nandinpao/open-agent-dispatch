@@ -10,6 +10,7 @@ import { BlockerRecoveryPanel, GuidedEmptyState, ReadOnlyBoundary } from '../sha
 import type { PeopleBulkActionResult } from '@/lib/iam/types';
 import { departmentDepth, groupDepth, humanAuditEvent, humanize, groupTypeOptions, generateUniqueCode } from './organizationWorkspaceModel';
 import { useOrganizationWorkspaceController, type OrganizationTab } from './useOrganizationWorkspaceController';
+import { Button } from '@/components/ui/Button';
 
 export function OrganizationWorkspace() {
   const controller = useOrganizationWorkspaceController();
@@ -20,8 +21,8 @@ export function OrganizationWorkspace() {
       <ErrorNotice message={error} />
       <SuccessNotice message={notice} />
       {recoveryErrorCode === 'DEPARTMENT_DELETE_BLOCKED' || recoveryErrorCode === 'GROUP_DELETE_BLOCKED' || recoveryErrorCode === 'DEPARTMENT_DISABLE_BLOCKED' || recoveryErrorCode === 'GROUP_DISABLE_BLOCKED' ? <BlockerRecoveryPanel tone={recoveryErrorCode.includes('DELETE') ? 'danger' : 'warning'} title="Resolve dependencies before retrying" description="The server found governed relationships that are not fully represented by the local tree counts. Use the nearby workspaces below, then retry the lifecycle action." items={[
-        { label: 'People and hierarchy', description: 'Move members, child Departments / Groups, or Group ownership.', action: <button type="button" onClick={() => { setRecoveryErrorCode(''); if (selection) changeTab('MEMBERS'); }} className="text-xs font-black text-slate-900 hover:underline">Review organization →</button> },
-        { label: 'Responsibilities', description: 'Revoke or re-scope active Role Bindings attached to this organization scope.', action: <button type="button" onClick={() => { setRecoveryErrorCode(''); if (selection) changeTab('ACCESS'); }} className="text-xs font-black text-slate-900 hover:underline">Review access →</button> },
+        { label: 'People and hierarchy', description: 'Move members, child Departments / Groups, or Group ownership.', action: <Button type="button" onClick={() => { setRecoveryErrorCode(''); if (selection) changeTab('MEMBERS'); }} tone="secondary" size="xs">Review organization →</Button> },
+        { label: 'Responsibilities', description: 'Revoke or re-scope active Role Bindings attached to this organization scope.', action: <Button type="button" onClick={() => { setRecoveryErrorCode(''); if (selection) changeTab('ACCESS'); }} tone="secondary" size="xs">Review access →</Button> },
         ...(canOpenSourceSystems ? [{ label: 'Source Systems', description: 'Re-scope Source Systems owned by this Department / Group.', action: <Link href="/source-systems" className="text-xs font-black text-slate-900 hover:underline">Open Source Systems →</Link> }] : []),
         ...(canOpenDispatch ? [{ label: 'Dispatch resources', description: 'Re-scope Source Flows and Agent Pools inherited from the organization owner.', action: <Link href={PRODUCT_ROUTES.dispatch} className="text-xs font-black text-slate-900 hover:underline">Open Dispatch →</Link> }] : []),
         ...(canOpenA2AGovernance ? [{ label: 'Legacy A2A Archive', description: 'Directional A2A policies are retired and read-only. They no longer need re-scoping before organization retirement.', action: <Link href="/a2a-governance" className="text-xs font-black text-slate-900 hover:underline">Open archive →</Link> }] : []),
@@ -37,8 +38,8 @@ export function OrganizationWorkspace() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {canManageDepartment ? <button type="button" onClick={() => openCreateDepartment()} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white">+ Department</button> : null}
-            {canManageGroup ? <button type="button" onClick={() => openCreateGroup()} className="rounded-xl border border-blue-300 bg-white px-4 py-2.5 text-sm font-black text-blue-800">+ Group</button> : null}
+            {canManageDepartment ? <Button type="button" onClick={() => openCreateDepartment()} tone="primary" size="sm">+ Department</Button> : null}
+            {canManageGroup ? <Button type="button" onClick={() => openCreateGroup()} tone="secondary" size="sm">+ Group</Button> : null}
           </div>
         </div>
         {!canManageDepartment && !canManageGroup ? <div className="mt-4"><ReadOnlyBoundary description="You can inspect the organization within your effective scope. Department and Group changes require organization management authority at the target scope." /></div> : null}
@@ -54,11 +55,11 @@ export function OrganizationWorkspace() {
         <Panel title="Organization tree" description="Search once, then select a Department or Group to manage it without leaving this page.">
           <SearchField id="organization-search" value={treeSearch} onChange={setTreeSearch} placeholder="Search Departments and Groups" />
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={() => { setCollapsedDepartments([]); setCollapsedGroups([]); }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-700">Expand all</button>
-            <button type="button" onClick={() => { setCollapsedDepartments(departments.map((item) => item.departmentId)); setCollapsedGroups(groups.map((item) => item.groupId)); }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-700">Collapse all</button>
+            <Button type="button" onClick={() => { setCollapsedDepartments([]); setCollapsedGroups([]); }} tone="secondary" size="xs">Expand all</Button>
+            <Button type="button" onClick={() => { setCollapsedDepartments(departments.map((item) => item.departmentId)); setCollapsedGroups(groups.map((item) => item.groupId)); }} tone="secondary" size="xs">Collapse all</Button>
           </div>
           <div className="mt-4 space-y-4">
-            <OrganizationSection title="Departments" count={filteredDepartments.length} action={canManageDepartment ? <button type="button" onClick={() => openCreateDepartment()} className="text-xs font-black text-blue-700">Add →</button> : null}>
+            <OrganizationSection title="Departments" count={filteredDepartments.length} action={canManageDepartment ? <Button type="button" onClick={() => openCreateDepartment()} tone="primary" size="xs">Add →</Button> : null}>
               {filteredDepartments.map((department) => (
                 <OrganizationButton
                   key={department.departmentId}
@@ -72,9 +73,9 @@ export function OrganizationWorkspace() {
                   onClick={() => choose({ type: 'DEPARTMENT', id: department.departmentId })}
                 />
               ))}
-              {!loading && !filteredDepartments.length ? treeSearch.trim() ? <GuidedEmptyState title="No Departments match this search" description="No Department in your effective organization scope matches the current search." nextStep="Clear the search or try the business name/code used by your organization." primaryAction={<button type="button" onClick={() => setTreeSearch('')} className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-black text-white">Clear search</button>} /> : <GuidedEmptyState title="No Departments yet" description="Departments define the business hierarchy used for people placement and scoped administration." nextStep={canManageDepartment ? 'Create the first Department, then place people and assign an Official Manager.' : 'A Department administrator must create the first Department before organization placement is available.'} primaryAction={canManageDepartment ? <button type="button" onClick={() => openCreateDepartment()} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white">Create first Department</button> : undefined} /> : null}
+              {!loading && !filteredDepartments.length ? treeSearch.trim() ? <GuidedEmptyState title="No Departments match this search" description="No Department in your effective organization scope matches the current search." nextStep="Clear the search or try the business name/code used by your organization." primaryAction={<Button type="button" onClick={() => setTreeSearch('')} tone="primary" size="xs">Clear search</Button>} /> : <GuidedEmptyState title="No Departments yet" description="Departments define the business hierarchy used for people placement and scoped administration." nextStep={canManageDepartment ? 'Create the first Department, then place people and assign an Official Manager.' : 'A Department administrator must create the first Department before organization placement is available.'} primaryAction={canManageDepartment ? <Button type="button" onClick={() => openCreateDepartment()} tone="primary" size="xs">Create first Department</Button> : undefined} /> : null}
             </OrganizationSection>
-            <OrganizationSection title="Groups" count={filteredGroups.length} action={canManageGroup ? <button type="button" onClick={() => openCreateGroup()} className="text-xs font-black text-blue-700">Add →</button> : null}>
+            <OrganizationSection title="Groups" count={filteredGroups.length} action={canManageGroup ? <Button type="button" onClick={() => openCreateGroup()} tone="primary" size="xs">Add →</Button> : null}>
               {filteredGroups.map((group) => (
                 <OrganizationButton
                   key={group.groupId}
@@ -88,7 +89,7 @@ export function OrganizationWorkspace() {
                   onClick={() => choose({ type: 'GROUP', id: group.groupId })}
                 />
               ))}
-              {!loading && !filteredGroups.length ? treeSearch.trim() ? <GuidedEmptyState title="No Groups match this search" description="No Group in your effective organization scope matches the current search." nextStep="Clear the search or try a Group name/code." primaryAction={<button type="button" onClick={() => setTreeSearch('')} className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-black text-white">Clear search</button>} /> : <GuidedEmptyState title="No Groups yet" description="Groups model project, security or operational teams without replacing the Department hierarchy." nextStep={canManageGroup ? 'Create a Group only when people need a shared team boundary or responsibility scope.' : 'A Group administrator can create one when the business needs a cross-cutting team boundary.'} primaryAction={canManageGroup ? <button type="button" onClick={() => openCreateGroup()} className="rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-black text-blue-800">Create first Group</button> : undefined} /> : null}
+              {!loading && !filteredGroups.length ? treeSearch.trim() ? <GuidedEmptyState title="No Groups match this search" description="No Group in your effective organization scope matches the current search." nextStep="Clear the search or try a Group name/code." primaryAction={<Button type="button" onClick={() => setTreeSearch('')} tone="primary" size="xs">Clear search</Button>} /> : <GuidedEmptyState title="No Groups yet" description="Groups model project, security or operational teams without replacing the Department hierarchy." nextStep={canManageGroup ? 'Create a Group only when people need a shared team boundary or responsibility scope.' : 'A Group administrator can create one when the business needs a cross-cutting team boundary.'} primaryAction={canManageGroup ? <Button type="button" onClick={() => openCreateGroup()} tone="primary" size="xs">Create first Group</Button> : undefined} /> : null}
             </OrganizationSection>
           </div>
         </Panel>
@@ -98,9 +99,9 @@ export function OrganizationWorkspace() {
           description={selection ? `${selection.type === 'DEPARTMENT' ? 'Department' : 'Group'} · ${members.length} member${members.length === 1 ? '' : 's'}` : 'Select a Department or Group.'}
           actions={selection ? (
             <div className="flex flex-wrap justify-end gap-2">
-              {canManageSelected ? <button type="button" onClick={openEdit} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700">Edit</button> : null}
-              {canManageSelectedMembership ? <button type="button" onClick={openAddMembers} className="rounded-xl border border-blue-300 bg-white px-3 py-2 text-xs font-black text-blue-800">Add people</button> : null}
-              {canManageSelected ? <button type="button" onClick={() => { void openDelete(); }} className="rounded-xl border border-rose-300 bg-white px-3 py-2 text-xs font-black text-rose-800">Delete…</button> : null}
+              {canManageSelected ? <Button type="button" onClick={openEdit} tone="secondary" size="xs">Edit</Button> : null}
+              {canManageSelectedMembership ? <Button type="button" onClick={openAddMembers} tone="primary" size="xs">Add people</Button> : null}
+              {canManageSelected ? <Button type="button" onClick={() => { void openDelete(); }} tone="danger" size="xs">Delete…</Button> : null}
               <Link href={`/admin/tenants/${encodeURIComponent(scopeTenantId)}/access?scopeType=${selection.type}&scopeId=${encodeURIComponent(selection.id)}`} className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white">Manage access</Link>
             </div>
           ) : undefined}
@@ -121,24 +122,24 @@ export function OrganizationWorkspace() {
                 <div className="mt-4 space-y-4">
                   <div className="grid gap-3 md:grid-cols-2">
                     <InfoCard label="Type" value={selection.type === 'DEPARTMENT' ? 'Department' : humanize(selectedGroup?.type || 'GROUP')} />
-                    <InfoCard label="Status" value={<HumanStatus value={selectedStatus || 'UNKNOWN'} />} action={canManageSelected ? <button type="button" onClick={openLifecycle} className="text-xs font-black text-blue-700">Change →</button> : null} />
+                    <InfoCard label="Status" value={<HumanStatus value={selectedStatus || 'UNKNOWN'} />} action={canManageSelected ? <Button type="button" onClick={openLifecycle} tone="secondary" size="xs">Change →</Button> : null} />
                     {selectedDepartment ? (
                       <>
-                        <InfoCard label="Parent Department" value={departments.find((item) => item.departmentId === selectedDepartment.parentDepartmentId)?.name || 'Top level'} action={canManageSelectedDepartment ? <button type="button" onClick={openMove} className="text-xs font-black text-blue-700">Move →</button> : null} />
-                        <InfoCard label="Official Manager" value={people.find((person) => person.userId === selectedDepartment.managerUserId)?.displayName || 'Not assigned'} action={canManageSelectedDepartment ? <button type="button" onClick={openManager} className="text-xs font-black text-blue-700">Change →</button> : null} />
-                        <InfoCard label="Child Departments" value={`${departmentChildCount} direct · ${departmentDescendantCount} total descendants`} action={canManageSelectedDepartment ? <button type="button" onClick={() => openCreateDepartment(selectedDepartment.departmentId)} className="text-xs font-black text-blue-700">Add child →</button> : null} />
-                        <InfoCard label="People" value={`${members.length} member${members.length === 1 ? '' : 's'}`} action={canManageSelectedMembership ? <button type="button" onClick={() => changeTab('MEMBERS')} className="text-xs font-black text-blue-700">Manage →</button> : null} />
+                        <InfoCard label="Parent Department" value={departments.find((item) => item.departmentId === selectedDepartment.parentDepartmentId)?.name || 'Top level'} action={canManageSelectedDepartment ? <Button type="button" onClick={openMove} tone="secondary" size="xs">Move →</Button> : null} />
+                        <InfoCard label="Official Manager" value={people.find((person) => person.userId === selectedDepartment.managerUserId)?.displayName || 'Not assigned'} action={canManageSelectedDepartment ? <Button type="button" onClick={openManager} tone="secondary" size="xs">Change →</Button> : null} />
+                        <InfoCard label="Child Departments" value={`${departmentChildCount} direct · ${departmentDescendantCount} total descendants`} action={canManageSelectedDepartment ? <Button type="button" onClick={() => openCreateDepartment(selectedDepartment.departmentId)} tone="primary" size="xs">Add child →</Button> : null} />
+                        <InfoCard label="People" value={`${members.length} member${members.length === 1 ? '' : 's'}`} action={canManageSelectedMembership ? <Button type="button" onClick={() => changeTab('MEMBERS')} tone="secondary" size="xs">Manage →</Button> : null} />
                       </>
                     ) : null}
                     {selectedGroup ? (
                       <>
-                        <InfoCard label="Owner Department" value={departments.find((item) => item.departmentId === selectedGroup.ownerDepartmentId)?.name || 'Not assigned'} action={canManageSelectedGroup ? <button type="button" onClick={openEdit} className="text-xs font-black text-blue-700">Change →</button> : null} />
-                        <InfoCard label="Parent Group" value={groups.find((item) => item.groupId === selectedGroup.parentGroupId)?.name || 'Top level'} action={canManageSelectedGroup ? <button type="button" onClick={openEdit} className="text-xs font-black text-blue-700">Change →</button> : null} />
-                        <InfoCard label="Child Groups" value={`${groupChildCount} direct`} action={canManageSelectedGroup ? <button type="button" onClick={() => openCreateGroup(selectedGroup.groupId)} className="text-xs font-black text-blue-700">Add child →</button> : null} />
-                        <InfoCard label="People" value={`${members.length} member${members.length === 1 ? '' : 's'}`} action={canManageSelectedMembership ? <button type="button" onClick={() => changeTab('MEMBERS')} className="text-xs font-black text-blue-700">Manage →</button> : null} />
+                        <InfoCard label="Owner Department" value={departments.find((item) => item.departmentId === selectedGroup.ownerDepartmentId)?.name || 'Not assigned'} action={canManageSelectedGroup ? <Button type="button" onClick={openEdit} tone="secondary" size="xs">Change →</Button> : null} />
+                        <InfoCard label="Parent Group" value={groups.find((item) => item.groupId === selectedGroup.parentGroupId)?.name || 'Top level'} action={canManageSelectedGroup ? <Button type="button" onClick={openEdit} tone="secondary" size="xs">Change →</Button> : null} />
+                        <InfoCard label="Child Groups" value={`${groupChildCount} direct`} action={canManageSelectedGroup ? <Button type="button" onClick={() => openCreateGroup(selectedGroup.groupId)} tone="primary" size="xs">Add child →</Button> : null} />
+                        <InfoCard label="People" value={`${members.length} member${members.length === 1 ? '' : 's'}`} action={canManageSelectedMembership ? <Button type="button" onClick={() => changeTab('MEMBERS')} tone="secondary" size="xs">Manage →</Button> : null} />
                       </>
                     ) : null}
-                    <InfoCard label="Direct access assignments" value={`${activeScopedAssignments} active`} action={<button type="button" onClick={() => changeTab('ACCESS')} className="text-xs font-black text-blue-700">Review →</button>} />
+                    <InfoCard label="Direct access assignments" value={`${activeScopedAssignments} active`} action={<Button type="button" onClick={() => changeTab('ACCESS')} tone="secondary" size="xs">Review →</Button>} />
                   </div>
 
                   <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -159,7 +160,7 @@ export function OrganizationWorkspace() {
                 <div className="mt-4 space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div><h3 className="font-black text-slate-950">People in {selectedName}</h3><p className="mt-1 text-xs text-slate-500">Membership is an organization relationship. Access is managed separately.</p></div>
-                    {canManageSelectedMembership ? <button type="button" onClick={openAddMembers} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white">Add people</button> : null}
+                    {canManageSelectedMembership ? <Button type="button" onClick={openAddMembers} tone="primary" size="sm">Add people</Button> : null}
                   </div>
                   <section className="space-y-2">
                     {members.map((membership) => {
@@ -178,13 +179,13 @@ export function OrganizationWorkspace() {
                             </div>
                             <div className="flex flex-wrap gap-2">
                               <ContextLink href={`/admin/tenants/${encodeURIComponent(scopeTenantId)}/people?userId=${encodeURIComponent(membership.userId)}`}>Open person</ContextLink>
-                              {canManageSelectedMembership ? <button type="button" onClick={() => openMember(membership)} className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-black text-slate-700">Manage</button> : null}
+                              {canManageSelectedMembership ? <Button type="button" onClick={() => openMember(membership)} tone="secondary" size="xs">Manage</Button> : null}
                             </div>
                           </div>
                         </div>
                       );
                     })}
-                    {!members.length ? <GuidedEmptyState title="No people assigned here" description={`No active Person is currently a member of this ${selection?.type === 'DEPARTMENT' ? 'Department' : 'Group'}.`} nextStep={canManageSelectedMembership ? 'Add people here, or open a Person and change organization from the People workspace.' : 'A membership administrator can place people in this organization scope.'} primaryAction={canManageSelectedMembership ? <button type="button" onClick={openAddMembers} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white">Add people</button> : undefined} /> : null}
+                    {!members.length ? <GuidedEmptyState title="No people assigned here" description={`No active Person is currently a member of this ${selection?.type === 'DEPARTMENT' ? 'Department' : 'Group'}.`} nextStep={canManageSelectedMembership ? 'Add people here, or open a Person and change organization from the People workspace.' : 'A membership administrator can place people in this organization scope.'} primaryAction={canManageSelectedMembership ? <Button type="button" onClick={openAddMembers} tone="primary" size="xs">Add people</Button> : undefined} /> : null}
                   </section>
                 </div>
               ) : null}
@@ -290,7 +291,7 @@ export function OrganizationWorkspace() {
 
       <WorkspaceModal open={dialog === 'MANAGER'} title={`Change Manager for ${selectedDepartment?.name ?? 'Department'}`} description="Choose from current Department members. The organization relationship and RBAC responsibility remain separate records." onClose={closeDialog}>
         <div className="space-y-4">
-          <FieldLabel htmlFor="r1-manager" label="Official Manager"><SearchSelectField id="r1-manager" value={managerUserId} onChange={setManagerUserId} options={eligibleManagers.map((person) => ({ value: person.userId, label: person.displayName, description: `${person.username}${person.email ? ` · ${person.email}` : ''}` }))} placeholder="Search Department members" /></FieldLabel><div className="flex justify-end"><button type="button" onClick={() => setManagerUserId('')} className="text-xs font-black text-slate-600 hover:text-blue-700">Clear Manager</button></div>
+          <FieldLabel htmlFor="r1-manager" label="Official Manager"><SearchSelectField id="r1-manager" value={managerUserId} onChange={setManagerUserId} options={eligibleManagers.map((person) => ({ value: person.userId, label: person.displayName, description: `${person.username}${person.email ? ` · ${person.email}` : ''}` }))} placeholder="Search Department members" /></FieldLabel><div className="flex justify-end"><Button type="button" onClick={() => setManagerUserId('')} tone="secondary" size="xs">Clear Manager</Button></div>
           <label className="flex items-start gap-2 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-950"><input type="checkbox" checked={grantManagerAccess} onChange={(event) => setGrantManagerAccess(event.target.checked)} className="mt-1 size-4" /><span><b className="block">Also grant Department Manager responsibility</b><span className="mt-1 block text-xs font-medium leading-5">Recommended when the Official Manager should administer this Department. The Role Binding remains independently visible and auditable in Access.</span></span></label>
           <AuditReasonSelector idPrefix="r1-manager" value={reason} onChange={setReason} tier="ELEVATED" />
         </div>
@@ -303,7 +304,7 @@ export function OrganizationWorkspace() {
           <SearchField id="r1-member-search" value={memberSearch} onChange={setMemberSearch} placeholder="Search people by name, username or email" />
           {memberSearchLoading && !memberCandidates.length ? <p className="text-xs font-semibold text-slate-500">Searching Tenant people…</p> : null}
           <MultiSelectCards options={memberCandidates.map((person) => ({ value: person.userId, label: person.displayName, description: `${person.username}${person.email ? ` · ${person.email}` : ''}` }))} selected={selectedPeople} onChange={setSelectedPeople} emptyMessage="No eligible Tenant people match this search." />
-          {memberCandidateHasMore ? <button type="button" disabled={memberSearchLoading} onClick={() => { void loadMemberCandidates(memberCandidateCursor, true); }} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-black text-slate-700 disabled:opacity-50">{memberSearchLoading ? 'Loading…' : 'Load more people'}</button> : null}
+          {memberCandidateHasMore ? <Button type="button" disabled={memberSearchLoading} onClick={() => { void loadMemberCandidates(memberCandidateCursor, true); }} tone="secondary" size="xs">{memberSearchLoading ? 'Loading…' : 'Load more people'}</Button> : null}
           {selection?.type === 'GROUP' ? <FieldLabel htmlFor="r1-add-member-role" label="Relationship for selected people"><SelectField id="r1-add-member-role" value={memberRole} onChange={setMemberRole} options={[{ value: 'MEMBER', label: 'Member' }, { value: 'LEAD', label: 'Lead' }]} /></FieldLabel> : <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">People are added as regular Department members. Use People → Bulk action → Move Primary Department when several people need the same organizational transfer, or change one Person from their profile.</div>}
           <AuditReasonSelector idPrefix="r1-add-members" value={reason} onChange={setReason} />
         </div>
@@ -319,8 +320,8 @@ export function OrganizationWorkspace() {
           {selection?.type === 'DEPARTMENT' && selectedMembership.primary ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><b className="block">Primary Department will become Unassigned</b><p className="mt-1 text-xs leading-5">Removing this Primary Department relationship keeps the Person and their sign-in identity. They will have no Primary Department until another Department is assigned, and Department-inherited authority is recalculated immediately.</p><div className="mt-3"><ContextLink href={`/admin/tenants/${encodeURIComponent(scopeTenantId)}/people?userId=${encodeURIComponent(selectedMembership.userId)}`}>Review person profile</ContextLink></div></div> : null}
           <AuditReasonSelector idPrefix="r1-member" value={reason} onChange={setReason} tier="ELEVATED" />
           <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 pt-4">
-            <button type="button" disabled={busy} onClick={() => { void removeMembership(); }} className="rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-black text-rose-800 disabled:cursor-not-allowed disabled:opacity-40">Remove from {selection?.type === 'DEPARTMENT' ? 'Department' : 'Group'}</button>
-            <button type="button" disabled={busy || !isAuditReasonValid(reason, 'ELEVATED')} onClick={() => { void updateMembership(); }} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white disabled:bg-slate-300">Save membership</button>
+            <Button type="button" disabled={busy} onClick={() => { void removeMembership(); }} tone="danger" size="sm">Remove from {selection?.type === 'DEPARTMENT' ? 'Department' : 'Group'}</Button>
+            <Button type="button" disabled={busy || !isAuditReasonValid(reason, 'ELEVATED')} onClick={() => { void updateMembership(); }} tone="primary" size="sm">Save membership</Button>
           </div>
         </div> : null}
       </WorkspaceModal>
@@ -391,14 +392,14 @@ function OrganizationSection({ title, count, action, children }: Readonly<{ titl
 }
 
 function OrganizationButton({ active, title, subtitle, depth, expandable = false, collapsed = false, onToggle, onClick }: Readonly<{ active: boolean; title: string; subtitle: string; depth: number; expandable?: boolean; collapsed?: boolean; onToggle?: () => void; onClick: () => void }>) {
-  return <div className="flex items-stretch gap-1">{expandable ? <button type="button" aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`} onClick={onToggle} className="w-8 rounded-lg border border-slate-200 text-xs font-black text-slate-600">{collapsed ? '＋' : '−'}</button> : <span className="w-8" aria-hidden="true" />}<button type="button" onClick={onClick} style={{ paddingLeft: `${12 + Math.min(depth, 4) * 16}px` }} className={`min-w-0 flex-1 rounded-xl border py-2.5 pr-3 text-left transition ${active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-300'}`}><span className="block text-sm font-black text-slate-950">{title}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{subtitle}</span></button></div>;
+  return <div className="flex items-stretch gap-1">{expandable ? <Button type="button" aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${title}`} onClick={onToggle} tone="secondary" size="xs">{collapsed ? '＋' : '−'}</Button> : <span className="w-8" aria-hidden="true" />}<button type="button" onClick={onClick} aria-current={active ? 'true' : undefined} style={{ paddingLeft: `${12 + Math.min(depth, 4) * 16}px` }} className={`min-w-0 flex-1 rounded-xl border py-2.5 pr-3 text-left transition ${active ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-300'}`}><span className="block text-sm font-black text-slate-950">{title}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{subtitle}</span></button></div>;
 }
 
 function OrganizationBulkResult({ result, onDone }: { result: PeopleBulkActionResult; onDone: () => void }) {
   return <div className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-3"><InfoCard label="Succeeded" value={String(result.succeededCount)} /><InfoCard label="Skipped" value={String(result.skippedCount)} /><InfoCard label="Failed" value={String(result.failedCount)} /></div>
     <div className="max-h-[420px] divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-200">{result.results.map((item) => <div key={item.userId} className="grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_110px_minmax(0,1.5fr)]"><div><p className="font-black text-slate-900">{item.displayName}</p><p className="text-xs text-slate-500">{item.userId}</p></div><HumanStatus value={item.outcome} /><div><p className="text-sm text-slate-700">{item.message}</p>{item.code ? <p className="mt-1 font-mono text-xs text-slate-500">{item.code}</p> : null}{item.remediation ? <p className="mt-2 text-xs font-semibold text-blue-800">Next: {item.remediation}</p> : null}</div></div>)}</div>
-    <div className="flex justify-end"><button type="button" onClick={onDone} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white">Done</button></div>
+    <div className="flex justify-end"><Button type="button" onClick={onDone} tone="primary" size="sm">Done</Button></div>
   </div>;
 }
 
@@ -419,6 +420,6 @@ function ImpactPreview({ title, items }: Readonly<{ title: string; items: string
 }
 
 function DialogActions({ busy, valid, onCancel, onConfirm, label, danger = false }: Readonly<{ busy: boolean; valid: boolean; onCancel: () => void; onConfirm: () => void; label: string; danger?: boolean }>) {
-  return <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black">Cancel</button><button type="button" disabled={busy || !valid} onClick={onConfirm} className={`rounded-xl px-4 py-2.5 text-sm font-black text-white disabled:bg-slate-300 ${danger ? 'bg-rose-700' : 'bg-blue-700'}`}>{label}</button></div>;
+  return <div className="mt-6 flex justify-end gap-2"><Button type="button" onClick={onCancel} tone="secondary" size="sm">Cancel</Button><Button type="button" disabled={busy || !valid} onClick={onConfirm} tone={danger ? 'danger' : 'primary'} size="sm">{label}</Button></div>;
 }
 

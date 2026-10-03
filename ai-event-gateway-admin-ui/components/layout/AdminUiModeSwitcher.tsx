@@ -10,8 +10,8 @@ export function AdminUiModeSwitcher() {
   const option = getAdminUiModeOption(mode);
 
   return (
-    <label className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 md:flex" title={option.description}>
-      <span className="whitespace-nowrap">{t('mode.switcher.label')}</span>
+    <label className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 sm:px-3" title={option.description}>
+      <span className="hidden whitespace-nowrap lg:inline">{t('mode.switcher.label')}</span>
       <select
         value={mode}
         onChange={(event) => setMode(event.target.value as typeof mode)}

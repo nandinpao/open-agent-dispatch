@@ -18,6 +18,8 @@ public class WorkerRuntimeConfigurationProperties {
     private boolean lkgEnabled=true;
     private String lkgDirectory="./data/runtime-config/worker";
     private long maxStaleMs=300000;
+    private long coldStartWaitMs=60000;
+    private long coldStartRetryMs=1000;
 
     public boolean isEnabled(){return enabled;} public boolean enabled(){return enabled;} public void setEnabled(boolean v){enabled=v;}
     public String hmacKey(){return blank(hmacKey)?"":hmacKey.trim();} public String getHmacKey(){return hmacKey();} public void setHmacKey(String v){hmacKey=v;}
@@ -30,6 +32,8 @@ public class WorkerRuntimeConfigurationProperties {
     public boolean lkgEnabled(){return lkgEnabled;} public boolean isLkgEnabled(){return lkgEnabled;} public void setLkgEnabled(boolean v){lkgEnabled=v;}
     public String lkgDirectory(){return blank(lkgDirectory)?"./data/runtime-config/worker":lkgDirectory.trim();} public String getLkgDirectory(){return lkgDirectory();} public void setLkgDirectory(String v){lkgDirectory=v;}
     public long maxStaleMs(){return Math.max(0,maxStaleMs);} public long getMaxStaleMs(){return maxStaleMs;} public void setMaxStaleMs(long v){maxStaleMs=v;}
+    public long coldStartWaitMs(){return Math.max(0,coldStartWaitMs);} public long getColdStartWaitMs(){return coldStartWaitMs;} public void setColdStartWaitMs(long v){coldStartWaitMs=v;}
+    public long coldStartRetryMs(){return Math.max(100,coldStartRetryMs);} public long getColdStartRetryMs(){return coldStartRetryMs;} public void setColdStartRetryMs(long v){coldStartRetryMs=v;}
     public void requireSecureKey(){if(hmacKey().length()<32)throw new IllegalStateException("OPENDISPATCH_CONFIG_SNAPSHOT_HMAC_KEY must contain at least 32 characters when Worker runtime configuration is enabled");}
     private static boolean blank(String v){return v==null||v.isBlank();}
 }

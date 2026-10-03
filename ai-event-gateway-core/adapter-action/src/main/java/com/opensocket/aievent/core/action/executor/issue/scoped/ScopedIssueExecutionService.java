@@ -155,11 +155,32 @@ public class ScopedIssueExecutionService {
         AdapterExecutionResult result = response.isRetryable()
                 ? AdapterExecutionResult.retryableFailure("scoped-" + vendor.name().toLowerCase() + "-executor", response.getError())
                 : AdapterExecutionResult.permanentFailure("scoped-" + vendor.name().toLowerCase() + "-executor", response.getError());
+        applyStableFailureSemantics(result, response);
         enrich(result, action, context, response, vendor);
         log.warn("issue_provider_execution_completed actionId={} taskId={} provider={} operation={} success=false providerStatusCode={} retryable={} error={} connectionId={} mappingId={} correlationId={}",
                 action.getActionId(), action.getTaskId(), vendor, operation, response.getStatusCode(), result.isRetryable(), response.getError(),
                 context.connection().connectionId(), context.mapping().mappingId(), correlationId);
         return result;
+    }
+
+    private void applyStableFailureSemantics(AdapterExecutionResult result, IssueExecutorResponse response) {
+        String error = response == null ? null : response.getError();
+        if (error == null || error.isBlank()) return;
+        String code = error.contains(":") ? error.substring(0, error.indexOf(':')).trim() : error.trim();
+        if (code.startsWith("ISSUE_PROVIDER_")) result.setErrorCode(code);
+        if ("ISSUE_PROVIDER_REQUIRED_FIELD_UNMAPPED".equals(code)) {
+            result.setProviderHealthImpact("NONE");
+            result.setProviderOutcomeCertainty("CONFIRMED");
+        } else if ("ISSUE_PROVIDER_VALIDATION_FAILED".equals(code)
+                || "ISSUE_PROVIDER_PERMISSION_DENIED".equals(code)
+                || "ISSUE_PROVIDER_RESOURCE_NOT_FOUND".equals(code)
+                || "ISSUE_PROVIDER_CONFLICT".equals(code)) {
+            result.setProviderHealthImpact("HEALTHY");
+        } else if ("ISSUE_PROVIDER_RATE_LIMITED".equals(code)) {
+            result.setProviderHealthImpact("THROTTLED");
+        } else if (code.startsWith("ISSUE_PROVIDER_")) {
+            result.setProviderHealthImpact("DEGRADED");
+        }
     }
 
     private void enrich(AdapterExecutionResult result,

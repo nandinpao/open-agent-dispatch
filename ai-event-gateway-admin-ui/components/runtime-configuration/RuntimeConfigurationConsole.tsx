@@ -1,9 +1,17 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useUiEntitlements } from '@/lib/navigation/useUiEntitlements';
 import { actionAllowed } from '@/lib/navigation/uiEntitlements';
+import {
+  ConfigurationImpactPreview,
+  ConfigurationJourney,
+  ConfigurationPurposePanel,
+  ConfigurationValidationPanel,
+  type ConfigurationRisk,
+} from '@/components/configuration/ConfigurationConfidence';
 import {
   runtimeConfigurationApi,
   type RuntimeConfigurationApplicationStatus,
@@ -89,6 +97,22 @@ function parseDurationEditor(value: string, unit: string): string {
   if (unit === 'minutes') return `PT${n}M`;
   if (unit === 'hours') return `PT${n}H`;
   return `PT${n}S`;
+}
+
+function configurationRisk(value?: string): ConfigurationRisk {
+  const normalized = (value ?? '').toUpperCase();
+  if (normalized.includes('CRITICAL')) return 'CRITICAL';
+  if (normalized.includes('HIGH')) return 'HIGH';
+  if (normalized.includes('MEDIUM')) return 'MEDIUM';
+  return 'LOW';
+}
+
+function validationState(status?: RuntimeConfigurationApplicationStatus): 'NOT_RUN' | 'RUNNING' | 'PASSED' | 'FAILED' | 'PARTIAL' {
+  if (status === 'APPLIED') return 'PASSED';
+  if (status === 'PUBLISHED_APPLYING') return 'RUNNING';
+  if (status === 'PARTIALLY_APPLIED') return 'PARTIAL';
+  if (status === 'FAILED' || status === 'CONFIGURATION_INCOMPLETE') return 'FAILED';
+  return 'NOT_RUN';
 }
 
 function SettingEditor({ detail, value, onChange }: Readonly<{ detail: RuntimeConfigurationSettingDetail; value: string; onChange: (value: string) => void }>) {
@@ -209,6 +233,23 @@ export function RuntimeConfigurationConsole() {
   if (loading) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-600" aria-busy="true">Loading Runtime Configuration…</div>;
 
   return <div className="space-y-5"><div className="flex justify-end"><Link href="/settings/runtime-configuration/migration-governance" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-black text-slate-700">Migration Governance</Link></div>
+    <ConfigurationPurposePanel
+      title="Change runtime behavior through a governed activation path"
+      purpose="Runtime Configuration is for operational tuning such as timeouts, retries, schedulers and execution controls. Editing a value does not directly modify Production: a change request must be approved by a different operator, published, and then applied by every required runtime node."
+      currentState={<>{overview?.environmentLabel ?? overview?.environment ?? 'Current environment'} · {overview?.health === 'HEALTHY' ? 'runtime configuration healthy' : overview?.health === 'APPLYING' ? 'changes are applying' : 'attention is required'}.</>}
+      impact={<>A published revision changes the desired Config Set authority. Production behavior is only considered applied after the required nodes acknowledge the same revision and snapshot fingerprint.</>}
+      validation={<>Use required-node convergence as the post-apply proof. <b>Published</b> and <b>Applied</b> are intentionally different states.</>}
+      recovery={<>Preview an older immutable revision and create a governed rollback request. Rollback creates a new change request; it never rewrites history.</>}
+    >
+      <ConfigurationJourney steps={[
+        { title: 'Create request', detail: 'Propose one typed value. Production is unchanged.', state: 'current' },
+        { title: 'Independent approval', detail: 'A different operator reviews the request.', state: 'upcoming' },
+        { title: 'Publish', detail: 'Approved revision becomes desired runtime authority.', state: 'upcoming' },
+        { title: 'Verify applied', detail: 'Required nodes must converge on revision + fingerprint.', state: 'upcoming' },
+        { title: 'Rollback if needed', detail: 'Create a new governed request from immutable history.', state: 'upcoming' },
+      ]} />
+    </ConfigurationPurposePanel>
+
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="text-xs font-black uppercase tracking-wide text-slate-500">Runtime Configuration</div><h1 className="mt-1 text-2xl font-black text-slate-950">Governed runtime tuning</h1><p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">Create a change request, obtain approval from a different operator, publish the approved revision, then verify required-node convergence. Publication is not application.</p></div><span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-black text-rose-800">{overview?.environmentLabel ?? overview?.environment}</span></div>
       {message && <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900">{message}</div>}
@@ -243,9 +284,20 @@ export function RuntimeConfigurationConsole() {
 
           {!detail.editable && <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="text-sm font-black text-slate-900">Read-only runtime target</div><p className="mt-1 text-xs leading-5 text-slate-600">This setting is visible so migration coverage remains complete, but it cannot be changed here until its typed consumer is migration-authorized and its governance contract permits runtime editing.</p></div>}
 
-          {canEdit && detail.editable && <div className="space-y-3 rounded-2xl border border-blue-200 bg-blue-50 p-4"><div className="text-sm font-black text-blue-950">Create change request</div><label className="block text-sm font-black text-slate-900">New value<SettingEditor detail={detail} value={editValue} onChange={setEditValue} /></label><button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.requestChange(detail.key, typedValue(), detail.activeRevisionId, reason.trim()), 'Change request submitted for approval. A different operator must approve it before publication.')} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-black text-white disabled:bg-slate-300">Create change request</button></div>}
+          {canEdit && detail.editable && <div className="space-y-3 rounded-2xl border border-blue-200 bg-blue-50 p-4"><div className="text-sm font-black text-blue-950">Create change request</div><p className="text-xs leading-5 text-blue-900">This step records a governed proposal only. It does not publish or apply the new value.</p><label className="block text-sm font-black text-slate-900">New value<SettingEditor detail={detail} value={editValue} onChange={setEditValue} /></label><ConfigurationImpactPreview
+            title="Change request impact"
+            risk={configurationRisk(detail.risk)}
+            summary="Creating this request is non-active. The proposed value can affect runtime only after independent approval, publication and required-node convergence."
+            items={[
+              { label: 'Current runtime', value: valueText(detail.runtimeValue, detail.unit), detail: detail.authoritySource.replaceAll('_', ' ') },
+              { label: 'Proposed value', value: editValue || '—', tone: 'info' },
+              { label: 'Activation boundary', value: 'Approval + Publish', detail: 'Request creation does not change Production.' },
+              { label: 'Required nodes', value: String(applyState?.requiredNodes ?? detail.knownNodes ?? 0), detail: 'All required nodes must converge before Applied is trusted.' },
+            ]}
+            safetyNote="If request creation or approval fails, the active runtime revision is unchanged. If publish succeeds but convergence later fails, treat the configuration as active-needs-attention rather than retrying Publish blindly."
+          /><Button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.requestChange(detail.key, typedValue(), detail.activeRevisionId, reason.trim()), 'Change request submitted for approval. Production is unchanged; a different operator must approve it before publication.')} tone="primary" size="md">Create non-active change request</Button></div>}
 
-          {canBreakGlass && detail.editable && detail.activeRevisionId && <div className="space-y-3 rounded-2xl border border-rose-200 bg-rose-50 p-4"><div className="text-sm font-black text-rose-950">Emergency override</div><p className="text-xs leading-5 text-rose-900">Temporary operational mitigation. It overlays one key, expires automatically, and does not rewrite the normal revision.</p><div className="grid grid-cols-[1fr_120px] gap-2"><SettingEditor detail={detail} value={editValue} onChange={setEditValue} /><input type="number" min={5} max={240} value={ttlMinutes} onChange={e => setTtlMinutes(Number(e.target.value))} className="mt-1 rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm" aria-label="Emergency TTL minutes" /></div><button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.emergencyOverride(detail.key, typedValue(), ttlMinutes, reason.trim()), 'Emergency override activated. Required nodes are reapplying the effective snapshot.', `Activate an emergency override for ${ttlMinutes} minutes?`)} className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-black text-white disabled:bg-slate-300">Activate temporary override</button></div>}
+          {canBreakGlass && detail.editable && detail.activeRevisionId && <div className="space-y-3 rounded-2xl border border-rose-200 bg-rose-50 p-4"><div className="text-sm font-black text-rose-950">Emergency override</div><p className="text-xs leading-5 text-rose-900">Temporary operational mitigation. It overlays one key, expires automatically, and does not rewrite the normal revision.</p><div className="grid grid-cols-[1fr_120px] gap-2"><SettingEditor detail={detail} value={editValue} onChange={setEditValue} /><input type="number" min={5} max={240} value={ttlMinutes} onChange={e => setTtlMinutes(Number(e.target.value))} className="mt-1 rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm" aria-label="Emergency TTL minutes" /></div><Button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.emergencyOverride(detail.key, typedValue(), ttlMinutes, reason.trim()), 'Emergency override activated. Required nodes are reapplying the effective snapshot.', `Activate an emergency override for ${ttlMinutes} minutes?`)} tone="danger" size="md">Activate temporary override</Button></div>}
 
           <details className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><summary className="cursor-pointer text-sm font-black text-slate-800">Advanced details</summary><dl className="mt-3 grid grid-cols-[160px_1fr] gap-2 text-xs"><dt className="font-bold text-slate-500">Technical key</dt><dd className="break-all font-mono">{detail.key}</dd><dt className="font-bold text-slate-500">Authority</dt><dd>{detail.authority}</dd><dt className="font-bold text-slate-500">Authority source</dt><dd>{detail.authoritySource.replaceAll('_', ' ')}</dd><dt className="font-bold text-slate-500">Effective source</dt><dd>{detail.effectiveSource.replaceAll('_', ' ')}</dd><dt className="font-bold text-slate-500">Configuration state</dt><dd>{detail.configurationState}</dd><dt className="font-bold text-slate-500">Active revision contains key</dt><dd>{detail.valuePresentInActiveRevision ? 'Yes' : 'No'}</dd><dt className="font-bold text-slate-500">Desired revision</dt><dd className="break-all font-mono">{detail.desiredRevisionId ?? 'No active runtime revision'}</dd><dt className="font-bold text-slate-500">Local applied revision</dt><dd className="break-all font-mono">{detail.localAppliedRevisionId ?? 'No local authenticated snapshot'}</dd><dt className="font-bold text-slate-500">Cluster convergence</dt><dd>{detail.convergenceState.replaceAll('_', ' ')}</dd><dt className="font-bold text-slate-500">Data type</dt><dd>{detail.dataType}</dd><dt className="font-bold text-slate-500">Mutability</dt><dd>{detail.mutability}</dd><dt className="font-bold text-slate-500">Required ACK</dt><dd>{detail.appliedNodes} / {detail.knownNodes}</dd></dl></details>
         </div>}
@@ -254,14 +306,34 @@ export function RuntimeConfigurationConsole() {
           {applyState.requiredNodes === 0 ? <p className="mt-4 text-sm text-amber-800">No required topology targets are registered yet. Application cannot be certified from an empty denominator.</p> : <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-xs"><thead><tr className="border-b border-slate-200 text-slate-500"><th className="px-2 py-2">Node</th><th className="px-2 py-2">Role</th><th className="px-2 py-2">State</th><th className="px-2 py-2">Applied revision</th><th className="px-2 py-2">Last seen</th><th className="px-2 py-2">Error</th></tr></thead><tbody>{applyState.nodes.map(node => <tr key={node.nodeId} className="border-b border-slate-100"><td className="px-2 py-2 font-mono">{node.nodeId}</td><td className="px-2 py-2">{node.nodeRole}</td><td className="px-2 py-2"><NodeStateBadge state={node.state} /></td><td className="max-w-48 truncate px-2 py-2 font-mono" title={node.appliedRevisionId ?? ''}>{node.appliedRevisionId ?? '—'}</td><td className="px-2 py-2">{node.lastSeenAt ? new Date(node.lastSeenAt).toLocaleString() : 'Never'}</td><td className="max-w-64 px-2 py-2 text-rose-700">{node.errorCode ? `${node.errorCode}: ${node.errorDetail ?? ''}` : '—'}</td></tr>)}</tbody></table></div>}
         </div>}
 
+        {detail && <ConfigurationValidationPanel
+          title="Post-publish required-node verification"
+          status={validationState(detail.applicationStatus)}
+          summary={detail.applicationStatus === 'APPLIED'
+            ? 'The desired revision is applied across the required runtime nodes reported for this configuration.'
+            : detail.applicationStatus === 'PUBLISHED_APPLYING'
+              ? 'A revision has been published and runtime convergence is still in progress.'
+              : detail.applicationStatus === 'PARTIALLY_APPLIED'
+                ? 'Some required nodes have not converged. The desired authority exists, but application is incomplete.'
+                : detail.applicationStatus === 'FAILED' || detail.applicationStatus === 'CONFIGURATION_INCOMPLETE'
+                  ? 'Runtime application needs attention. Do not treat Published as Applied.'
+                  : 'No fully-applied runtime revision is currently proven for this setting.'}
+          checks={[
+            { label: 'Application status', value: statusCopy[detail.applicationStatus]?.label ?? detail.applicationStatus, passed: detail.applicationStatus === 'APPLIED' },
+            { label: 'Required-node convergence', value: `${applyState?.appliedNodes ?? detail.appliedNodes} / ${applyState?.requiredNodes ?? detail.knownNodes} applied`, passed: Boolean(applyState && applyState.requiredNodes > 0 && applyState.appliedNodes === applyState.requiredNodes && applyState.failedNodes === 0) },
+            { label: 'Authority source', value: detail.authoritySource.replaceAll('_', ' '), passed: detail.authoritySource === 'RUNTIME_CONFIGURATION' },
+          ]}
+          safetyNote="Publication changes desired authority; application is only trusted after required nodes converge. If a publish response is ambiguous, reload current Core state before retrying."
+        />}
+
         {detail && cutover && <div className="rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-wide text-violet-700">Single Authority readiness</div><h3 className="mt-1 text-lg font-black text-violet-950">{cutover.phase.replaceAll('_', ' ')}</h3><p className="mt-1 text-xs text-violet-800">Authority Contract v2 convergence: {cutover.convergedNodeCount} / {cutover.requiredNodeCount} required nodes</p></div><Link href="/settings/runtime-configuration/migration-governance" className="rounded-xl border border-violet-300 bg-white px-3 py-2 text-xs font-black text-violet-800">Open migration governance</Link></div>{cutover.blockers.length > 0 ? <div className="mt-4"><div className="text-xs font-black uppercase text-rose-700">Current blockers</div><ul className="mt-2 space-y-1 text-xs text-rose-900">{cutover.blockers.map(blocker => <li key={blocker} className="rounded-lg border border-rose-200 bg-white px-3 py-2 font-mono">{blocker}</li>)}</ul></div> : <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-3 text-sm font-bold text-emerald-800">No cutover blocker is currently reported for this Config Set.</div>}<div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-xs"><thead><tr className="border-b border-violet-200 text-violet-800"><th className="px-2 py-2">Node</th><th className="px-2 py-2">Role</th><th className="px-2 py-2">Authority contract</th><th className="px-2 py-2">Apply state</th><th className="px-2 py-2">Converged</th></tr></thead><tbody>{cutover.nodes.map(node => <tr key={node.nodeId} className="border-b border-violet-100"><td className="px-2 py-2 font-mono">{node.nodeId}</td><td className="px-2 py-2">{node.nodeRole}</td><td className="px-2 py-2">v{node.supportedAuthorityContractVersion}</td><td className="px-2 py-2">{node.applyState.replaceAll('_', ' ')}</td><td className="px-2 py-2 font-black">{node.converged ? 'Yes' : 'No'}</td></tr>)}</tbody></table></div></div>}
 
         {canGovern && detail && detail.editable && <div className="rounded-3xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm"><div className="text-xs font-black uppercase tracking-wide text-indigo-700">Audit reason</div><p className="mt-1 text-xs leading-5 text-indigo-900">Required for every change, approval, rejection, publication, rollback and emergency action. This field is available independently of Edit permission.</p><textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Why is this action required?" className="mt-3 w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm" /></div>}
 
         {detail && detail.migrationState !== 'PROPOSED' && <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="text-xs font-black uppercase tracking-wide text-slate-500">Governance</div><h3 className="mt-1 text-lg font-black text-slate-950">Approval, publication and rollback</h3><div className="mt-4 space-y-3">
           {pendingForSelected.length === 0 && <p className="text-sm text-slate-500">No pending or approved change request for this configuration set.</p>}
-          {pendingForSelected.map(revision => <div key={revision.revisionId} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center justify-between gap-2"><span className="text-sm font-black">Revision {revision.sequenceNo}</span><RevisionBadge state={revision.state} /></div><p className="mt-2 text-sm text-slate-700">{revision.reason}</p><div className="mt-3 flex flex-wrap gap-2">{revision.state === 'PENDING_APPROVAL' && canApprove && <><button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.approve(revision.revisionId, reason.trim()), 'Revision approved. It is not published yet.')} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-black text-white">Approve</button><button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.reject(revision.revisionId, reason.trim()), 'Revision rejected.')} className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-black text-rose-800">Reject</button></>}{revision.state === 'APPROVED' && canPublish && <button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.publishApproved(revision.revisionId, revision.baseRevisionId, reason.trim()), 'Approved revision published. Runtime convergence remains visible separately.', 'Publish this approved revision to the current environment?')} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-black text-white">Publish approved revision</button>}</div></div>)}
-          {canRollback && rollbackSources.length > 1 && <div className="border-t border-slate-200 pt-3"><div className="text-xs font-black text-slate-500">Rollback</div><p className="mt-1 text-xs leading-5 text-slate-600">Preview the semantic diff first. Rollback creates a new governed change request; history is never rewritten.</p><div className="mt-2 flex flex-wrap gap-2">{rollbackSources.filter(r => r.revisionId !== detail.activeRevisionId).slice(0, 5).map(r => <button key={r.revisionId} type="button" disabled={busy} onClick={() => void previewRollback(r)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700">Preview revision {r.sequenceNo}</button>)}</div></div>}
+          {pendingForSelected.map(revision => <div key={revision.revisionId} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center justify-between gap-2"><span className="text-sm font-black">Revision {revision.sequenceNo}</span><RevisionBadge state={revision.state} /></div><p className="mt-2 text-sm text-slate-700">{revision.reason}</p><div className="mt-3 flex flex-wrap gap-2">{revision.state === 'PENDING_APPROVAL' && canApprove && <><Button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.approve(revision.revisionId, reason.trim()), 'Revision approved. It is not published yet.')} tone="success" size="xs">Approve</Button><Button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.reject(revision.revisionId, reason.trim()), 'Revision rejected.')} tone="warning" size="xs">Reject</Button></>}{revision.state === 'APPROVED' && canPublish && <Button type="button" disabled={busy} onClick={() => void run(() => runtimeConfigurationApi.publishApproved(revision.revisionId, revision.baseRevisionId, reason.trim()), 'Approved revision published as desired authority. Publication is not application; verify required-node convergence before treating the new value as applied.', 'Publish this approved revision as desired runtime authority? Runtime nodes must still converge before it is considered applied.')} tone="warning" size="xs">Publish approved revision</Button>}</div></div>)}
+          {canRollback && rollbackSources.length > 1 && <div className="border-t border-slate-200 pt-3"><div className="text-xs font-black text-slate-500">Rollback</div><p className="mt-1 text-xs leading-5 text-slate-600">Preview the semantic diff first. Rollback creates a new governed change request; history is never rewritten.</p><div className="mt-2 flex flex-wrap gap-2">{rollbackSources.filter(r => r.revisionId !== detail.activeRevisionId).slice(0, 5).map(r => <Button key={r.revisionId} type="button" disabled={busy} onClick={() => void previewRollback(r)} tone="secondary" size="xs">Preview revision {r.sequenceNo}</Button>)}</div></div>}
           {rollbackPreview && <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4"><div className="text-sm font-black text-amber-950">Rollback preview · restore revision {rollbackPreview.restoreSourceSequence}</div>{rollbackPreview.changes.length === 0 ? <p className="mt-2 text-sm text-amber-900">No semantic value differences from the current revision.</p> : <div className="mt-3 space-y-2">{rollbackPreview.changes.map(diff => <div key={diff.key} className="grid gap-2 rounded-xl border border-amber-200 bg-white p-3 text-xs sm:grid-cols-[1fr_1fr_1fr]"><div><div className="font-black">{diff.label}</div><div className="font-mono text-[10px] text-slate-400">{diff.key}</div></div><div><span className="font-bold text-slate-500">Current</span><div className="mt-1 break-all">{valueText(diff.currentValue)}</div></div><div><span className="font-bold text-slate-500">Restore</span><div className="mt-1 break-all">{valueText(diff.restoreValue)}</div></div></div>)}</div>}<button type="button" disabled={busy || rollbackPreview.changes.length === 0} onClick={() => void run(() => runtimeConfigurationApi.requestRollback(detail.key, rollbackPreview.restoreSourceRevisionId, reason.trim()), `Rollback request created from revision ${rollbackPreview.restoreSourceSequence}.`, `Create a rollback request restoring revision ${rollbackPreview.restoreSourceSequence}?`)} className="mt-3 rounded-lg bg-amber-700 px-3 py-2 text-xs font-black text-white disabled:bg-slate-300">Create rollback request</button></div>}
         </div></div>}
 

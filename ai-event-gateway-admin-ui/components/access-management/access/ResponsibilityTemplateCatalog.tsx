@@ -17,6 +17,7 @@ import {
   isAuditReasonValid,
 } from '../shared/beginnerUi';
 import { WorkspaceModal } from '../shared/workspaceUi';
+import { Button } from '@/components/ui/Button';
 
 interface ResponsibilityEditorState {
   mode: 'CREATE' | 'EDIT';
@@ -309,7 +310,7 @@ export function ResponsibilityTemplateCatalog({
               ]} placeholder="All supported scopes" />
             </div>
           </div>
-          {canManageRole ? <button type="button" onClick={() => { setReason('Create a governed business responsibility for this Tenant'); setEditor({ mode: 'CREATE', roleName: '', description: '', businessCode: '' }); }} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white">Create responsibility</button> : null}
+          {canManageRole ? <Button type="button" onClick={() => { setReason('Create a governed business responsibility for this Tenant'); setEditor({ mode: 'CREATE', roleName: '', description: '', businessCode: '' }); }} tone="primary" size="sm">Create responsibility</Button> : null}
         </div>
       </section>
 
@@ -321,7 +322,7 @@ export function ResponsibilityTemplateCatalog({
           <div className="space-y-2">
             {filteredRoles.map((role) => {
               const template = templateByRole.get(role.roleId);
-              return <button key={role.roleId} type="button" onClick={() => setSelectedId(role.roleId)} className={`w-full rounded-2xl border p-4 text-left transition ${selectedId === role.roleId ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:bg-slate-50'}`}>
+              return <button key={role.roleId} type="button" onClick={() => setSelectedId(role.roleId)} aria-current={selectedId === role.roleId ? 'true' : undefined} className={`w-full rounded-2xl border p-4 text-left transition ${selectedId === role.roleId ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <div className="flex items-start justify-between gap-3"><div><p className="font-black text-slate-950">{role.roleName}</p><p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{role.description || 'No business description has been provided.'}</p></div><HumanStatus value={role.status} /></div>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-600">
                   <span>{template?.permissionCount ?? 0} capabilities</span><span>•</span><span>{template?.activeAssignmentCount ?? 0} active assignments</span>{template?.riskLevel ? <><span>•</span><span>{template.riskLevel} risk</span></> : null}
@@ -352,10 +353,10 @@ export function ResponsibilityTemplateCatalog({
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2">
-                {canAssign && selected.status === 'ACTIVE' && selectedTemplate && selectedTemplate.permissionCount > 0 && selectedTemplate.allowedScopeTypes.length > 0 ? <button type="button" onClick={() => onAssign(selectedTemplate)} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white">Assign responsibility</button> : null}
-                {canManageRole && !selected.systemManaged ? <button type="button" onClick={() => { setReason(DEFAULT_REASON); setEditor({ mode: 'EDIT', roleName: selected.roleName, description: selected.description, businessCode: selected.roleCode }); }} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700">Edit details</button> : null}
-                {canManageRole && !selected.systemManaged ? <button type="button" onClick={() => { setReason(`Responsibility ${selected.roleName} lifecycle changed after access review`); setLifecycleOpen(true); }} className="rounded-xl border border-amber-300 px-4 py-2.5 text-sm font-black text-amber-900">{selected.status === 'ACTIVE' ? 'Disable' : 'Activate'}</button> : null}
-                {canManageRole && !selected.systemManaged ? <button type="button" onClick={() => { setReason(''); setDeleteOpen(true); }} className="rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-black text-rose-800">Delete…</button> : null}
+                {canAssign && selected.status === 'ACTIVE' && selectedTemplate && selectedTemplate.permissionCount > 0 && selectedTemplate.allowedScopeTypes.length > 0 ? <Button type="button" onClick={() => onAssign(selectedTemplate)} tone="primary" size="sm">Assign responsibility</Button> : null}
+                {canManageRole && !selected.systemManaged ? <Button type="button" onClick={() => { setReason(DEFAULT_REASON); setEditor({ mode: 'EDIT', roleName: selected.roleName, description: selected.description, businessCode: selected.roleCode }); }} tone="secondary" size="sm">Edit details</Button> : null}
+                {canManageRole && !selected.systemManaged ? <Button type="button" onClick={() => { setReason(`Responsibility ${selected.roleName} lifecycle changed after access review`); setLifecycleOpen(true); }} tone="warning" size="sm">{selected.status === 'ACTIVE' ? 'Disable' : 'Activate'}</Button> : null}
+                {canManageRole && !selected.systemManaged ? <Button type="button" onClick={() => { setReason(''); setDeleteOpen(true); }} tone="danger" size="sm">Delete…</Button> : null}
               </div>
 
               <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600"><summary className="cursor-pointer font-black text-slate-800">Technical details</summary><dl className="mt-3 grid gap-2 sm:grid-cols-2"><div><dt className="font-bold">Role code</dt><dd>{selected.roleCode}</dd></div><div><dt className="font-bold">Role ID</dt><dd className="break-all">{selected.roleId}</dd></div><div><dt className="font-bold">Type</dt><dd>{selected.roleType}</dd></div><div><dt className="font-bold">Version</dt><dd>{selected.version}</dd></div></dl></details>
@@ -375,11 +376,11 @@ export function ResponsibilityTemplateCatalog({
 
               {dirtyPermissions && canManagePermissions && !selected.systemManaged ? <div className="mt-5 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <AuditReasonSelector idPrefix="responsibility-permissions" value={reason} onChange={setReason} tier="ELEVATED" />
-                {!hardening ? <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => { void previewPermissions(); }} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:bg-slate-300">Review permission changes</button><button type="button" onClick={resetPermissionDraft} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700">Discard changes</button></div> : null}
+                {!hardening ? <div className="flex flex-wrap gap-2"><Button type="button" disabled={busy} onClick={() => { void previewPermissions(); }} tone="primary" size="sm">Review permission changes</Button><Button type="button" onClick={resetPermissionDraft} tone="secondary" size="sm">Discard changes</Button></div> : null}
                 {hardening ? <HardeningReview preview={hardening} /> : null}
                 {hardening && uiPreview && draftUiPreview ? <UiAccessImpactReview before={uiPreview.uiAccess} after={draftUiPreview.uiAccess} /> : null}
-                {hardening?.approvalRequired ? <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black text-amber-950">Independent approval required</p><p className="text-xs leading-5 text-amber-900">A different authorized approver must approve this exact permission change. This prevents one person from granting a critical responsibility alone.</p>{matchingApprovals.length ? <FieldLabel htmlFor="responsibility-approved-request" label="Approved request"><SelectField id="responsibility-approved-request" value={approvalId ?? ''} onChange={(value) => setApprovalId(value || null)} options={matchingApprovals.map((approval) => ({ value: approval.approvalId, label: `Approved by ${approval.approverId}`, description: new Date(approval.decidedAt ?? approval.requestedAt).toLocaleString() }))} placeholder="Select an approved request" /></FieldLabel> : canRequestApproval ? <button type="button" disabled={busy || hardening.conflicts.length > 0} onClick={() => { void requestApproval(); }} className="rounded-xl bg-amber-700 px-4 py-2.5 text-sm font-black text-white disabled:bg-slate-300">Request independent approval</button> : <p className="text-xs font-bold text-amber-900">Ask an authorized access owner to request approval.</p>}</div> : null}
-                {hardening ? <div className="flex flex-wrap gap-2"><button type="button" disabled={busy || hardening.conflicts.length > 0 || (hardening.approvalRequired && !approvalId)} onClick={() => { void savePermissions(); }} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-black text-white disabled:bg-slate-300">Save permission matrix</button><button type="button" onClick={() => { setHardening(null); setDraftUiPreview(null); }} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700">Back to editing</button></div> : null}
+                {hardening?.approvalRequired ? <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-black text-amber-950">Independent approval required</p><p className="text-xs leading-5 text-amber-900">A different authorized approver must approve this exact permission change. This prevents one person from granting a critical responsibility alone.</p>{matchingApprovals.length ? <FieldLabel htmlFor="responsibility-approved-request" label="Approved request"><SelectField id="responsibility-approved-request" value={approvalId ?? ''} onChange={(value) => setApprovalId(value || null)} options={matchingApprovals.map((approval) => ({ value: approval.approvalId, label: `Approved by ${approval.approverId}`, description: new Date(approval.decidedAt ?? approval.requestedAt).toLocaleString() }))} placeholder="Select an approved request" /></FieldLabel> : canRequestApproval ? <Button type="button" disabled={busy || hardening.conflicts.length > 0} onClick={() => { void requestApproval(); }} tone="warning" size="sm">Request independent approval</Button> : <p className="text-xs font-bold text-amber-900">Ask an authorized access owner to request approval.</p>}</div> : null}
+                {hardening ? <div className="flex flex-wrap gap-2"><Button type="button" disabled={busy || hardening.conflicts.length > 0 || (hardening.approvalRequired && !approvalId)} onClick={() => { void savePermissions(); }} tone="primary" size="sm">Save permission matrix</Button><Button type="button" onClick={() => { setHardening(null); setDraftUiPreview(null); }} tone="secondary" size="sm">Back to editing</Button></div> : null}
               </div> : null}
             </section>
           </div>
@@ -392,19 +393,19 @@ export function ResponsibilityTemplateCatalog({
           <FieldLabel htmlFor="responsibility-description" label="Purpose" help="Explain when this responsibility should be assigned."><textarea id="responsibility-description" value={editor.description} onChange={(event) => setEditor({ ...editor, description: event.target.value })} placeholder="Review finance tasks and approve routine finance work." rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2.5" /></FieldLabel>
           {editor.mode === 'CREATE' ? <details className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><summary className="cursor-pointer text-sm font-black text-slate-800">Advanced business code</summary><p className="mt-2 text-xs leading-5 text-slate-600">Usually leave this blank. OpenDispatch generates a stable code from the responsibility name.</p><input value={editor.businessCode} onChange={(event) => setEditor({ ...editor, businessCode: event.target.value })} placeholder={normalizeBusinessCode(editor.roleName || 'Finance Reviewer')} className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" /></details> : null}
           <AuditReasonSelector idPrefix="responsibility-editor" value={reason} onChange={setReason} tier="ELEVATED" />
-          <button disabled={busy} className="w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-black text-white disabled:bg-slate-300">{editor.mode === 'CREATE' ? 'Create responsibility' : 'Save changes'}</button>
+          <Button disabled={busy} tone="primary" size="md" fullWidth>{editor.mode === 'CREATE' ? 'Create responsibility' : 'Save changes'}</Button>
         </form> : null}
       </WorkspaceModal>
 
       <WorkspaceModal open={lifecycleOpen} title={selected?.status === 'ACTIVE' ? 'Disable responsibility' : 'Activate responsibility'} description={selected?.status === 'ACTIVE' ? 'Disabling prevents new assignments while preserving historical evidence. Review existing assignments separately.' : 'Activating makes the responsibility available for new assignments.'} onClose={() => setLifecycleOpen(false)}>
-        <div className="space-y-4"><div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><b>{selected?.roleName}</b> {selected?.status === 'ACTIVE' ? 'will no longer be offered for new access assignments.' : 'will become available for access assignments.'}</div><AuditReasonSelector idPrefix="responsibility-lifecycle" value={reason} onChange={setReason} tier="ELEVATED" /><button type="button" disabled={busy} onClick={() => { void changeLifecycle(); }} className="w-full rounded-xl bg-amber-700 px-4 py-3 text-sm font-black text-white disabled:bg-slate-300">Confirm lifecycle change</button></div>
+        <div className="space-y-4"><div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><b>{selected?.roleName}</b> {selected?.status === 'ACTIVE' ? 'will no longer be offered for new access assignments.' : 'will become available for access assignments.'}</div><AuditReasonSelector idPrefix="responsibility-lifecycle" value={reason} onChange={setReason} tier="ELEVATED" /><Button type="button" disabled={busy} onClick={() => { void changeLifecycle(); }} tone="warning" size="md" fullWidth>Confirm lifecycle change</Button></div>
       </WorkspaceModal>
 
       <WorkspaceModal open={deleteOpen} title={`Delete ${selected?.roleName ?? 'responsibility'}`} description="Delete removes this responsibility from normal assignment and administration while keeping historical audit evidence." onClose={() => setDeleteOpen(false)}>
         <div className="space-y-4">
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-950"><b className="block">Before deleting</b><p className="mt-1">Revoke all active assignments first. System-managed responsibilities cannot be deleted.</p><p className="mt-2 font-bold">Active assignments: {selectedTemplate?.activeAssignmentCount ?? 0}</p></div>
           <AuditReasonSelector idPrefix="responsibility-delete" value={reason} onChange={setReason} tier="HIGH_RISK" />
-          <button type="button" disabled={busy || (selectedTemplate?.activeAssignmentCount ?? 0) > 0 || !isAuditReasonValid(reason, 'HIGH_RISK')} onClick={() => { void deleteResponsibility(); }} className="w-full rounded-xl bg-rose-700 px-4 py-3 text-sm font-black text-white disabled:bg-slate-300">Delete responsibility</button>
+          <Button type="button" disabled={busy || (selectedTemplate?.activeAssignmentCount ?? 0) > 0 || !isAuditReasonValid(reason, 'HIGH_RISK')} onClick={() => { void deleteResponsibility(); }} tone="danger" size="md" fullWidth>Delete responsibility</Button>
         </div>
       </WorkspaceModal>
     </div>

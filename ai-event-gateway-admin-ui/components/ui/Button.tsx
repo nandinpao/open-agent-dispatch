@@ -11,22 +11,27 @@ export interface ButtonVisualProps {
   rightIcon?: ReactNode;
 }
 
-export type ButtonProps = ButtonVisualProps & ButtonHTMLAttributes<HTMLButtonElement>;
+export interface ButtonBehaviorProps {
+  busy?: boolean;
+  busyLabel?: string;
+}
+
+export type ButtonProps = ButtonVisualProps & ButtonBehaviorProps & ButtonHTMLAttributes<HTMLButtonElement>;
 export type AnchorButtonProps = ButtonVisualProps & AnchorHTMLAttributes<HTMLAnchorElement>;
 
 const toneClassMap: Record<ButtonTone, string> = {
-  primary: 'border-purple-600 bg-purple-600 text-white shadow-sm hover:bg-purple-700 focus:ring-purple-200',
-  secondary: 'border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 focus:ring-slate-200',
-  warning: 'border-amber-300 bg-amber-50 text-amber-800 shadow-sm hover:bg-amber-100 focus:ring-amber-200',
-  danger: 'border-rose-300 bg-rose-50 text-rose-700 shadow-sm hover:bg-rose-100 focus:ring-rose-200',
-  success: 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm hover:bg-emerald-100 focus:ring-emerald-200',
-  ghost: 'border-transparent bg-transparent text-slate-600 hover:bg-slate-100 focus:ring-slate-200',
+  primary: 'border-blue-700 bg-blue-700 text-white shadow-sm hover:bg-blue-800 focus-visible:ring-blue-300',
+  secondary: 'border-slate-300 bg-white text-slate-800 shadow-sm hover:bg-slate-50 focus-visible:ring-slate-300',
+  warning: 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm hover:bg-amber-100 focus-visible:ring-amber-300',
+  danger: 'border-rose-600 bg-rose-600 text-white shadow-sm hover:bg-rose-700 focus-visible:ring-rose-300',
+  success: 'border-emerald-700 bg-emerald-700 text-white shadow-sm hover:bg-emerald-800 focus-visible:ring-emerald-300',
+  ghost: 'border-transparent bg-transparent text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-300',
 };
 
 const sizeClassMap: Record<ButtonSize, string> = {
-  xs: 'rounded-lg px-2.5 py-1.5 text-xs',
-  sm: 'rounded-xl px-3 py-2 text-xs',
-  md: 'rounded-xl px-4 py-2.5 text-sm',
+  xs: 'min-h-8 rounded-lg px-2.5 py-1.5 text-xs',
+  sm: 'min-h-9 rounded-xl px-3 py-2 text-xs',
+  md: 'min-h-10 rounded-xl px-4 py-2.5 text-sm',
 };
 
 export function buttonClassName({
@@ -36,7 +41,7 @@ export function buttonClassName({
   className = '',
 }: Readonly<ButtonVisualProps & { className?: string }>): string {
   const widthClass = fullWidth ? 'w-full justify-center' : '';
-  return `inline-flex items-center gap-2 border font-bold transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 ${toneClassMap[tone]} ${sizeClassMap[size]} ${widthClass} ${className}`;
+  return `inline-flex items-center justify-center gap-2 border font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${toneClassMap[tone]} ${sizeClassMap[size]} ${widthClass} ${className}`;
 }
 
 export function Button({
@@ -48,12 +53,21 @@ export function Button({
   className = '',
   children,
   type = 'button',
+  busy = false,
+  busyLabel = 'Working…',
+  disabled,
   ...props
 }: Readonly<ButtonProps>) {
   return (
-    <button type={type} className={buttonClassName({ tone, size, fullWidth, className })} {...props}>
+    <button
+      type={type}
+      aria-busy={busy || undefined}
+      disabled={disabled || busy}
+      className={buttonClassName({ tone, size, fullWidth, className })}
+      {...props}
+    >
       {leftIcon}
-      <span>{children}</span>
+      {busy ? busyLabel : children}
       {rightIcon}
     </button>
   );
@@ -72,7 +86,7 @@ export function AnchorButton({
   return (
     <a className={buttonClassName({ tone, size, fullWidth, className })} {...props}>
       {leftIcon}
-      <span>{children}</span>
+      {children}
       {rightIcon}
     </a>
   );

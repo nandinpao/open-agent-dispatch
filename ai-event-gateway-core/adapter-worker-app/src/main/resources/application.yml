@@ -102,3 +102,5 @@ adapter-worker:
     lkg-enabled: ${ADAPTER_WORKER_RUNTIME_CONFIG_LKG_ENABLED:true}
     lkg-directory: ${ADAPTER_WORKER_RUNTIME_CONFIG_LKG_DIRECTORY:./data/runtime-config/worker}
     max-stale-ms: ${ADAPTER_WORKER_RUNTIME_CONFIG_MAX_STALE_MS:300000}
+    cold-start-wait-ms: ${ADAPTER_WORKER_RUNTIME_CONFIG_COLD_START_WAIT_MS:60000}
+    cold-start-retry-ms: ${ADAPTER_WORKER_RUNTIME_CONFIG_COLD_START_RETRY_MS:1000}

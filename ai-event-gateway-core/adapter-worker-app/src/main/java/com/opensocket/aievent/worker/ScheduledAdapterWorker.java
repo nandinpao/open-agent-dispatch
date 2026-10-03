@@ -4,13 +4,14 @@ import com.opensocket.aievent.service.adapter.AdapterWorkItem;
 import com.opensocket.aievent.worker.configuration.AdapterWorkerRuntimeConfigurationView;
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-public class ScheduledAdapterWorker implements InitializingBean, DisposableBean {
+public class ScheduledAdapterWorker implements DisposableBean {
     private final AdapterWorkerRuntimeConfigurationView runtimeConfiguration;
     private final CoreAdapterActionClient client;
     private final List<AdapterWorkExecutor> executors;
@@ -23,7 +24,7 @@ public class ScheduledAdapterWorker implements InitializingBean, DisposableBean 
         this.runtimeConfiguration=runtimeConfiguration;this.client=client;this.executors=executors;this.taskScheduler=taskScheduler;this.observationRegistry=observationRegistry;
         this.dynamicTask=new WorkerDynamicFixedDelayTask(taskScheduler,"adapter-worker-poll",this::poll,runtimeConfiguration::pollInterval);
     }
-    @Override public void afterPropertiesSet(){dynamicTask.start();}
+    @EventListener(ApplicationReadyEvent.class) public void startAfterApplicationReady(){dynamicTask.start();}
     @Override public void destroy(){dynamicTask.stop();}
     public void poll(){
         if(!runtimeConfiguration.enabled())return;

@@ -100,7 +100,7 @@ export function ProductionEnforceObservabilityPanel() {
             <button type="button" onClick={copyExport} className="rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100">
               Copy observability export
             </button>
-            <Link href="/settings/release-cutover" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50">
+            <Link href="/settings/release-certification?view=cutover" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50">
               Release cutover →
             </Link>
           </div>
@@ -173,7 +173,7 @@ export function ProductionEnforceObservabilityPanel() {
           `Template: ${p3pProductionEnforceObservabilityFixture.operatorIncidentWorkflow.incidentTemplate}`,
           `Issue tracking: ${p3pProductionEnforceObservabilityFixture.operatorIncidentWorkflow.issueTrackingLink}`,
         ]} href="/settings/issue-tracking" hrefLabel="Open issue tracking →" />
-        <InfoCard title="Rollback criteria" badge="ROLLBACK_CRITERIA" items={p3pProductionEnforceObservabilityFixture.rollbackCriteria} href="/settings/release-cutover" hrefLabel="Open cutover runbook →" />
+        <InfoCard title="Rollback criteria" badge="ROLLBACK_CRITERIA" items={p3pProductionEnforceObservabilityFixture.rollbackCriteria} href="/settings/release-certification?view=cutover" hrefLabel="Open cutover runbook →" />
         <InfoCard title="Legacy cleanup final report" badge="LEGACY_FINAL_REPORT" items={legacyFinalReport.length
           ? legacyFinalReport.map((item) => `${item.category}: ${item.count} · ${item.severity ?? 'INFO'}`)
           : ['No archived legacy comparison rows or non-authoritative active policies were reported by Core.']}

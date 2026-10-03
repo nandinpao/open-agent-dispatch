@@ -115,12 +115,23 @@ public class RedmineIssueVendorExecutor extends AbstractHttpIssueVendorExecutor 
                     "Redmine project is required by the resolved Project Mapping");
         }
         try {
+            String priorityId = firstNonBlank(
+                    command.priorityId(),
+                    text(command.providerFields(), "priority_id", "priorityId"));
+            if (priorityId == null) priorityId = resolveDefaultPriorityId();
+            if (priorityId == null) {
+                return IssueConnectorResult.failure(IssueConnectorOperation.CREATE, provider(), null, false,
+                        IssueProviderFailureCode.ISSUE_PROVIDER_VALIDATION_FAILED,
+                        IssueProviderHealthImpact.NONE,
+                        "ISSUE_PROVIDER_REQUIRED_FIELD_UNMAPPED:priority_id");
+            }
+
             Map<String, Object> issue = new LinkedHashMap<>();
             issue.put("project_id", properties.getProjectId());
             issue.put("subject", command.subject());
             if (command.description() != null) issue.put("description", withIdempotencyMarker(command.description(), command.idempotencyKey(), null));
             if (properties.getTrackerId() != null && !properties.getTrackerId().isBlank()) issue.put("tracker_id", parseReference(properties.getTrackerId()));
-            if (command.priorityId() != null) issue.put("priority_id", parseReference(command.priorityId()));
+            issue.put("priority_id", parseReference(priorityId));
             applyCreateProviderFields(issue, command.providerFields());
             log.info("issue_provider_http_request_started provider=REDMINE operation=CREATE method=POST path=/issues.json projectId={} trackerId={} idempotencyKeyPresent={}",
                     properties.getProjectId(), properties.getTrackerId(), command.idempotencyKey() != null && !command.idempotencyKey().isBlank());
@@ -238,12 +249,77 @@ public class RedmineIssueVendorExecutor extends AbstractHttpIssueVendorExecutor 
     }
 
     private IssueCreateCommand toCreateCommand(IssueExecutorRequest request) {
-        String priority = redminePriorityReference(request);
+        Map<String, Object> providerFields = providerFields(request.getPayload());
+        String priority = resolveCreatePriorityId(request.getPayload(), providerFields);
+        if (priority == null) {
+            throw new IllegalArgumentException("ISSUE_PROVIDER_REQUIRED_FIELD_UNMAPPED:priority_id");
+        }
         return new IssueCreateCommand(
                 title(request),
                 description(request),
                 priority,
-                idempotencyKey(request));
+                idempotencyKey(request),
+                providerFields);
+    }
+
+    /**
+     * Resolve the canonical Redmine CREATE priority contract.
+     *
+     * <p>Resolution order is intentionally shared by the typed runtime and the legacy/scoped
+     * compatibility bridge so Integration Sync, AdapterAction execution and recovery replay cannot
+     * disagree about a required provider field:</p>
+     * <ol>
+     *   <li>explicit provider reference on the action payload,</li>
+     *   <li>governed providerFields materialized by Project Mapping,</li>
+     *   <li>semantic OpenDispatch severity mapped through configured Redmine priority names/ids,</li>
+     *   <li>the live Redmine default issue priority.</li>
+     * </ol>
+     *
+     * <p>If no reference can be resolved the caller must fail before POST /issues.json.</p>
+     */
+    public String resolveCreatePriorityId(Map<String, Object> payload, Map<String, Object> providerFields) {
+        String explicitPriorityId = firstNonBlank(
+                text(payload, "priorityId", "priority_id"),
+                text(providerFields, "priority_id", "priorityId"));
+        if (explicitPriorityId != null) return explicitPriorityId;
+
+        String severity = text(payload, "severity", "priority", "taskPriority");
+        if (severity != null) {
+            String configuredPriority = priorityReferenceForSeverity(severity);
+            String resolvedConfiguredPriority = resolveConfiguredPriorityReference(configuredPriority);
+            if (resolvedConfiguredPriority != null) return resolvedConfiguredPriority;
+        }
+
+        return resolveDefaultPriorityId();
+    }
+
+    private String resolveConfiguredPriorityReference(String configuredPriority) {
+        if (configuredPriority == null || configuredPriority.isBlank()) return null;
+        Object parsed = parseReference(configuredPriority);
+        if (parsed instanceof Integer) return String.valueOf(parsed);
+        Integer resolved = resolvePriorityName(configuredPriority);
+        return resolved == null ? null : String.valueOf(resolved);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> providerFields(Map<String, Object> payload) {
+        if (payload == null || payload.isEmpty()) return Map.of();
+        Object direct = payload.get("providerFields");
+        if (direct instanceof Map<?, ?> map) return copyStringKeyMap(map);
+        Object approved = payload.get("approvedContext");
+        if (approved instanceof Map<?, ?> approvedMap) {
+            Object nested = approvedMap.get("providerFields");
+            if (nested instanceof Map<?, ?> map) return copyStringKeyMap(map);
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> copyStringKeyMap(Map<?, ?> map) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        map.forEach((key, value) -> {
+            if (key != null) out.put(String.valueOf(key), value);
+        });
+        return out.isEmpty() ? Map.of() : Map.copyOf(out);
     }
 
     private IssueUpdateCommand toUpdateCommand(IssueExecutorRequest request) {
@@ -380,19 +456,6 @@ public class RedmineIssueVendorExecutor extends AbstractHttpIssueVendorExecutor 
         response.setRetryable(result.retryable());
         response.setError(result.errorMessage());
         return response;
-    }
-
-    private String redminePriorityReference(IssueExecutorRequest request) {
-        String explicitPriorityId = text(request.getPayload(), "priorityId", "priority_id");
-        if (explicitPriorityId != null) return explicitPriorityId;
-        String severity = text(request.getPayload(), "severity", "priority", "taskPriority");
-        if (severity == null) return null;
-        String configuredPriority = priorityReferenceForSeverity(severity);
-        if (configuredPriority == null || configuredPriority.isBlank()) return null;
-        Object parsed = parseReference(configuredPriority);
-        if (parsed instanceof Integer) return String.valueOf(parsed);
-        Integer resolved = resolvePriorityName(configuredPriority);
-        return resolved == null ? null : String.valueOf(resolved);
     }
 
     private String priorityReferenceForSeverity(String severity) {

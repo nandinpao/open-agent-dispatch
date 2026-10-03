@@ -73,6 +73,11 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <!-- The reactor parent skips Boot packaging for library modules by default. -->
+          <skip>false</skip>
+          <mainClass>com.opensocket.aievent.worker.AdapterWorkerApplication</mainClass>
+        </configuration>
       </plugin>
     </plugins>
   </build>

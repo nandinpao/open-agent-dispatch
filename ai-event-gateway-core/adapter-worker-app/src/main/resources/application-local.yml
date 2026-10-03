@@ -1,0 +1,4 @@
+# C3R3 pre-cutover LOCAL authority mode: Runtime Configuration is still DUAL_READ_MIGRATION.
+adapter-worker:
+  runtime-configuration:
+    fail-closed-on-cold-start: false

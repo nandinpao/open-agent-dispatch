@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { apiRequest } from '@/lib/api/client';
+import { coreTenantApiRequest } from '@/lib/api/client';
 
 type Gate = { gateId:string; label:string; status:string; evidence:string; blocking:boolean };
 type Readiness = { phase:string; status:string; productionReady:boolean; generatedAt:string; gates:Gate[]; limitations:string[] };
@@ -10,7 +10,7 @@ export function Phase3ReleaseReadinessPanel() {
   const [value,setValue]=useState<Readiness|null>(null);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
-  const load=useCallback(async()=>{setLoading(true);setError('');try{setValue(await apiRequest<Readiness>('/api/integrations/phase3-release-readiness'));}catch(e){setError(e instanceof Error?e.message:'Unable to load release readiness.');}finally{setLoading(false);}},[]);
+  const load=useCallback(async()=>{setLoading(true);setError('');try{setValue(await coreTenantApiRequest<Readiness>('/api/integrations/phase3-release-readiness'));}catch(e){setError(e instanceof Error?e.message:'Unable to load release readiness.');}finally{setLoading(false);}},[]);
   useEffect(()=>{void load();},[load]);
   return <section className="rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="phase3-readiness-title">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

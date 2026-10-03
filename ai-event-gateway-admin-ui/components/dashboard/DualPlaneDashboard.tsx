@@ -62,16 +62,20 @@ function latestRejectedConnections(items: NettyRejectedConnection[]): NettyRejec
     .slice(0, 5);
 }
 
-function SourceErrorList({ errors }: Readonly<{ errors: Record<string, string | undefined> }>) {
+function SourceErrorList({ errors, mode }: Readonly<{ errors: Record<string, string | undefined>; mode: 'basic' | 'advanced' | 'developer' }>) {
   const entries = Object.entries(errors).filter(([, value]) => value);
   if (entries.length === 0) return null;
 
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-      <div className="font-bold">Some live data sources failed. The dashboard is showing only the live data that was returned.</div>
-      <ul className="mt-2 list-disc space-y-1 pl-5">
-        {entries.map(([key, value]) => <li key={key}>{key}: {value}</li>)}
-      </ul>
+      <div className="font-bold">Some live dashboard checks are unavailable. Available operational data is still shown below.</div>
+      {mode === 'basic' ? (
+        <p className="mt-1 text-xs leading-5 text-amber-700">{entries.length} live check{entries.length === 1 ? '' : 's'} could not be loaded. Switch to Advanced for subsystem context or Developer for raw error details.</p>
+      ) : (
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+          {entries.map(([key, value]) => <li key={key}><b>{key}</b>{mode === 'developer' ? `: ${value}` : ' · unavailable'}</li>)}
+        </ul>
+      )}
     </div>
   );
 }
@@ -225,30 +229,30 @@ function OperationalSloPanel({ slo }: Readonly<{ slo?: Record<string, unknown> }
   );
 }
 
-function ControlPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
+function ControlPlaneSection({ data, mode }: Readonly<{ data: DualDashboardData; mode: 'basic' | 'advanced' | 'developer' }>) {
   const summary = data.summaries.control;
   const tasks = recentTasks(data.tasks);
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle
-        title="Business Truth / Core Authority"
-        description="Core authoritative data: Incident, Task, Agent Capability approval, Security and operator decision."
+        title={mode === 'basic' ? "Work & operational status" : "Business Truth / Core Authority"}
+        description={mode === 'basic' ? "Current Tasks, incidents, approvals and operator-attention items from the authoritative work state." : "Core authoritative data: Incident, Task, Agent Capability approval, Security and operator decision."}
         status={planeStatus(data, 'core')}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="Open Incidents" value={formatNumber(summary.openIncidents)} subtitle="Core incident authority" />
-        <MetricCard title="Pending Tasks" value={formatNumber(summary.pendingTasks)} subtitle="Core task state" />
+        <MetricCard title="Open Incidents" value={formatNumber(summary.openIncidents)} subtitle={mode === 'basic' ? 'Needs attention' : 'Core incident authority'} />
+        <MetricCard title="Pending Tasks" value={formatNumber(summary.pendingTasks)} subtitle={mode === 'basic' ? 'Work not finished yet' : 'Core task state'} />
         <MetricCard title="Failed Dispatch" value={formatNumber(summary.failedDispatches)} subtitle="Delivery failed / timeout" />
         <MetricCard title="Dead-letter" value={formatNumber(summary.deadLetterDispatches)} subtitle="Needs operator recovery" />
         <MetricCard title="Pending Approvals" value={formatNumber(summary.pendingAgentApprovals)} subtitle="Agent enrollment review" />
-        <MetricCard title="Approved Agents" value={formatNumber(summary.approvedAgents)} subtitle="Core trusted profiles" />
+        <MetricCard title="Approved Agents" value={formatNumber(summary.approvedAgents)} subtitle={mode === 'basic' ? 'Available approved profiles' : 'Core trusted profiles'} />
         <MetricCard title="Suspended / Revoked" value={formatNumber(summary.suspendedOrRevokedAgents)} subtitle="Risk-controlled agents" />
-        <MetricCard title="Core Profiles" value={formatNumber(data.profiles.length)} subtitle="Agent profile rows" />
+        <MetricCard title={mode === 'basic' ? 'Known Agents' : 'Core Profiles'} value={formatNumber(data.profiles.length)} subtitle={mode === 'basic' ? 'Registered Agent profiles' : 'Agent profile rows'} />
       </div>
-      <OperationalSloPanel slo={data.coreSnapshot?.operationalSlo} />
+      {mode === 'basic' ? null : <OperationalSloPanel slo={data.coreSnapshot?.operationalSlo} />}
       <div>
-        <div className="mb-3 text-sm font-bold text-slate-900">Recent Core Tasks</div>
+        <div className="mb-3 text-sm font-bold text-slate-900">{mode === 'basic' ? 'Recent Tasks' : 'Recent Core Tasks'}</div>
         {tasks.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">No Core task runtime-view data.</div> : (
           <div className="overflow-hidden rounded-xl border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -281,7 +285,7 @@ function ControlPlaneSection({ data }: Readonly<{ data: DualDashboardData }>) {
 }
 
 
-function DispatchTruthSection({ data }: Readonly<{ data: DualDashboardData }>) {
+function DispatchTruthSection({ data, mode }: Readonly<{ data: DualDashboardData; mode: 'basic' | 'advanced' | 'developer' }>) {
   const tasks = data.tasks;
   const awaitingCallback = tasks.filter((task) => String(task.callbackStatus ?? '').toUpperCase().includes('WAIT')).length;
   const retrying = tasks.filter((task) => Boolean(task.nextDispatchAttemptAt) || String(task.dispatchStatus ?? '').toUpperCase().includes('RETRY')).length;
@@ -291,17 +295,17 @@ function DispatchTruthSection({ data }: Readonly<{ data: DualDashboardData }>) {
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle
-        title="Dispatch Truth / Callback Ledger"
-        description="Core persisted dispatch view Dispatch Request,Timeline,Attempt Ledger and Callback Inbox Task details"
+        title={mode === 'basic' ? "Task delivery status" : "Dispatch Truth / Callback Ledger"}
+        description={mode === 'basic' ? "See whether work was dispatched, is waiting for a result, needs retry, or requires operator recovery." : "Core persisted dispatch view: Dispatch Request, Timeline, Attempt Ledger and Callback Inbox evidence."}
         status={planeStatus(data, 'core')}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="Tasks With Dispatch" value={formatNumber(withDispatchRequest)} subtitle="Core dispatch request linked" />
-        <MetricCard title="Awaiting Callback" value={formatNumber(awaitingCallback)} subtitle="Callback not authoritative yet" />
+        <MetricCard title="Tasks With Dispatch" value={formatNumber(withDispatchRequest)} subtitle={mode === 'basic' ? 'Sent into the delivery workflow' : 'Core dispatch request linked'} />
+        <MetricCard title="Awaiting Result" value={formatNumber(awaitingCallback)} subtitle={mode === 'basic' ? 'Waiting for Agent result' : 'Callback not authoritative yet'} />
         <MetricCard title="Retry / Recovery" value={formatNumber(retrying)} subtitle="Next attempt or retry state" />
         <MetricCard title="Dead-letter" value={formatNumber(deadLetter)} subtitle="Operator recovery required" />
       </div>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+      {mode === 'basic' ? null : <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="text-xs font-black uppercase tracking-wide text-slate-500">1. Routing</div>
           <div className="mt-2 text-sm font-bold text-slate-900">Core  Agent</div>
@@ -322,7 +326,7 @@ function DispatchTruthSection({ data }: Readonly<{ data: DualDashboardData }>) {
           <div className="mt-2 text-sm font-bold text-slate-900">Retry or dead-letter</div>
           <div className="mt-1 text-xs leading-5 text-slate-500">manual retry,DLQ and issue sync  Core ledger </div>
         </div>
-      </div>
+      </div>}
     </section>
   );
 }
@@ -704,10 +708,10 @@ export function DualPlaneDashboard() {
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium text-slate-500">Three-layer Operations Dashboard</div>
-            <div className="mt-1 text-xl font-bold text-slate-950">Business Truth + Dispatch Truth + Runtime Diagnostics</div>
-            <div className="mt-1 text-xs text-slate-500">
-              Mode:{env.adminBackendMode};Core:{env.coreApiBaseUrl};Netty:{env.nettyApiBaseUrl};WS:{env.nettyRuntimeWsUrl}
+            <div className="text-sm font-medium text-slate-500">{mode === 'basic' ? 'Operations overview' : mode === 'advanced' ? 'Operations & governance dashboard' : 'Operations & runtime diagnostics'}</div>
+            <div className="mt-1 text-xl font-bold text-slate-950">{mode === 'basic' ? 'What needs attention now?' : mode === 'advanced' ? 'Business state + dispatch state + runtime health' : 'Business Truth + Dispatch Truth + Runtime Diagnostics'}</div>
+            <div className="mt-1 text-xs leading-5 text-slate-500">
+              {mode === 'basic' ? 'Daily work status is shown first. Deeper runtime and transport evidence is intentionally hidden.' : mode === 'advanced' ? 'Adds runtime, trust and recovery evidence without exposing raw transport payloads.' : `Backend mode: ${env.adminBackendMode} · Core: ${env.coreApiBaseUrl} · Gateway: ${env.nettyApiBaseUrl} · Runtime stream: ${env.nettyRuntimeWsUrl}`}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -719,19 +723,23 @@ export function DualPlaneDashboard() {
         </div>
       </div>
 
-      <SourceErrorList errors={data.sourceErrors} />
+      <SourceErrorList errors={data.sourceErrors} mode={mode} />
 
       <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-        <div className="font-bold">Data semantics</div>
-        <div className="mt-1">Business Truth and Dispatch Truth use Core persisted state as the authority. Runtime Diagnostics only describe Gateway session, delivery, and callback relay observations. Agent online does not mean approved or dispatch-ready, and a delivery event does not mean Core accepted the callback.</div>
+        <div className="font-bold">How to read this dashboard</div>
+        <div className="mt-1">{mode === 'basic' ? 'Use this view to find work that is pending, failed, waiting for a result, or needs operator attention. Switch levels only when you need deeper evidence.' : 'Business and dispatch state come from Core persisted authority. Runtime sections describe observed Gateway sessions, delivery and callback relay. Online does not mean approved or dispatch-ready, and transport delivery does not mean Core accepted the result.'}</div>
       </div>
 
-      <ControlPlaneSection data={data} />
-      <DispatchTruthSection data={data} />
-      <RuntimePlaneSection data={data} />
-      <TrustPlaneSection data={data} />
-      <RecoveryOperationsSection metrics={data.recoveryMetrics} runbook={data.recoveryRunbook} approvals={data.recoveryApprovals} error={data.sourceErrors.coreRecoveryMetrics} runbookError={data.sourceErrors.coreRecoveryRunbook} approvalError={data.sourceErrors.coreRecoveryApprovals} onRefresh={dashboard.refresh} />
-      <RealtimeSummary />
+      <ControlPlaneSection data={data} mode={mode} />
+      <DispatchTruthSection data={data} mode={mode} />
+      {mode === 'basic' ? null : (
+        <>
+          <RuntimePlaneSection data={data} />
+          <TrustPlaneSection data={data} />
+          <RecoveryOperationsSection metrics={data.recoveryMetrics} runbook={data.recoveryRunbook} approvals={data.recoveryApprovals} error={data.sourceErrors.coreRecoveryMetrics} runbookError={data.sourceErrors.coreRecoveryRunbook} approvalError={data.sourceErrors.coreRecoveryApprovals} onRefresh={dashboard.refresh} />
+          <RealtimeSummary />
+        </>
+      )}
 
       {mode === 'developer' ? (
         <details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

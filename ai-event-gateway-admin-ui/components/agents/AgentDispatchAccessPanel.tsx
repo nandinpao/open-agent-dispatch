@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useDialogAccessibility } from "@/hooks/useDialogAccessibility";
 import { coreAdminApi } from "@/lib/api/coreAdminApi";
 import type { CoreAgentAuthorizationScope, CoreDispatchFlowView } from "@/lib/types/core";
+import { Button } from '@/components/ui/Button';
 
 function normalized(value?: string | null): string {
   return String(value ?? "").trim();
@@ -73,7 +74,7 @@ function AccessBadge({ scope, onRemove }: Readonly<{ scope: CoreAgentAuthorizati
         <div className="font-black">{normalized(scope.systemCode) || "Unknown source"}</div>
         <div className="mt-0.5 text-xs font-semibold opacity-75">{normalized(scope.taskType) || "Unknown work"}</div>
       </div>
-      {onRemove ? <button type="button" onClick={onRemove} className="rounded-lg border border-current/20 bg-white px-2 py-1 text-xs font-black hover:bg-white/70">Remove</button> : null}
+      {onRemove ? <Button type="button" onClick={onRemove} tone="danger" size="xs">Remove</Button> : null}
     </div>
   );
 }
@@ -170,9 +171,9 @@ export function AgentDispatchAccessPanel({
           <h3 className="font-black text-slate-950">Allowed Work</h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">Choose which work from active Dispatch Flows this Agent is allowed to execute. Capability approval still decides what the Agent can do; this list only limits where that work may come from.</p>
         </div>
-        <button type="button" onClick={() => setOpen(true)} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800">
+        <Button type="button" onClick={() => setOpen(true)} tone="primary" size="sm">
           {enabled.length === 0 ? "Choose allowed work" : "Change allowed work"}
-        </button>
+        </Button>
       </div>
 
       <div className="mt-4 grid gap-2 md:grid-cols-2">
@@ -191,7 +192,7 @@ export function AgentDispatchAccessPanel({
                 <h2 className="text-xl font-black text-slate-950">Choose allowed work</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600">The choices below come directly from active Dispatch Flows. You do not need to create or understand a separate Task Definition.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} disabled={saving} className="rounded-lg px-3 py-1 text-sm font-bold text-slate-500 hover:bg-slate-100">Close</button>
+              <Button type="button" onClick={() => setOpen(false)} disabled={saving} tone="secondary" size="xs">Close</Button>
             </div>
 
             {error ? <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-900">{error}</div> : null}
@@ -210,7 +211,7 @@ export function AgentDispatchAccessPanel({
                       <div className="font-black text-blue-950">Suggested from active flows</div>
                       <p className="mt-1 text-sm leading-6 text-blue-900">Apply all currently active work pairs, then remove anything this Agent should not execute.</p>
                     </div>
-                    <button type="button" onClick={addRecommendedRules} className="rounded-xl border border-blue-300 bg-white px-3 py-2 text-sm font-black text-blue-800 hover:bg-blue-100">Use active-flow work</button>
+                    <Button type="button" onClick={addRecommendedRules} tone="primary" size="sm">Use active-flow work</Button>
                   </div>
                 </section>
 
@@ -228,7 +229,7 @@ export function AgentDispatchAccessPanel({
                       </select>
                     </label>
                   </div>
-                  <button type="button" onClick={addSelectedRule} disabled={!sourceSystem || !taskType} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white disabled:bg-slate-300">Add work</button>
+                  <Button type="button" onClick={addSelectedRule} disabled={!sourceSystem || !taskType} tone="primary" size="sm" className="mt-4">Add work</Button>
                 </section>
               </>
             )}
@@ -243,8 +244,8 @@ export function AgentDispatchAccessPanel({
             <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-slate-100 pt-4">
               <Link href="/dispatch-flows" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50">Open Dispatch Flows</Link>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setOpen(false)} disabled={saving} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50">Cancel</button>
-                <button type="button" onClick={() => void save()} disabled={saving} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800 disabled:bg-slate-300">{saving ? "Saving…" : "Save allowed work"}</button>
+                <Button type="button" onClick={() => setOpen(false)} disabled={saving} tone="secondary" size="sm">Cancel</Button>
+                <Button type="button" onClick={() => void save()} disabled={saving} tone="primary" size="sm">{saving ? "Saving…" : "Save allowed work"}</Button>
               </div>
             </div>
           </div>

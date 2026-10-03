@@ -2,7 +2,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DelegationGovernanceConsole } from '@/components/capabilities/DelegationGovernanceConsole';
 
 export default function DelegationGovernancePage() {
-  return 
+  return (
     <main className="space-y-5">
       <PageHeader
         title="Delegation Governance"
@@ -10,5 +10,5 @@ export default function DelegationGovernancePage() {
       />
       <DelegationGovernanceConsole />
     </main>
-  ;
+  );
 }

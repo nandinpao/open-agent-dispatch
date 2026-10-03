@@ -13,6 +13,7 @@ import {
 } from '@/lib/api/domains/a2aOperationsApi';
 import { A2AOperationsDetailView } from './A2AOperationsDetailView';
 import { A2AStatusBadge } from './A2AStatusBadge';
+import { Button } from '@/components/ui/Button';
 
 const REQUEST_STATUSES = [
   '',
@@ -238,9 +239,9 @@ export function A2AOperationsWorkspace({ initialRequestId }: { initialRequestId?
             <h2 className="mt-1 text-lg font-black text-slate-900">Delegated work</h2>
             <p className="mt-1 text-xs text-slate-500">Governed delegated work that may require operational attention.</p>
           </div>
-          <button type="button" onClick={() => void loadList()} className="rounded-lg border px-3 py-2 text-xs font-black">
+          <Button type="button" onClick={() => void loadList()} tone="secondary" size="xs">
             Refresh
-          </button>
+          </Button>
         </div>
 
         <form className="mt-4 space-y-3" onSubmit={(event) => { event.preventDefault(); applySearch(); }}>
@@ -295,8 +296,8 @@ export function A2AOperationsWorkspace({ initialRequestId }: { initialRequestId?
           </label>
 
           <div className="flex flex-wrap gap-2">
-            <button type="submit" className="rounded-xl bg-indigo-700 px-4 py-2 text-sm font-black text-white">Search</button>
-            <button
+            <Button type="submit" tone="primary" size="sm">Search</Button>
+            <Button
               type="button"
               onClick={() => {
                 setQuery('');
@@ -306,19 +307,19 @@ export function A2AOperationsWorkspace({ initialRequestId }: { initialRequestId?
                 setBlockerOnly(false);
                 setOffset(0);
               }}
-              className="rounded-xl border px-4 py-2 text-sm font-black"
+              tone="secondary" size="sm"
             >
               Reset
-            </button>
-            <button type="button" onClick={saveView} className="rounded-xl border px-3 py-2 text-xs font-black">Save view</button>
-            <button type="button" onClick={restoreView} className="rounded-xl border px-3 py-2 text-xs font-black">Restore</button>
-            <button
+            </Button>
+            <Button type="button" onClick={saveView} tone="primary" size="xs">Save view</Button>
+            <Button type="button" onClick={restoreView} tone="secondary" size="xs">Restore</Button>
+            <Button
               type="button"
               onClick={() => setSortDirection((value) => value === 'DESC' ? 'ASC' : 'DESC')}
-              className="rounded-xl border px-3 py-2 text-xs font-black"
+              tone="secondary" size="xs"
             >
               {sortDirection === 'DESC' ? 'Newest' : 'Oldest'}
-            </button>
+            </Button>
           </div>
         </form>
 
@@ -352,22 +353,22 @@ export function A2AOperationsWorkspace({ initialRequestId }: { initialRequestId?
         </div>
 
         <div className="mt-3 flex justify-between">
-          <button
+          <Button
             type="button"
             disabled={offset === 0}
             onClick={() => setOffset(Math.max(0, offset - limit))}
-            className="rounded-lg border px-3 py-2 text-xs font-black disabled:opacity-40"
+            tone="secondary" size="xs"
           >
             Previous
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={offset + limit >= total}
             onClick={() => setOffset(offset + limit)}
-            className="rounded-lg border px-3 py-2 text-xs font-black disabled:opacity-40"
+            tone="secondary" size="xs"
           >
             Next
-          </button>
+          </Button>
         </div>
       </aside>
 

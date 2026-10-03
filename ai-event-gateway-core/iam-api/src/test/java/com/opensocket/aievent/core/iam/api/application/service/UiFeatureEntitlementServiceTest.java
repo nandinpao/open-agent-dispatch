@@ -71,6 +71,31 @@ class UiFeatureEntitlementServiceTest {
     }
 
     @Test
+    void highRiskSettingsUseDedicatedFeatureAndActionProjection() {
+        var viewer = service.project(session(Set.of("TENANT_OPERATOR"), Set.of(
+                "admin.agent.assignment.capabilities", "release.certification.read"), "tenant-a"));
+        assertEquals("READ_ONLY", viewer.pages().get("delegation-governance").displayMode());
+        assertEquals("READ_ONLY", viewer.pages().get("provider-routing").displayMode());
+        assertEquals("READ_ONLY", viewer.pages().get("release-certification").displayMode());
+        assertEquals("HIDDEN", viewer.actionEntitlements().get("delegation-governance.manage").displayMode());
+        assertEquals("HIDDEN", viewer.actionEntitlements().get("provider-routing.manage").displayMode());
+        assertEquals("HIDDEN", viewer.actionEntitlements().get("release-certification.candidate.activate").displayMode());
+
+        var manager = service.project(session(Set.of("TENANT_ADMIN"), Set.of(
+                "admin.agent.assignment.capabilities", "admin.agent.assignment.upsert.capability",
+                "release.certification.read", "release.candidate.create", "release.candidate.activate",
+                "release.flow.promote"), "tenant-a"));
+        assertEquals("ENABLED", manager.pages().get("delegation-governance").displayMode());
+        assertEquals("ENABLED", manager.pages().get("provider-routing").displayMode());
+        assertEquals("ENABLED", manager.pages().get("release-certification").displayMode());
+        assertEquals("ENABLED", manager.actionEntitlements().get("delegation-governance.manage").displayMode());
+        assertEquals("ENABLED", manager.actionEntitlements().get("provider-routing.manage").displayMode());
+        assertEquals("ENABLED", manager.actionEntitlements().get("release-certification.candidate.activate").displayMode());
+        assertEquals("ENABLED", manager.actionEntitlements().get("release-certification.flow.promote").displayMode());
+        assertTrue(manager.navigation().stream().anyMatch(item -> item.featureId().equals("administration")));
+    }
+
+    @Test
     void actionScopesPreserveCanonicalTenantAndDepartmentAuthority() {
         var result = service.project(session(
                 Set.of("DEPARTMENT_ADMIN"),

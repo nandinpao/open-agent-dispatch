@@ -15,7 +15,7 @@ export default async function RuntimeResourcesPage({ searchParams }: Readonly<Pa
         title="Runtime Resources"
         description="Maintain gateway, connector, and execution resource records used by agent connection and dispatch setup."
       />
-      <AdminUiModeNotice requiredMode="advanced" title="Advanced administration area" description="This page supports source data, migration, release, or readiness management. It is hidden from Basic Mode navigation so normal Agent setup stays simple." />
+      <AdminUiModeNotice requiredMode="developer" title="Developer engineering evidence" description="This page supports source data, migration, release, or readiness management. It is hidden from Basic Mode navigation so normal Agent setup stays simple." />
       <ReturnToAgentBanner searchParams={resolvedSearchParams} />
       <RuntimeResourceConsole />
     </main>

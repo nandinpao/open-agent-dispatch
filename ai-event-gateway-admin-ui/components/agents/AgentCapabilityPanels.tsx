@@ -11,7 +11,8 @@ import type { CoreAgentCapability, CoreAgentCapabilityAssignment, CoreAgentCapab
 import { formatDateTime } from '@/lib/utils/format';
 import { useAgentCapabilityDialogController } from '@/components/agents/useAgentCapabilityDialogController';
 import type { AgentDetailBundle } from '@/hooks/useAgentDetail';
-import { Panel, StatCard, ModalShell, FormTextArea, DialogNotice, activeCapabilityAssignments, buttonBaseClassName, isOperatorRuntimeCapability, normalizeCode, normalizeLifecycleStatus } from '@/components/agents/AgentDetailUi';
+import { Panel, StatCard, ModalShell, FormTextArea, DialogNotice, activeCapabilityAssignments, isOperatorRuntimeCapability, normalizeCode, normalizeLifecycleStatus } from '@/components/agents/AgentDetailUi';
+import { Button } from '@/components/ui/Button';
 
 type CommandFn<TBody> = (body: TBody) => Promise<CommandResult>;
 
@@ -267,12 +268,12 @@ export function CapabilityList({
                   <td className="px-4 py-3 text-right">
                     {assignment ? (
                       <div className="flex flex-wrap justify-end gap-2">
-                        {(status === 'DECLARED' || status === 'PENDING_APPROVAL') ? <button type="button" disabled={!assignmentReady} onClick={() => onApprove(assignment)} className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">{t('agent.detail.action.approve')}</button> : null}
-                        {status === 'APPROVED' ? <button type="button" disabled={!assignmentReady} onClick={() => onSuspend(assignment)} className="rounded-lg border border-amber-200 px-2 py-1 text-xs font-bold text-amber-700 hover:bg-amber-50 disabled:opacity-50">{t('agent.detail.action.suspend')}</button> : null}
-                        {(status === 'SUSPENDED' || status === 'EXPIRED') ? <button type="button" disabled={!assignmentReady} onClick={() => onResume(assignment)} className="rounded-lg border border-blue-200 px-2 py-1 text-xs font-bold text-blue-700 hover:bg-blue-50 disabled:opacity-50">{t('agent.detail.action.resume')}</button> : null}
-                        {(status === 'APPROVED' || status === 'SUSPENDED' || status === 'EXPIRED') ? <button type="button" disabled={!assignmentReady} onClick={() => onRevoke(assignment)} className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50">{t('agent.detail.action.revoke')}</button> : null}
-                        {(status === 'APPROVED' || status === 'SUSPENDED' || status === 'EXPIRED') ? <button type="button" disabled={!assignmentReady} onClick={() => onRevokeAndRemove(assignment)} className="rounded-lg border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-black text-rose-800 hover:bg-rose-100 disabled:opacity-50">Revoke & remove</button> : null}
-                        {(status === 'DECLARED' || status === 'PENDING_APPROVAL' || status === 'REJECTED' || status === 'REVOKED') ? <button type="button" disabled={!assignmentReady} onClick={() => onRemove(assignment)} className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Remove</button> : null}
+                        {(status === 'DECLARED' || status === 'PENDING_APPROVAL') ? <Button type="button" disabled={!assignmentReady} onClick={() => onApprove(assignment)} tone="success" size="xs">{t('agent.detail.action.approve')}</Button> : null}
+                        {status === 'APPROVED' ? <Button type="button" disabled={!assignmentReady} onClick={() => onSuspend(assignment)} tone="warning" size="xs">{t('agent.detail.action.suspend')}</Button> : null}
+                        {(status === 'SUSPENDED' || status === 'EXPIRED') ? <Button type="button" disabled={!assignmentReady} onClick={() => onResume(assignment)} tone="success" size="xs">{t('agent.detail.action.resume')}</Button> : null}
+                        {(status === 'APPROVED' || status === 'SUSPENDED' || status === 'EXPIRED') ? <Button type="button" disabled={!assignmentReady} onClick={() => onRevoke(assignment)} tone="danger" size="xs">{t('agent.detail.action.revoke')}</Button> : null}
+                        {(status === 'APPROVED' || status === 'SUSPENDED' || status === 'EXPIRED') ? <Button type="button" disabled={!assignmentReady} onClick={() => onRevokeAndRemove(assignment)} tone="danger" size="xs">Revoke & remove</Button> : null}
+                        {(status === 'DECLARED' || status === 'PENDING_APPROVAL' || status === 'REJECTED' || status === 'REVOKED') ? <Button type="button" disabled={!assignmentReady} onClick={() => onRemove(assignment)} tone="danger" size="xs">Remove</Button> : null}
                       </div>
                     ) : <span className="text-xs font-semibold text-slate-400">Managed through Agent capabilities</span>}
                   </td>
@@ -303,15 +304,15 @@ export function CapabilityList({
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {revokedAssignments.map((assignment) => (
-              <button
+              <Button
                 key={assignment.assignmentId ?? assignment.capabilityCode}
                 type="button"
                 disabled={!assignment.assignmentId}
                 onClick={() => onRemove(assignment)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                tone="danger" size="xs"
               >
                 Remove {normalizeCode(assignment.capabilityCode)}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -371,8 +372,8 @@ export function QuickCapabilityDialog({
 
         <FormTextArea label="Reason" value={reason} onChange={setReason} rows={2} />
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
-          <button type="button" onClick={onClose} className={`${buttonBaseClassName} border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}>Close</button>
-          <button type="button" onClick={() => void submit()} disabled={saving || !capabilityCode} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">{saving ? 'Saving...' : 'Assign Capability'}</button>
+          <Button type="button" onClick={onClose} tone="secondary" size="xs">Close</Button>
+          <Button type="button" onClick={() => void submit()} disabled={saving || !capabilityCode} tone="primary" size="xs">{saving ? 'Saving...' : 'Assign Capability'}</Button>
         </div>
       </div>
     </ModalShell>

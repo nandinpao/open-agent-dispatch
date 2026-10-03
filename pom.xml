@@ -5,7 +5,7 @@
 
     <groupId>com.opensocket</groupId>
     <artifactId>opendispatch</artifactId>
-    <version>0.8.2-SNAPSHOT</version>
+    <version>0.9.3-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>OpenDispatch</name>
